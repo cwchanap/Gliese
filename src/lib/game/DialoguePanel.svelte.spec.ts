@@ -543,6 +543,20 @@ describe('DialoguePanel.svelte', () => {
 		expect(onadvance).toHaveBeenCalledOnce();
 	});
 
+	it('announces the full line to screen readers even mid-typewriter', async () => {
+		updatePreferences({ textSpeed: 'slow' });
+		renderDialogue(conversationDialogue);
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+
+		await expect.element(panel).toHaveFocus();
+		// Mid-reveal: the visible line is partial, the live status is not.
+		expect(panel.element().querySelector('.jrpg-dialogue-line')!.textContent!.length).toBeLessThan(
+			conversationDialogue.line.length
+		);
+		const status = panel.element().querySelector('[role="status"]')!;
+		expect(status.textContent).toBe(conversationDialogue.line);
+	});
+
 	it('keeps choices inert until the line fully reveals', async () => {
 		updatePreferences({ textSpeed: 'slow' });
 		const { onchoose } = renderDialogue();

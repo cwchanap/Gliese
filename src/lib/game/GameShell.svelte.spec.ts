@@ -588,6 +588,9 @@ describe('GameShell battle summary', () => {
 			expect(page.getByTestId('battle-plate').elements()).toHaveLength(1);
 			await expect.element(page.getByTestId('battle-hero-plate')).toBeVisible();
 			await expect.element(page.getByTestId('battle-feed')).toBeVisible();
+			// Feed updates are announced politely without stealing focus.
+			await expect.element(page.getByTestId('battle-feed')).toHaveAttribute('role', 'log');
+			await expect.element(page.getByTestId('battle-feed')).toHaveAttribute('aria-live', 'polite');
 			await expect.element(page.getByTestId('battle-tile-heal')).toBeVisible();
 			await expect.element(page.getByTestId('battle-tile-item')).toBeVisible();
 			await expect.element(page.getByTestId('battle-tile-flee')).toBeVisible();
