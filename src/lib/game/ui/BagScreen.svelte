@@ -951,6 +951,84 @@
 		font-weight: 700;
 	}
 
+	/* Short-height compaction (final-review finding 4): below ~560px the
+	   desktop columns overflow — rail cards + Close run past the bottom edge
+	   and the WORN panel's fixed-size tiles (with remove buttons) clip under
+	   overflow:hidden. Same 560px boundary as the command-grid fallback. */
+	@media (max-height: 559px) {
+		.bag-screen {
+			padding: 0.9rem 1.1rem 0.9rem 0.9rem;
+			gap: 1rem;
+		}
+
+		.bag-title {
+			font-size: 1.2rem;
+		}
+
+		.bag-coins {
+			margin-right: 0;
+		}
+
+		.bag-grid-panel {
+			margin-top: 0.6rem;
+		}
+
+		.bag-grid-scroll {
+			padding: 0.6rem;
+		}
+
+		.bag-rail {
+			gap: 0.5rem;
+		}
+
+		.bag-rail-tabs {
+			gap: 0.4rem;
+		}
+
+		.bag-rail-card {
+			gap: 0.3rem;
+			padding: 0.5rem 0.3rem 0.45rem;
+		}
+
+		.bag-rail-icon svg {
+			width: 1rem;
+			height: 1rem;
+		}
+
+		.bag-rail-close {
+			padding: 0.15rem 0.3rem;
+		}
+
+		.bag-side {
+			gap: 0.6rem;
+		}
+
+		.bag-worn {
+			padding: 0.5rem 0.7rem;
+		}
+
+		.bag-worn-grid {
+			margin-top: 0.3rem;
+			row-gap: 0.3rem;
+		}
+
+		.bag-worn-tile {
+			width: 2.9rem;
+			height: 2.9rem;
+		}
+
+		.bag-worn-remove {
+			top: -0.35rem;
+			right: -0.35rem;
+			width: 1.05rem;
+			height: 1.05rem;
+		}
+
+		.bag-detail {
+			padding: 0.6rem 0.8rem;
+		}
+	}
+
 	@media (max-width: 900px) {
 		.bag-screen {
 			flex-direction: column;
