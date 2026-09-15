@@ -221,6 +221,7 @@
 				<span>{dialogue.speaker}</span>
 			</p>
 			<p class="jrpg-dialogue-line">{visibleText}</p>
+			<span class="sr-only" role="status">{dialogue.line}</span>
 			<div class="jrpg-dialogue-meta">
 				<div class="jrpg-dialogue-dots" aria-hidden="true">
 					{#each Array(dialogue.lineCount) as _, index (index)}
