@@ -185,7 +185,7 @@
 	}
 
 	/** Side-quest glyphs follow the mockup vocabulary: slime (defeat) or
-	 	key (collect), picked from the quest's first objective. */
+	 *  key (collect), picked from the quest's first objective. */
 	function getSideIconKind(questId: string): 'slime' | 'relic' {
 		const objective = getQuest(questId)?.objectives[0];
 		return objective?.kind === 'collect-item' ? 'relic' : 'slime';

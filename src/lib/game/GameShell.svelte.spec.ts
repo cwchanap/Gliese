@@ -574,6 +574,100 @@ describe('GameShell battle summary', () => {
 			});
 		});
 
+		function swarmBattle(count: number, targetUnitId: string): Partial<HudState> {
+			const enemies = Array.from({ length: count }, (_, index) => ({
+				unitId: `encounter:unit:${index}`,
+				enemyId: 'slime-scout',
+				name: `Slime Scout ${index + 1}`,
+				hp: 5,
+				maxHp: 8,
+				defeated: false,
+				artPath: '/game/assets/heroic-ui/enemies/slime-scout.png'
+			}));
+			const base = activeBattle();
+			return {
+				...base,
+				battle: {
+					phase: 'active',
+					summary: null,
+					active: {
+						targetUnitId,
+						enemies,
+						ribbon: [
+							{ unitId: 'hero', readyAt: 0 },
+							...enemies.map((enemy) => ({ unitId: enemy.unitId, readyAt: 100 }))
+						],
+						feed: [
+							{ id: 1, kind: 'hit', amount: 4, subject: 'Slime Scout' },
+							{ id: 2, kind: 'hurt', amount: 2, subject: 'Liam' },
+							{ id: 3, kind: 'heal', amount: 6, subject: 'Liam' },
+							{ id: 4, kind: 'defeat', amount: 0, subject: 'Slime Scout' }
+						],
+						heals: 1,
+						items: 3,
+						flee: { status: 'idle', progress: 0 },
+						now: 0
+					}
+				}
+			};
+		}
+
+		it('bounds the plate stack and feed inside short viewports', async () => {
+			render(GameShell);
+			emitHudState(baseHudState(swarmBattle(10, 'encounter:unit:9')));
+
+			// Short viewports get a compact, internally scrollable plate stack
+			// and a bounded feed — the shell's overflow: clip makes any
+			// off-viewport interactive box unreachable (Playwright click hangs).
+			await page.viewport(640, 360);
+			try {
+				window.scrollTo(0, 0);
+
+				const platesBox = document.querySelector<HTMLElement>('[data-testid="battle-plates"]');
+				expect(platesBox).not.toBeNull();
+				const boxRect = platesBox!.getBoundingClientRect();
+				expect(boxRect.top).toBeGreaterThanOrEqual(0);
+				expect(boxRect.bottom).toBeLessThanOrEqual(360);
+
+				const plates = [...document.querySelectorAll<HTMLElement>('[data-testid="battle-plate"]')];
+				expect(plates).toHaveLength(10);
+
+				// The stack scrolls internally, so every plate is reachable:
+				// scrollIntoView (what a Playwright click performs) lands each
+				// one inside the viewport.
+				for (const [index, plate] of plates.entries()) {
+					plate.scrollIntoView({ block: 'nearest' });
+					const rect = plate.getBoundingClientRect();
+					expect(rect.top, `plate ${index}`).toBeGreaterThanOrEqual(0);
+					expect(rect.bottom, `plate ${index}`).toBeLessThanOrEqual(360);
+				}
+
+				// The selected target stays visible: cycling the target scrolls
+				// the newly selected plate back into view without manual
+				// scrolling.
+				emitHudState(baseHudState(swarmBattle(10, 'encounter:unit:0')));
+				const newTarget = plates[0]!;
+				await vi.waitFor(() => {
+					expect(newTarget.getAttribute('aria-pressed')).toBe('true');
+				});
+				expect(newTarget.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+				expect(newTarget.getBoundingClientRect().bottom).toBeLessThanOrEqual(360);
+
+				// The feed stays fully on-screen too.
+				const feed = document.querySelector<HTMLElement>('[data-testid="battle-feed"]')!;
+				const feedRect = feed.getBoundingClientRect();
+				expect(feedRect.top).toBeGreaterThanOrEqual(0);
+				expect(feedRect.bottom).toBeLessThanOrEqual(360);
+
+				// Same bounds hold at a wide short viewport (width-independent fix).
+				await page.viewport(1000, 360);
+				expect(platesBox!.getBoundingClientRect().bottom).toBeLessThanOrEqual(360);
+				expect(feed.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+			} finally {
+				await page.viewport(1280, 720);
+			}
+		});
+
 		it('disables the Heal tile at full HP even with charges left', async () => {
 			render(GameShell);
 			emitHudState(baseHudState(activeBattle({ hp: 20, maxHp: 20 })));

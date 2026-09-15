@@ -348,6 +348,23 @@
 		opacity: 0.55;
 	}
 
+	/* Short viewports (e.g. 640×360): the desktop 14.375rem anchor lifts the
+	   third choice row (quest-detail accept flows) past the viewport top —
+	   the shell's overflow: clip makes the clipped row unreachable (same
+	   class as the Playwright actionability hangs). Compact the rows and
+	   anchor the column lower so 1-3 choices all stay on-screen; taller
+	   viewports keep the desktop composition untouched. */
+	@media (max-height: 500px) {
+		.jrpg-dialogue-choices {
+			bottom: 11rem;
+			gap: 0.4rem;
+		}
+
+		.jrpg-dialogue-choice {
+			padding: 0.45rem 1.1rem;
+		}
+	}
+
 	.jrpg-dialogue-row {
 		display: flex;
 		align-items: flex-end;
