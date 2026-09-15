@@ -1977,6 +1977,52 @@ describe('GameShell keyboard shortcuts', () => {
 		await expect.element(page.getByRole('tab', { name: /gear/i })).toHaveFocus();
 	});
 
+	it('owns arrow keys during every dialogue mode so they never reach Phaser', async () => {
+		// Conversation mode exposes no focusable lattice node (Next/Close are
+		// bar prompts); the dialogue must still swallow arrows — Phaser treats
+		// an un-prevented window keydown as movement input.
+		render(GameShell);
+		for (const mode of ['conversation', 'system', 'choice'] as const) {
+			emitHudState(
+				baseHudState({
+					dialogue: {
+						id: `dialogue-${mode}`,
+						npcId: 'npc-mira',
+						speaker: 'Mira',
+						line: 'Welcome!',
+						lineIndex: 0,
+						lineCount: 1,
+						mode,
+						choices: mode === 'choice' ? [{ id: 'shop', label: 'Shop', kind: 'trade' }] : [],
+						canClose: true
+					}
+				})
+			);
+			await expect.element(page.getByRole('dialog', { name: 'Mira' })).toBeVisible();
+
+			const prevented: Record<string, boolean> = {};
+			const listener = (event: Event) => {
+				const key = (event as KeyboardEvent).key;
+				if (key.startsWith('Arrow')) prevented[key] = (event as KeyboardEvent).defaultPrevented;
+			};
+			window.addEventListener('keydown', listener);
+			try {
+				// Choices stay disabled mid-reveal at normal speed — the hardest
+				// case: no focusable node, focus sits on the panel itself.
+				await userEvent.keyboard('{ArrowUp}{ArrowDown}{ArrowLeft}{ArrowRight}');
+			} finally {
+				window.removeEventListener('keydown', listener);
+			}
+
+			expect(prevented, `mode: ${mode}`).toEqual({
+				ArrowUp: true,
+				ArrowDown: true,
+				ArrowLeft: true,
+				ArrowRight: true
+			});
+		}
+	});
+
 	it('moves grid focus with arrow keys through resolveMenuFocusTarget', async () => {
 		render(GameShell);
 		emitHudState(baseHudState({ heals: 0 }));
