@@ -351,21 +351,28 @@ describe('DialoguePanel.svelte', () => {
 		await page.viewport(640, 360);
 		try {
 			window.scrollTo(0, 0);
-			renderDialogue({
+			const renderDialogueReturn = renderDialogue({
 				choices: [
 					{ id: 'quest:accept', label: 'Accept the Commission', kind: 'trade' },
 					{ id: 'quest:ask', label: 'Ask About the Ruins', kind: 'ask' },
 					{ id: 'close', label: 'Leave', kind: 'leave' }
 				]
 			});
+			const { onchoose } = renderDialogueReturn;
 
-			const rows = [
-				...page
-					.getByRole('dialog', { name: 'Guild Master Arlen' })
-					.element()
-					.querySelectorAll('.jrpg-dialogue-choice')
-			];
+			const dialogPanel = page.getByRole('dialog', { name: 'Guild Master Arlen' }).element();
+			// Settle the entrance animation so the rects below are the at-rest
+			// composition the real pointer flow sees.
+			await vi.waitFor(() => {
+				expect(dialogPanel.getAnimations().every(({ playState }) => playState === 'finished')).toBe(
+					true
+				);
+			});
+
+			const rows = [...dialogPanel.querySelectorAll('.jrpg-dialogue-choice')];
 			expect(rows).toHaveLength(3);
+			const panelRect = dialogPanel.getBoundingClientRect();
+			const lineRect = dialogPanel.querySelector('.jrpg-dialogue-line')!.getBoundingClientRect();
 			for (const [index, row] of rows.entries()) {
 				const rect = row.getBoundingClientRect();
 				expect(rect.height, `row ${index}`).toBeGreaterThan(0);
@@ -373,7 +380,55 @@ describe('DialoguePanel.svelte', () => {
 				expect(rect.bottom, `row ${index}`).toBeLessThanOrEqual(360);
 				expect(rect.left, `row ${index}`).toBeGreaterThanOrEqual(0);
 				expect(rect.right, `row ${index}`).toBeLessThanOrEqual(640);
+				// The compacted column must clear the panel box AND the prose
+				// area by ≥8px — wrapped lines previously grew the bottom-anchored
+				// panel up into the column and intercepted its pointer events.
+				expect(rect.bottom, `row ${index} clears panel`).toBeLessThanOrEqual(panelRect.top - 8);
+				expect(rect.bottom, `row ${index} clears line`).toBeLessThanOrEqual(lineRect.top - 8);
 			}
+
+			// A real hit-tested click must land on the choice, not the prose.
+			await page
+				.getByRole('dialog', { name: 'Guild Master Arlen' })
+				.getByRole('button', { name: 'Accept the Commission' })
+				.click();
+			expect(onchoose).toHaveBeenCalledWith('quest:accept');
+		} finally {
+			page.viewport(414, 730);
+		}
+	});
+
+	it('keeps wrapped multi-line prose clear of the compacted choice column at 640×360', async () => {
+		// Regression: at ≤500px heights Oren's shop offer wrapped to several
+		// lines in the 640×360 gate viewport, and the bottom-anchored bar grew
+		// upward until .jrpg-dialogue-line sat under the choice column — every
+		// click failed with "line intercepts pointer events".
+		await page.viewport(640, 360);
+		try {
+			window.scrollTo(0, 0);
+			const { onchoose } = renderDialogue({
+				line: 'Steel holds when the hand behind it does. Take what fits, and keep it dry.',
+				choices: [{ id: 'shop', label: 'Shop', kind: 'trade' }]
+			});
+
+			const dialogPanel = page.getByRole('dialog', { name: 'Guild Master Arlen' }).element();
+			await vi.waitFor(() => {
+				expect(dialogPanel.getAnimations().every(({ playState }) => playState === 'finished')).toBe(
+					true
+				);
+			});
+
+			const panelRect = dialogPanel.getBoundingClientRect();
+			const lineRect = dialogPanel.querySelector('.jrpg-dialogue-line')!.getBoundingClientRect();
+			const rowRect = dialogPanel.querySelector('.jrpg-dialogue-choice')!.getBoundingClientRect();
+			expect(rowRect.bottom).toBeLessThanOrEqual(panelRect.top - 8);
+			expect(rowRect.bottom).toBeLessThanOrEqual(lineRect.top - 8);
+
+			await page
+				.getByRole('dialog', { name: 'Guild Master Arlen' })
+				.getByRole('button', { name: 'Shop' })
+				.click();
+			expect(onchoose).toHaveBeenCalledWith('shop');
 		} finally {
 			page.viewport(414, 730);
 		}
