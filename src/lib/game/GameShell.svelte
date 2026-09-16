@@ -25,7 +25,7 @@
 		type MenuFocusNode
 	} from '$lib/game/core/menu-focus';
 	import {
-		diffGamepadActions,
+		diffGamepadSlots,
 		setLastInputModality,
 		snapshotGamepad,
 		type GamepadSnapshot,
@@ -494,14 +494,15 @@
 	// Polls in both modes: the Title screen and every overlay are pad-first
 	// surfaces too (directional focus + confirm/cancel).
 	$effect(() => {
-		let previous: GamepadSnapshot = null;
+		let previous: GamepadSnapshot[] = [];
 		let frame = requestAnimationFrame(function poll() {
 			const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
-			// Browsers leave holes for disconnected slots; a pad in a sparse slot
-			// must still drive the UI (final-review finding 7).
-			const current = snapshotGamepad(pads.find((pad) => pad !== null) ?? null);
-			for (const action of diffGamepadActions(previous, current)) handlePadUiAction(action);
-			previous = current;
+			// Every connected slot drives the UI — an idle pad must not mask an
+			// active one (final review), and sparse slots still work. Per-slot
+			// edges merge deduped per frame (D-pad+stick duplicates included).
+			const snapshots = Array.from(pads, snapshotGamepad);
+			for (const action of diffGamepadSlots(previous, snapshots)) handlePadUiAction(action);
+			previous = snapshots;
 			frame = requestAnimationFrame(poll);
 		});
 		return () => cancelAnimationFrame(frame);
