@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	diffGamepadActions,
+	diffGamepadSlots,
 	lastInputModality,
 	resolvePromptModality,
 	setLastInputModality,
@@ -78,6 +79,36 @@ describe('diffGamepadActions', () => {
 	it('treats a disconnected pad as no actions', () => {
 		expect(diffGamepadActions(NONE, null)).toEqual([]);
 		expect(diffGamepadActions(null, null)).toEqual([]);
+	});
+});
+
+describe('diffGamepadSlots', () => {
+	it('edges each slot independently — an idle pad cannot mask an active one', () => {
+		const idle = padFrom();
+		const active = padFrom({ buttons: { 0: true } });
+		expect(diffGamepadSlots([], [idle, active])).toEqual(['confirm']);
+
+		// Held across frames: silent per slot.
+		expect(diffGamepadSlots([idle, active], [idle, active])).toEqual([]);
+	});
+
+	it('merges per-slot actions and dedupes a same-frame duplicate', () => {
+		const dpadUp = padFrom({ buttons: { 12: true } });
+		const stickUp = padFrom({ axes: [0, -0.8] });
+		expect(diffGamepadSlots([], [dpadUp, stickUp])).toEqual(['up']);
+		expect(diffGamepadSlots([], [dpadUp, padFrom({ buttons: { 0: true } })])).toEqual([
+			'up',
+			'confirm'
+		]);
+	});
+
+	it('handles a pad disconnecting between frames', () => {
+		const held = padFrom({ buttons: { 9: true } });
+		expect(diffGamepadSlots([padFrom(), padFrom()], [held])).toEqual(['menu']);
+	});
+
+	it('treats an empty slot list as no actions', () => {
+		expect(diffGamepadSlots([], [])).toEqual([]);
 	});
 });
 

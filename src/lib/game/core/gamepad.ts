@@ -78,6 +78,21 @@ export function diffGamepadActions(
 	return [...new Set(actions)];
 }
 
+/** Edge detection across every connected slot: each pad diffs against its own
+ *  previous snapshot, then the per-slot action lists merge deduped per frame —
+ *  an idle pad in slot 0 must not mask an active one (final review), and two
+ *  pads pressing the same button still emit once. */
+export function diffGamepadSlots(
+	previous: readonly GamepadSnapshot[],
+	current: readonly GamepadSnapshot[]
+): GamepadUiAction[] {
+	return [
+		...new Set(
+			current.flatMap((snapshot, slot) => diffGamepadActions(previous[slot] ?? null, snapshot))
+		)
+	];
+}
+
 /** Prompt glyphs follow the preference; 'auto' mirrors the last real input. */
 export function resolvePromptModality(
 	promptMode: PromptMode,

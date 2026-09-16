@@ -2453,14 +2453,14 @@ describe('GameShell title mode', () => {
 });
 
 describe('GameShell pad layer', () => {
-	let stubPad: { buttons: Array<{ pressed: boolean }>; axes: number[] };
+	let pads: Array<{ buttons: Array<{ pressed: boolean }>; axes: number[] }>;
 
-	function installPadStub() {
-		stubPad = {
+	function installPadStub(padCount = 1) {
+		pads = Array.from({ length: padCount }, () => ({
 			buttons: Array.from({ length: 17 }, () => ({ pressed: false })),
 			axes: [0, 0]
-		};
-		vi.stubGlobal('navigator', { getGamepads: () => [stubPad] });
+		}));
+		vi.stubGlobal('navigator', { getGamepads: () => pads });
 	}
 
 	function padFrames(count = 2): Promise<void> {
@@ -2471,17 +2471,19 @@ describe('GameShell pad layer', () => {
 		});
 	}
 
-	async function press(buttonIndex: number) {
-		stubPad.buttons[buttonIndex].pressed = true;
+	async function press(buttonIndex: number, padIndex = 0) {
+		const pad = pads[padIndex]!;
+		pad.buttons[buttonIndex].pressed = true;
 		await padFrames();
-		stubPad.buttons[buttonIndex].pressed = false;
+		pad.buttons[buttonIndex].pressed = false;
 		await padFrames();
 	}
 
-	async function tiltAxis(x: number, y: number) {
-		stubPad.axes = [x, y];
+	async function tiltAxis(x: number, y: number, padIndex = 0) {
+		const pad = pads[padIndex]!;
+		pad.axes = [x, y];
 		await padFrames();
-		stubPad.axes = [0, 0];
+		pad.axes = [0, 0];
 		await padFrames();
 	}
 
@@ -2522,17 +2524,51 @@ describe('GameShell pad layer', () => {
 	});
 
 	it('drives the UI from a pad in a sparse gamepad slot', async () => {
-		stubPad = {
-			buttons: Array.from({ length: 17 }, () => ({ pressed: false })),
-			axes: [0, 0]
-		};
+		installPadStub();
 		// Browsers pad disconnected slots with null (final-review finding 7).
-		vi.stubGlobal('navigator', { getGamepads: () => [null, null, stubPad] });
+		vi.stubGlobal('navigator', { getGamepads: () => [null, null, pads[0]] });
 		render(GameShell);
 		emitHudState(baseHudState());
 
-		await press(9);
+		await press(9, 0);
 		await expect.element(page.getByRole('button', { name: 'Bag' })).toBeVisible();
+	});
+
+	it('drives the UI from an active pad in slot 1 behind an idle pad in slot 0', async () => {
+		installPadStub(2);
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState({ dialogue: conversationDialogue('dialogue-slot-1') }));
+			const panel = page.getByRole('dialog', { name: 'Mira' });
+			await expect.element(panel).toBeVisible();
+
+			// Slot 0 sits idle the whole time; slot 1's confirm reveals, then
+			// advances the dialogue (final review: find-first ignored it).
+			await press(0, 1);
+			await press(0, 1);
+
+			expect(commands).toContainEqual({ type: 'dialogue-advance' });
+		});
+	});
+
+	it('registers inputs from pads in slots 0 and 2 with a hole between', async () => {
+		installPadStub(3);
+		vi.stubGlobal('navigator', { getGamepads: () => [pads[0], null, pads[2]] });
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState({ dialogue: conversationDialogue('dialogue-two-pads') }));
+			const panel = page.getByRole('dialog', { name: 'Mira' });
+			await expect.element(panel).toBeVisible();
+
+			// Slot 0 confirms the line through; slot 2's B closes it. Both
+			// disconnected-slot-straddling pads must register.
+			await press(0, 0);
+			await press(0, 0);
+			expect(commands).toContainEqual({ type: 'dialogue-advance' });
+
+			await press(1, 2);
+			expect(commands).toContainEqual({ type: 'dialogue-close' });
+		});
 	});
 
 	it('moves focus through the 4×2 command grid with the left stick', async () => {
