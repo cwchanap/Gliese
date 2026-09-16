@@ -143,6 +143,8 @@
 
 	// Arrow keys drive the focus lattice on every open surface, not just the
 	// command grid (final-review: overlay coords were keyboard-unreachable).
+	// Also the ONE modal guard: when anything here is open, M/Start/Menu never
+	// raise a background surface (final-review: save + dialogue were omitted).
 	const overlaySurfaceOpen = $derived(
 		commandOpen ||
 			inventoryOpen ||
@@ -222,7 +224,9 @@
 	}
 
 	function openCommand() {
-		if (commandOpen) return;
+		// Start / the Menu button must not raise the grid behind an open
+		// overlay or dialogue (final review); closing stays the toggle's job.
+		if (overlaySurfaceOpen) return;
 		commandOpen = true;
 		pauseForOverlay('settings');
 	}
@@ -420,10 +424,15 @@
 		if (event.repeat) return false;
 		if (isEditableTarget(event.target)) return false;
 
-		// Dialogue owns input: even when it exposes no focusable lattice node
-		// (conversation/system modes, pre-reveal choices), arrows must never
-		// fall through to Phaser movement.
+		// Dialogue owns arrows. Revealed choice rows carry lattice coords, so
+		// arrows move the selection exactly like the pad does (final review).
+		// Conversation/system/pre-reveal states expose no enabled choice —
+		// swallow (prevented, never reaches Phaser movement).
 		if ($hudState.dialogue) {
+			const choicesRevealed =
+				$hudState.dialogue.mode === 'choice' &&
+				document.querySelector('.jrpg-dialogue-choice:not([disabled])') !== null;
+			if (choicesRevealed) moveMenuFocus(direction);
 			event.preventDefault();
 			return true;
 		}
@@ -471,9 +480,10 @@
 			return;
 		}
 
-		const otherOverlayOpen =
-			commandOpen || inventoryOpen || skillOpen || shopOpen || questLogOpen || systemOpen;
-		if (otherOverlayOpen || battleLocked || !$hudState.ready) return;
+		// Same coherent modal guard as Start/Menu: M never raises the map under
+		// any open surface — save and dialogue included (final review). Closing
+		// the already-open map stays handled above.
+		if (overlaySurfaceOpen || battleLocked || !$hudState.ready) return;
 
 		event.preventDefault();
 		openAreaMap();

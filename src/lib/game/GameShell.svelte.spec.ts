@@ -70,6 +70,20 @@ function baseHudState(overrides: Partial<HudState> = {}): HudState {
 	};
 }
 
+function conversationDialogue(id: string): HudState['dialogue'] {
+	return {
+		id,
+		npcId: 'npc-mira',
+		speaker: 'Mira',
+		line: 'Welcome!',
+		lineIndex: 0,
+		lineCount: 1,
+		mode: 'conversation',
+		choices: [],
+		canClose: true
+	};
+}
+
 function hudStateWithEquippedWeapon(overrides: Partial<HudState> = {}): HudState {
 	return baseHudState({
 		inventory: {
@@ -2040,6 +2054,83 @@ describe('GameShell keyboard shortcuts', () => {
 		expect(page.getByTestId('area-map-svg').elements()).toHaveLength(0);
 	});
 
+	it('does not open area map with M while the save screen is open', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Save', exact: true }).click();
+		const saveDialog = page.getByRole('dialog', { name: /save/i });
+		await expect.element(saveDialog).toBeVisible();
+
+		await userEvent.keyboard('m');
+
+		expect(page.getByTestId('area-map-svg').elements()).toHaveLength(0);
+		await expect.element(saveDialog).toBeVisible();
+	});
+
+	it('does not open area map with M during dialogue', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ dialogue: conversationDialogue('dialogue-m-guard') }));
+		await expect.element(page.getByRole('dialog', { name: 'Mira' })).toBeVisible();
+
+		await userEvent.keyboard('m');
+
+		expect(page.getByTestId('area-map-svg').elements()).toHaveLength(0);
+		await expect.element(page.getByRole('dialog', { name: 'Mira' })).toBeVisible();
+	});
+
+	it('moves arrows through revealed dialogue choices like the pad does', async () => {
+		updatePreferences({ textSpeed: 'instant' });
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				dialogue: {
+					id: 'dialogue-choice-keys',
+					npcId: 'npc-mira',
+					speaker: 'Mira',
+					line: 'What will you do?',
+					lineIndex: 0,
+					lineCount: 1,
+					mode: 'choice',
+					choices: [
+						{ id: 'shop', label: 'Shop', kind: 'trade' },
+						{ id: 'leave', label: 'Leave', kind: 'leave' }
+					],
+					canClose: true
+				}
+			})
+		);
+		const panel = page.getByRole('dialog', { name: 'Mira' });
+		await expect.element(panel.getByRole('button', { name: 'Shop' })).toBeEnabled();
+
+		const prevented: Record<string, boolean> = {};
+		const listener = (event: Event) => {
+			const key = (event as KeyboardEvent).key;
+			if (key.startsWith('Arrow')) prevented[key] = (event as KeyboardEvent).defaultPrevented;
+		};
+		window.addEventListener('keydown', listener);
+
+		try {
+			await userEvent.keyboard('{ArrowDown}');
+			await expect.element(panel.getByRole('button', { name: 'Shop' })).toHaveFocus();
+			await expect
+				.element(panel.getByRole('button', { name: 'Shop' }))
+				.toHaveAttribute('data-selected', 'true');
+
+			await userEvent.keyboard('{ArrowDown}');
+			await expect.element(panel.getByRole('button', { name: 'Leave' })).toHaveFocus();
+
+			await userEvent.keyboard('{ArrowUp}');
+			await expect.element(panel.getByRole('button', { name: 'Shop' })).toHaveFocus();
+		} finally {
+			window.removeEventListener('keydown', listener);
+		}
+
+		// Even while routing the lattice, arrows stay swallowed (no Phaser).
+		expect(prevented).toEqual({ ArrowDown: true, ArrowUp: true });
+	});
+
 	it('moves bag grid focus with arrow keys while the bag overlay is open', async () => {
 		render(GameShell);
 		emitHudState(
@@ -2412,6 +2503,22 @@ describe('GameShell pad layer', () => {
 
 		await press(9);
 		expect(page.getByRole('button', { name: 'Bag' }).elements()).toHaveLength(0);
+	});
+
+	it('Start cannot raise the command grid behind an open dialogue', async () => {
+		installPadStub();
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState({ dialogue: conversationDialogue('dialogue-start-guard') }));
+			const panel = page.getByRole('dialog', { name: 'Mira' });
+			await expect.element(panel).toBeVisible();
+
+			await press(9);
+
+			expect(commands).toEqual([]);
+			expect(page.getByRole('button', { name: 'Bag' }).elements()).toHaveLength(0);
+			await expect.element(panel).toBeVisible();
+		});
 	});
 
 	it('drives the UI from a pad in a sparse gamepad slot', async () => {
