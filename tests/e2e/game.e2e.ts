@@ -9058,7 +9058,10 @@ async function dismissQueuedQuestCompletionNotice(page: Page): Promise<boolean> 
 	// requiresClear transition, but it also lets the accepted guild quest finish
 	// as soon as the next NPC interaction is dispatched. Consume that queued
 	// system notice through the real UI before retrying the intended interaction.
-	await expect(notice.getByText(/^Quest complete: Thin Village Slimes\. Reward:/)).toBeVisible();
+	// Scope to the visible line: the sr-only status twin repeats the dialogue text.
+	await expect(notice.locator('.jrpg-dialogue-line')).toContainText(
+		/^Quest complete: Thin Village Slimes\. Reward:/
+	);
 	await notice.getByRole('button', { name: 'Close' }).click();
 	await expect(notice).toHaveCount(0);
 	return true;
@@ -9138,12 +9141,16 @@ async function completeGuildMasterQuest(page: Page) {
 	await page.keyboard.press('e', { delay: 50 });
 	const dialogue = page.getByRole('dialog', { name: 'Guild Master Arlen' });
 	await expect(dialogue).toBeVisible();
-	await expect(dialogue.getByText(/eastern ruins are stirring/i)).toBeVisible();
+	await expect(dialogue.locator('.jrpg-dialogue-line')).toContainText(
+		/eastern ruins are stirring/i
+	);
 	await dialogue.getByRole('button', { name: 'Next' }).click();
 	await dialogue.getByRole('button', { name: 'Next' }).click();
 	await dialogue.getByRole('button', { name: 'Quest' }).click();
 	await dialogue.getByRole('button', { name: 'Thin Village Slimes' }).click();
-	await expect(dialogue.getByText(/Defeat slimes near the village/i)).toBeVisible();
+	await expect(dialogue.locator('.jrpg-dialogue-line')).toContainText(
+		/Defeat slimes near the village/i
+	);
 	await dialogue.getByRole('button', { name: 'Accept' }).click();
 	await expect(dialogue).toHaveCount(0);
 	// The seeded Meadow clears make this side quest complete at acceptance. Consume
@@ -19998,12 +20005,17 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 	await page.keyboard.press('e', { delay: 50 });
 	const guildMasterDialog = page.getByRole('dialog', { name: 'Guild Master Arlen' });
 	await expect(guildMasterDialog).toBeVisible({ timeout: 10_000 });
-	await expect(guildMasterDialog.getByText(/eastern ruins are stirring/i)).toBeVisible();
+	// Scope to the visible line: the sr-only status twin repeats the dialogue text.
+	await expect(guildMasterDialog.locator('.jrpg-dialogue-line')).toContainText(
+		/eastern ruins are stirring/i
+	);
 	await guildMasterDialog.getByRole('button', { name: 'Next' }).click();
 	await guildMasterDialog.getByRole('button', { name: 'Next' }).click();
 	await guildMasterDialog.getByRole('button', { name: 'Quest' }).click();
 	await guildMasterDialog.getByRole('button', { name: 'Thin Village Slimes' }).click();
-	await expect(guildMasterDialog.getByText(/Defeat slimes near the village/i)).toBeVisible();
+	await expect(guildMasterDialog.locator('.jrpg-dialogue-line')).toContainText(
+		/Defeat slimes near the village/i
+	);
 	await guildMasterDialog.getByRole('button', { name: 'Accept' }).click();
 	await expect(guildMasterDialog).toHaveCount(0);
 
