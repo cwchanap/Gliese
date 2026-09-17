@@ -190,9 +190,8 @@ test('System screen capture through the menu path', async ({ page }) => {
 
 // Field capture: reached through a real New Run, then the Menu toggle opens
 // the Heroic 4×2 command grid over the Quiet field HUD (mockup composition:
-// hero card + grid left, minimap medallion + quest banner + wallet right).
-// A fresh New Run has no active main quest, so the quest banner stays hidden;
-// banner rendering is covered structurally by the unit specs.
+// hero card + grid left, minimap medallion + quest banner + wallet right;
+// fresh runs auto-activate the main quest, so the banner renders).
 test('Field HUD capture through a real New Run', async ({ page }) => {
 	await startNewRunFromTitle(page);
 
@@ -541,6 +540,20 @@ test('Shop screen capture through the merchant dialogue path', async ({ page }) 
 		'true'
 	);
 
+	// Sell side renders too: switch over, assert the sell grid, then switch
+	// back so the capture keeps the mockup's active-Buy composition.
+	const sellTab = shop.getByRole('tab', { name: 'Sell', exact: true });
+	await expect(sellTab).toHaveAttribute('aria-selected', 'false');
+	await sellTab.click();
+	await expect(sellTab).toHaveAttribute('aria-selected', 'true');
+	await expect(shop.getByTestId('shop-sell-grid')).toBeVisible();
+	await expect(shop.getByTestId('shop-sell-grid').getByRole('button').first()).toBeVisible();
+	await shop.getByRole('tab', { name: 'Buy', exact: true }).click();
+	await expect(shop.getByRole('tab', { name: 'Buy', exact: true })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+
 	// Select the unaffordable Traveler Vest (mockup composition).
 	await shop.getByRole('button', { name: 'Traveler Vest', exact: true }).click();
 	const detail = shop.getByTestId('shop-detail');
@@ -592,6 +605,10 @@ test('Battle HUD capture through a real encounter', async ({ page }) => {
 	}
 	// Plate art ships with the plates.
 	await expect(page.getByTestId('battle-plate').first().locator('img')).toBeVisible();
+	// The combat feed populates as turns resolve: at least one entry renders.
+	const feedRow = page.getByTestId('battle-feed').locator('.battle-feed-row').first();
+	await expect(feedRow).toBeVisible({ timeout: 10_000 });
+	await expect(feedRow).toContainText(/\S/);
 
 	// Let the entrance animation settle before capturing.
 	await page.waitForTimeout(700);
