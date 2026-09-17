@@ -1239,9 +1239,9 @@
 	.jrpg-command-toggle {
 		padding: 0.7rem 0.9rem;
 		font-size: 0.72rem;
-		/* Mockup parity: the source defers Menu to the dialogue bar (Task 7), so
-		   the toggle reveals only on keyboard focus / hover on desktop. It stays
-		   in the DOM — focus restoration and e2e/unit hooks click it regardless. */
+		/* Mockup parity: Menu lives in the dialogue bar, so the toggle reveals
+		   only on keyboard focus / hover on desktop. It stays in the DOM —
+		   focus restoration and e2e/unit hooks click it regardless. */
 		opacity: 0;
 		transition: opacity 160ms ease;
 	}
@@ -1260,7 +1260,7 @@
 		.jrpg-command-toggle {
 			padding: 0.6rem 0.72rem;
 			/* No mockup exists for small screens: keep the toggle visible so
-			   touch players retain menu access until Task 7. */
+			   touch players retain menu access. */
 			opacity: 1;
 		}
 	}
