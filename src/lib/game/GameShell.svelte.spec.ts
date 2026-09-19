@@ -1086,6 +1086,47 @@ describe('GameShell shop', () => {
 		await expect.element(page.getByTestId('shop-sell-grid')).toBeVisible();
 	});
 
+	it.each(['detail', 'double-click'])(
+		'keeps Escape working after the final sale via %s',
+		async (mode) => {
+			render(GameShell);
+			const shop = {
+				shopId: 'miras-item-shop',
+				name: "Mira's Item Shop",
+				merchantName: 'Mira',
+				buy: [],
+				sell: [mockShopSellEntry()]
+			};
+			const updateShop = (event: Event) => {
+				const command = (event as CustomEvent).detail;
+				if (command.type === 'sell-inventory-item') {
+					emitHudState(baseHudState({ shop: { ...shop, sell: [] } }));
+				} else if (command.type === 'close-shop') {
+					emitHudState(baseHudState());
+				}
+			};
+			window.addEventListener(HUD_COMMAND_EVENT, updateShop);
+			try {
+				emitHudState(baseHudState({ shop }));
+				const dialog = page.getByRole('dialog', { name: "Mira's Item Shop" });
+				await dialog.getByRole('tab', { name: 'Sell', exact: true }).click();
+				const item = dialog.getByRole('button', { name: 'Practice Sword', exact: true });
+				if (mode === 'detail') {
+					await item.click();
+					await dialog.getByTestId('shop-detail').getByRole('button').click();
+				} else {
+					await item.dblClick();
+				}
+				await expect.element(dialog.getByRole('button', { name: /Close/ })).toHaveFocus();
+				await userEvent.keyboard('{Escape}');
+				expect(dialog.elements()).toHaveLength(0);
+				await expect.element(page.getByRole('button', { name: /menu/i })).toHaveFocus();
+			} finally {
+				window.removeEventListener(HUD_COMMAND_EVENT, updateShop);
+			}
+		}
+	);
+
 	it('excludes tabindex -1 buttons from shop focus trap', async () => {
 		render(GameShell);
 		emitHudState(

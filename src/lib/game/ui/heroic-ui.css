@@ -76,7 +76,7 @@
 
 	.heroic-rail-card-selected {
 		border-color: rgba(255, 232, 168, 0.85);
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		color: #3a2c07;
 		box-shadow: 0 0 26px color-mix(in srgb, var(--color-gold) 35%, transparent);
 	}
@@ -202,7 +202,7 @@
 
 	.heroic-segment-selected {
 		border-color: rgba(255, 232, 168, 0.9);
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		color: #3a2c07;
 		box-shadow: 0 0 22px color-mix(in srgb, var(--color-gold) 38%, transparent);
 	}

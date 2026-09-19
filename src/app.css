@@ -18,9 +18,17 @@
 	--color-muted: #93a2d9;
 	--color-frame: rgba(154, 178, 255, 0.26);
 	--color-frame-strong: rgba(154, 178, 255, 0.52);
-	--color-gold-bright: #fff3c8;
+	--color-gold-bright: #fff6dc;
+	--color-gold-shade: #f2c886;
 	--font-display: 'Zen Maru Gothic', system-ui, sans-serif;
 	--font-body: 'Spectral', Georgia, serif;
+}
+
+:root {
+	--heroic-screen-background:
+		radial-gradient(60% 50% at 8% 0%, rgba(255, 214, 120, 0.14), transparent 60%),
+		radial-gradient(60% 50% at 100% 100%, rgba(176, 111, 255, 0.12), transparent 60%),
+		linear-gradient(150deg, #1a2555, #0a1030 55%, #2a1638);
 }
 
 @layer components {

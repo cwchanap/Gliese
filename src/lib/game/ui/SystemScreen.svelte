@@ -70,7 +70,7 @@
 		<div class="absolute inset-0 cursor-default" role="presentation" onclick={onClose}></div>
 		<div
 			bind:this={dialog}
-			class="heroic-window heroic-anim"
+			class="heroic-window system-screen heroic-anim"
 			class:heroic-motion-reduced={motionReduced}
 			aria-labelledby="system-heading"
 			aria-modal="true"
@@ -405,12 +405,49 @@
 		position: absolute;
 		inset: 0;
 		z-index: 50;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: rgba(2, 3, 10, 0.72);
-		padding: 1rem;
-		backdrop-filter: blur(3px);
+		background: var(--color-ink);
+	}
+
+	.system-screen {
+		width: 100%;
+		height: 100%;
+		max-height: none;
+		padding: 3.25rem 3.5rem;
+		border: 0;
+		border-radius: 0;
+		background: var(--heroic-screen-background);
+	}
+
+	.heroic-rail {
+		gap: 1.125rem;
+	}
+	.heroic-rail-card {
+		min-height: 6.25rem;
+		border-radius: 1rem;
+	}
+	.heroic-rows {
+		flex: 1;
+		align-content: start;
+		overflow: visible;
+		gap: 1.125rem;
+		margin-top: 1.625rem;
+	}
+	.heroic-row {
+		min-height: 6.8rem;
+		padding: 1.25rem 1.5rem;
+		border-radius: 1.25rem;
+		border-color: color-mix(in srgb, var(--color-gold) 50%, transparent);
+		background: linear-gradient(135deg, rgba(34, 74, 164, 0.75), rgba(12, 26, 74, 0.88));
+		box-shadow:
+			inset 0 0 0 3px rgba(255, 214, 120, 0.1),
+			inset 0 2px 0 rgba(255, 255, 255, 0.2);
+	}
+	.heroic-segment {
+		border-radius: 0.75rem;
+		padding: 0.65rem 1rem;
+	}
+	.heroic-title {
+		font-size: 2.2rem;
 	}
 
 	.system-content {
@@ -429,6 +466,9 @@
 	}
 
 	@media (max-width: 900px) {
+		.system-screen {
+			padding: 1rem;
+		}
 		.heroic-window {
 			flex-direction: column;
 		}
@@ -436,6 +476,21 @@
 		.heroic-rail {
 			grid-template-columns: repeat(3, 1fr);
 			width: 100%;
+		}
+		.heroic-row {
+			flex-wrap: wrap;
+		}
+		.heroic-segments {
+			flex-wrap: wrap;
+		}
+	}
+	@media (max-height: 600px) {
+		.system-screen {
+			padding: 1rem;
+		}
+		.system-content {
+			flex: none;
+			min-height: auto;
 		}
 	}
 </style>
