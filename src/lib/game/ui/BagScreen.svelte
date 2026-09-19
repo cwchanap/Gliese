@@ -450,6 +450,7 @@
 							data-focus-id="bag-detail-action"
 							data-focus-row={Math.floor(lastItemIndex / bagGridColumns) + 1}
 							data-focus-column={lastItemIndex % bagGridColumns}
+							disabled={!ready || battleLocked}
 							onclick={activateSelected}
 						>
 							<span>{getDetailActionLabel(getDetailAction(selectedSlot)!)}</span>

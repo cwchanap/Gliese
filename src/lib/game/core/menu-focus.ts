@@ -17,6 +17,13 @@ export type MenuFocusNode = {
 	disabled?: boolean;
 };
 
+/**
+ * Resolves the next focus id for a directional move over the focus lattice.
+ * @param nodes - Focusable nodes with grid coordinates; disabled nodes are skipped.
+ * @param currentId - Currently focused node id, or `null` when nothing is focused.
+ * @param direction - Direction of the attempted move.
+ * @returns The target node id, or `null` when no enabled node exists.
+ */
 export function resolveMenuFocusTarget(
 	nodes: readonly MenuFocusNode[],
 	currentId: string | null,

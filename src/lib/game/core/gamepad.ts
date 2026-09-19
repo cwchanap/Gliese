@@ -51,7 +51,10 @@ export function snapshotGamepad(pad: Gamepad | null): GamepadSnapshot {
 
 /** Actions newly engaged since `previous` — edge-triggered; held inputs stay silent.
  *  D-pad and stick mirror each other, so a same-frame duplicate direction is
- *  emitted once. */
+ *  emitted once.
+ *  @param previous - Snapshot from the prior frame, or `null` when no pad was connected.
+ *  @param current - Snapshot from this frame, or `null` when the pad disconnected.
+ *  @returns GamepadUiAction[] — deduplicated actions pressed since `previous`. */
 export function diffGamepadActions(
 	previous: GamepadSnapshot,
 	current: GamepadSnapshot
@@ -81,7 +84,10 @@ export function diffGamepadActions(
 /** Edge detection across every connected slot: each pad diffs against its own
  *  previous snapshot, then the per-slot action lists merge deduped per frame —
  *  an idle pad in slot 0 must not mask an active one (final review), and two
- *  pads pressing the same button still emit once. */
+ *  pads pressing the same button still emit once.
+ *  @param previous - Per-slot snapshots from the prior frame.
+ *  @param current - Per-slot snapshots from this frame.
+ *  @returns GamepadUiAction[] — deduplicated actions pressed on any slot. */
 export function diffGamepadSlots(
 	previous: readonly GamepadSnapshot[],
 	current: readonly GamepadSnapshot[]

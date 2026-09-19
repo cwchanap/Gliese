@@ -4,8 +4,8 @@
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
 	import { fleeChannelDurationMs } from '$lib/game/core/battle-presentation';
 	import {
-		requestBattleCycleTarget,
 		requestBattleFlee,
+		requestBattleSelectTarget,
 		requestHeal,
 		requestUseItem
 	} from '$lib/game/ui-bridge/store';
@@ -106,7 +106,7 @@
 					data-unit-id={enemy.unitId}
 					aria-pressed={enemy.unitId === active.targetUnitId}
 					aria-label={`${enemy.name} ${enemy.hp}/${enemy.maxHp}`}
-					onclick={() => requestBattleCycleTarget(1)}
+					onclick={() => requestBattleSelectTarget(enemy.unitId)}
 				>
 					<span class="battle-plate-arrow" aria-hidden="true">
 						<svg viewBox="0 0 16 16"><path d="m6 3.5 5 4.5-5 4.5" /></svg>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { locale, preferences } from '$lib/game/i18n/store';
+	import { locale, motionReduced, preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
 
@@ -18,21 +18,6 @@
 		onClose,
 		onkeydown
 	}: Props = $props();
-
-	let osReducedMotion = $state(false);
-
-	$effect(() => {
-		const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-		osReducedMotion = query.matches;
-		const onChange = (event: MediaQueryListEvent) => {
-			osReducedMotion = event.matches;
-		};
-		query.addEventListener('change', onChange);
-		return () => query.removeEventListener('change', onChange);
-	});
-
-	// Effective reduced motion obeys BOTH the saved preference and the OS setting.
-	const motionReduced = $derived($preferences.motion === 'reduced' || osReducedMotion);
 </script>
 
 {#if open}
@@ -41,7 +26,7 @@
 		<div
 			bind:this={dialog}
 			class="skill-window heroic-window heroic-anim"
-			class:heroic-motion-reduced={motionReduced}
+			class:heroic-motion-reduced={$motionReduced}
 			aria-labelledby="skill-heading"
 			aria-modal="true"
 			role="dialog"

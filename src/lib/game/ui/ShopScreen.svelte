@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { locale, preferences } from '$lib/game/i18n/store';
+	import { locale, motionReduced, preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import { getItemText } from '$lib/game/i18n/content';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
@@ -264,6 +264,7 @@
 	<div
 		bind:this={dialog}
 		class="shop-screen heroic-anim"
+		class:heroic-motion-reduced={$motionReduced}
 		aria-label={shopName}
 		aria-modal="true"
 		role="dialog"

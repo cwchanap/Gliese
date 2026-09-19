@@ -251,6 +251,15 @@ export function sellInventoryItem({
 	return { sold: true, wallet: { coins: wallet.coins + price }, inventory: result.inventory };
 }
 
+/**
+ * Builds the HUD's buy-list entries for a shop, in stock order.
+ * @param shopId - Shop definition id; unknown ids yield an empty list.
+ * @param stockState - Per-shop stock ledger used to resolve finite availability.
+ * @param locale - Locale for localized item names/descriptions.
+ * @param context - Optional caller stats/equipment/inventory; when supplied,
+ *   each entry gains an equipment-swap preview and owned count.
+ * @returns HudShopBuyEntry[] — one entry per sellable stock line.
+ */
 export function buildShopBuyEntries(
 	shopId: string,
 	stockState: ShopStockState,

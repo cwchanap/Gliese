@@ -5,7 +5,7 @@
 	import { startingPlayer } from '$lib/game/content/player';
 	import { deriveEffectiveStats } from '$lib/game/core/stats';
 	import { formatPlaytimeSeconds } from '$lib/game/save/playtime';
-	import { preferences } from '$lib/game/i18n/store';
+	import { motionReduced, preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import { tick } from 'svelte';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
@@ -127,6 +127,14 @@
 
 	/** Tab trap inside the overwrite alertdialog (final-review finding 9). */
 	function handleConfirmKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			// Swallow Escape so it cancels the overwrite prompt instead of
+			// bubbling to the screen-level handler and closing the whole dialog.
+			event.preventDefault();
+			event.stopPropagation();
+			cancelOverwrite();
+			return;
+		}
 		if (event.key !== 'Tab') return;
 		const focusable = Array.from(
 			confirmDialog?.querySelectorAll<HTMLButtonElement>('button:not([disabled])') ?? []
@@ -231,6 +239,7 @@
 	<div
 		bind:this={dialog}
 		class="save-screen heroic-anim"
+		class:heroic-motion-reduced={$motionReduced}
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="save-heading"
