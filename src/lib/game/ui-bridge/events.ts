@@ -182,6 +182,7 @@ export type HudCommand =
 	| { type: 'dialogue-close' }
 	| { type: 'dialogue-choose'; choiceId: string }
 	| { type: 'battle-cycle-target'; direction: -1 | 1 }
+	| { type: 'battle-select-target'; unitId: string }
 	| { type: 'battle-flee' }
 	| { type: 'dismiss-battle-summary' };
 

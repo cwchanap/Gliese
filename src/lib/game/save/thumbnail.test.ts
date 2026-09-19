@@ -28,9 +28,27 @@ describe('save thumbnail bounds', () => {
 		expect(boundSaveThumbnail(large)).toBeUndefined();
 	});
 
+	it('accepts a payload at the byte ceiling after padding adjustment', () => {
+		// 13653 full groups + 'AA==' encodes exactly 40 KiB (40960 bytes); the
+		// padded length estimate (54616*3/4 = 40962) would wrongly drop it.
+		const exact = `data:image/jpeg;base64,${'A'.repeat(54_612)}AA==`;
+		expect(boundSaveThumbnail(exact)).toBe(exact);
+	});
+
+	it('drops a payload one byte over the ceiling', () => {
+		// Same length as above but 'AAA=' decodes to 40961 bytes — just over.
+		const over = `data:image/jpeg;base64,${'A'.repeat(54_612)}AAA=`;
+		expect(boundSaveThumbnail(over)).toBeUndefined();
+	});
+
 	it('drops malformed payloads', () => {
 		expect(boundSaveThumbnail(undefined)).toBeUndefined();
 		expect(boundSaveThumbnail('')).toBeUndefined();
 		expect(boundSaveThumbnail('not-a-data-url')).toBeUndefined();
+		expect(boundSaveThumbnail('data:image/jpeg,raw-not-base64')).toBeUndefined();
+		expect(boundSaveThumbnail('data:image/jpeg;base64,')).toBeUndefined();
+		expect(boundSaveThumbnail('data:image/jpeg;base64,!!!!')).toBeUndefined();
+		expect(boundSaveThumbnail('data:image/jpeg;base64,AAA')).toBeUndefined();
+		expect(boundSaveThumbnail('data:image/jpeg;base64,AA=A')).toBeUndefined();
 	});
 });

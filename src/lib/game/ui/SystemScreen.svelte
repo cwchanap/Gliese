@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { supportedLocales, type Locale } from '$lib/game/i18n/locales';
-	import { locale, preferences, updatePreferences } from '$lib/game/i18n/store';
+	import { locale, motionReduced, preferences, updatePreferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 
 	interface Props {
@@ -27,22 +27,8 @@
 		'zh-Hant': '繁體中文'
 	};
 
-	let osReducedMotion = $state(false);
 	let promptsRow = $state<HTMLDivElement>();
 	let rail = $state<HTMLDivElement>();
-
-	$effect(() => {
-		const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-		osReducedMotion = query.matches;
-		const onChange = (event: MediaQueryListEvent) => {
-			osReducedMotion = event.matches;
-		};
-		query.addEventListener('change', onChange);
-		return () => query.removeEventListener('change', onChange);
-	});
-
-	// Effective reduced motion obeys BOTH the saved preference and the OS setting.
-	const motionReduced = $derived($preferences.motion === 'reduced' || osReducedMotion);
 
 	function focusPromptsRow(): void {
 		promptsRow?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
@@ -71,7 +57,7 @@
 		<div
 			bind:this={dialog}
 			class="heroic-window system-screen heroic-anim"
-			class:heroic-motion-reduced={motionReduced}
+			class:heroic-motion-reduced={$motionReduced}
 			aria-labelledby="system-heading"
 			aria-modal="true"
 			role="dialog"

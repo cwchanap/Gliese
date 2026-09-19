@@ -37,7 +37,12 @@ docs/superpowers/reports/entry-map-playtest/
 docs/superpowers/reports/
 
 # Local visual-reference captures (screenshots, compare pages)
-docs/visual-references/
+# docs/visual-references/heroic-ui/runtime/ stays tracked: the Heroic UI art
+# validator requires those captures on a fresh CI checkout.
+docs/visual-references/*
+!docs/visual-references/heroic-ui/
+docs/visual-references/heroic-ui/*
+!docs/visual-references/heroic-ui/runtime/
 
 # Playwright CLI debug logs
 .playwright-cli/

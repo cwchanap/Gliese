@@ -55,6 +55,12 @@ function isTauriRuntime(): boolean {
 	return typeof win !== 'undefined' && typeof win.__TAURI_INTERNALS__ !== 'undefined';
 }
 
+/**
+ * Resolves the active save-storage adapter at boot.
+ * @returns Promise<SaveStorage> — in Tauri, an in-memory adapter hydrated
+ *   from the on-disk save files that coalesces writes; in a plain browser,
+ *   `localStorage`.
+ */
 export async function hydrateTauriStorage(): Promise<SaveStorage> {
 	if (!isTauriRuntime()) {
 		return globalThis.localStorage;

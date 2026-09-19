@@ -44,7 +44,11 @@ export type EquipmentSwapPreview = {
 };
 
 /** Canonical before/after stat comparison for equipping `itemId` into the
-	current equipment loadout. Derived purely via `deriveEffectiveStats`. */
+	current equipment loadout. Derived purely via `deriveEffectiveStats`.
+	@param input - `{ base, equipment, itemId }`: the base stats, the current
+		equipment loadout, and the item id to preview equipping.
+	@returns EquipmentSwapPreview | null — the slot, replaced item, and
+		before/after effective stats; `null` when `itemId` is not equipment. */
 export function previewEquipmentSwap(input: {
 	base: BaseStats;
 	equipment: EquipmentState;
