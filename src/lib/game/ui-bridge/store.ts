@@ -121,6 +121,10 @@ export function requestBattleCycleTarget(direction: -1 | 1) {
 	emitHudCommand({ type: 'battle-cycle-target', direction });
 }
 
+export function requestBattleSelectTarget(unitId: string) {
+	emitHudCommand({ type: 'battle-select-target', unitId });
+}
+
 export function requestBattleFlee() {
 	emitHudCommand({ type: 'battle-flee' });
 }

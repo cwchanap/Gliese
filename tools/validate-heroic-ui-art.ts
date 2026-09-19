@@ -81,6 +81,12 @@ async function assertNonEmpty(path: string, label: string): Promise<void> {
 	assert(size > 0, `${label} is zero-byte: ${path}`);
 }
 
+/**
+ * Validates the required Heroic UI assets and runtime review captures:
+ * dimensions, alpha content, and presence only — never pixel goldens.
+ * @param repositoryRoot - The repository root containing the validated files.
+ * @returns Promise<void> — resolves after all required files pass validation.
+ */
 export async function validateHeroicUiArt(repositoryRoot = process.cwd()): Promise<void> {
 	const assetRoot = join(repositoryRoot, HEROIC_UI_ASSET_ROOT);
 

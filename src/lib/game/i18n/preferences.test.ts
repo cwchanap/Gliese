@@ -50,6 +50,7 @@ describe('preferences', () => {
 	});
 
 	it('falls back to defaults when the JSON record has invalid field values', () => {
+		stubNavigatorLanguages(['fr-FR']);
 		const storage = createMemoryStorage({
 			[PREFERENCES_STORAGE_KEY]:
 				'{"locale":"de","textSpeed":"ludicrous","motion":"sometimes","promptMode":"voice"}'
@@ -80,6 +81,7 @@ describe('preferences', () => {
 	});
 
 	it('returns defaults when no storage is wired', () => {
+		stubNavigatorLanguages(['fr-FR']);
 		setSaveStorage(undefined);
 
 		expect(loadPreferences()).toEqual(DEFAULT_PREFERENCES);

@@ -613,7 +613,7 @@ describe('GameShell battle summary', () => {
 			expect(page.getByRole('button', { name: /menu/i }).elements()).toHaveLength(0);
 		});
 
-		it('marks the current target and cycles via plate click', async () => {
+		it('marks the current target and selects it via plate click', async () => {
 			await withCommands(async (commands) => {
 				render(GameShell);
 				emitHudState(baseHudState(activeBattle()));
@@ -623,7 +623,10 @@ describe('GameShell battle summary', () => {
 
 				await plate.click();
 
-				expect(commands).toContainEqual({ type: 'battle-cycle-target', direction: 1 });
+				expect(commands).toContainEqual({
+					type: 'battle-select-target',
+					unitId: 'encounter:unit:0'
+				});
 			});
 		});
 
@@ -1724,6 +1727,40 @@ describe('GameShell save screen', () => {
 		await cancel.click();
 		await expect.element(saveDialog.getByTestId('save-slot-1')).toHaveFocus();
 		expect(saveDialog.getByTestId('confirm-overwrite').elements()).toHaveLength(0);
+	});
+
+	it('Escape inside the overwrite alertdialog cancels it without closing the Save screen', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
+
+		const saveDialog = page.getByRole('dialog', { name: /save/i });
+		await expect.element(saveDialog).toBeVisible();
+
+		window.addEventListener(HUD_COMMAND_EVENT, (event) => {
+			const command = (event as CustomEvent).detail as { type?: string; slot?: 1 | 2 };
+			if (command?.type === 'save-slot' && command.slot) {
+				writeSaveSlot(command.slot, createSlotRecord());
+			}
+		});
+
+		await saveDialog.getByTestId('save-slot-1').click();
+		emitHudState(baseHudState({ status: 'Saved.' }));
+		await saveDialog.getByTestId('save-slot-1').click();
+		await expect.element(saveDialog.getByTestId('confirm-overwrite')).toBeVisible();
+
+		// Escape must be swallowed by the alertdialog: it cancels the prompt
+		// and returns focus to the slot rather than closing the whole screen.
+		await userEvent.keyboard('{Escape}');
+		expect(saveDialog.getByTestId('confirm-overwrite').elements()).toHaveLength(0);
+		await expect.element(saveDialog).toBeVisible();
+		await expect.element(saveDialog.getByTestId('save-slot-1')).toHaveFocus();
+
+		// A second Escape now reaches the screen-level handler and closes it.
+		await userEvent.keyboard('{Escape}');
+		expect(saveDialog.elements()).toHaveLength(0);
 	});
 
 	it('shows a just-written record and asks to overwrite when the same slot is clicked again', async () => {

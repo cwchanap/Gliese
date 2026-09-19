@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { locale, preferences } from '$lib/game/i18n/store';
+	import { locale, motionReduced, preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
 	import { parseCellKey } from '$lib/game/core/map-exploration';
@@ -32,21 +32,6 @@
 		if (!open) focusedMarkerId = null;
 	});
 
-	let osReducedMotion = $state(false);
-
-	$effect(() => {
-		const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-		osReducedMotion = query.matches;
-		const onChange = (event: MediaQueryListEvent) => {
-			osReducedMotion = event.matches;
-		};
-		query.addEventListener('change', onChange);
-		return () => query.removeEventListener('change', onChange);
-	});
-
-	// Effective reduced motion obeys BOTH the saved preference and the OS setting.
-	const motionReduced = $derived($preferences.motion === 'reduced' || osReducedMotion);
-
 	// Pad/arrow focus geometry: markers join the resolveMenuFocusTarget
 	// lattice roughly by geography — rows are ~1/8-world-height bands walked
 	// top to bottom, columns are x-rank within a band (left to right).
@@ -77,7 +62,7 @@
 		<div
 			bind:this={dialog}
 			class="jrpg-area-map-window heroic-window heroic-anim"
-			class:heroic-motion-reduced={motionReduced}
+			class:heroic-motion-reduced={$motionReduced}
 			aria-label={t($locale, 'ui.areaMapDialog', { areaName: areaMap.name })}
 			aria-modal="true"
 			role="dialog"

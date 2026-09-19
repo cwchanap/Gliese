@@ -101,6 +101,11 @@ export function readSlotEnvelope(page: Page) {
  * exercises the overwrite confirmation.
  */
 export async function saveThroughSaveScreen(page: Page, slot: 1 | 2 = 1) {
+	// The envelope decides the flow up front: an occupied slot always hits the
+	// overwrite confirmation, an empty one never renders it.
+	const envelope = await readSlotEnvelope(page);
+	const overwriteExpected = Boolean(envelope?.slots[slot]);
+
 	await page.getByRole('button', { name: 'Menu' }).click();
 	const commandBox = page.getByLabel('Command');
 	await commandBox.getByRole('button', { name: 'Save' }).click();
@@ -109,10 +114,9 @@ export async function saveThroughSaveScreen(page: Page, slot: 1 | 2 = 1) {
 	await expect(dialog).toBeVisible();
 
 	await dialog.getByTestId(`save-slot-${slot}`).click();
-	// First save into an empty slot writes directly; a second save into the
-	// same slot hits the overwrite confirmation.
-	const confirm = dialog.getByTestId('confirm-overwrite');
-	if (await confirm.isVisible().catch(() => false)) {
+	if (overwriteExpected) {
+		const confirm = dialog.getByTestId('confirm-overwrite');
+		await expect(confirm).toBeVisible();
 		await confirm.click();
 	}
 

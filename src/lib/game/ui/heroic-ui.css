@@ -332,12 +332,16 @@
 	.heroic-motion-reduced *::after,
 	.heroic-motion-reduced.heroic-anim {
 		animation: none !important;
+		transition: none !important;
 	}
 }
 
 @media (prefers-reduced-motion: reduce) {
 	.heroic-anim,
-	.heroic-stagger > * {
+	.heroic-stagger > *,
+	.heroic-rail-card,
+	.heroic-segment,
+	.heroic-chip-button {
 		animation: none !important;
 		transition: none !important;
 	}

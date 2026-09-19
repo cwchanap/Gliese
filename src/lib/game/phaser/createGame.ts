@@ -6,6 +6,12 @@ export type GameStartRequest =
 
 type PhaserModule = typeof import('phaser');
 
+/**
+ * Dynamic-imports Phaser and mounts the game (Boot → World → Battle scenes).
+ * @param target - Host element the Phaser canvas attaches to.
+ * @param start - Boot mode: `new` run or `resume` from a save state.
+ * @returns A wrapper whose `destroy()` tears the Phaser instance down.
+ */
 export async function createGame(target: HTMLElement, start: GameStartRequest) {
 	if (typeof window === 'undefined') {
 		throw new Error('createGame must run in the browser');

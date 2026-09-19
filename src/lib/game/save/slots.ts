@@ -1,5 +1,6 @@
 import { parseSaveState, type SaveState } from '$lib/game/save/save-state';
 import { getSaveStorage, type SaveStorage } from '$lib/game/save/storage';
+import { boundSaveThumbnail } from '$lib/game/save/thumbnail';
 
 export const SAVE_SLOTS_STORAGE_KEY = 'gliese.saves.v1';
 
@@ -53,6 +54,12 @@ function isSaveSlotRecord(value: unknown, index: number): value is SaveSlotRecor
 	);
 }
 
+/**
+ * Decodes the stored envelope, discarding malformed payloads and invalid
+ * slot records; accepted thumbnails are normalized through boundSaveThumbnail.
+ * @param encoded - The raw `gliese.saves.v1` document, or `null` when absent.
+ * @returns SaveSlotsState — the validated slot state or an empty one.
+ */
 function parseSaveSlots(encoded: string | null): SaveSlotsState {
 	if (!encoded) return createEmptySaveSlots();
 
@@ -84,7 +91,10 @@ function parseSaveSlots(encoded: string | null): SaveSlotsState {
 	for (let index = 0; index < 3; index += 1) {
 		const slot = candidate.slots[index];
 		if (slot !== null && isSaveSlotRecord(slot, index)) {
-			state.slots[index as SaveSlotIndex] = slot;
+			state.slots[index as SaveSlotIndex] = {
+				...slot,
+				thumbnail: boundSaveThumbnail(slot.thumbnail)
+			};
 		}
 	}
 	return state;
@@ -92,7 +102,11 @@ function parseSaveSlots(encoded: string | null): SaveSlotsState {
 
 export function loadSaveSlots(storage?: SaveStorage): SaveSlotsState {
 	const resolved = storage ?? getSaveStorage();
-	return parseSaveSlots(resolved?.getItem(SAVE_SLOTS_STORAGE_KEY) ?? null);
+	try {
+		return parseSaveSlots(resolved?.getItem(SAVE_SLOTS_STORAGE_KEY) ?? null);
+	} catch {
+		return createEmptySaveSlots();
+	}
 }
 
 export function getNewestSaveSlot(
@@ -112,6 +126,16 @@ export function getNewestSaveSlot(
 	return newest;
 }
 
+/**
+ * Writes a record into a slot and persists the envelope. On quota pressure
+ * it retries once with every thumbnail stripped.
+ * @param index - Slot index; slot 0 accepts only autosave records, 1–2 manual.
+ * @param record - The SaveSlotRecord to store.
+ * @param storage - The SaveStorage to write to, or `undefined` to use the
+ *   wired save storage adapter.
+ * @returns SaveSlotWriteResult — the resulting slot state plus whether
+ *   thumbnails were dropped to fit.
+ */
 export function writeSaveSlot(
 	index: SaveSlotIndex,
 	record: SaveSlotRecord,

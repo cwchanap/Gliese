@@ -32,6 +32,7 @@ import {
 	cycleBattleTarget,
 	getFleeChannelProgress,
 	isFleeChannelComplete,
+	selectBattleTarget,
 	selectNearestBattleTarget,
 	sortBattleRibbonEntries,
 	startFleeChannel,
@@ -658,7 +659,11 @@ export class BattleScene extends Phaser.Scene {
 			this.scene.start(WorldScene.key, {
 				saveState: this.payload.saveState,
 				reason: 'battle-result',
-				battleResult: this.pendingResult
+				battleResult: this.pendingResult,
+				recentlyFled: {
+					encounterId: this.payload.sourceEncounterId,
+					fledAt: this.lastFrameTime
+				}
 			});
 			return;
 		}
@@ -701,6 +706,11 @@ export class BattleScene extends Phaser.Scene {
 			return;
 		}
 
+		if (command.type === 'battle-select-target') {
+			this.selectTarget(command.unitId);
+			return;
+		}
+
 		if (command.type === 'battle-flee') {
 			this.startFleeChannel();
 			return;
@@ -717,6 +727,14 @@ export class BattleScene extends Phaser.Scene {
 			this.getHeroOrigin()
 		);
 		this.selectedTargetUnitId = next?.unitId ?? null;
+		this.publishHudState(t(getActiveLocale(), 'status.battleActive'));
+	}
+
+	private selectTarget(unitId: string) {
+		const next = selectBattleTarget(this.enemies, unitId);
+		if (next) {
+			this.selectedTargetUnitId = next.unitId;
+		}
 		this.publishHudState(t(getActiveLocale(), 'status.battleActive'));
 	}
 

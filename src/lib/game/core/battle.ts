@@ -72,6 +72,15 @@ export type BattleResult = {
 	defeatedUnits: BattleDefeatedUnit[];
 };
 
+/**
+ * Marks the encounter the player just fled so the field can suppress an
+ * instant re-trigger. `fledAt` is Phaser loop time (ms), shared across scenes.
+ */
+export type RecentlyFledEncounter = {
+	encounterId: string;
+	fledAt: number;
+};
+
 export type BattleSummary = {
 	outcome: Extract<BattleOutcome, 'victory' | 'defeat'>;
 	enemiesDefeated: number;

@@ -76,7 +76,8 @@ import { buildAreaMapState, getAreaName } from '$lib/game/core/area-map';
 import {
 	applyBattleResultToSaveState,
 	rollBattleEnemyCount,
-	type BattleResult
+	type BattleResult,
+	type RecentlyFledEncounter
 } from '$lib/game/core/battle';
 import { canReceiveHit } from '$lib/game/core/combat';
 import {
@@ -202,6 +203,7 @@ interface WorldSceneData {
 	mapId?: string;
 	mapBackgroundPackageSelection?: MapBackgroundPackageSelection;
 	reason?: 'battle-result' | 'new' | 'resume' | 'transition';
+	recentlyFled?: RecentlyFledEncounter;
 	saveState?: SaveState | null;
 }
 
@@ -374,6 +376,8 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly discoveryRevealRadius = 240;
 	// Rendered above all gameplay layers, live hedges, and the baked regional background.
 	private static readonly collisionDebugOverlayDepth = 10_000;
+	/** Window after a fled battle during which that encounter cannot re-trigger. */
+	private static readonly recentlyFledGraceMs = 1_500;
 
 	private clearedEncounterIds = new Set<string>();
 	private clearedEncounterUnitCounts: Record<string, number> = {};
@@ -404,6 +408,7 @@ export class WorldScene extends Phaser.Scene {
 	private npcMarkers = new Map<string, NpcMarker>();
 	private pickupMarkers = new Map<string, PickupMarker>();
 	private player?: ActorMarker;
+	private recentlyFled: RecentlyFledEncounter | null = null;
 	private playerAttackCooldownUntil = 0;
 	private playerInvulnerableUntil = 0;
 	private playerProgress: ProgressionState = {
@@ -534,6 +539,7 @@ export class WorldScene extends Phaser.Scene {
 		};
 		this.playerInvulnerableUntil = 0;
 		this.playerAttackCooldownUntil = 0;
+		this.recentlyFled = data.battleResult?.outcome === 'fled' ? (data.recentlyFled ?? null) : null;
 		this.simulationPaused = false;
 		this.victoryAchieved = false;
 		this.worldSize = { width, height };
@@ -730,7 +736,7 @@ export class WorldScene extends Phaser.Scene {
 			time >= this.playerAttackCooldownUntil ? this.findHeroAttackTarget(time) : undefined;
 
 		if (battleTarget) {
-			this.startBattle(battleTarget);
+			this.startBattle(battleTarget, time);
 			return;
 		}
 
@@ -897,8 +903,16 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private startBattle(enemy: EnemyInstance) {
+	private startBattle(enemy: EnemyInstance, time: number) {
 		if (!this.player) {
+			return;
+		}
+
+		if (
+			this.recentlyFled &&
+			enemy.id === this.recentlyFled.encounterId &&
+			time - this.recentlyFled.fledAt < WorldScene.recentlyFledGraceMs
+		) {
 			return;
 		}
 
@@ -1175,6 +1189,7 @@ export class WorldScene extends Phaser.Scene {
 		switch (command.type) {
 			case 'dismiss-battle-summary':
 			case 'battle-cycle-target':
+			case 'battle-select-target':
 			case 'battle-flee':
 				// Battle-scoped commands are handled by BattleScene.
 				return;
@@ -3340,7 +3355,7 @@ export class WorldScene extends Phaser.Scene {
 				this.canEnemyAttackPlayer(enemy) &&
 				this.isEnemyInBattleRange(enemy)
 			) {
-				this.startBattle(enemy);
+				this.startBattle(enemy, time);
 				return;
 			}
 		}

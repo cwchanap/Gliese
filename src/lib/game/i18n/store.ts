@@ -1,6 +1,6 @@
 import { type Locale } from '$lib/game/i18n/locales';
 import { loadPreferences, savePreferences, type UiPreferences } from '$lib/game/i18n/preferences';
-import { derived, writable } from 'svelte/store';
+import { derived, readable, writable } from 'svelte/store';
 
 let activePreferences: UiPreferences = loadPreferences();
 const preferencesStore = writable<UiPreferences>(activePreferences);
@@ -14,6 +14,22 @@ export const preferences = {
 export const locale = {
 	subscribe: derived(preferencesStore, ($preferences) => $preferences.locale).subscribe
 };
+
+/** OS-level prefers-reduced-motion setting; stays false outside the browser. */
+const osReducedMotionStore = readable(false, (set) => {
+	if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+	const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+	set(query.matches);
+	const onChange = (event: MediaQueryListEvent) => set(event.matches);
+	query.addEventListener('change', onChange);
+	return () => query.removeEventListener('change', onChange);
+});
+
+/** Effective reduced motion: the saved preference OR the OS setting. */
+export const motionReduced = derived(
+	[preferencesStore, osReducedMotionStore],
+	([$preferences, $osReducedMotion]) => $preferences.motion === 'reduced' || $osReducedMotion
+);
 
 export function initializePreferences(): UiPreferences {
 	activePreferences = loadPreferences();

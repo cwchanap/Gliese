@@ -271,6 +271,13 @@
 			0 18px 44px rgba(0, 0, 0, 0.4);
 	}
 
+	/* Keyboard focus must read as focused on the always-gold primary card,
+	   where the shared hover treatment is indistinguishable. */
+	.title-card-primary:focus-visible {
+		outline: 2px solid rgba(255, 232, 168, 0.95);
+		outline-offset: 3px;
+	}
+
 	.title-card-head {
 		display: flex;
 		align-items: center;

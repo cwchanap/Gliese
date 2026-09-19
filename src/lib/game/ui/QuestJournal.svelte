@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { locale } from '$lib/game/i18n/store';
+	import { locale, motionReduced } from '$lib/game/i18n/store';
 	import { t, type MessageKey } from '$lib/game/i18n/translate';
 	import type { Locale } from '$lib/game/i18n/locales';
 	import { getQuest, type QuestObjective } from '$lib/game/content/quests';
@@ -205,6 +205,7 @@
 	<div
 		bind:this={dialog}
 		class="quest-screen heroic-anim"
+		class:heroic-motion-reduced={$motionReduced}
 		aria-labelledby="quest-log-heading"
 		aria-modal="true"
 		role="dialog"

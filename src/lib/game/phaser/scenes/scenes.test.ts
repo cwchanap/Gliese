@@ -2927,6 +2927,41 @@ describe('BattleScene', () => {
 		}
 	});
 
+	it('selects a target directly by unit id, ignoring defeated or unknown units', async () => {
+		const hud = installHudCommandTarget();
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		try {
+			scene.create({
+				saveState: createNewSaveState(),
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 3,
+				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+			});
+			const state = scene as unknown as {
+				enemies: Array<{ unitId: string; defeated: boolean }>;
+				selectedTargetUnitId: string | null;
+			};
+
+			hud.dispatch({ type: 'battle-select-target', unitId: 'meadow-slime-west:unit:2' });
+			expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:2');
+
+			// Defeated and unknown ids leave the current selection untouched.
+			state.enemies[1]!.defeated = true;
+			hud.dispatch({ type: 'battle-select-target', unitId: 'meadow-slime-west:unit:1' });
+			expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:2');
+			hud.dispatch({ type: 'battle-select-target', unitId: 'meadow-slime-west:unit:9' });
+			expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:2');
+		} finally {
+			hud.restore();
+		}
+	});
+
 	it('prefers the selected target for auto-attacks when it is in reach', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { BattleScene } = await import('./BattleScene');
@@ -3186,7 +3221,8 @@ describe('BattleScene', () => {
 						finalHeroHp: 11,
 						inventory: saveState.inventory,
 						defeatedUnits: []
-					})
+					}),
+					recentlyFled: { encounterId: 'meadow-slime-west', fledAt: 2_600 }
 				})
 			);
 		} finally {
@@ -10996,6 +11032,44 @@ describe('WorldScene', () => {
 		);
 		expect(sceneState.enemies[0]).toMatchObject({ hp: 45, defeated: false });
 		expect(scene.add.text).not.toHaveBeenCalled();
+	});
+
+	it('suppresses the fled encounter until the re-engage grace period expires', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const save = { ...createNewSaveState(), mapId: 'ruins-core' };
+
+		scene.create({
+			saveState: save,
+			reason: 'battle-result',
+			battleResult: {
+				outcome: 'fled',
+				sourceMapId: 'ruins-core',
+				sourceEncounterId: 'ruins-warden',
+				sourceEnemyId: 'ruins-warden',
+				returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_260, facing: 'down' },
+				finalHeroHp: 12,
+				inventory: save.inventory,
+				defeatedUnits: []
+			},
+			recentlyFled: { encounterId: 'ruins-warden', fledAt: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 4_992, y: 3_260 });
+
+		// The live warden is already in battle range (60px < 62px) but the
+		// recently-fled grace suppresses the restart.
+		scene.update(100, 16);
+		scene.update(1_499, 16);
+		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+
+		// Once the grace expires the same encounter starts normally again.
+		scene.update(1_500, 16);
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({ sourceEncounterId: 'ruins-warden' })
+		);
 	});
 
 	it('shows a victory state after a returned boss battle victory', async () => {

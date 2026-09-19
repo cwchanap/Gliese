@@ -58,6 +58,13 @@ function fallbackPreferences(): UiPreferences {
 	return { ...DEFAULT_PREFERENCES, locale: detectSupportedLocale() };
 }
 
+/**
+ * Loads the persisted UI preferences record, validating every field.
+ * Malformed or legacy values fall back to defaults with a detected locale.
+ * @param storage - The SaveStorage to read from, or `undefined` to use the
+ *   wired save storage adapter.
+ * @returns UiPreferences — the validated record or defaults.
+ */
 export function loadPreferences(
 	storage: SaveStorage | undefined = getSaveStorage()
 ): UiPreferences {

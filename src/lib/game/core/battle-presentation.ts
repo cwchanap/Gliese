@@ -80,6 +80,17 @@ export function cycleBattleTarget<T extends BattleTargetUnit>(
 	return living[(currentIndex + direction + living.length) % living.length]!;
 }
 
+/**
+ * Returns the living unit matching `unitId`, or `null` when the id is
+ * unknown or already defeated — used by direct (pointer) target selection.
+ */
+export function selectBattleTarget<T extends BattleTargetUnit>(
+	units: readonly T[],
+	unitId: string
+): T | null {
+	return units.find((unit) => unit.unitId === unitId && !unit.defeated) ?? null;
+}
+
 export function appendBattleFeedEvent<T>(feed: readonly T[], event: T): T[] {
 	return [...feed, event].slice(-battleFeedLimit);
 }
