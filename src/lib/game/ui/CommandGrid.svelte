@@ -218,8 +218,8 @@
 		opacity: 0.42;
 	}
 
-	/* Narrow screens: compact 2×4 menu hugging the left edge. The stack is
-	   ~330px tall below its 13rem anchor, so it needs a tall viewport. */
+	/* Narrow screens: compact 2×4 menu hugging the left edge of the row the
+	   FieldHud wrapper flows below the hero card, so it needs a tall viewport. */
 	@media (max-width: 720px) and (min-height: 560px) {
 		.heroic-cmd {
 			min-height: 0;
@@ -227,8 +227,9 @@
 		}
 
 		.heroic-field-menu {
-			top: 13.875rem;
-			left: 0.75rem;
+			position: relative;
+			top: auto;
+			left: auto;
 			grid-template-columns: repeat(2, 1fr);
 			width: min(10.5rem, calc(100vw - 13.5rem));
 			padding: 0.75rem;
