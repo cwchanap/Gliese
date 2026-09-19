@@ -10,12 +10,17 @@ const phaserState = vi.hoisted(() => {
 		}
 	}
 	class GameMock {
-		constructor(config: unknown) {
-			gameMock(config);
-		}
-
 		registry = { set: registrySetMock };
 		destroy = destroyMock;
+
+		constructor(config: unknown) {
+			gameMock(config);
+			// Real Phaser fires callbacks.preBoot(game) before booting scenes.
+			const { callbacks } = config as {
+				callbacks?: { preBoot?: (game: GameMock) => void };
+			};
+			callbacks?.preBoot?.(this);
+		}
 	}
 
 	return { destroyMock, gameMock, registrySetMock, SceneMock, GameMock };
