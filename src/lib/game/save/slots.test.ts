@@ -75,4 +75,21 @@ describe('save slots', () => {
 
 		expect(getNewestSaveSlot(storage)?.index).toBe(2);
 	});
+
+	it('preserves an invalid sibling slot payload when writing another slot', () => {
+		const invalidSlot = { kind: 'manual', savedAt: 'not-a-timestamp', state: { keep: 'me' } };
+		const storage = memoryStorage({
+			[SAVE_SLOTS_STORAGE_KEY]: JSON.stringify({
+				version: 1,
+				slots: [null, invalidSlot, null]
+			})
+		});
+		setSaveStorage(storage);
+
+		writeSaveSlot(2, record('2026-09-04T12:00:00.000Z'), storage);
+
+		const stored = JSON.parse(storage.getItem(SAVE_SLOTS_STORAGE_KEY) ?? 'null');
+		expect(stored.slots[1]).toEqual(invalidSlot);
+		expect(loadSaveSlots(storage).slots[1]).toBeNull();
+	});
 });

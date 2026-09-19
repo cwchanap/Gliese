@@ -116,8 +116,11 @@ A `tauri://close-requested` handler in `main.ts` flushes pending writes
 
 The same `SaveStorage` adapter also backs **non-save** preferences: a `UiPreferences`
 record (locale, textSpeed, motion, promptMode) persisted under key
-`gliese.preferences.v1` (`PREFERENCES_STORAGE_KEY` in `src/lib/game/i18n/preferences.ts`),
-so anything written through `getSaveStorage()` lands in the same backing store as the saves.
+`gliese.preferences.v1` (`PREFERENCES_STORAGE_KEY` in `src/lib/game/i18n/preferences.ts`).
+In Tauri the adapter routes each key through the `persistedFiles` table to its own
+file — `gliese.saves.v1` → `gliese-save.json`, `gliese.preferences.v1` →
+`gliese-preferences.json`; keys not in the table stay cache-only. In a plain browser
+each key lands in `localStorage` under its own entry.
 
 ### Game Layer (`src/lib/game/`)
 

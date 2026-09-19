@@ -150,21 +150,61 @@ export function writeSaveSlot(
 
 	const state = loadSaveSlots(resolved);
 	state.slots[index] = record;
-	const encoded = JSON.stringify(state);
+
+	// Siblings that fail validation read as null but keep their raw payload in
+	// the stored envelope, so saving one slot cannot erase another's data.
+	const persisted: { version: 1; slots: unknown[] } = {
+		version: 1,
+		slots: readRawSlots(resolved) ?? [null, null, null]
+	};
+	persisted.slots[index] = record;
 
 	try {
-		resolved.setItem(SAVE_SLOTS_STORAGE_KEY, encoded);
+		resolved.setItem(SAVE_SLOTS_STORAGE_KEY, JSON.stringify(persisted));
 		return { state, thumbnailDropped: false };
 	} catch {
 		// Quota pressure: drop every thumbnail (the bulk of the payload) and retry once.
+		const strippedPersisted = {
+			version: 1 as const,
+			slots: persisted.slots.map(stripRawThumbnail)
+		};
+		resolved.setItem(SAVE_SLOTS_STORAGE_KEY, JSON.stringify(strippedPersisted));
+
 		const stripped: SaveSlotsState = {
 			version: 1,
 			slots: state.slots.map((slot) =>
 				slot ? { ...slot, thumbnail: undefined } : null
 			) as SaveSlotsState['slots']
 		};
-
-		resolved.setItem(SAVE_SLOTS_STORAGE_KEY, JSON.stringify(stripped));
 		return { state: stripped, thumbnailDropped: true };
 	}
+}
+
+/**
+ * Returns the stored envelope's slot entries verbatim, or null when the
+ * stored payload is missing or not a structurally valid v1 envelope.
+ */
+function readRawSlots(storage: SaveStorage): unknown[] | null {
+	let encoded: string | null;
+	try {
+		encoded = storage.getItem(SAVE_SLOTS_STORAGE_KEY);
+	} catch {
+		return null;
+	}
+	if (!encoded) return null;
+
+	try {
+		const parsed = JSON.parse(encoded) as { version?: unknown; slots?: unknown } | null;
+		if (parsed?.version === 1 && Array.isArray(parsed.slots) && parsed.slots.length === 3) {
+			return parsed.slots;
+		}
+	} catch {
+		// fall through
+	}
+	return null;
+}
+
+function stripRawThumbnail(slot: unknown): unknown {
+	if (typeof slot !== 'object' || slot === null) return slot;
+	return { ...(slot as Record<string, unknown>), thumbnail: undefined };
 }
