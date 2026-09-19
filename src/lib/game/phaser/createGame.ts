@@ -35,10 +35,16 @@ export async function createGame(target: HTMLElement, start: GameStartRequest) {
 		// without this WebGL clears the buffer first and captures come out black.
 		render: { preserveDrawingBuffer: true },
 		// BootScene is the auto-started first scene: it preloads the sprite sheets
-		// before WorldScene runs. The start request reaches it via the registry.
+		// before WorldScene runs. The start request reaches it via the registry,
+		// populated in preBoot so it lands before any scene init no matter how
+		// early Phaser boots the game.
+		callbacks: {
+			preBoot: (bootedGame) => {
+				bootedGame.registry.set('startRequest', start);
+			}
+		},
 		scene: [BootScene, WorldScene, BattleScene]
 	});
-	game.registry.set('startRequest', start);
 
 	return {
 		destroy: () => game.destroy(true)
