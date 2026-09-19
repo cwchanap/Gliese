@@ -3,6 +3,7 @@
 	import { t } from '$lib/game/i18n/translate';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
 	import type { HudBattleSummary } from '$lib/game/ui-bridge/events';
+	import { getItem } from '$lib/game/content/items';
 
 	interface Props {
 		summary: HudBattleSummary;
@@ -22,6 +23,7 @@
 
 	const isVictory = $derived(summary.outcome === 'victory');
 	const dropCount = $derived(summary.drops.reduce((total, drop) => total + drop.quantity, 0));
+	const dropIcon = $derived(getItem(summary.drops[0]?.itemId ?? '')?.iconPath);
 
 	// Quest pill (mockup): the freshest progress row, else a completed title,
 	// else a quest reward grant. Dots come from the live progress counters.
@@ -90,9 +92,13 @@
 									/></svg
 								>
 							{:else if stat.id === 'drop'}
-								<svg viewBox="0 0 16 16"
-									><path d="M6 2.6h4M6.8 2.6v3L4.4 9.4a3.9 3.9 0 1 0 7.2 0L9.2 5.6v-3" /></svg
-								>
+								{#if dropIcon}
+									<img class="battle-summary-drop-icon" src={dropIcon} alt="" />
+								{:else}
+									<svg viewBox="0 0 16 16"
+										><path d="M6 2.6h4M6.8 2.6v3L4.4 9.4a3.9 3.9 0 1 0 7.2 0L9.2 5.6v-3" /></svg
+									>
+								{/if}
 							{:else}
 								<svg viewBox="0 0 16 16"
 									><path d="M3.4 12.6c0-3 1.4-5.2 4.6-5.2s4.6 2.2 4.6 5.2" /><circle
@@ -156,7 +162,7 @@
 		z-index: 10;
 		display: grid;
 		justify-items: center;
-		width: min(62rem, calc(100vw - 2rem));
+		width: min(64.375rem, calc(100vw - 2rem));
 		border: 1px solid rgba(255, 224, 138, 0.55);
 		border-radius: 1.75rem;
 		padding: 2.6rem 2rem 2.4rem;
@@ -216,7 +222,7 @@
 	}
 
 	.battle-summary-emblem img {
-		width: 3.4rem;
+		width: 8.7rem;
 		height: 3.4rem;
 		object-fit: contain;
 	}
@@ -260,8 +266,8 @@
 	.battle-summary-stat-card {
 		display: grid;
 		place-items: center;
-		width: 4.4rem;
-		height: 4.4rem;
+		width: 6.6rem;
+		height: 6.6rem;
 		border: 1px solid var(--color-frame-strong);
 		border-radius: 1rem;
 		background:
@@ -276,7 +282,7 @@
 
 	.battle-summary-stat:nth-child(3) .battle-summary-stat-card {
 		border-color: rgba(255, 232, 168, 0.85);
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		color: #3a2c07;
 		box-shadow: 0 0 26px color-mix(in srgb, var(--color-gold) 35%, transparent);
 	}
@@ -289,6 +295,24 @@
 		stroke-width: 1.5;
 		stroke-linecap: round;
 		stroke-linejoin: round;
+	}
+	.battle-summary-drop-icon {
+		width: 50%;
+		height: 50%;
+		object-fit: contain;
+		image-rendering: pixelated;
+	}
+	.battle-summary-stat:nth-child(1) .battle-summary-stat-card {
+		background: linear-gradient(180deg, rgba(132, 75, 202, 0.42), rgba(36, 28, 96, 0.8));
+		color: var(--color-violet);
+	}
+	.battle-summary-stat:nth-child(2) .battle-summary-stat-card {
+		background: linear-gradient(180deg, rgba(176, 124, 36, 0.42), rgba(60, 40, 14, 0.7));
+		color: var(--color-gold);
+	}
+	.battle-summary-stat:nth-child(4) .battle-summary-stat-card {
+		background: linear-gradient(180deg, rgba(176, 62, 90, 0.42), rgba(74, 20, 38, 0.7));
+		color: var(--color-rose);
 	}
 
 	.battle-summary-stat b {

@@ -1079,7 +1079,7 @@
 			class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(130,180,255,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,26,0.1),rgba(4,6,18,0.58)_85%,rgba(3,4,10,0.82))]"
 		></div>
 
-		{#if !battleLocked}
+		{#if !battleLocked && !$hudState.dialogue}
 			<div class="jrpg-menu-anchor pointer-events-auto">
 				<button
 					bind:this={menuButton}
@@ -1107,7 +1107,7 @@
 
 		{#if commandOpen}
 			<div
-				class="absolute inset-0 z-30 bg-black/20 backdrop-blur-[1px]"
+				class="absolute inset-0 z-10 bg-black/20"
 				role="presentation"
 				onclick={closeCommand}
 			></div>

@@ -154,6 +154,7 @@
 	function activateShopBuyItem(item: HudShopBuyEntry) {
 		if (!canBuyShopItem(item) || !shop) return;
 		onBuy(shop.shopId, item.stockId);
+		void restoreTransactionFocus();
 	}
 
 	function getShopSellMeta(item: HudShopSellEntry): string {
@@ -181,6 +182,20 @@
 	function activateShopSellItem(item: HudShopSellEntry) {
 		if (!ready || battleLocked) return;
 		onSell(item.itemId);
+		void restoreTransactionFocus();
+	}
+
+	async function restoreTransactionFocus() {
+		const focused = document.activeElement;
+		await tick();
+		if (
+			open &&
+			focused &&
+			(!focused.isConnected || focused.matches(':disabled')) &&
+			document.activeElement === document.body
+		) {
+			(closeButton ?? dialog)?.focus();
+		}
 	}
 
 	function getEquipmentSlotLabel(slot: EquipmentSlot): string {
@@ -603,15 +618,10 @@
 		inset: 0;
 		z-index: 50;
 		display: flex;
-		gap: 1.4rem;
-		padding: 1.6rem 1.9rem 1.4rem 1.4rem;
+		gap: 1.375rem;
+		padding: 1.75rem;
 		overflow: hidden;
-		background: radial-gradient(
-			130% 110% at 50% 0%,
-			var(--color-panel) 0%,
-			var(--color-panel-deep) 46%,
-			var(--color-ink) 100%
-		);
+		background: var(--heroic-screen-background);
 		color: var(--color-parchment);
 	}
 
@@ -621,17 +631,7 @@
 		flex: none;
 		flex-direction: column;
 		justify-content: space-between;
-		width: 15.5rem;
-		border: 1px dashed color-mix(in srgb, var(--color-gold) 42%, var(--color-frame-strong));
-		border-radius: 1rem;
-		padding: 1rem;
-		background:
-			linear-gradient(
-				180deg,
-				rgba(255, 246, 224, 0.05),
-				color-mix(in srgb, var(--color-ink) 20%, transparent)
-			),
-			var(--color-panel);
+		width: 22rem;
 	}
 
 	.shop-rail-top {
@@ -639,10 +639,12 @@
 		flex: 1;
 		min-height: 0;
 		flex-direction: column;
-		gap: 0.85rem;
+		gap: 1.125rem;
 	}
 
 	.shop-portrait-panel {
+		position: relative;
+		overflow: hidden;
 		display: flex;
 		flex: 1;
 		min-height: 0;
@@ -651,7 +653,7 @@
 		gap: 0.35rem;
 		border: 1px solid var(--color-frame);
 		border-radius: 0.875rem;
-		padding: 0.8rem;
+		padding: 1.125rem 1.25rem;
 		background:
 			radial-gradient(
 				90% 70% at 50% 24%,
@@ -662,6 +664,9 @@
 	}
 
 	.shop-portrait-frame {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
 		display: flex;
 		flex: 1;
 		min-height: 0;
@@ -671,28 +676,42 @@
 
 	.shop-portrait {
 		max-height: 100%;
-		width: auto;
+		width: 100%;
 		max-width: 100%;
-		object-fit: contain;
+		object-fit: cover;
+		height: 100%;
+		object-position: top;
 		filter: drop-shadow(0 14px 26px rgba(0, 0, 0, 0.45));
 	}
 
 	.shop-merchant-name {
+		position: relative;
+		text-shadow: 0 2px 8px var(--color-ink);
 		margin: 0;
-		font-size: 1.35rem;
+		font-size: 1.7rem;
 		font-weight: 900;
 		color: var(--color-parchment);
+	}
+	.shop-portrait-panel > .heroic-eyebrow {
+		position: relative;
+	}
+	.shop-portrait-frame::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(180deg, transparent 42%, rgba(7, 12, 34, 0.95));
 	}
 
 	.shop-quote {
 		margin: 0;
 		border: 1px solid var(--color-frame);
 		border-radius: 0.875rem;
-		padding: 0.7rem 0.85rem;
+		padding: 1.125rem 1.25rem;
 		background: color-mix(in srgb, var(--color-parchment) 5%, transparent);
 		color: var(--color-parchment);
-		font-size: 0.82rem;
-		line-height: 1.45;
+		font-family: var(--font-body);
+		font-size: 0.95rem;
+		line-height: 1.55;
 	}
 
 	.shop-purse {
@@ -702,7 +721,8 @@
 		gap: 0.6rem;
 		border: 1px solid var(--color-frame);
 		border-radius: 0.875rem;
-		padding: 0.6rem 0.85rem;
+		padding: 0.85rem 1rem;
+		min-height: 4.875rem;
 		background: color-mix(in srgb, var(--color-parchment) 5%, transparent);
 	}
 
@@ -756,7 +776,7 @@
 
 	.shop-mode-selected {
 		border-color: rgba(255, 232, 168, 0.9);
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		color: #3a2c07;
 		box-shadow: 0 0 22px color-mix(in srgb, var(--color-gold) 38%, transparent);
 	}
@@ -815,28 +835,24 @@
 		flex: 1;
 		min-height: 0;
 		margin-top: 1.15rem;
-		border: 1px solid var(--color-frame);
-		border-radius: 1rem;
-		background:
-			linear-gradient(
-				180deg,
-				rgba(255, 246, 224, 0.05),
-				color-mix(in srgb, var(--color-ink) 20%, transparent)
-			),
-			var(--color-panel);
-		box-shadow: inset 0 1px 0 rgba(255, 246, 224, 0.06);
+		border: 1px solid color-mix(in srgb, var(--color-gold) 50%, transparent);
+		border-radius: 1.375rem;
+		background: linear-gradient(135deg, rgba(34, 74, 164, 0.72), rgba(12, 26, 74, 0.88));
+		box-shadow:
+			inset 0 0 0 3px rgba(255, 214, 120, 0.1),
+			inset 0 2px 0 rgba(255, 255, 255, 0.2);
 	}
 
 	.shop-grid-scroll {
 		min-height: 0;
-		padding: 1rem;
+		padding: 1.25rem;
 		overflow-y: auto;
 	}
 
 	.shop-grid {
 		display: grid;
 		grid-template-columns: repeat(4, minmax(0, 1fr));
-		gap: 0.85rem;
+		gap: 0.6rem 1.125rem;
 		align-content: start;
 	}
 
@@ -845,7 +861,9 @@
 		position: relative;
 		display: grid;
 		place-items: center;
-		aspect-ratio: 1;
+		height: clamp(9rem, 22vh, 12.25rem);
+		/* Reserve the price below the tile, including the last grid row. */
+		margin-bottom: 1.65rem;
 		min-width: 0;
 		border: 1px solid var(--color-frame);
 		border-radius: 0.85rem;
@@ -863,7 +881,7 @@
 
 	.shop-tile-selected {
 		border-color: rgba(255, 232, 168, 0.9);
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		box-shadow: 0 0 26px color-mix(in srgb, var(--color-gold) 35%, transparent);
 	}
 
@@ -875,8 +893,8 @@
 	}
 
 	.shop-tile-icon {
-		width: 62%;
-		height: 62%;
+		width: 3.8rem;
+		height: 3.8rem;
 		object-fit: contain;
 		filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
 		image-rendering: pixelated;
@@ -885,7 +903,7 @@
 	.shop-tile-price {
 		position: absolute;
 		right: 0.6rem;
-		bottom: 0.5rem;
+		bottom: -1.65rem;
 		left: 0.6rem;
 		display: inline-flex;
 		align-items: center;
@@ -900,7 +918,7 @@
 		height: 0.7rem;
 	}
 	.shop-tile-selected .shop-tile-price {
-		color: #3a2c07;
+		color: var(--color-gold);
 	}
 
 	.shop-empty {
@@ -925,24 +943,23 @@
 		display: flex;
 		flex: none;
 		flex-direction: column;
-		width: 21.5rem;
+		width: 23rem;
 		min-height: 0;
-		border: 1px solid var(--color-frame);
-		border-radius: 1rem;
-		padding: 1.1rem;
-		background:
-			linear-gradient(
-				180deg,
-				rgba(255, 246, 224, 0.05),
-				color-mix(in srgb, var(--color-ink) 20%, transparent)
-			),
-			var(--color-panel);
-		box-shadow: inset 0 1px 0 rgba(255, 246, 224, 0.06);
+		border: 1px solid color-mix(in srgb, var(--color-gold) 50%, transparent);
+		border-radius: 1.375rem;
+		padding: 1.375rem;
+		background: linear-gradient(135deg, rgba(34, 74, 164, 0.72), rgba(12, 26, 74, 0.88));
+		box-shadow:
+			inset 0 0 0 3px rgba(255, 214, 120, 0.1),
+			inset 0 2px 0 rgba(255, 255, 255, 0.2);
 		overflow-y: auto;
 	}
 
 	.shop-detail-head {
 		display: flex;
+		flex: 1;
+		justify-content: center;
+		min-height: 18rem;
 		flex-direction: column;
 		align-items: center;
 		gap: 0.7rem;
@@ -952,12 +969,12 @@
 	.shop-detail-icon-frame {
 		display: grid;
 		place-items: center;
-		width: 8.5rem;
-		height: 8.5rem;
+		width: 9.5rem;
+		height: 9.5rem;
 		border: 1px solid color-mix(in srgb, var(--color-gold) 55%, transparent);
 		border-radius: 1.1rem;
 		/* Mockup: selected item sits on a light parchment plate. */
-		background: linear-gradient(180deg, #fff6e0, #f3e3b8);
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		box-shadow: 0 0 30px color-mix(in srgb, var(--color-gold) 30%, transparent);
 	}
 
@@ -1088,7 +1105,7 @@
 		border: 1px solid rgba(255, 232, 168, 0.85);
 		border-radius: 0.7rem;
 		padding: 0.62rem 0.85rem;
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		color: #3a2c07;
 		font-size: 0.86rem;
 		font-weight: 900;
@@ -1157,7 +1174,7 @@
 		text-transform: uppercase;
 	}
 
-	@media (max-width: 900px) {
+	@media (max-width: 1200px), (max-height: 600px) {
 		.shop-screen {
 			flex-direction: column;
 			gap: 1rem;
@@ -1170,10 +1187,11 @@
 
 		.shop-portrait-panel {
 			flex: none;
+			height: 14rem;
 		}
 
 		.shop-portrait {
-			max-height: 14rem;
+			object-fit: contain;
 		}
 
 		.shop-grid-panel,
