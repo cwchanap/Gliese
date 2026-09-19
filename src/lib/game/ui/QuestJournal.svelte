@@ -5,6 +5,8 @@
 	import { getQuest, type QuestObjective } from '$lib/game/content/quests';
 	import { getNpcText, getQuestObjectiveText } from '$lib/game/i18n/content';
 	import { maps } from '$lib/game/content/maps';
+	import { VILLAGE_INTERIOR_PACKAGES } from '$lib/game/content/backgrounds/village-interior-packages';
+	import { getItem } from '$lib/game/content/items';
 	import type { HudQuestEntry, HudQuestOffer, HudQuestState } from '$lib/game/core/quests';
 
 	interface Props {
@@ -123,8 +125,15 @@
 			objectives.find((objective) => objective.kind === 'talk-to-npc')?.npcId ??
 			null;
 
+		const giverMap = Object.values(maps).find((map) =>
+			map.npcs?.some((npc) => npc.id === giverNpcId)
+		);
+		const mapArt = VILLAGE_INTERIOR_PACKAGES.find((entry) => entry.mapId === giverMap?.id)
+			?.assets[0]?.path;
+
 		return {
 			row,
+			mapArt,
 			chain: objectives.map<ChainNode>((objective) => ({
 				id: objective.id,
 				label: objectiveChainLabel(objective),
@@ -395,80 +404,78 @@
 						</ol>
 					{/if}
 
-					{#if detail.reward}
-						<p class="quest-panel-label font-display">{t($locale, 'ui.questRewards')}</p>
-						<div class="quest-reward-row">
-							{#if detail.reward.xp}
-								<div class="quest-reward" data-testid="quest-reward-xp">
-									<span class="quest-reward-icon quest-reward-icon-xp" aria-hidden="true">
-										<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-											<path
-												d="M8 1.8 9.6 5.8 13.8 6.2 10.6 9 11.6 13.2 8 10.9 4.4 13.2 5.4 9 2.2 6.2 6.4 5.8 Z"
-											/>
-										</svg>
-									</span>
-									<span class="quest-reward-value font-display">{detail.reward.xp}</span>
-									<span class="quest-reward-label font-display">{t($locale, 'ui.xp')}</span>
-								</div>
-							{/if}
-							{#if detail.reward.coins}
-								<div class="quest-reward" data-testid="quest-reward-coins">
-									<span class="quest-reward-icon quest-reward-icon-coins" aria-hidden="true">
-										<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-											<circle cx="8" cy="8" r="5.6" />
-											<path d="M8 5v6M6.2 6.4h3a1.2 1.2 0 0 1 0 2.4h-2.4a1.2 1.2 0 0 0 0 2.4h3" />
-										</svg>
-									</span>
-									<span class="quest-reward-value font-display">{detail.reward.coins}</span>
-									<span class="quest-reward-label font-display">{t($locale, 'ui.rewardCoins')}</span
-									>
-								</div>
-							{/if}
-							{#each detail.reward.items ?? [] as item (item.itemId)}
-								<div class="quest-reward" data-testid="quest-reward-item">
-									<span class="quest-reward-icon quest-reward-icon-item" aria-hidden="true">
-										<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-											<rect x="3" y="3" width="10" height="10" rx="1.4" />
-											<path d="M3 6.4h10M6.4 6.4V13" />
-										</svg>
-									</span>
-									<span class="quest-reward-value font-display">x{item.quantity}</span>
-									<span class="quest-reward-label font-display">{t($locale, 'ui.rewardItem')}</span>
-								</div>
-							{/each}
-						</div>
-					{/if}
-
-					{#if detail.giverName}
-						<p class="quest-panel-label font-display">{t($locale, 'ui.questTurnedInBy')}</p>
-						<div class="quest-giver">
-							<span class="quest-giver-icon" aria-hidden="true">
-								<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-									<circle cx="8" cy="5.2" r="2.6" />
-									<path d="M2.8 13.8c.6-2.7 2.7-4.2 5.2-4.2s4.6 1.5 5.2 4.2" />
-								</svg>
-							</span>
-							<div class="quest-giver-copy">
-								<p class="quest-giver-name font-display">{detail.giverName}</p>
-								{#if detail.locationLabel}
-									<p class="quest-giver-location font-display" data-testid="quest-giver-location">
-										{detail.locationLabel}
-									</p>
+					<section class="quest-rewards-panel">
+						{#if detail.reward}
+							<p class="quest-panel-label font-display">{t($locale, 'ui.questRewards')}</p>
+							<div class="quest-reward-row">
+								{#if detail.reward.xp}
+									<div class="quest-reward" data-testid="quest-reward-xp">
+										<span class="quest-reward-icon quest-reward-icon-xp" aria-hidden="true">
+											<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+												<path
+													d="M8 1.8 9.6 5.8 13.8 6.2 10.6 9 11.6 13.2 8 10.9 4.4 13.2 5.4 9 2.2 6.2 6.4 5.8 Z"
+												/>
+											</svg>
+										</span>
+										<span class="quest-reward-value font-display">{detail.reward.xp}</span>
+										<span class="quest-reward-label font-display">{t($locale, 'ui.xp')}</span>
+									</div>
 								{/if}
+								{#if detail.reward.coins}
+									<div class="quest-reward" data-testid="quest-reward-coins">
+										<span class="quest-reward-icon quest-reward-icon-coins" aria-hidden="true">
+											<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+												<circle cx="8" cy="8" r="5.6" />
+												<path d="M8 5v6M6.2 6.4h3a1.2 1.2 0 0 1 0 2.4h-2.4a1.2 1.2 0 0 0 0 2.4h3" />
+											</svg>
+										</span>
+										<span class="quest-reward-value font-display">{detail.reward.coins}</span>
+										<span class="quest-reward-label font-display"
+											>{t($locale, 'ui.rewardCoins')}</span
+										>
+									</div>
+								{/if}
+								{#each detail.reward.items ?? [] as item (item.itemId)}
+									<div class="quest-reward" data-testid="quest-reward-item">
+										<span class="quest-reward-icon quest-reward-icon-item" aria-hidden="true">
+											<img src={getItem(item.itemId)?.iconPath} alt="" />
+										</span>
+										<span class="quest-reward-value font-display">x{item.quantity}</span>
+										<span class="quest-reward-label font-display"
+											>{t($locale, 'ui.rewardItem')}</span
+										>
+									</div>
+								{/each}
 							</div>
-						</div>
-					{/if}
+						{/if}
+
+						{#if detail.giverName}
+							<p class="quest-panel-label font-display">{t($locale, 'ui.questTurnedInBy')}</p>
+							<div class="quest-giver">
+								<span class="quest-giver-icon" aria-hidden="true">
+									<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+										<circle cx="8" cy="5.2" r="2.6" />
+										<path d="M2.8 13.8c.6-2.7 2.7-4.2 5.2-4.2s4.6 1.5 5.2 4.2" />
+									</svg>
+								</span>
+								<div class="quest-giver-copy">
+									<p class="quest-giver-name font-display">{detail.giverName}</p>
+									{#if detail.locationLabel}
+										<p class="quest-giver-location font-display" data-testid="quest-giver-location">
+											{detail.locationLabel}
+										</p>
+									{/if}
+								</div>
+							</div>
+						{/if}
+					</section>
 				</div>
 
-				{#if detail.locationLabel}
+				{#if detail.locationLabel && detail.mapArt}
 					<aside class="quest-map-card" aria-label={t($locale, 'ui.questMapContext')}>
 						<p class="quest-panel-label font-display">{t($locale, 'ui.questMapContext')}</p>
-						<div class="quest-map-thumb" aria-hidden="true">
-							<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
-								<rect x="2" y="3" width="12" height="10" rx="1.2" />
-								<path d="m5 11 2.4-3 1.8 2 1.6-2.4L13 11" />
-								<circle cx="10.4" cy="5.6" r="1.1" />
-							</svg>
+						<div class="quest-map-thumb">
+							<img src={detail.mapArt} alt={detail.locationLabel} data-testid="quest-map-image" />
 						</div>
 						<p class="quest-map-pin font-display" data-testid="quest-map-pin">
 							<svg
@@ -500,15 +507,10 @@
 		inset: 0;
 		z-index: 50;
 		display: flex;
-		gap: 1.4rem;
-		padding: 1.6rem 1.9rem 1.4rem 1.4rem;
+		gap: 1.5rem;
+		padding: 1.75rem;
 		overflow: hidden;
-		background: radial-gradient(
-			130% 110% at 50% 0%,
-			var(--color-panel) 0%,
-			var(--color-panel-deep) 46%,
-			var(--color-ink) 100%
-		);
+		background: var(--heroic-screen-background);
 		color: var(--color-parchment);
 	}
 
@@ -531,7 +533,8 @@
 
 	.quest-rail-entries {
 		display: grid;
-		flex: 1;
+		flex: none;
+		max-height: 45%;
 		min-height: 0;
 		align-content: start;
 		gap: 0.85rem;
@@ -547,7 +550,7 @@
 		width: 100%;
 		border: 1px solid var(--color-frame);
 		border-radius: 0.9rem;
-		padding: 0.7rem 0.8rem;
+		padding: 0.95rem 1rem;
 		background:
 			linear-gradient(
 				180deg,
@@ -569,7 +572,7 @@
 
 	.quest-entry-selected {
 		border-color: rgba(255, 232, 168, 0.85);
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		color: #3a2c07;
 		box-shadow: 0 0 26px color-mix(in srgb, var(--color-gold) 35%, transparent);
 	}
@@ -687,7 +690,11 @@
 
 	/* ---- Chapter progress (real main-quest objectives) --------------------- */
 	.quest-chapter {
-		flex: none;
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-height: 10rem;
+		overflow-y: auto;
 		margin-top: 1.1rem;
 		border: 1px solid var(--color-frame);
 		border-radius: 0.9rem;
@@ -733,6 +740,8 @@
 
 	.quest-chapter-rows {
 		display: grid;
+		flex: 1;
+		grid-auto-rows: minmax(2.5rem, 1fr);
 		gap: 0.45rem;
 		margin: 0.7rem 0 0;
 		padding: 0;
@@ -743,6 +752,10 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+		padding: 0.6rem 0.85rem;
+		border: 1px solid var(--color-frame);
+		border-radius: 0.75rem;
+		background: rgba(8, 18, 48, 0.44);
 	}
 
 	.quest-chapter-dot {
@@ -807,12 +820,14 @@
 
 	/* ---- Detail column ----------------------------------------------------- */
 	.quest-detail {
-		display: flex;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 21rem;
+		grid-template-rows: auto auto auto minmax(0, 1fr);
 		flex: 1;
-		gap: 1.4rem;
+		gap: 1.5rem;
 		min-width: 0;
 		min-height: 0;
-		overflow: hidden;
+		overflow-y: auto;
 		/* Mockup encloses the whole detail column in one large bordered card. */
 		border: 1px solid rgba(255, 232, 170, 0.7);
 		border-radius: 1.5rem;
@@ -829,9 +844,32 @@
 	}
 
 	.quest-detail-main {
-		flex: 1;
+		display: contents;
+	}
+
+	.quest-detail-head,
+	.quest-detail-progress,
+	.quest-chain {
+		grid-column: 1 / -1;
+	}
+	.quest-rewards-panel {
+		display: flex;
+		flex-direction: column;
 		min-width: 0;
-		overflow-y: auto;
+		min-height: 16rem;
+		padding: 1.375rem;
+		border: 1px solid color-mix(in srgb, var(--color-gold) 40%, transparent);
+		border-radius: 1.25rem;
+		background: rgba(12, 26, 74, 0.5);
+	}
+	.quest-rewards-panel > .quest-panel-label:first-child {
+		margin-top: 0;
+	}
+	.quest-reward-icon img {
+		width: 2.4rem;
+		height: 2.4rem;
+		object-fit: contain;
+		image-rendering: pixelated;
 	}
 
 	.quest-detail-head {
@@ -844,11 +882,11 @@
 		display: grid;
 		place-items: center;
 		flex: none;
-		width: 4.2rem;
-		height: 4.2rem;
+		width: 5rem;
+		height: 5rem;
 		border: 1px solid rgba(255, 232, 168, 0.85);
 		border-radius: 1rem;
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		color: #3a2c07;
 		box-shadow: 0 0 26px color-mix(in srgb, var(--color-gold) 35%, transparent);
 	}
@@ -859,14 +897,15 @@
 
 	.quest-detail-title {
 		margin: 0.3rem 0 0;
-		font-size: clamp(1.5rem, 2.4vw, 2rem);
+		font-size: clamp(1.5rem, 2.6vw, 2.3rem);
 		font-weight: 900;
 		color: var(--color-parchment);
 	}
 
 	.quest-detail-desc {
 		margin: 0.35rem 0 0;
-		font-size: 0.86rem;
+		font-family: var(--font-body);
+		font-size: 1rem;
 		color: var(--color-muted);
 	}
 
@@ -878,8 +917,8 @@
 	}
 
 	.quest-detail-progress {
-		display: inline-block;
-		margin: 0.9rem 0 0;
+		justify-self: start;
+		margin: 0;
 		border: 1px solid color-mix(in srgb, var(--color-gold) 45%, transparent);
 		border-radius: 999px;
 		padding: 0.28rem 0.85rem;
@@ -903,7 +942,7 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 0.7rem;
-		margin-top: 1.1rem;
+		margin: 0;
 		padding: 0;
 		list-style: none;
 	}
@@ -913,14 +952,14 @@
 		flex: none;
 		justify-items: center;
 		gap: 0.45rem;
-		width: 6.2rem;
+		width: 10rem;
 	}
 
 	.quest-chain-icon {
 		display: grid;
 		place-items: center;
-		width: 3rem;
-		height: 3rem;
+		width: 3.8rem;
+		height: 3.8rem;
 		border: 1px solid var(--color-frame-strong);
 		border-radius: 0.85rem;
 		background: color-mix(in srgb, var(--color-panel-deep) 45%, transparent);
@@ -933,7 +972,7 @@
 
 	.quest-chain-node-current .quest-chain-icon {
 		border-color: rgba(255, 232, 168, 0.85);
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		color: #3a2c07;
 		box-shadow: 0 0 22px color-mix(in srgb, var(--color-gold) 35%, transparent);
 	}
@@ -949,10 +988,11 @@
 	}
 
 	.quest-chain-link {
-		flex: 1;
+		flex: none;
+		width: 3rem;
 		min-width: 1.2rem;
 		height: 1px;
-		margin-top: 1.5rem;
+		margin-top: 1.9rem;
 		background: color-mix(in srgb, var(--color-frame-strong) 80%, transparent);
 	}
 
@@ -961,14 +1001,17 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.85rem;
+		flex: 1;
 		margin-top: 0.7rem;
 	}
 
 	.quest-reward {
 		display: grid;
+		flex: 1;
+		align-content: center;
 		justify-items: center;
 		gap: 0.35rem;
-		min-width: 6.4rem;
+		min-width: 0;
 		border: 1px solid var(--color-frame);
 		border-radius: 0.9rem;
 		padding: 0.9rem 0.8rem;
@@ -984,8 +1027,8 @@
 	.quest-reward-icon {
 		display: grid;
 		place-items: center;
-		width: 2.6rem;
-		height: 2.6rem;
+		width: 5rem;
+		height: 5rem;
 		border: 1px solid var(--color-frame-strong);
 		border-radius: 0.8rem;
 		background: color-mix(in srgb, var(--color-ink) 45%, var(--color-panel-deep));
@@ -1059,11 +1102,12 @@
 	}
 
 	.quest-map-card {
+		position: relative;
 		display: flex;
 		flex: none;
 		flex-direction: column;
-		width: 13.5rem;
-		border: 1px dashed color-mix(in srgb, var(--color-gold) 42%, var(--color-frame-strong));
+		min-height: 16rem;
+		border: 1px solid color-mix(in srgb, var(--color-gold) 50%, transparent);
 		border-radius: 1rem;
 		padding: 0.9rem 1rem;
 		background:
@@ -1078,16 +1122,19 @@
 	.quest-map-thumb {
 		display: grid;
 		flex: 1;
-		min-height: 6rem;
+		min-height: 0;
+		overflow: hidden;
 		place-items: center;
 		border: 1px solid var(--color-frame);
 		border-radius: 0.8rem;
 		background: color-mix(in srgb, var(--color-ink) 45%, var(--color-panel-deep));
 		color: var(--color-muted);
 	}
-	.quest-map-thumb svg {
-		width: 2rem;
-		height: 2rem;
+	.quest-map-thumb img {
+		width: 100%;
+		height: 100%;
+		min-height: 0;
+		object-fit: contain;
 	}
 
 	.quest-map-pin {
@@ -1123,6 +1170,7 @@
 		}
 
 		.quest-detail {
+			display: flex;
 			flex: none;
 			flex-direction: column;
 			overflow: visible;
@@ -1130,6 +1178,21 @@
 
 		.quest-detail-main {
 			overflow: visible;
+		}
+	}
+	@media (max-width: 1200px) and (min-width: 901px) {
+		.quest-rail {
+			width: 18rem;
+		}
+		.quest-detail {
+			grid-template-columns: minmax(0, 1fr) 13rem;
+		}
+		.quest-chain-node {
+			width: 7rem;
+		}
+		.quest-reward-icon {
+			width: 3rem;
+			height: 3rem;
 		}
 	}
 </style>

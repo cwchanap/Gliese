@@ -190,18 +190,18 @@
 	}
 
 	.title-crest {
-		width: 7rem;
-		height: 7rem;
+		width: 7.4rem;
+		height: 7.4rem;
 		filter: drop-shadow(0 0 34px rgba(242, 212, 136, 0.32));
 	}
 
 	.title-wordmark {
 		margin: 1.6rem 0 0;
 		color: var(--color-parchment);
-		font-size: clamp(3.4rem, 6.4vw, 4.9rem);
+		font-size: clamp(3.4rem, 6.4vw, 5.4rem);
 		font-weight: 900;
-		letter-spacing: 0.42em;
-		margin-right: -0.42em; /* optically recenter the letterspaced wordmark */
+		letter-spacing: 0.24em;
+		margin-right: -0.24em;
 		text-shadow: 0 0 44px rgba(159, 200, 255, 0.28);
 	}
 
@@ -227,7 +227,7 @@
 		display: grid;
 		grid-template-columns: repeat(3, minmax(13rem, 1fr));
 		gap: 1.4rem;
-		width: min(62rem, calc(100vw - 4rem));
+		width: min(63.5rem, calc(100vw - 4rem));
 		transform: translateX(-50%);
 	}
 
@@ -237,7 +237,7 @@
 		border: 1px solid var(--color-frame-strong);
 		border-radius: 1.25rem;
 		padding: 1.375rem 1.5rem;
-		background: linear-gradient(180deg, rgba(30, 44, 92, 0.85), rgba(14, 21, 46, 0.92));
+		background: linear-gradient(135deg, rgba(34, 74, 164, 0.9), rgba(12, 26, 74, 0.94));
 		box-shadow: inset 0 1px 0 rgba(255, 246, 224, 0.07);
 		color: var(--color-parchment);
 		text-align: left;
@@ -264,7 +264,7 @@
 	.title-card-primary:hover:not(:disabled),
 	.title-card-primary:focus-visible {
 		border-color: rgba(255, 232, 168, 0.9);
-		background: linear-gradient(180deg, #fdf3d3, #ecd9a4);
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		color: #3a2c07;
 		box-shadow:
 			0 0 46px rgba(242, 212, 136, 0.5),

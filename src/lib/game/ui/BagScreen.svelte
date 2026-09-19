@@ -3,7 +3,7 @@
 	import { locale, preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
-	import type { EquipmentSlot } from '$lib/game/content/items';
+	import { getItem, getSellValue, type EquipmentSlot } from '$lib/game/content/items';
 	import type {
 		HudEquipmentItem,
 		HudInventoryStack,
@@ -389,6 +389,8 @@
 				aria-label={t($locale, 'ui.inventory')}
 			>
 				{#if selectedSlot}
+					{@const definition = getItem(selectedSlot.item.itemId)}
+					{@const sellValue = getSellValue(selectedSlot.item.itemId)}
 					<div class="bag-detail-head">
 						<img
 							class="bag-detail-icon"
@@ -402,6 +404,28 @@
 						</div>
 					</div>
 					<div class="bag-detail-chips">
+						{#if definition?.type === 'consumable'}
+							<span class="bag-chip bag-chip-buff font-display"
+								>{t($locale, 'ui.hp')} +{definition.effect.amount}</span
+							>
+						{/if}
+						{#if sellValue !== undefined}
+							<span
+								class="bag-chip bag-chip-key font-display"
+								aria-label={t($locale, 'ui.coins', { coins: sellValue })}
+							>
+								<svg
+									width="15"
+									height="15"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.8"
+									aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 8v8" /></svg
+								>
+								{sellValue}
+							</span>
+						{/if}
 						{#if selectedSlot.kind === 'equipment'}
 							{#each getModifierChips(selectedSlot.item) as chip (chip)}
 								<span class="bag-chip bag-chip-buff font-display">{chip}</span>
@@ -412,7 +436,7 @@
 						{:else if selectedSlot.kind === 'keyItem'}
 							<span class="bag-chip bag-chip-key font-display">{t($locale, 'ui.key')}</span>
 						{/if}
-						{#if (selectedSlot.kind === 'consumable' || selectedSlot.kind === 'keyItem') && selectedSlot.item.quantity > 1}
+						{#if selectedSlot.kind === 'consumable' || selectedSlot.kind === 'keyItem'}
 							<span class="bag-chip bag-chip-qty font-display">
 								{t($locale, 'ui.quantity', { quantity: selectedSlot.item.quantity })}
 							</span>
@@ -448,15 +472,10 @@
 		inset: 0;
 		z-index: 50;
 		display: flex;
-		gap: 1.4rem;
-		padding: 1.6rem 1.9rem 1.4rem 1.4rem;
+		gap: 1.375rem;
+		padding: 1.75rem;
 		overflow: hidden;
-		background: radial-gradient(
-			130% 110% at 50% 0%,
-			var(--color-panel) 0%,
-			var(--color-panel-deep) 46%,
-			var(--color-ink) 100%
-		);
+		background: var(--heroic-screen-background);
 		color: var(--color-parchment);
 	}
 
@@ -466,7 +485,8 @@
 		flex: none;
 		flex-direction: column;
 		justify-content: space-between;
-		width: 6.4rem;
+		width: 7.6rem;
+		align-items: center;
 	}
 
 	.bag-rail-tabs {
@@ -476,6 +496,8 @@
 
 	.bag-rail-card {
 		display: grid;
+		width: 5.2rem;
+		min-height: 6rem;
 		justify-items: center;
 		gap: 0.45rem;
 		border: 1px solid var(--color-frame);
@@ -505,7 +527,7 @@
 
 	.bag-rail-card-selected {
 		border-color: rgba(255, 232, 168, 0.85);
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		color: #3a2c07;
 		box-shadow: 0 0 26px color-mix(in srgb, var(--color-gold) 35%, transparent);
 	}
@@ -543,6 +565,7 @@
 		min-width: 0;
 		min-height: 0;
 		flex-direction: column;
+		padding-right: 1.375rem;
 	}
 
 	.bag-header {
@@ -584,21 +607,17 @@
 		flex: 1;
 		min-height: 0;
 		margin-top: 1.15rem;
-		border: 1px solid var(--color-frame);
-		border-radius: 1rem;
-		background:
-			linear-gradient(
-				180deg,
-				rgba(255, 246, 224, 0.05),
-				color-mix(in srgb, var(--color-ink) 20%, transparent)
-			),
-			var(--color-panel);
-		box-shadow: inset 0 1px 0 rgba(255, 246, 224, 0.06);
+		border: 1px solid color-mix(in srgb, var(--color-gold) 50%, transparent);
+		border-radius: 1.375rem;
+		background: linear-gradient(135deg, rgba(34, 74, 164, 0.72), rgba(12, 26, 74, 0.88));
+		box-shadow:
+			inset 0 0 0 3px rgba(255, 214, 120, 0.1),
+			inset 0 2px 0 rgba(255, 255, 255, 0.2);
 	}
 
 	.bag-grid-scroll {
 		min-height: 0;
-		padding: 1rem;
+		padding: 1.25rem;
 		overflow-y: auto;
 	}
 
@@ -613,7 +632,7 @@
 		position: relative;
 		display: grid;
 		place-items: center;
-		aspect-ratio: 1;
+		height: 6.6rem;
 		min-width: 0;
 		border: 1px solid var(--color-frame);
 		border-radius: 0.85rem;
@@ -630,7 +649,7 @@
 
 	.bag-slot-selected {
 		border-color: rgba(255, 232, 168, 0.9);
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		box-shadow: 0 0 26px color-mix(in srgb, var(--color-gold) 35%, transparent);
 	}
 
@@ -646,8 +665,8 @@
 	}
 
 	.bag-slot-icon {
-		width: 72%;
-		height: 72%;
+		width: 3.1rem;
+		height: 3.1rem;
 		object-fit: contain;
 		filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
 		image-rendering: pixelated;
@@ -700,14 +719,15 @@
 		flex: none;
 		flex-direction: column;
 		gap: 1.15rem;
-		width: 21.5rem;
+		width: 25rem;
 		min-height: 0;
 	}
 
 	.bag-worn {
-		flex: 1;
+		flex: none;
+		height: 19rem;
 		min-height: 0;
-		border: 1px dashed color-mix(in srgb, var(--color-gold) 42%, var(--color-frame-strong));
+		border: 1px solid color-mix(in srgb, var(--color-gold) 70%, transparent);
 		border-radius: 1rem;
 		padding: 0.9rem 1rem;
 		background:
@@ -825,34 +845,36 @@
 	}
 
 	.bag-worn-doll {
+		position: relative;
 		display: grid;
+		width: 7rem;
 		height: 100%;
 		min-height: 0;
 		place-items: center;
 		grid-area: doll;
 	}
 	.bag-worn-doll img {
+		position: absolute;
+		inset: 0;
 		height: 100%;
-		max-height: 15rem;
-		width: auto;
+		width: 100%;
 		object-fit: contain;
 		filter: drop-shadow(0 14px 26px rgba(0, 0, 0, 0.45));
 	}
 
 	/* ---- Detail panel ------------------------------------------------------ */
 	.bag-detail {
-		flex: none;
-		border: 1px solid var(--color-frame);
-		border-radius: 1rem;
-		padding: 1rem 1.1rem 1.1rem;
-		background:
-			linear-gradient(
-				180deg,
-				rgba(255, 246, 224, 0.05),
-				color-mix(in srgb, var(--color-ink) 20%, transparent)
-			),
-			var(--color-panel);
-		box-shadow: inset 0 1px 0 rgba(255, 246, 224, 0.06);
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-height: 14rem;
+		border: 1px solid color-mix(in srgb, var(--color-gold) 50%, transparent);
+		border-radius: 1.375rem;
+		padding: 1.25rem;
+		background: linear-gradient(135deg, rgba(34, 74, 164, 0.72), rgba(12, 26, 74, 0.88));
+		box-shadow:
+			inset 0 0 0 3px rgba(255, 214, 120, 0.1),
+			inset 0 2px 0 rgba(255, 255, 255, 0.2);
 	}
 
 	.bag-detail-head {
@@ -863,19 +885,19 @@
 
 	.bag-detail-icon {
 		flex: none;
-		width: 3.4rem;
-		height: 3.4rem;
+		width: 4.6rem;
+		height: 4.6rem;
 		border: 1px solid color-mix(in srgb, var(--color-gold) 55%, transparent);
 		border-radius: 0.8rem;
-		background: color-mix(in srgb, var(--color-ink) 45%, var(--color-panel-deep));
-		padding: 0.45rem;
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
+		padding: 1rem;
 		object-fit: contain;
 		image-rendering: pixelated;
 	}
 
 	.bag-detail-name {
 		margin: 0.1rem 0 0;
-		font-size: 1rem;
+		font-size: 1.15rem;
 		font-weight: 900;
 		color: var(--color-parchment);
 	}
@@ -884,7 +906,7 @@
 		margin: 0.25rem 0 0;
 		/* Mockup detail prose uses the default display face, not Spectral. */
 		font-family: var(--font-display);
-		font-size: 0.78rem;
+		font-size: 0.85rem;
 		color: var(--color-muted);
 	}
 
@@ -898,10 +920,10 @@
 	.bag-chip {
 		display: inline-flex;
 		align-items: center;
-		border-radius: 999px;
+		border-radius: 0.75rem;
 		border: 1px solid var(--color-frame-strong);
-		padding: 0.22rem 0.65rem;
-		font-size: 0.68rem;
+		padding: 0.45rem 0.8rem;
+		font-size: 0.8rem;
 		font-weight: 800;
 		color: var(--color-parchment);
 	}
@@ -926,11 +948,11 @@
 		align-items: center;
 		justify-content: space-between;
 		width: 100%;
-		margin-top: 0.95rem;
+		margin-top: auto;
 		border: 1px solid rgba(255, 232, 168, 0.85);
 		border-radius: 0.7rem;
 		padding: 0.62rem 0.85rem;
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		color: #3a2c07;
 		font-size: 0.86rem;
 		font-weight: 900;
@@ -959,6 +981,7 @@
 		.bag-screen {
 			padding: 0.9rem 1.1rem 0.9rem 0.9rem;
 			gap: 1rem;
+			overflow-y: auto;
 		}
 
 		.bag-title {
@@ -986,6 +1009,7 @@
 		}
 
 		.bag-rail-card {
+			min-height: 0;
 			gap: 0.3rem;
 			padding: 0.5rem 0.3rem 0.45rem;
 		}
@@ -1004,6 +1028,8 @@
 		}
 
 		.bag-worn {
+			flex: 1;
+			height: auto;
 			padding: 0.5rem 0.7rem;
 		}
 
@@ -1025,7 +1051,31 @@
 		}
 
 		.bag-detail {
+			flex: none;
+			min-height: 0;
 			padding: 0.6rem 0.8rem;
+		}
+		.bag-detail-icon {
+			width: 3.4rem;
+			height: 3.4rem;
+			padding: 0.6rem;
+		}
+		.bag-detail-name {
+			font-size: 0.95rem;
+		}
+		.bag-detail-desc {
+			font-size: 0.7rem;
+		}
+		.bag-detail-chips {
+			margin-top: 0.4rem;
+		}
+		.bag-chip {
+			padding: 0.2rem 0.45rem;
+			font-size: 0.65rem;
+		}
+		.bag-detail-action {
+			margin-top: 0.4rem;
+			padding: 0.4rem 0.65rem;
 		}
 	}
 
@@ -1043,6 +1093,13 @@
 		.bag-main,
 		.bag-grid-panel {
 			flex: none;
+		}
+
+		.bag-main {
+			padding-right: 0;
+		}
+		.bag-rail-card {
+			width: 100%;
 		}
 
 		.bag-rail {

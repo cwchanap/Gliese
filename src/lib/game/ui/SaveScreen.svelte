@@ -325,14 +325,9 @@
 		z-index: 50;
 		display: flex;
 		flex-direction: column;
-		padding: 2.75rem clamp(1.5rem, 8vw, 7.25rem) 1.9rem;
+		padding: 3.25rem 3.5rem;
 		overflow-y: auto;
-		background: radial-gradient(
-			130% 110% at 50% 0%,
-			var(--color-panel) 0%,
-			var(--color-panel-deep) 46%,
-			var(--color-ink) 100%
-		);
+		background: var(--heroic-screen-background);
 	}
 
 	.save-header {
@@ -344,7 +339,7 @@
 	.save-heading {
 		margin: 0.45rem 0 0;
 		color: var(--color-parchment);
-		font-size: clamp(2rem, 3vw, 2.75rem);
+		font-size: 2.2rem;
 		font-weight: 900;
 		letter-spacing: 0.01em;
 	}
@@ -379,8 +374,7 @@
 		gap: clamp(1.1rem, 2.1vw, 1.9rem);
 		grid-template-columns: repeat(3, 1fr);
 		margin-top: 1.9rem;
-		/* Contain the cards so they can never paint over the status footer. */
-		overflow-y: auto;
+		overflow: visible;
 	}
 
 	.save-slot {
@@ -481,7 +475,7 @@
 		display: grid;
 		gap: 0.42rem;
 		padding: 0.9rem 1rem 0.85rem;
-		background: rgba(7, 11, 28, 0.6);
+		background: linear-gradient(135deg, rgba(34, 74, 164, 0.72), rgba(12, 26, 74, 0.88));
 		box-shadow: inset 0 1px 0 rgba(255, 246, 224, 0.07);
 	}
 
@@ -584,8 +578,22 @@
 	}
 
 	@media (max-width: 720px) {
+		.save-screen {
+			padding: 1rem;
+		}
+
 		.save-slots {
+			flex: none;
 			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (max-height: 600px) {
+		.save-screen {
+			padding: 1rem;
+		}
+		.save-slots {
+			flex: none;
 		}
 	}
 </style>

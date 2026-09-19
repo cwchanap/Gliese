@@ -276,16 +276,10 @@
 		background: transparent;
 	}
 
-	/* ---- Gilded choice column ----
-	   Rendered-artboard ground truth (pixel-diff re-export): the choice rows
-	   deliberately bleed off the right viewport edge — the mockup's raw
-	   right:44px inset is overridden at runtime. Anchored inside the panel so
-	   taller choice lists grow upward. */
+	/* Choices share the dialogue panel's 44px inset and grow upward. */
 	.jrpg-dialogue-choices {
 		position: absolute;
-		/* Edge bleed is intentional (see block comment above) — do NOT "fix"
-		   this back to the mockup's right:44px inset. */
-		right: -3.5rem;
+		right: 0;
 		bottom: 14.375rem;
 		display: grid;
 		justify-content: end;
@@ -298,20 +292,10 @@
 		align-items: center;
 		gap: 0.875rem;
 		overflow: hidden;
-		/* Hitbox split: the column's right: -3.5rem bleed stays decorative, but
-		   the button box itself must stay inside the viewport — an off-viewport
-		   rect is unclickable under the shell's overflow: clip (infinite
-		   Playwright click retries). The 12px that were clipped offscreen anyway
-		   become margin, so the button's right edge lands flush at the viewport
-		   edge and the painted pixels are unchanged. */
-		width: calc(min(23rem, 80vw) - 0.75rem);
-		margin-right: 0.75rem;
+		width: min(23rem, 80vw);
 		padding: 0.9rem 1.1rem;
 		border: 1px solid rgba(160, 200, 255, 0.26);
-		/* The captured look has no visible right edge (it sat past the clip);
-		   dropping the right border keeps those pixels identical. */
-		border-right: none;
-		border-radius: 1rem 0 0 1rem;
+		border-radius: 1rem;
 		text-align: left;
 		color: #e2ecff;
 		font-family: var(--font-display);

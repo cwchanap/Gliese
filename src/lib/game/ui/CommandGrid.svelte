@@ -112,25 +112,27 @@
 <style>
 	.heroic-field-menu {
 		position: absolute;
-		top: 13.4rem;
-		left: 0.9rem;
+		top: 15.75rem;
+		left: 2.125rem;
 		z-index: 40;
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
-		gap: 0.45rem;
-		width: min(24.5rem, calc(100vw - 2rem));
-		padding: 0.7rem;
-		border: 1px solid color-mix(in srgb, var(--color-gold) 28%, var(--color-frame));
-		border-radius: 1rem;
-		background: radial-gradient(
-			130% 120% at 78% 0%,
-			var(--color-panel) 0%,
-			var(--color-panel-deep) 52%,
-			var(--color-ink) 100%
+		gap: 0.625rem;
+		width: min(28.5rem, calc(100vw - 2rem));
+		padding: 1.25rem;
+		border: 1px solid color-mix(in srgb, var(--color-gold) 85%, transparent);
+		border-radius: 1.5rem;
+		background: linear-gradient(
+			135deg,
+			rgba(34, 74, 164, 0.9),
+			rgba(12, 26, 74, 0.94) 55%,
+			rgba(46, 28, 96, 0.9)
 		);
 		box-shadow:
-			0 24px 70px rgba(0, 0, 0, 0.55),
-			inset 0 1px 0 rgba(255, 246, 224, 0.08);
+			0 22px 52px rgba(0, 0, 0, 0.6),
+			inset 0 0 0 4px rgba(255, 214, 120, 0.14),
+			inset 0 0 34px rgba(90, 150, 255, 0.2),
+			inset 0 2px 0 rgba(255, 255, 255, 0.3);
 		pointer-events: auto;
 	}
 
@@ -138,6 +140,8 @@
 		position: relative;
 		display: grid;
 		justify-items: center;
+		align-content: center;
+		min-height: 6.4rem;
 		gap: 0.42rem;
 		border: 1px solid var(--color-frame);
 		border-radius: 0.7rem;
@@ -175,8 +179,8 @@
 	   flip the glyph to ink without a second asset. */
 	.heroic-cmd-icon {
 		display: block;
-		width: 1.35rem;
-		height: 1.35rem;
+		width: 1.8125rem;
+		height: 1.8125rem;
 		background: var(--cmd-tint, currentColor);
 		-webkit-mask-image: var(--cmd-icon);
 		mask-image: var(--cmd-icon);
@@ -194,7 +198,7 @@
 	.heroic-cmd:hover:not(.heroic-cmd-disabled),
 	.heroic-cmd:focus:not(.heroic-cmd-disabled) {
 		border-color: rgba(255, 232, 168, 0.85);
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		color: #3a2c07;
 		box-shadow: 0 0 26px color-mix(in srgb, var(--color-gold) 35%, transparent);
 		outline: none;
@@ -217,11 +221,17 @@
 	/* Narrow screens: compact 2×4 menu hugging the left edge. The stack is
 	   ~330px tall below its 13rem anchor, so it needs a tall viewport. */
 	@media (max-width: 720px) and (min-height: 560px) {
+		.heroic-cmd {
+			min-height: 0;
+			padding: 0.55rem 0.25rem;
+		}
+
 		.heroic-field-menu {
-			top: 13rem;
+			top: 13.875rem;
 			left: 0.75rem;
 			grid-template-columns: repeat(2, 1fr);
 			width: min(10.5rem, calc(100vw - 13.5rem));
+			padding: 0.75rem;
 		}
 	}
 
@@ -234,6 +244,9 @@
 	   so every button stays inside the viewport; tall narrow screens keep
 	   the compact 2×4 stack above. */
 	@media (max-height: 559px) {
+		.heroic-cmd {
+			min-height: 0;
+		}
 		.heroic-field-menu {
 			top: 8.5rem;
 			left: 0.9rem;

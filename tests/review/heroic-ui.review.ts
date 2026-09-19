@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { startNewRunFromTitle, continueFromTitle } from '../e2e/helpers/game';
 
 // A real serialized SaveState (createNewSaveState()) used to seed slot records
@@ -76,18 +76,18 @@ const BATTLE_QUESTS = {
 
 // Battle capture seed: parked on the meadow slime encounter (canonical
 // encounter e2e path). Low attack keeps the fight alive for the capture;
-// the large HP pool absorbs the slime counterattacks that feed the feed.
+// a repeatable two-enemy roll keeps the capture readable with valid HP.
 const BATTLE_SAVE_STATE = JSON.stringify({
 	...JSON.parse(SEED_SAVE_STATE),
-	player: { level: 1, xp: 0, hp: 200, attack: 1, x: 4_960, y: 960, facing: 'down' },
+	player: { level: 1, xp: 0, hp: 20, attack: 1, x: 4_960, y: 960, facing: 'down' },
 	quests: BATTLE_QUESTS
 });
 
-// Victory capture seed: same spot, overwhelming attack so the encounter
+// Victory capture seed: same spot, normal starting stats so the encounter
 // resolves into the victory summary (and advances the side-quest pill).
 const VICTORY_SAVE_STATE = JSON.stringify({
 	...JSON.parse(SEED_SAVE_STATE),
-	player: { level: 1, xp: 0, hp: 200, attack: 50, x: 4_960, y: 960, facing: 'down' },
+	player: { level: 1, xp: 0, hp: 20, attack: 3, x: 4_960, y: 960, facing: 'down' },
 	quests: BATTLE_QUESTS
 });
 
@@ -120,6 +120,58 @@ function seedSaveSlots(page: Page, slots: unknown[]) {
 		(encoded) => window.localStorage.setItem('gliese.saves.v1', encoded),
 		JSON.stringify({ version: 1, slots })
 	);
+}
+
+async function expectInsideViewport(page: Page, element: Locator) {
+	const box = await element.boundingBox();
+	expect(box).not.toBeNull();
+	const viewport = page.viewportSize()!;
+	expect(box!.x).toBeGreaterThanOrEqual(0);
+	expect(box!.y).toBeGreaterThanOrEqual(0);
+	expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
+	expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height);
+}
+
+for (const viewport of [
+	{ width: 640, height: 360 },
+	{ width: 1000, height: 360 },
+	{ width: 640, height: 560 }
+]) {
+	test(`Heroic controls remain reachable at ${viewport.width}x${viewport.height}`, async ({
+		page
+	}) => {
+		await page.setViewportSize(viewport);
+		await startNewRunFromTitle(page);
+		await page.getByRole('button', { name: 'Menu' }).click();
+		await page.waitForTimeout(700);
+		for (const button of await page
+			.getByRole('region', { name: 'Command' })
+			.getByRole('button')
+			.all()) {
+			await expectInsideViewport(page, button);
+		}
+		await expectInsideViewport(page, page.locator('.wallet-pill'));
+		await page.getByRole('button', { name: 'System', exact: true }).click();
+		const system = page.getByRole('dialog', { name: /display & text/i });
+		await system.getByRole('button', { name: 'Keys', exact: true }).click();
+		await expect(system.getByRole('button', { name: 'Keys', exact: true })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		await system.getByRole('button', { name: 'Close', exact: true }).click();
+		await page.getByRole('button', { name: 'Menu', exact: true }).click();
+		await page.getByRole('button', { name: 'Bag', exact: true }).click();
+		const bag = page.getByRole('dialog', { name: 'Inventory', exact: true });
+		await bag.getByRole('button', { name: 'Field Potion', exact: true }).click();
+		await bag.getByRole('button', { name: /Drink/ }).click();
+		await bag.getByRole('button', { name: /Close/ }).click();
+		await page.getByRole('button', { name: 'Menu', exact: true }).click();
+		await page.getByRole('button', { name: 'Save', exact: true }).click();
+		const save = page.getByRole('dialog', { name: 'Save', exact: true });
+		await save.getByTestId('save-slot-2').click();
+		await save.getByRole('button', { name: /Back/ }).click();
+		await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeVisible();
+	});
 }
 
 // Heroic UI review captures target the mockup canvas size; every later
@@ -186,6 +238,7 @@ test('System screen capture through the menu path', async ({ page }) => {
 	await page.screenshot({
 		path: 'docs/visual-references/heroic-ui/runtime/10-system.png'
 	});
+	expect(await dialog.boundingBox()).toEqual({ x: 0, y: 0, width: 1440, height: 900 });
 });
 
 // Field capture: reached through a real New Run, then the Menu toggle opens
@@ -225,7 +278,9 @@ test('Field HUD capture through a real New Run', async ({ page }) => {
 	// The transient status pill stays a playing-HUD surface only; the mockup's
 	// grid-open composition has no bottom-center pill, so it is gated on
 	// commandOpen in FieldHud and must be hidden here.
-	await expect(page.getByRole('status', { name: 'Field status' })).toBeHidden();
+	await expect(page.getByRole('status', { name: 'Field status' })).toHaveClass(
+		/heroic-field-status-offscreen/
+	);
 	// Fresh runs auto-activate the main quest, so the banner renders (mockup).
 	const questBanner = page.getByTestId('hud-side-panel');
 	await expect(questBanner).toContainText('Main Quest');
@@ -246,6 +301,9 @@ test('Field HUD capture through a real New Run', async ({ page }) => {
 	await page.screenshot({
 		path: 'docs/visual-references/heroic-ui/runtime/02-field.png'
 	});
+	await expectInsideViewport(page, page.locator('.quest-banner'));
+	await expectInsideViewport(page, page.locator('.wallet-pill'));
+	await expectInsideViewport(page, commandGrid);
 });
 
 // Title capture: the full Heroic title surface with key art, crest, wordmark,
@@ -369,6 +427,8 @@ test('Bag screen capture through the menu path', async ({ page }) => {
 	const detail = dialog.getByTestId('inventory-detail');
 	await expect(detail.getByText('Greater Field Potion')).toBeVisible();
 	await expect(detail.getByRole('button', { name: 'Drink' })).toBeVisible();
+	await expect(detail).toContainText('HP +14');
+	await expect(detail.getByLabel('Coins: 9')).toBeVisible();
 
 	await page.waitForTimeout(700);
 
@@ -461,6 +521,12 @@ test('Quest journal capture through the guild side-quest flow', async ({ page })
 	await expect(dialog.getByTestId('quest-reward-xp')).toBeVisible();
 	await expect(dialog.getByTestId('quest-reward-coins')).toBeVisible();
 	await expect(dialog.getByTestId('quest-reward-item')).toBeVisible();
+	await expect(dialog.locator('.quest-map-card img')).toHaveJSProperty('complete', true);
+	expect(
+		await dialog
+			.locator('.quest-map-card img')
+			.evaluate((image: HTMLImageElement) => image.naturalWidth)
+	).toBeGreaterThan(0);
 
 	await page.waitForTimeout(700);
 
@@ -569,6 +635,7 @@ test('Shop screen capture through the merchant dialogue path', async ({ page }) 
 
 	// Unaffordable: the action is a disabled "Not enough" plate.
 	await expect(shop.getByRole('button', { name: 'Not enough' })).toBeDisabled();
+	await page.mouse.move(720, 890);
 
 	await page.waitForTimeout(700);
 
@@ -582,6 +649,11 @@ test('Shop screen capture through the merchant dialogue path', async ({ page }) 
 // Structural assertions cover the mockup composition: TURN/AUTO ribbon, enemy
 // plates, hero plate, combat feed, and the Heal/Item/Flee tiles.
 test('Battle HUD capture through a real encounter', async ({ page }) => {
+	await page.addInitScript(() => {
+		// Keep Phaser's generated texture IDs unique while fixing the encounter count at two.
+		const random = Math.random;
+		Math.random = () => 0.1 + random() * 0.1;
+	});
 	await seedSaveSlots(page, [seedStateRecord(BATTLE_SAVE_STATE), null, null]);
 	await page.goto('/');
 	await page.getByRole('button', { name: /Continue/i }).click();
@@ -595,7 +667,7 @@ test('Battle HUD capture through a real encounter', async ({ page }) => {
 	await expect(page.getByTestId('battle-ribbon')).toBeVisible();
 	await expect(page.getByTestId('battle-ribbon')).toContainText(/turn/i);
 	await expect(page.getByTestId('battle-ribbon')).toContainText(/auto/i);
-	expect(await page.getByTestId('battle-plate').count()).toBeGreaterThanOrEqual(1);
+	await expect(page.getByTestId('battle-plate')).toHaveCount(2);
 	await expect(page.getByTestId('battle-plate').first()).toContainText('Slime Scout');
 	await expect(page.getByTestId('battle-hero-plate')).toBeVisible();
 	await expect(page.getByTestId('battle-hero-plate')).toContainText('Liam');
@@ -616,11 +688,18 @@ test('Battle HUD capture through a real encounter', async ({ page }) => {
 	await page.screenshot({
 		path: 'docs/visual-references/heroic-ui/runtime/07-battle.png'
 	});
+	for (const plate of await page.getByTestId('battle-plate').all()) {
+		await expectInsideViewport(page, plate);
+	}
 });
 
-// Victory capture: same encounter path with an overwhelming attack so the
+// Victory capture: same encounter path with normal starting stats so the
 // battle resolves into the Heroic victory summary through the real flow.
 test('Victory summary capture through a real encounter', async ({ page }) => {
+	await page.addInitScript(() => {
+		const random = Math.random;
+		Math.random = () => 0.1 + random() * 0.1;
+	});
 	await seedSaveSlots(page, [seedStateRecord(VICTORY_SAVE_STATE), null, null]);
 	await page.goto('/');
 	await page.getByRole('button', { name: /Continue/i }).click();
@@ -716,4 +795,6 @@ test('Dialogue capture through a real NPC interaction', async ({ page }) => {
 	await page.screenshot({
 		path: 'docs/visual-references/heroic-ui/runtime/06-dialogue.png'
 	});
+	await expectInsideViewport(page, shopChoice);
+	await expect(page.getByTestId('hud-party-panel')).toHaveCount(0);
 });

@@ -239,31 +239,34 @@
 
 <style>
 	.heroic-field-card {
-		border: 1px solid color-mix(in srgb, var(--color-gold) 28%, var(--color-frame));
-		border-radius: 1rem;
-		background: radial-gradient(
-			130% 120% at 78% 0%,
-			var(--color-panel) 0%,
-			var(--color-panel-deep) 52%,
-			var(--color-ink) 100%
+		border: 1px solid color-mix(in srgb, var(--color-gold) 85%, transparent);
+		border-radius: 1.5rem;
+		background: linear-gradient(
+			135deg,
+			rgba(34, 74, 164, 0.9),
+			rgba(12, 26, 74, 0.94) 55%,
+			rgba(46, 28, 96, 0.9)
 		);
 		box-shadow:
-			0 24px 70px rgba(0, 0, 0, 0.55),
-			inset 0 1px 0 rgba(255, 246, 224, 0.08);
+			0 22px 52px rgba(0, 0, 0, 0.6),
+			inset 0 0 0 4px rgba(255, 214, 120, 0.14),
+			inset 0 0 34px rgba(90, 150, 255, 0.2),
+			inset 0 2px 0 rgba(255, 255, 255, 0.3);
 		color: var(--color-parchment);
 	}
 
 	/* ---- Hero card (portrait / level / HP / XP / stats) --------------- */
 	.hero-card {
 		position: absolute;
-		top: 0.9rem;
-		left: 0.9rem;
+		top: 2.125rem;
+		left: 2.125rem;
 		z-index: 20;
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr);
 		gap: 1rem;
-		width: min(23.5rem, calc(100vw - 2rem));
-		padding: 1.05rem;
+		width: min(23.125rem, calc(100vw - 2rem));
+		min-height: 12.375rem;
+		padding: 1.125rem 1.875rem 1.125rem 1.25rem;
 		pointer-events: none;
 	}
 
@@ -297,13 +300,13 @@
 
 	.hero-portrait {
 		position: relative;
-		align-self: start;
+		align-self: center;
 	}
 
 	.hero-portrait img {
 		display: block;
-		width: 5.2rem;
-		height: 5.2rem;
+		width: 5.6rem;
+		height: 5.6rem;
 		border: 2px solid color-mix(in srgb, var(--color-gold) 70%, transparent);
 		border-radius: 999px;
 		object-fit: cover;
@@ -321,7 +324,7 @@
 		border: 1px solid color-mix(in srgb, var(--color-gold) 80%, transparent);
 		border-radius: 999px;
 		padding: 0.08rem 0.42rem;
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 		color: #3a2c07;
 		font-size: 0.66rem;
 		font-weight: 900;
@@ -339,7 +342,7 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		font-size: 1.45rem;
+		font-size: 1.7rem;
 		font-weight: 900;
 		letter-spacing: 0.01em;
 		color: var(--color-parchment);
@@ -446,26 +449,29 @@
 	/* ---- Right column: minimap medallion / quest banner / wallet ------- */
 	.heroic-side-hud {
 		position: absolute;
-		top: 0.9rem;
-		right: 0.9rem;
+		top: 2.125rem;
+		right: 2.125rem;
 		z-index: 20;
 		display: grid;
-		justify-items: stretch;
-		gap: 0.55rem;
-		width: min(13.5rem, calc(100vw - 2rem));
+		justify-items: end;
+		gap: 1.125rem;
+		width: min(20.5rem, calc(100vw - 2rem));
 		pointer-events: none;
 	}
 
 	.minimap-card {
 		display: grid;
 		justify-items: center;
-		padding: 0.6rem;
+		padding: 0;
+		border: 0;
+		background: none;
+		box-shadow: none;
 	}
 
 	.minimap-medallion {
 		overflow: hidden;
-		width: 10.25rem;
-		height: 10.25rem;
+		width: 13.4rem;
+		height: 13.4rem;
 		border: 4px solid color-mix(in srgb, var(--color-gold) 82%, transparent);
 		border-radius: 999px;
 		box-shadow:
@@ -547,12 +553,11 @@
 
 	/* ---- Main quest banner --------------------------------------------- */
 	.quest-banner {
-		/* Mockup bleeds the banner off the right viewport edge. */
-		margin-right: -2.2rem;
-		border-top-right-radius: 0;
-		border-bottom-right-radius: 0;
-		border-left: 3px solid var(--color-gold);
-		padding: 0.6rem 0.75rem;
+		width: 100%;
+		margin-top: 0.75rem;
+		border-radius: 0.25rem 1.25rem 1.25rem 0.25rem;
+		border-left: 7px solid var(--color-gold);
+		padding: 1rem 1.25rem;
 	}
 
 	.quest-banner-eyebrow {
@@ -605,9 +610,7 @@
 	/* ---- Wallet pill ---------------------------------------------------- */
 	.wallet-pill {
 		justify-self: end;
-		/* Mockup bleeds the coin pill off the right viewport edge. */
-		margin-right: -2.2rem;
-		border-radius: 999px 0 0 999px;
+		border-radius: 999px;
 		display: inline-flex;
 		align-items: center;
 		gap: 0.45rem;
@@ -671,14 +674,66 @@
 
 		.heroic-side-hud {
 			/* Stacks below the hero card with a clear ≥8px gap. */
-			top: 13.25rem;
+			top: 13.875rem;
 			right: 0.75rem;
 			width: min(11rem, calc(100vw - 1.5rem));
+			gap: 0.6rem;
+		}
+
+		.minimap-medallion {
+			width: 7rem;
+			height: 7rem;
+		}
+		.quest-banner {
+			padding: 0.65rem 0.7rem;
+			margin-top: 0;
 		}
 
 		.heroic-field-status {
 			bottom: 16.5rem;
 			max-width: min(24rem, calc(100vw - 1.5rem));
+		}
+	}
+
+	@media (max-height: 559px) {
+		.hero-card {
+			top: 0.75rem;
+			left: 0.9rem;
+			min-height: 0;
+			width: 19rem;
+			gap: 0.7rem;
+			padding: 0.6rem 0.85rem;
+		}
+		.hero-copy {
+			gap: 0.25rem;
+		}
+		.hero-name {
+			font-size: 1.15rem;
+		}
+		.hero-portrait img {
+			width: 3.2rem;
+			height: 3.2rem;
+		}
+		.hero-meter-value {
+			font-size: 0.9rem;
+		}
+		.hero-stats {
+			margin-top: 0;
+			padding-top: 0.25rem;
+		}
+		.heroic-side-hud {
+			top: 0.75rem;
+			right: 0.75rem;
+			width: 11rem;
+			gap: 0.6rem;
+		}
+		.minimap-medallion {
+			width: 6rem;
+			height: 6rem;
+		}
+		.quest-banner {
+			padding: 0.65rem 0.7rem;
+			margin-top: 0;
 		}
 	}
 </style>

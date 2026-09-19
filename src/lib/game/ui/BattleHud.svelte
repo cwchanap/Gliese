@@ -366,7 +366,7 @@
 
 	.battle-ribbon-slot-hero {
 		border-color: rgba(255, 232, 168, 0.85);
-		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+		background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold-shade));
 	}
 
 	.battle-ribbon-slot-hero svg {
@@ -387,7 +387,7 @@
 	.battle-plates {
 		position: absolute;
 		top: 7.4rem;
-		right: 0;
+		right: 2.75rem;
 		display: grid;
 		gap: 0.75rem;
 		justify-items: end;
@@ -398,11 +398,10 @@
 		display: flex;
 		align-items: center;
 		gap: 0.8rem;
-		width: 19rem;
+		width: 23.375rem;
 		border: 1px solid var(--color-frame);
-		border-right: none;
-		border-radius: 1rem 0 0 1rem;
-		padding: 0.7rem 1rem 0.7rem 1.6rem;
+		border-radius: 1rem;
+		padding: 0.875rem 1.125rem;
 		background: linear-gradient(180deg, var(--color-panel), var(--color-panel-deep));
 		box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
 		color: var(--color-parchment);
@@ -539,7 +538,7 @@
 	.battle-feed {
 		position: absolute;
 		bottom: 15.5rem;
-		left: 5.9rem;
+		left: 2.75rem;
 		display: grid;
 		gap: 0.62rem;
 	}
@@ -607,26 +606,30 @@
 	.battle-hero {
 		position: absolute;
 		bottom: 2.4rem;
-		left: 5.9rem;
+		left: 2.75rem;
 		display: flex;
 		align-items: center;
 		gap: 1rem;
-		border: 1px solid color-mix(in srgb, var(--color-gold) 28%, var(--color-frame));
+		border: 1px solid color-mix(in srgb, var(--color-gold) 85%, transparent);
 		border-radius: 1.1rem;
-		padding: 0.8rem 1.3rem 0.8rem 0.8rem;
-		background: radial-gradient(
-			130% 120% at 78% 0%,
-			var(--color-panel) 0%,
-			var(--color-panel-deep) 52%,
-			var(--color-ink) 100%
+		padding: 1.25rem 1.75rem 1.25rem 1.25rem;
+		background: linear-gradient(
+			135deg,
+			rgba(34, 74, 164, 0.9),
+			rgba(12, 26, 74, 0.94) 55%,
+			rgba(46, 28, 96, 0.9)
 		);
-		box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+		box-shadow:
+			0 22px 52px rgba(0, 0, 0, 0.6),
+			inset 0 0 0 4px rgba(255, 214, 120, 0.14),
+			inset 0 0 34px rgba(90, 150, 255, 0.2),
+			inset 0 2px 0 rgba(255, 255, 255, 0.3);
 	}
 
 	.battle-hero-bust img {
 		display: block;
-		width: 3.9rem;
-		height: 3.9rem;
+		width: 5.6rem;
+		height: 5.6rem;
 		border: 2px solid rgba(249, 115, 155, 0.7);
 		border-radius: 999px;
 		object-fit: cover;
@@ -637,8 +640,8 @@
 		position: relative;
 		display: grid;
 		place-items: center;
-		width: 3.4rem;
-		height: 3.4rem;
+		width: 4.5rem;
+		height: 4.5rem;
 	}
 
 	.battle-hero-gauge svg {
@@ -743,7 +746,8 @@
 		display: grid;
 		justify-items: center;
 		gap: 0.4rem;
-		width: 5.9rem;
+		width: 6.75rem;
+		min-height: 6.75rem;
 		border: 1px solid var(--color-frame);
 		border-radius: 1rem;
 		padding: 0.95rem 0.5rem 0.75rem;
@@ -831,6 +835,11 @@
 			bottom: 1.1rem;
 			right: 0.9rem;
 			gap: 0.7rem;
+		}
+
+		.battle-tile {
+			width: 5rem;
+			min-height: 4.75rem;
 		}
 	}
 
