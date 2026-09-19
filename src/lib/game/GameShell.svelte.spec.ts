@@ -1763,6 +1763,44 @@ describe('GameShell save screen', () => {
 		expect(saveDialog.elements()).toHaveLength(0);
 	});
 
+	it('blocks pointer input to the underlying screen while the overwrite alertdialog is open', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: 'Save' }).click();
+
+			const saveDialog = page.getByRole('dialog', { name: /save/i });
+			await expect.element(saveDialog).toBeVisible();
+
+			window.addEventListener(HUD_COMMAND_EVENT, (event) => {
+				const command = (event as CustomEvent).detail as { type?: string; slot?: 1 | 2 };
+				if (command?.type === 'save-slot' && command.slot) {
+					writeSaveSlot(command.slot, createSlotRecord());
+				}
+			});
+
+			// Fill slot 1, then click it again to raise the overwrite alertdialog.
+			await saveDialog.getByTestId('save-slot-1').click();
+			await saveDialog.getByTestId('save-slot-1').click();
+			const alertDialog = saveDialog.getByRole('alertdialog');
+			await expect.element(alertDialog).toBeVisible();
+			await expect.element(alertDialog).toHaveAttribute('aria-modal', 'true');
+
+			commands.length = 0;
+
+			// force: true dispatches real input at the element's coordinates, so
+			// the modal scrim still receives the click — the covered control must not.
+			await saveDialog.getByTestId('save-slot-2').click({ force: true });
+			await saveDialog.getByRole('button', { name: /back/i }).first().click({ force: true });
+
+			expect(commands).toHaveLength(0);
+			await expect.element(alertDialog).toBeVisible();
+			await expect.element(saveDialog).toBeVisible();
+		});
+	});
+
 	it('shows a just-written record and asks to overwrite when the same slot is clicked again', async () => {
 		await withCommands(async (commands) => {
 			render(GameShell);

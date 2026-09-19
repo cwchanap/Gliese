@@ -286,12 +286,19 @@
 			{/each}
 		</div>
 
+		{#if confirmSlot !== null}
+			<!-- Modal scrim: blocks pointer input to the underlying screen while
+			     the overwrite alertdialog is open. -->
+			<div class="save-confirm-scrim" aria-hidden="true"></div>
+		{/if}
+
 		<footer class="save-footer">
 			<p class="save-status font-display" role="status">{hudStatus}</p>
 			{#if confirmSlot !== null}
 				<div
 					class="save-confirm"
 					role="alertdialog"
+					aria-modal="true"
 					aria-label={t(locale, 'ui.overwriteTitle')}
 					bind:this={confirmDialog}
 					tabindex="-1"
@@ -568,7 +575,16 @@
 		font-weight: 700;
 	}
 
+	.save-confirm-scrim {
+		position: absolute;
+		inset: 0;
+		z-index: 5;
+		background: rgba(5, 8, 20, 0.55);
+	}
+
 	.save-confirm {
+		position: relative;
+		z-index: 6;
 		display: flex;
 		align-items: center;
 		justify-content: flex-end;

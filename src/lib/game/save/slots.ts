@@ -149,7 +149,13 @@ export function writeSaveSlot(
 	if (!resolved) return { state: createEmptySaveSlots(), thumbnailDropped: false };
 
 	const state = loadSaveSlots(resolved);
-	state.slots[index] = record;
+	// Normalize once so the in-memory slot and the persisted payload carry the
+	// same bounded thumbnail a reload through parseSaveSlots would produce.
+	const normalized: SaveSlotRecord = {
+		...record,
+		thumbnail: boundSaveThumbnail(record.thumbnail)
+	};
+	state.slots[index] = normalized;
 
 	// Siblings that fail validation read as null but keep their raw payload in
 	// the stored envelope, so saving one slot cannot erase another's data.
@@ -157,7 +163,7 @@ export function writeSaveSlot(
 		version: 1,
 		slots: readRawSlots(resolved) ?? [null, null, null]
 	};
-	persisted.slots[index] = record;
+	persisted.slots[index] = normalized;
 
 	try {
 		resolved.setItem(SAVE_SLOTS_STORAGE_KEY, JSON.stringify(persisted));
@@ -183,6 +189,9 @@ export function writeSaveSlot(
 /**
  * Returns the stored envelope's slot entries verbatim, or null when the
  * stored payload is missing or not a structurally valid v1 envelope.
+ * @param storage - The SaveStorage adapter holding the `gliese.saves.v1` envelope.
+ * @returns unknown[] | null — the raw slot entries, or `null` when absent
+ *   or invalid.
  */
 function readRawSlots(storage: SaveStorage): unknown[] | null {
 	let encoded: string | null;
