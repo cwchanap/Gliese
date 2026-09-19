@@ -7,6 +7,7 @@ import {
 	getBattleBackgroundAsset,
 	getActorAnimationAsset,
 	getEnemyActorId,
+	getEnemyPlateArtPath,
 	type ActorAnimationKey
 } from '$lib/game/content/assets';
 import { getItem } from '$lib/game/content/items';
@@ -20,10 +21,23 @@ import {
 	getBattleEnemyDefinition,
 	type BattleDefeatedUnit,
 	type BattleEnemyUnit,
+	type BattleOutcome,
 	type BattleResult,
 	type BattleSummary,
 	type BattleStartPayload
 } from '$lib/game/core/battle';
+import {
+	appendBattleFeedEvent,
+	cancelFleeChannel,
+	cycleBattleTarget,
+	getFleeChannelProgress,
+	isFleeChannelComplete,
+	selectBattleTarget,
+	selectNearestBattleTarget,
+	sortBattleRibbonEntries,
+	startFleeChannel,
+	type FleeChannelState
+} from '$lib/game/core/battle-presentation';
 import { canReceiveHit, resolveHit } from '$lib/game/core/combat';
 import { createEmptyEquipment } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
@@ -35,6 +49,7 @@ import { getBaseMaxHp } from '$lib/game/core/progression';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import {
 	formatRewardSummary,
+	getEnemyText,
 	getItemText,
 	getQuestObjectiveText,
 	getQuestText
@@ -45,6 +60,8 @@ import type { SaveState } from '$lib/game/save/save-state';
 import {
 	emitHudState,
 	onHudCommand,
+	type HudBattleActive,
+	type HudBattleFeedEntry,
 	type HudCommand,
 	type HudState
 } from '$lib/game/ui-bridge/events';
@@ -118,17 +135,24 @@ export class BattleScene extends Phaser.Scene {
 	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private defeatedUnits: BattleDefeatedUnit[] = [];
 	private enemies: BattleEnemyInstance[] = [];
+	private feed: HudBattleFeedEntry[] = [];
+	private feedSeq = 0;
+	private fleeChannel: FleeChannelState = { status: 'idle' };
 	private hero = { hp: 1, maxHp: 1, attack: 1, defense: 0 };
 	private heroAttackCooldownUntil = 0;
 	private heroInvulnerableUntil = 0;
 	private hitStopUntil = 0;
 	private inventory: BattleStartPayload['saveState']['inventory'] | null = null;
+	/** Most recent update() timestamp; command handlers run between frames. */
+	private lastFrameTime = 0;
+	private lastFleeProgressPercent = 0;
 	private payload: BattleStartPayload | null = null;
 	private pendingResult: BattleResult | null = null;
 	private appliedSaveState: SaveState | null = null;
 	private player?: ActorMarker;
 	private heroAnimationLockedUntil = 0;
 	private heroVisualState: ActorAnimationKey = 'idle';
+	private selectedTargetUnitId: string | null = null;
 	private removeHudCommandListener = () => {};
 	private removeResizeListener = () => {};
 	private wasdKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
@@ -140,7 +164,7 @@ export class BattleScene extends Phaser.Scene {
 	create(payload?: BattleStartPayload) {
 		this.removeHudCommandListener();
 		this.resetRuntimeState();
-		this.cameras.main.setBackgroundColor('#17231f');
+		this.cameras.main.setBackgroundColor('#0b0d22');
 		this.centerArena();
 		this.removeResizeListener();
 		this.scale.on('resize', this.centerArena);
@@ -167,6 +191,11 @@ export class BattleScene extends Phaser.Scene {
 		this.createBattleBackdrop(payload.sourceMapId);
 		this.createHero();
 		this.createEnemies(payload);
+		this.selectedTargetUnitId =
+			selectNearestBattleTarget(this.enemies, {
+				x: BattleScene.arena.width / 2,
+				y: BattleScene.arena.height / 2
+			})?.unitId ?? null;
 		this.cursorKeys = this.input?.keyboard?.createCursorKeys?.();
 		this.wasdKeys = this.input?.keyboard?.addKeys?.({
 			left: Phaser.Input.Keyboard.KeyCodes.A,
@@ -183,7 +212,13 @@ export class BattleScene extends Phaser.Scene {
 	}
 
 	update(time: number, delta: number) {
+		this.lastFrameTime = time;
+
 		if (!this.player || !this.payload || this.pendingResult) {
+			return;
+		}
+
+		if (this.updateFleeChannel(time)) {
 			return;
 		}
 
@@ -208,6 +243,9 @@ export class BattleScene extends Phaser.Scene {
 		this.cursorKeys = undefined;
 		this.defeatedUnits = [];
 		this.enemies = [];
+		this.feed = [];
+		this.feedSeq = 0;
+		this.fleeChannel = { status: 'idle' };
 		this.hero = { hp: 1, maxHp: 1, attack: 1, defense: 0 };
 		this.heroAttackCooldownUntil = 0;
 		this.heroAnimationLockedUntil = 0;
@@ -215,10 +253,13 @@ export class BattleScene extends Phaser.Scene {
 		this.heroVisualState = 'idle';
 		this.hitStopUntil = 0;
 		this.inventory = null;
+		this.lastFrameTime = 0;
+		this.lastFleeProgressPercent = 0;
 		this.payload = null;
 		this.pendingResult = null;
 		this.appliedSaveState = null;
 		this.player = undefined;
+		this.selectedTargetUnitId = null;
 		this.removeResizeListener();
 		this.removeResizeListener = () => {};
 		this.wasdKeys = undefined;
@@ -274,9 +315,11 @@ export class BattleScene extends Phaser.Scene {
 	 */
 	private createBattleBackdrop(sourceMapId: string) {
 		const background = getBattleBackgroundAsset(sourceMapId);
+		// Cover twice the arena so the backdrop bleeds into the letterbox area
+		// the centered camera exposes on canvases larger than the arena.
 		this.add
 			.image(BattleScene.arena.width / 2, BattleScene.arena.height / 2, background.key)
-			.setDisplaySize(BattleScene.arena.width, BattleScene.arena.height);
+			.setDisplaySize(BattleScene.arena.width * 2, BattleScene.arena.height * 2);
 		this.add.rectangle(
 			BattleScene.arena.width / 2,
 			BattleScene.arena.height / 2,
@@ -416,17 +459,18 @@ export class BattleScene extends Phaser.Scene {
 			return;
 		}
 
-		const target = this.enemies
+		const reach = BattleScene.playerRadius + BattleScene.enemyRadius + BattleScene.attackReach;
+		const candidates = this.enemies
 			.filter((enemy) => !enemy.defeated && canReceiveHit(enemy, time))
 			.map((enemy) => ({
 				enemy,
 				distance: Phaser.Math.Distance.Between(this.player!.x, this.player!.y, enemy.x, enemy.y)
 			}))
-			.filter(
-				({ distance }) =>
-					distance <= BattleScene.playerRadius + BattleScene.enemyRadius + BattleScene.attackReach
-			)
-			.sort((left, right) => left.distance - right.distance)[0]?.enemy;
+			.filter(({ distance }) => distance <= reach)
+			.sort((left, right) => left.distance - right.distance);
+		const target =
+			candidates.find(({ enemy }) => enemy.unitId === this.selectedTargetUnitId)?.enemy ??
+			candidates[0]?.enemy;
 
 		if (!target) {
 			return;
@@ -436,9 +480,12 @@ export class BattleScene extends Phaser.Scene {
 		this.heroAnimationLockedUntil = time + BattleScene.actorAnimationLockMs;
 		this.setHeroAnimation('attack', false);
 		this.playHeroAttackPresentation(target, time);
+		const hpBefore = target.hp;
 		target.hp = resolveHit({ hp: target.hp, defense: 0 }, { power: this.hero.attack }).hp;
 		target.invulnerableUntil = time + BattleScene.enemyInvulnerabilityMs;
 		this.updateEnemyHealthBar(target);
+		this.appendFeedEvent('hit', hpBefore - target.hp, this.getEnemyName(target));
+		this.publishHudState(t(getActiveLocale(), 'status.battleActive'));
 
 		if (target.hp === 0) {
 			this.finishEnemy(target);
@@ -479,6 +526,7 @@ export class BattleScene extends Phaser.Scene {
 
 		enemy.defeated = true;
 		this.playEnemyDeathAnimation(enemy);
+		this.appendFeedEvent('defeat', 0, this.getEnemyName(enemy));
 		this.defeatedUnits.push({
 			unitId: enemy.unitId,
 			unitIndex: enemy.unitIndex,
@@ -488,9 +536,20 @@ export class BattleScene extends Phaser.Scene {
 			drops: resolveLootDrops(getBattleEnemyDefinition(enemy.enemyId).loot)
 		});
 
+		if (this.selectedTargetUnitId === enemy.unitId) {
+			this.selectedTargetUnitId =
+				selectNearestBattleTarget(this.enemies, {
+					x: this.player?.x ?? BattleScene.arena.width / 2,
+					y: this.player?.y ?? BattleScene.arena.height / 2
+				})?.unitId ?? null;
+		}
+
 		if (this.enemies.every((candidate) => candidate.defeated)) {
 			this.finishBattle('victory');
+			return;
 		}
+
+		this.publishHudState(t(getActiveLocale(), 'status.enemyDefeated'));
 	}
 
 	private updateEnemyBehavior(time: number, delta: number) {
@@ -551,6 +610,7 @@ export class BattleScene extends Phaser.Scene {
 	}
 
 	private enemyAttackHero(enemy: BattleEnemyInstance, time: number) {
+		const hpBefore = this.hero.hp;
 		this.hero.hp = resolveHit(
 			{ hp: this.hero.hp, defense: this.hero.defense },
 			{ power: enemy.attack }
@@ -561,15 +621,23 @@ export class BattleScene extends Phaser.Scene {
 		this.playEnemyAnimation(enemy, 'attack', false);
 		this.playEnemyAttackPresentation();
 
+		if (this.fleeChannel.status === 'channeling') {
+			this.fleeChannel = cancelFleeChannel();
+			this.lastFleeProgressPercent = 0;
+		}
+
+		this.appendFeedEvent('hurt', hpBefore - this.hero.hp, t(getActiveLocale(), 'ui.heroName'));
+
 		if (this.hero.hp === 0 && this.player) {
 			this.setHeroAnimation('dead', false);
+			this.publishHudState(t(getActiveLocale(), 'status.heroDown'));
 			return;
 		}
 
 		this.publishHudState(t(getActiveLocale(), 'status.battleActive'));
 	}
 
-	private finishBattle(outcome: 'victory' | 'defeat') {
+	private finishBattle(outcome: BattleOutcome) {
 		if (!this.payload || !this.inventory || this.pendingResult) {
 			return;
 		}
@@ -585,6 +653,21 @@ export class BattleScene extends Phaser.Scene {
 			inventory: this.inventory,
 			defeatedUnits: outcome === 'victory' ? this.defeatedUnits : []
 		};
+
+		// Fleeing has no summary: hand the result straight back to the field.
+		if (outcome === 'fled') {
+			this.scene.start(WorldScene.key, {
+				saveState: this.payload.saveState,
+				reason: 'battle-result',
+				battleResult: this.pendingResult,
+				recentlyFled: {
+					encounterId: this.payload.sourceEncounterId,
+					fledAt: this.lastFrameTime
+				}
+			});
+			return;
+		}
+
 		const application = applyBattleResultToSaveState(this.payload.saveState, this.pendingResult);
 		this.appliedSaveState = application.saveState;
 		this.publishHudState(
@@ -599,8 +682,7 @@ export class BattleScene extends Phaser.Scene {
 			this.scene.start(WorldScene.key, {
 				saveState: this.payload.saveState,
 				reason: 'battle-result',
-				battleResult: this.pendingResult,
-				persistExplorationChanges: this.payload.persistExplorationChanges
+				battleResult: this.pendingResult
 			});
 			return;
 		}
@@ -619,7 +701,94 @@ export class BattleScene extends Phaser.Scene {
 			return;
 		}
 
+		if (command.type === 'battle-cycle-target') {
+			this.cycleTarget(command.direction);
+			return;
+		}
+
+		if (command.type === 'battle-select-target') {
+			this.selectTarget(command.unitId);
+			return;
+		}
+
+		if (command.type === 'battle-flee') {
+			this.startFleeChannel();
+			return;
+		}
+
 		this.publishHudState(t(getActiveLocale(), 'status.battleLocked'));
+	}
+
+	private cycleTarget(direction: -1 | 1) {
+		const next = cycleBattleTarget(
+			this.enemies,
+			this.selectedTargetUnitId,
+			direction,
+			this.getHeroOrigin()
+		);
+		this.selectedTargetUnitId = next?.unitId ?? null;
+		this.publishHudState(t(getActiveLocale(), 'status.battleActive'));
+	}
+
+	private selectTarget(unitId: string) {
+		const next = selectBattleTarget(this.enemies, unitId);
+		if (next) {
+			this.selectedTargetUnitId = next.unitId;
+		}
+		this.publishHudState(t(getActiveLocale(), 'status.battleActive'));
+	}
+
+	private startFleeChannel() {
+		if (this.fleeChannel.status === 'channeling') {
+			return;
+		}
+
+		this.fleeChannel = startFleeChannel(this.lastFrameTime);
+		this.lastFleeProgressPercent = 0;
+		this.publishHudState(t(getActiveLocale(), 'status.battleActive'));
+	}
+
+	/** Ticks the flee channel; returns true when it resolves the battle this frame. */
+	private updateFleeChannel(time: number): boolean {
+		if (this.fleeChannel.status !== 'channeling') {
+			return false;
+		}
+
+		if (isFleeChannelComplete(this.fleeChannel, time)) {
+			this.fleeChannel = cancelFleeChannel();
+			this.lastFleeProgressPercent = 0;
+			this.finishBattle('fled');
+			return true;
+		}
+
+		const percent = Math.round(getFleeChannelProgress(this.fleeChannel, time) * 100);
+		if (percent !== this.lastFleeProgressPercent) {
+			this.lastFleeProgressPercent = percent;
+			this.publishHudState(t(getActiveLocale(), 'status.battleActive'));
+		}
+
+		return false;
+	}
+
+	private getHeroOrigin() {
+		return {
+			x: this.player?.x ?? BattleScene.arena.width / 2,
+			y: this.player?.y ?? BattleScene.arena.height / 2
+		};
+	}
+
+	private appendFeedEvent(kind: HudBattleFeedEntry['kind'], amount: number, subject: string) {
+		this.feedSeq += 1;
+		this.feed = appendBattleFeedEvent(this.feed, {
+			id: this.feedSeq,
+			kind,
+			amount,
+			subject
+		});
+	}
+
+	private getEnemyName(enemy: BattleEnemyInstance): string {
+		return getEnemyText(getActiveLocale(), enemy.enemyId)?.name ?? enemy.enemyId;
 	}
 
 	private consumeFirstHealingItem() {
@@ -663,10 +832,16 @@ export class BattleScene extends Phaser.Scene {
 		}
 
 		this.inventory = result.inventory;
+		const hpBefore = this.hero.hp;
 		this.hero = {
 			...this.hero,
 			hp: Math.min(this.hero.maxHp, this.hero.hp + item.effect.amount)
 		};
+		this.appendFeedEvent(
+			'heal',
+			this.hero.hp - hpBefore,
+			getItemText(getActiveLocale(), itemId)?.name ?? item.name
+		);
 		this.publishHudState(t(getActiveLocale(), 'status.recoveredHp'));
 	}
 
@@ -942,7 +1117,6 @@ export class BattleScene extends Phaser.Scene {
 			attack: heroStats.attack,
 			defense: heroStats.defense,
 			heals: this.getConsumableCount(appliedSaveState?.inventory),
-			canResume: false,
 			status,
 			areaMap: buildAreaMapState({
 				map,
@@ -957,7 +1131,8 @@ export class BattleScene extends Phaser.Scene {
 			dialogue: null,
 			battle: {
 				phase: hudSummary ? 'summary' : 'active',
-				summary: hudSummary
+				summary: hudSummary,
+				active: hudSummary ? null : this.buildHudBattleActive()
 			},
 			quests: buildHudQuestState({
 				state: questState,
@@ -966,6 +1141,47 @@ export class BattleScene extends Phaser.Scene {
 			}),
 			inventory: this.buildHudInventory(appliedSaveState)
 		});
+	}
+
+	private buildHudBattleActive(): HudBattleActive {
+		return {
+			targetUnitId: this.selectedTargetUnitId,
+			enemies: this.enemies.map((enemy) => ({
+				unitId: enemy.unitId,
+				enemyId: enemy.enemyId,
+				name: this.getEnemyName(enemy),
+				hp: enemy.hp,
+				maxHp: enemy.maxHp,
+				defeated: enemy.defeated,
+				artPath: getEnemyPlateArtPath(enemy.enemyId)
+			})),
+			ribbon: sortBattleRibbonEntries([
+				{ unitId: 'hero', readyAt: this.heroAttackCooldownUntil },
+				...this.enemies
+					.filter((enemy) => !enemy.defeated)
+					.map((enemy) => ({ unitId: enemy.unitId, readyAt: enemy.attackCooldownUntil }))
+			]),
+			feed: this.feed,
+			heals: this.getHealingItemCount(),
+			items: this.getConsumableCount(),
+			flee: {
+				status: this.fleeChannel.status,
+				progress: getFleeChannelProgress(this.fleeChannel, this.lastFrameTime)
+			},
+			now: this.lastFrameTime
+		};
+	}
+
+	private getHealingItemCount() {
+		return (
+			this.inventory?.stacks.reduce((total, stack) => {
+				const item = getItem(stack.itemId);
+
+				return item?.type === 'consumable' && item.effect.type === 'heal'
+					? total + stack.quantity
+					: total;
+			}, 0) ?? 0
+		);
 	}
 
 	private getHudHeroStats(appliedSaveState?: SaveState) {
