@@ -8,6 +8,7 @@
 	import { motionReduced, preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import { tick } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
 
 	interface Props {
@@ -54,6 +55,11 @@
 	});
 
 	const locale = $derived($preferences.locale);
+
+	// Focus-grid geometry mirrors the slot layout: below 720px the manual
+	// slots stack into a single column, so Down — not Right — moves between
+	// them. The short-viewport rule only adjusts flex/padding, never columns.
+	const stackedSaveSlots = new MediaQuery('(max-width: 720px)');
 
 	function slotStats(state: SaveState) {
 		const effective = deriveEffectiveStats(
@@ -275,8 +281,8 @@
 						class="save-slot save-slot-action"
 						data-testid="save-slot-{index}"
 						data-focus-id={`save-slot-${index}`}
-						data-focus-row={0}
-						data-focus-column={index - 1}
+						data-focus-row={stackedSaveSlots.current ? index - 1 : 0}
+						data-focus-column={stackedSaveSlots.current ? 0 : index - 1}
 						aria-label={slotAriaLabel(index, record)}
 						onclick={() => chooseSlot(index as 1 | 2)}
 					>
