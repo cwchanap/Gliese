@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { locale, preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
@@ -54,7 +55,10 @@
 	const equipmentSlots: EquipmentSlot[] = ['head', 'weapon', 'body', 'hands', 'accessory'];
 	const bagCategories: BagCategory[] = ['potions', 'gear', 'key', 'loot'];
 	const bagSlotCount = 24;
-	const bagGridColumns = 6;
+	// Pad focus-grid geometry mirrors the slot grid, which drops to 4 columns
+	// at the 640px breakpoint below.
+	const compactBagGrid = new MediaQuery('(max-width: 640px)');
+	const bagGridColumns = $derived(compactBagGrid.current ? 4 : 6);
 
 	let activeCategory = $state<BagCategory>('potions');
 	let selectedRef = $state<{ kind: BagSlotItem['kind']; itemId: string } | null>(null);
