@@ -203,6 +203,7 @@ export class BattleScene extends Phaser.Scene {
 			up: Phaser.Input.Keyboard.KeyCodes.W,
 			down: Phaser.Input.Keyboard.KeyCodes.S
 		}) as Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>> | undefined;
+		this.lastFrameTime = this.game?.loop?.now ?? this.lastFrameTime;
 		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
 		this.events?.once?.('shutdown', () => {
 			this.removeHudCommandListener();

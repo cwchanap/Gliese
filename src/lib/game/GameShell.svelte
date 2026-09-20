@@ -383,7 +383,7 @@
 	 *  grid scopes to the topmost open surface so pad directions never wander
 	 *  from an overlay onto controls behind it. */
 	function collectMenuFocusNodes(): MenuFocusNode[] {
-		const scope: ParentNode =
+		const surface: ParentNode =
 			document.querySelector<HTMLElement>('.jrpg-dialogue-panel') ??
 			battleSummaryDialog ??
 			systemDialog ??
@@ -394,6 +394,8 @@
 			inventoryDialog ??
 			skillDialog ??
 			document;
+		const scope: ParentNode =
+			Array.from(surface.querySelectorAll<HTMLElement>('[aria-modal="true"]')).at(-1) ?? surface;
 		return Array.from(scope.querySelectorAll<HTMLElement>('[data-focus-id]'))
 			.filter((element) => element.getClientRects().length > 0)
 			.map((element) => ({
@@ -595,7 +597,13 @@
 		if (shopOpen) return closeShop();
 		if (questLogOpen) return closeQuestLog();
 		if (areaMapOpen) return closeAreaMap();
-		if (saveOpen) return closeSave();
+		if (saveOpen) {
+			const overwriteBack = saveDialog?.querySelector<HTMLElement>(
+				'[role="alertdialog"] [data-focus-id="save-overwrite-cancel"]'
+			);
+			if (overwriteBack) return overwriteBack.click();
+			return closeSave();
+		}
 		if (skillOpen) return closeSkill();
 		if (systemOpen) return closeSystem();
 	}

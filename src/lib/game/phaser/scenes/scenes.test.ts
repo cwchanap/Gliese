@@ -3229,6 +3229,58 @@ describe('BattleScene', () => {
 			hud.restore();
 		}
 	});
+
+	it('anchors the flee channel to the loop clock when fleeing before the first update', async () => {
+		const hud = installHudCommandTarget();
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+
+		try {
+			// update() runs on the global rAF timestamp, which is already past the
+			// channel duration by the time a mid-session battle scene is created.
+			(scene.game as unknown as { loop: { now: number } }).loop = { now: 5_000 };
+
+			scene.create({
+				saveState,
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 1,
+				hero: { hp: 13, maxHp: 20, attack: 1, defense: 0 }
+			});
+
+			// Flee inside the create() → first update() gap. Anchored to 0 this
+			// would complete on the very next frame.
+			hud.dispatch({ type: 'battle-flee' });
+			scene.update(5_016, 16);
+
+			expect(scene.scene.start).not.toHaveBeenCalled();
+			const payload = emitHudStateSpy.mock.calls.at(-1)![0] as {
+				battle: { active: { flee: { status: string; progress: number } } };
+			};
+			expect(payload.battle.active.flee.status).toBe('channeling');
+
+			scene.update(7_400, 16);
+
+			expect(scene.scene.start).toHaveBeenCalledWith(
+				WorldScene.key,
+				expect.objectContaining({
+					reason: 'battle-result',
+					battleResult: expect.objectContaining({ outcome: 'fled' }),
+					recentlyFled: { encounterId: 'meadow-slime-west', fledAt: 7_400 }
+				})
+			);
+		} finally {
+			emitHudStateSpy.mockRestore();
+			hud.restore();
+		}
+	});
 });
 
 describe('WorldScene', () => {
