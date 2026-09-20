@@ -3177,6 +3177,44 @@ describe('GameShell pad layer', () => {
 		await tiltAxis(0, 0.8);
 		expect(focusedFocusId()).toBe('shop-detail-action');
 	});
+
+	it('tracks the bag grid’s 4-column breakpoint for pad navigation at 640px', async () => {
+		installPadStub();
+		await page.viewport(640, 360);
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				inventory: {
+					consumables: Array.from({ length: 5 }, (_, index) => ({
+						itemId: `potion-${index}`,
+						name: `Potion ${index}`,
+						description: 'Restores HP.',
+						iconPath: '/icon.png',
+						quantity: 1
+					})),
+					equipment: [],
+					keyItems: [],
+					equipped: { weapon: null, head: null, body: null, hands: null, accessory: null }
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Bag' }).click();
+		await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
+
+		// At 640px the grid renders 4 columns: item 4 sits directly below item 0
+		// (6-column math would leave it at row 0 / stall the Down move).
+		document.querySelector<HTMLElement>('[data-focus-id="bag-slot-0"]')?.focus();
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('bag-slot-4');
+
+		// The detail action sits below the last tile's column; A selects, then
+		// Down reaches it in the same 4-column geometry.
+		await press(0);
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('bag-detail-action');
+	});
 });
 
 describe('GameShell prompt glyph honesty', () => {
