@@ -8,7 +8,10 @@ async function waitForPlaying(page: Page) {
 	// Menu/canvas exist before Phaser boots; the field HUD's "Loading game"
 	// placeholder is only replaced by WorldScene's first publish, when interact
 	// keys are live. Waiting for it keeps keyboard interactions deterministic.
-	await expect(page.getByText('Loading game')).toHaveCount(0);
+	// A cold boot also pays for the Phaser import and BootScene's image preload,
+	// which exceeds the 5s default expect timeout on contended CI runners — the
+	// 30s bound matches the suite's other post-boot barriers.
+	await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
 }
 
 /** Boots a fresh run through the Title screen. */
