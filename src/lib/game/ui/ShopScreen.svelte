@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { locale, motionReduced, preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import { getItemText } from '$lib/game/i18n/content';
@@ -41,8 +42,10 @@
 	}: Props = $props();
 
 	const shopTabs: ShopTab[] = ['buy', 'sell'];
-	// Pad focus-grid geometry mirrors the 4-column stock grid.
-	const shopGridColumns = 4;
+	// Pad focus-grid geometry mirrors the stock grid, which drops to 3 columns
+	// at the 640px breakpoint below.
+	const compactShopGrid = new MediaQuery('(max-width: 640px)');
+	const shopGridColumns = $derived(compactShopGrid.current ? 3 : 4);
 
 	let activeShopTab = $state<ShopTab>('buy');
 	let selectedBuyStockId = $state<string | null>(null);

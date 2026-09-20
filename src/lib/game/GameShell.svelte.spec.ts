@@ -3094,6 +3094,89 @@ describe('GameShell pad layer', () => {
 			expect(commands).toContainEqual({ type: 'dialogue-choose', choiceId: 'leave' });
 		});
 	});
+
+	it('keeps pad focus inside the save overwrite alertdialog and routes B to its Back', async () => {
+		installPadStub();
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			window.addEventListener(HUD_COMMAND_EVENT, (event) => {
+				const command = (event as CustomEvent).detail as { type?: string; slot?: 1 | 2 };
+				if (command?.type === 'save-slot' && command.slot) {
+					writeSaveSlot(command.slot, createSlotRecord());
+				}
+			});
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: 'Save', exact: true }).click();
+			const saveDialog = page.getByRole('dialog', { name: /save/i });
+			await expect.element(saveDialog).toBeVisible();
+
+			// Fill slot 1, then re-pick it to raise the overwrite alertdialog.
+			await saveDialog.getByTestId('save-slot-1').click();
+			await saveDialog.getByTestId('save-slot-1').click();
+			const confirmButton = saveDialog.getByTestId('confirm-overwrite');
+			await expect.element(confirmButton).toBeVisible();
+			await expect.element(confirmButton).toHaveFocus();
+			commands.length = 0;
+
+			// Up must stay on the prompt — before the scope fix it fell through to
+			// the save-slot-2 card hidden behind the scrim.
+			await press(12);
+			expect(focusedFocusId()).toBe('save-overwrite-confirm');
+
+			// A activates the prompt's confirm (save-slot 1), never the covered
+			// slot-2 card (which would emit save-slot 2).
+			await press(0);
+			expect(commands).toEqual([{ type: 'save-slot', slot: 1 }]);
+			await expect.element(saveDialog.getByTestId('save-slot-1')).toHaveFocus();
+
+			// Reopen the prompt: B routes to its Back, not the screen's closeSave.
+			await saveDialog.getByTestId('save-slot-1').click();
+			await expect.element(saveDialog.getByTestId('confirm-overwrite')).toBeVisible();
+			await press(1);
+			expect(saveDialog.getByTestId('confirm-overwrite').elements()).toHaveLength(0);
+			await expect.element(saveDialog).toBeVisible();
+			await expect.element(saveDialog.getByTestId('save-slot-1')).toHaveFocus();
+		});
+	});
+
+	it('tracks the shop grid’s 3-column breakpoint for pad navigation at 640px', async () => {
+		installPadStub();
+		await page.viewport(640, 360);
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				wallet: { coins: 30 },
+				shop: {
+					shopId: 'miras-item-shop',
+					name: "Mira's Item Shop",
+					merchantName: 'Mira',
+					buy: Array.from({ length: 4 }, (_, index) => ({
+						...mockShopBuyEntry(),
+						stockId: `stock-${index}`,
+						itemId: `item-${index}`,
+						name: `Item ${index}`
+					})),
+					sell: []
+				}
+			})
+		);
+		await expect.element(page.getByTestId('shop-buy-grid')).toBeVisible();
+
+		// At 640px the grid renders 3 columns: item 3 sits directly below item 0
+		// (4-column math would jump to the nonexistent shop-buy-4 / stall).
+		document.querySelector<HTMLElement>('[data-focus-id="shop-buy-0"]')?.focus();
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('shop-buy-3');
+
+		// The detail action sits below the last tile's column; A selects, then
+		// Down reaches it in the same 3-column geometry.
+		await press(0);
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('shop-detail-action');
+	});
 });
 
 describe('GameShell prompt glyph honesty', () => {
