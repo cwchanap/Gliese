@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { MediaQuery } from 'svelte/reactivity';
 	import { supportedLocales, type Locale } from '$lib/game/i18n/locales';
 	import { locale, motionReduced, preferences, updatePreferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
@@ -30,22 +31,41 @@
 	let promptsRow = $state<HTMLDivElement>();
 	let rail = $state<HTMLDivElement>();
 
+	// The rail flips from a vertical side column to a 3-column row across the
+	// top at ≤900px. Focus geometry follows: horizontal mode parks the rail on
+	// its own lattice row above the settings rows (which keep columns 1–3) so
+	// Left/Right traverse the cards, Down drops into the settings column
+	// below, and Up returns — instead of the vertical model where Right would
+	// leak into the first settings row.
+	const horizontalRail = new MediaQuery('(max-width: 900px)');
+
+	function railRow(index: number): number {
+		return horizontalRail.current ? -1 : index;
+	}
+
+	function railColumn(index: number): number {
+		return horizontalRail.current ? index + 1 : 0;
+	}
+
 	function focusPromptsRow(): void {
 		promptsRow?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
 	}
 
-	/** Vertical rail roving (BagScreen category-rail pattern): arrows move
-	 *  focus among enabled tabs, skipping the disabled Audio tab; swallows the
-	 *  event so the shell's lattice doesn't also move focus. */
+	/** Rail roving (BagScreen category-rail pattern): the keys parallel to the
+	 *  rendered axis move focus among enabled tabs, skipping the disabled
+	 *  Audio tab; swallows the event so the shell's lattice doesn't also move
+	 *  focus. Cross-axis keys fall through to the lattice. */
 	function handleRailKeydown(event: KeyboardEvent): void {
-		if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+		const forwardKey = horizontalRail.current ? 'ArrowRight' : 'ArrowDown';
+		const backKey = horizontalRail.current ? 'ArrowLeft' : 'ArrowUp';
+		if (event.key !== forwardKey && event.key !== backKey) return;
 		event.preventDefault();
 		event.stopPropagation();
 		const tabs = Array.from(
 			rail?.querySelectorAll<HTMLButtonElement>('[role="tab"]:not([disabled])') ?? []
 		);
 		if (tabs.length === 0) return;
-		const step = event.key === 'ArrowDown' ? 1 : -1;
+		const step = event.key === forwardKey ? 1 : -1;
 		const index = tabs.indexOf(document.activeElement as HTMLButtonElement);
 		tabs[(index + step + tabs.length) % tabs.length]?.focus();
 	}
@@ -68,6 +88,7 @@
 				class="heroic-rail"
 				role="tablist"
 				aria-label={t($locale, 'ui.system')}
+				aria-orientation={horizontalRail.current ? 'horizontal' : 'vertical'}
 				bind:this={rail}
 				tabindex="-1"
 				onkeydown={handleRailKeydown}
@@ -80,8 +101,8 @@
 					aria-current="page"
 					tabindex="0"
 					data-focus-id="system-rail-display"
-					data-focus-row={0}
-					data-focus-column={0}
+					data-focus-row={railRow(0)}
+					data-focus-column={railColumn(0)}
 				>
 					<svg
 						viewBox="0 0 16 16"
@@ -102,8 +123,8 @@
 					aria-selected="false"
 					disabled
 					data-focus-id="system-rail-audio"
-					data-focus-row={1}
-					data-focus-column={0}
+					data-focus-row={railRow(1)}
+					data-focus-column={railColumn(1)}
 					aria-describedby="system-audio-unavailable"
 					title={t($locale, 'ui.audioUnavailable')}
 				>
@@ -129,8 +150,8 @@
 					aria-selected="false"
 					tabindex="-1"
 					data-focus-id="system-rail-input"
-					data-focus-row={2}
-					data-focus-column={0}
+					data-focus-row={railRow(2)}
+					data-focus-column={railColumn(2)}
 					onclick={focusPromptsRow}
 				>
 					<svg

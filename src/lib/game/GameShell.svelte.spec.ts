@@ -3215,6 +3215,109 @@ describe('GameShell pad layer', () => {
 		await tiltAxis(0, 0.8);
 		expect(focusedFocusId()).toBe('bag-detail-action');
 	});
+
+	it('tracks the command grid’s 2-column breakpoint at 640×600', async () => {
+		installPadStub();
+		await page.viewport(640, 600);
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await press(9);
+		// Tall narrow viewports render 2 columns: Quest sits directly below
+		// Bag (4-column math would land on Skill instead).
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('field-cmd-bag');
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('field-cmd-quest');
+
+		// Right still walks the rendered row: Bag → Gear.
+		document.querySelector<HTMLElement>('[data-focus-id="field-cmd-bag"]')?.focus();
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('field-cmd-gear');
+	});
+
+	it('stacks the manual Save slots into a column at 640×360', async () => {
+		installPadStub();
+		await withCommands(async (commands) => {
+			await page.viewport(640, 360);
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: 'Save', exact: true }).click();
+			const saveDialog = page.getByRole('dialog', { name: /save/i });
+			await expect.element(saveDialog).toBeVisible();
+			expect(focusedFocusId()).toBe('save-slot-1');
+
+			// Single-column stack: Right stalls at the row edge; Down reaches
+			// slot 2 rendered underneath (horizontal coords inverted that).
+			await tiltAxis(0.8, 0);
+			expect(focusedFocusId()).toBe('save-slot-1');
+			await tiltAxis(0, 0.8);
+			expect(focusedFocusId()).toBe('save-slot-2');
+
+			await tiltAxis(0, -0.8);
+			expect(focusedFocusId()).toBe('save-slot-1');
+			await press(0);
+			expect(commands).toContainEqual({ type: 'save-slot', slot: 1 });
+		});
+	});
+
+	it('stacks the Title cards into a column at 640×600', async () => {
+		installPadStub();
+		writeSaveSlot(1, createSlotRecord());
+		await page.viewport(640, 600);
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		// Narrow + tall renders a vertical stack: Down walks Continue → New
+		// Run → System, Right stalls on the single column.
+		expect(focusedFocusId()).toBe('title-continue');
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('title-new-run');
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('title-system');
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('title-system');
+
+		await tiltAxis(0, -0.8);
+		expect(focusedFocusId()).toBe('title-new-run');
+	});
+
+	it('reorients the System rail horizontally at 640×600', async () => {
+		installPadStub();
+		await page.viewport(640, 600);
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		await page.getByRole('button', { name: /system/i }).click();
+		const system = page.getByRole('dialog', { name: /display/i });
+		await expect.element(system).toBeVisible();
+		await expect
+			.element(system.getByRole('tablist'))
+			.toHaveAttribute('aria-orientation', 'horizontal');
+
+		// Pad: Right/Left traverse the rail cards (skipping the disabled
+		// Audio card); Down drops into the settings column below; Up returns.
+		document.querySelector<HTMLElement>('[data-focus-id="system-rail-display"]')?.focus();
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('system-rail-input');
+		await tiltAxis(-0.8, 0);
+		expect(focusedFocusId()).toBe('system-rail-display');
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('system-locale-en');
+		await tiltAxis(0, -0.8);
+		expect(focusedFocusId()).toBe('system-rail-display');
+
+		// Keyboard roving follows the same axis: Right stays inside the rail,
+		// Down falls through to the lattice and into the settings rows.
+		await userEvent.keyboard('{ArrowRight}');
+		expect(focusedFocusId()).toBe('system-rail-input');
+		await userEvent.keyboard('{ArrowLeft}');
+		expect(focusedFocusId()).toBe('system-rail-display');
+		await userEvent.keyboard('{ArrowDown}');
+		expect(focusedFocusId()).toBe('system-locale-en');
+	});
 });
 
 describe('GameShell prompt glyph honesty', () => {

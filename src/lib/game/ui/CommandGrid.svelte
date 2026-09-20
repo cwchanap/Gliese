@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { MediaQuery } from 'svelte/reactivity';
 	import { locale } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 
@@ -33,13 +34,18 @@
 		'system'
 	];
 
-	// 4-column grid: row 0 = bag..map, row 1 = skill..system.
+	// Pad focus-grid geometry mirrors the rendered grid: tall narrow
+	// viewports reflow to 2 columns below (the short-viewport override
+	// keeps the desktop 4×2 at any width, so both conditions are required).
+	const compactCommandGrid = new MediaQuery('(max-width: 720px) and (min-height: 560px)');
+	const commandColumns = $derived(compactCommandGrid.current ? 2 : 4);
+
 	function rowAt(index: number): number {
-		return Math.floor(index / 4);
+		return Math.floor(index / commandColumns);
 	}
 
 	function columnAt(index: number): number {
-		return index % 4;
+		return index % commandColumns;
 	}
 
 	const iconPaths: Record<FieldCommand, string> = {

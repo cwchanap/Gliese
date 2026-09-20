@@ -33,10 +33,14 @@ function stubMatchMedia(matchesReducedMotion: boolean) {
 }
 
 describe('SystemScreen', () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		storage = createMemoryStorage();
 		setSaveStorage(storage);
 		initializePreferences();
+		// Pin a desktop viewport: the rail orientation follows the real
+		// matchMedia result, which inherits whatever the previous spec file
+		// left behind.
+		await page.viewport(1280, 720);
 	});
 
 	afterEach(() => {
@@ -139,6 +143,28 @@ describe('SystemScreen', () => {
 		await page.getByRole('tab', { name: 'Input' }).click();
 
 		await expect.element(page.getByRole('button', { name: 'Auto' })).toHaveFocus();
+	});
+
+	it('roves the rail on the horizontal axis at narrow widths', async () => {
+		await page.viewport(640, 600);
+		try {
+			render(SystemScreen, { props: { open: true, onClose: vi.fn(), onkeydown: vi.fn() } });
+
+			// The rail renders as a 3-column row at ≤900px; roving follows.
+			await expect
+				.element(page.getByRole('tablist'))
+				.toHaveAttribute('aria-orientation', 'horizontal');
+
+			const display = page.getByRole('tab', { name: 'Display' });
+			const input = page.getByRole('tab', { name: 'Input' });
+			await display.element().focus();
+			await userEvent.keyboard('{ArrowRight}');
+			await expect.element(input).toHaveFocus();
+			await userEvent.keyboard('{ArrowLeft}');
+			await expect.element(display).toHaveFocus();
+		} finally {
+			await page.viewport(1280, 720);
+		}
 	});
 
 	it('does not render when closed', async () => {

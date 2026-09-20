@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
@@ -15,6 +16,22 @@
 	let { canContinue, continueSubtitle, onContinue, onNewRun, onSystem }: Props = $props();
 
 	const locale = $derived($preferences.locale);
+
+	// Focus-grid geometry mirrors the card layout: under 720px the cards
+	// stack into one column, except the short-viewport override restores a
+	// horizontal row — so they only count as stacked when both media states
+	// hold (e.g. 640×600 stacks; 640×360 stays a row).
+	const narrowTitle = new MediaQuery('(max-width: 720px)');
+	const shortTitle = new MediaQuery('(max-height: 500px)');
+	const titleCardsStacked = $derived(narrowTitle.current && !shortTitle.current);
+
+	function cardRow(index: number): number {
+		return titleCardsStacked ? index : 0;
+	}
+
+	function cardColumn(index: number): number {
+		return titleCardsStacked ? 0 : index;
+	}
 
 	let continueCard = $state<HTMLButtonElement>();
 	let newRunCard = $state<HTMLButtonElement>();
@@ -65,8 +82,8 @@
 			class="title-card"
 			class:title-card-primary={canContinue}
 			data-focus-id="title-continue"
-			data-focus-row={0}
-			data-focus-column={0}
+			data-focus-row={cardRow(0)}
+			data-focus-column={cardColumn(0)}
 			bind:this={continueCard}
 			onclick={onContinue}
 			disabled={!canContinue}
@@ -92,8 +109,8 @@
 			type="button"
 			class="title-card"
 			data-focus-id="title-new-run"
-			data-focus-row={0}
-			data-focus-column={1}
+			data-focus-row={cardRow(1)}
+			data-focus-column={cardColumn(1)}
 			bind:this={newRunCard}
 			onclick={onNewRun}
 		>
@@ -116,8 +133,8 @@
 			type="button"
 			class="title-card"
 			data-focus-id="title-system"
-			data-focus-row={0}
-			data-focus-column={2}
+			data-focus-row={cardRow(2)}
+			data-focus-column={cardColumn(2)}
 			onclick={onSystem}
 		>
 			<span class="title-card-head">
