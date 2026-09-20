@@ -16917,7 +16917,10 @@ test('Meadow Entry supports the continuous outdoor route and persists its proof 
 	);
 	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
-	await expect(fieldStatus(page)).toContainText('Save resumed');
+	// Cold-boot barrier: the status publish lands only after BootScene's image
+	// preload, which exceeds the 5s default expect timeout on contended CI
+	// runners — match the suite's other post-boot barriers at 30s.
+	await expect(fieldStatus(page)).toContainText('Save resumed', { timeout: 30_000 });
 	await page.locator('canvas').click();
 
 	// Hero House frontage → west village lane → Main Street. The short side trip
