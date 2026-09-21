@@ -1182,7 +1182,7 @@ async function installRuntimeProbes(
 			if (routeState.invalidDiagnostics.length > 0) {
 				const firstInvalidDiagnostic = routeState.invalidDiagnostics[0]!;
 				routeState.status = 'error';
-				routeState.error = `invalid movement diagnostic for map ${routeState.mapId}: expected blocked=false and mapId=${routeState.mapId}; received ${JSON.stringify(firstInvalidDiagnostic)}`;
+				routeState.error = `invalid movement diagnostic for map ${routeState.mapId}: expected mapId=${routeState.mapId} with an active axis and a blocked flag matching resolved!=requested; received ${JSON.stringify(firstInvalidDiagnostic)}`;
 				return contractAdvanced;
 			}
 			routeState.status = 'done';
@@ -1201,19 +1201,19 @@ async function installRuntimeProbes(
 				resolvedPosition: { ...diagnostic.resolvedPosition },
 				blocked: diagnostic.blocked
 			};
-			// A blocked diagnostic whose resolved position moved is faithless
-			// evidence — the real engine rejects the whole step, so resolved ===
-			// previous on every axis. Record it as invalid without mutating route
-			// state; a faithful block (resolved === previous) flows on to the
-			// blocked handler below, where near-target blocks settle and hard
-			// blocks fail fast instead of freezing on the no-progress watchdog.
-			const blockedEvidenceMoved =
-				diagnostic.blocked &&
-				(diagnostic.resolvedPosition.x !== diagnostic.previousPosition.x ||
-					diagnostic.resolvedPosition.y !== diagnostic.previousPosition.y);
+			// Blocked is faithful movement evidence, not invalid evidence: the
+			// emitter sets it exactly when collision resolution clamps the
+			// request, so the flag must agree with resolved!==requested. Keep the
+			// wrong-map / inactive-axis checks and reject only an inconsistent
+			// flag; genuine blocked steps flow through to the blocked handler
+			// below, where blockedTolerance applies.
+			const blockedConsistent =
+				diagnostic.blocked ===
+				(diagnostic.resolvedPosition.x !== diagnostic.requestedPosition.x ||
+					diagnostic.resolvedPosition.y !== diagnostic.requestedPosition.y);
 			if (
 				diagnostic.mapId !== routeState.mapId ||
-				blockedEvidenceMoved ||
+				!blockedConsistent ||
 				!axis ||
 				!target ||
 				!routeState.position
@@ -1720,9 +1720,11 @@ function describeBrowserRouteResult(result: BrowserRouteResult | null, token: st
 function assertRouteDiagnosticsAreFaithful(result: BrowserRouteResult, label: string): void {
 	const invalidDiagnostics = result.invalidDiagnostics ?? [];
 	expect(invalidDiagnostics, `${label} invalid movement diagnostics`).toEqual([]);
+	// `blocked` is legitimate evidence in `diagnostics`: the runner settles or
+	// fails stationary-blocked frames against blockedTolerance itself, so a
+	// completed route may retain them.
 	for (const [index, diagnostic] of (result.diagnostics ?? []).entries()) {
 		expect(diagnostic.mapId, `${label} diagnostic ${index} map`).toBe(result.mapId);
-		expect(diagnostic.blocked, `${label} diagnostic ${index} blocked`).toBe(false);
 	}
 }
 
@@ -14257,6 +14259,63 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 			'synthetic blocked correction cleanup'
 		);
 
+		resetMovementProbe();
+		const pinRouteStartPosition = () => {
+			probeWindow.__glieseLastHudState = {
+				...(probeWindow.__glieseLastHudState ?? {}),
+				ready: true,
+				mapId: 'meadow-entry',
+				areaMap: { player: { ...initialPoint } }
+			};
+			probeWindow.__glieseLastHudAt = performance.now();
+		};
+		// Doorway contract: a faithful blocked diagnostic must reach the blocked
+		// handler. This stationary stop sits 24px from target — beyond the 18px
+		// reach window, so only blockedTolerance (the transition reach) can
+		// settle it. Before the fix it was recorded as invalid instead.
+		pinRouteStartPosition();
+		const doorwayBlockedToken = `characterization-doorway-blocked-${Date.now()}`;
+		const doorwayBlockedStart = runner.start({
+			token: doorwayBlockedToken,
+			points: [{ ...initialPoint }, { x: initialPoint.x + 24, y: initialPoint.y }],
+			settleTolerance: 12,
+			reachTolerance: 18,
+			maxCorrectionTaps: 8,
+			// PLAYER_TRANSITION_REACH — the boundary is asserted against the
+			// real constants on the Node side below.
+			blockedTolerance: 30
+		});
+		dispatchDiagnostic({
+			mapId: 'meadow-entry',
+			previousPosition: { ...initialPoint },
+			requestedPosition: { x: initialPoint.x + 8, y: initialPoint.y },
+			resolvedPosition: { ...initialPoint },
+			blocked: true
+		});
+		const doorwayBlockedAfter = runner.get(doorwayBlockedToken);
+
+		resetMovementProbe();
+		// The same stationary stop beyond the doorway reach must fail through the
+		// blocked handler ('blocked at point …'), not through invalidDiagnostics.
+		pinRouteStartPosition();
+		const doorwayBlockedFarToken = `characterization-doorway-blocked-far-${Date.now()}`;
+		const doorwayBlockedFarStart = runner.start({
+			token: doorwayBlockedFarToken,
+			points: [{ ...initialPoint }, { x: initialPoint.x + 32, y: initialPoint.y }],
+			settleTolerance: 12,
+			reachTolerance: 18,
+			maxCorrectionTaps: 8,
+			blockedTolerance: 30
+		});
+		dispatchDiagnostic({
+			mapId: 'meadow-entry',
+			previousPosition: { ...initialPoint },
+			requestedPosition: { x: initialPoint.x + 8, y: initialPoint.y },
+			resolvedPosition: { ...initialPoint },
+			blocked: true
+		});
+		const doorwayBlockedFarAfter = runner.get(doorwayBlockedFarToken);
+
 		let semanticCharacterization: {
 			successStart: SemanticDiagonalResult;
 			successAfterFirst: SemanticDiagonalResult;
@@ -14652,7 +14711,11 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 			exhaustedFarCancel,
 			blockedExhaustedStart,
 			blockedExhaustedAfter,
-			blockedExhaustedCancel
+			blockedExhaustedCancel,
+			doorwayBlockedStart,
+			doorwayBlockedAfter,
+			doorwayBlockedFarStart,
+			doorwayBlockedFarAfter
 		};
 	}, initial!);
 	expect(stateMachineEvidence).not.toBeNull();
@@ -14821,15 +14884,18 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 	expect(blockedStart.status).toBe('running');
 	expect(blockedAfter.status).toBe('running');
 	expect(blockedAfter.pointIndex).toBe(1);
-	expect(blockedAfter.axis).toBe('x');
+	// A faithful blocked diagnostic now reaches the blocked handler: the stop is
+	// 16px short of the x target, inside this route's 18px blockedTolerance, so
+	// the x axis settles and steering advances to the y leg.
+	expect(blockedAfter.axis).toBe('y');
 	expect(blockedAfter.target).toEqual({
 		x: initial!.x + 16,
 		y: initial!.y + 64
 	});
-	expect(blockedAfter.position).toEqual(initial);
-	expect(blockedAfter.diagnostics).toEqual([]);
-	expect(blockedAfter.invalidDiagnostics).toHaveLength(1);
-	expect(blockedAfter.invalidDiagnostics?.[0]?.blocked).toBe(true);
+	expect(blockedAfter.position).toEqual({ x: initial!.x, y: initial!.y + 16 });
+	expect(blockedAfter.diagnostics).toHaveLength(1);
+	expect(blockedAfter.diagnostics?.[0]?.blocked).toBe(true);
+	expect(blockedAfter.invalidDiagnostics).toEqual([]);
 	expect(blockedCancel.status).toBe('error');
 	expect(correctionStart.status).toBe('running');
 	expect(correctionBeforeCorrection.status).toBe('running');
@@ -16539,6 +16605,31 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 	expect(blockedExhaustedAfter.status).toBe('error');
 	expect(blockedExhaustedAfter.error).toContain('blocked');
 	expect(blockedExhaustedCancel.status).toBe('error');
+	// Doorway contract: the case geometry is only meaningful against the real
+	// constants — the 24px stop must sit strictly between the ordinary reach
+	// window and the doorway reach, and the 32px stop strictly beyond it.
+	expect(24).toBeGreaterThan(AXIS_REACH_TOLERANCE);
+	expect(24).toBeLessThanOrEqual(PLAYER_TRANSITION_REACH);
+	expect(32).toBeGreaterThan(PLAYER_TRANSITION_REACH);
+	// 'done' here proves the blocked handler consumed blockedTolerance — and the
+	// diagnostic must not appear in invalidDiagnostics.
+	const doorwayBlockedAfter = evidence.doorwayBlockedAfter!;
+	const doorwayBlockedFarAfter = evidence.doorwayBlockedFarAfter!;
+	expect(evidence.doorwayBlockedStart.status).toBe('running');
+	expect(evidence.doorwayBlockedStart.axis).toBe('x');
+	expect(doorwayBlockedAfter.status).toBe('done');
+	expect(doorwayBlockedAfter.pointIndex).toBe(2);
+	expect(doorwayBlockedAfter.axis).toBeNull();
+	expect(doorwayBlockedAfter.position).toEqual(initial);
+	expect(doorwayBlockedAfter.diagnostics).toHaveLength(1);
+	expect(doorwayBlockedAfter.diagnostics?.[0]?.blocked).toBe(true);
+	expect(doorwayBlockedAfter.invalidDiagnostics).toEqual([]);
+	// The same stop 32px out is beyond the doorway reach: the blocked handler
+	// fails the route directly, still without touching invalidDiagnostics.
+	expect(evidence.doorwayBlockedFarStart.status).toBe('running');
+	expect(doorwayBlockedFarAfter.status).toBe('error');
+	expect(doorwayBlockedFarAfter.error).toContain('blocked at point');
+	expect(doorwayBlockedFarAfter.invalidDiagnostics).toEqual([]);
 	const token = `characterization-${Date.now()}`;
 	const ack = await page.evaluate(
 		({
