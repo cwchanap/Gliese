@@ -16995,10 +16995,13 @@ test('Meadow Entry supports the continuous outdoor route and persists its proof 
 		{ x: 5_600, y: 2_100 },
 		{ x: 5_960, y: 2_100 }
 	]);
-	// The authored cave transition point sits inside the landmark body. Keep
-	// this final approach isolated and allow only the existing reach tolerance
-	// for its collision edge; all other blocked stalls remain strict settle
-	// failures, and the gated status is asserted immediately afterward.
+	// The authored cave transition point sits inside the landmark body: the
+	// doorway carve leaves a collision face ~6px short of it, and the
+	// all-or-nothing stride can settle anywhere in (face, face+stride]. The
+	// leg's real contract is the gated transition's trigger radius — a settle
+	// inside PLAYER_TRANSITION_REACH always publishes the gate status, so the
+	// blocked tolerance is exactly that radius rather than the tighter axis
+	// reach window. The gated status is asserted immediately afterward.
 	await moveRoute(
 		page,
 		[
@@ -17006,7 +17009,7 @@ test('Meadow Entry supports the continuous outdoor route and persists its proof 
 			{ x: 5_960, y: 1_868 }
 		],
 		AXIS_SETTLE_TOLERANCE,
-		AXIS_REACH_TOLERANCE
+		PLAYER_TRANSITION_REACH
 	);
 	await expect(fieldStatus(page)).toContainText('Report to the Guild Master first');
 
