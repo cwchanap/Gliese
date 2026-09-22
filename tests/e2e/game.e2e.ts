@@ -187,7 +187,6 @@ type GlieseProbeWindow = Window & {
 	__glieseTransitionSourceCleanup?: () => void;
 	__glieseCharacterizationMovementCount?: number;
 	__glieseCharacterizationSyntheticPhase?: boolean;
-	__glieseSyntheticDiagnostic?: boolean;
 	__glieseRegionalBackgroundDiagnostics?: RegionalBackgroundPlaneRenderDiagnostic[];
 	__glieseRegionalBackgroundRendererDiagnostics?: RegionalBackgroundRendererDiagnostic[];
 	__glieseActiveSceneCamera?: MeadowSceneCamera;
@@ -1245,12 +1244,11 @@ async function installRuntimeProbes(
 			routeState.movementCount += 1;
 			routeState.lastMovementAt = movementAt;
 			routeState.lastDiagnostic = clonedDiagnostic;
-			// Blocked steps carry no position change; keep them out of the
-			// diagnostics the runner cross-checks against the game's records.
-			if (!diagnostic.blocked) {
-				routeState.diagnostics.push(clonedDiagnostic);
-				routeState.diagnosticAxes.push(axis);
-			}
+			// Blocked steps are faithful evidence too: the emitter sets the flag
+			// exactly when collision resolution clamps the request, so they stay
+			// in the recorded diagnostics alongside unblocked steps.
+			routeState.diagnostics.push(clonedDiagnostic);
+			routeState.diagnosticAxes.push(axis);
 			routeState.position = { ...diagnostic.resolvedPosition };
 			const value = diagnostic.resolvedPosition[axis];
 			const previous = diagnostic.previousPosition[axis];
@@ -1264,15 +1262,6 @@ async function installRuntimeProbes(
 					? value >= targetValue - routeState.reachTolerance
 					: value <= targetValue + routeState.reachTolerance;
 			if (diagnostic.blocked && previous === value) {
-				// Characterization dispatches synthetic blocked evidence synchronously
-				// (flagged via __glieseSyntheticDiagnostic). It follows the
-				// invalid-evidence contract: record it without mutating route state;
-				// a later completion surfaces it as a hard route error. Real engine
-				// blocks never set the flag and get the full handling below.
-				if ((window as GlieseProbeWindow).__glieseSyntheticDiagnostic) {
-					routeState.invalidDiagnostics.push(clonedDiagnostic);
-					return;
-				}
 				if (distance <= routeState.blockedTolerance) {
 					routeState.noProgressDiagnostics = 0;
 					let contractAdvanced = false;
@@ -13987,20 +13976,14 @@ test('browser-local route steering acknowledges a plan and continues through Pha
 			typeof semanticRunner.startGuildMasterSemanticDiagonal === 'function';
 		const caveDoorwayApiAvailable = typeof caveDoorwayRunner.startCaveDoorwayBand === 'function';
 		const dispatchDiagnostic = (detail: PlayerMovementDiagnostic) => {
-			const probeWindow = window as GlieseProbeWindow;
-			// Mark dispatched evidence as synthetic so the route runner holds
-			// blocked samples to the invalid-evidence contract instead of the
-			// real-engine settle/route-around handling.
-			probeWindow.__glieseSyntheticDiagnostic = true;
-			try {
-				window.dispatchEvent(
-					new CustomEvent<PlayerMovementDiagnostic>('gliese:player-movement-diagnostic', {
-						detail
-					})
-				);
-			} finally {
-				probeWindow.__glieseSyntheticDiagnostic = false;
-			}
+			// Dispatched evidence follows the same contract as real engine
+			// diagnostics: consistent blocked samples reach the blocked handler,
+			// inconsistent ones land in invalidDiagnostics.
+			window.dispatchEvent(
+				new CustomEvent<PlayerMovementDiagnostic>('gliese:player-movement-diagnostic', {
+					detail
+				})
+			);
 		};
 		const resetMovementProbe = () => {
 			probeWindow.__glieseLastMovementDiagnostic = undefined;
