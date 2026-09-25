@@ -18,13 +18,25 @@ async function waitForPlaying(page: Page) {
 export async function startNewRunFromTitle(page: Page) {
 	await page.goto('/');
 	await page.getByRole('button', { name: /New Run/i }).click();
+	// An existing autosave raises the overwrite confirm; fresh profiles boot
+	// straight into the run. Race the two outcomes so both stay deterministic.
+	const confirm = page.getByTestId('confirm-new-run');
+	const menu = page.getByRole('button', { name: 'Menu' });
+	const outcome = await Promise.race([
+		confirm.waitFor({ state: 'visible' }).then(() => 'confirm' as const),
+		menu.waitFor({ state: 'visible' }).then(() => 'playing' as const)
+	]);
+	if (outcome === 'confirm') await confirm.click();
 	await waitForPlaying(page);
 }
 
-/** Boots through the Title screen and continues the newest save slot. */
+/** Boots through the Title screen: Continue opens the Load picker, then resumes the first occupied slot. */
 export async function continueFromTitle(page: Page) {
 	await page.goto('/');
 	await page.getByRole('button', { name: /Continue/i }).click();
+	const loadDialog = page.getByRole('dialog', { name: /load/i });
+	await expect(loadDialog).toBeVisible();
+	await loadDialog.locator('[data-testid^="save-slot-"]:not([disabled])').first().click();
 	await waitForPlaying(page);
 }
 
@@ -32,7 +44,6 @@ type SaveSlotSeed = {
 	kind?: 'autosave' | 'manual';
 	savedAt?: string;
 	playtimeSeconds?: number;
-	locationLabel?: string;
 	state: unknown;
 };
 
@@ -51,7 +62,6 @@ export async function seedSaveSlots(page: Page, seeds: Array<SaveSlotSeed | null
 					kind: seed.kind ?? 'autosave',
 					savedAt: seed.savedAt ?? '2026-09-04T12:00:00.000Z',
 					playtimeSeconds: seed.playtimeSeconds ?? 0,
-					locationLabel: seed.locationLabel ?? 'Sundrop Meadows',
 					state: seed.state
 				}
 			: null
@@ -91,7 +101,6 @@ export function readSlotEnvelope(page: Page) {
 			kind: string;
 			savedAt: string;
 			playtimeSeconds: number;
-			locationLabel: string;
 			thumbnail?: string;
 			state: Record<string, unknown>;
 		}>;

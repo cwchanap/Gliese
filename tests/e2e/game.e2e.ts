@@ -344,7 +344,6 @@ function injectSave(page: Page, save: ReturnType<typeof createSaveFixture>) {
 				kind: 'autosave',
 				savedAt: new Date().toISOString(),
 				playtimeSeconds: 0,
-				locationLabel: 'Sundrop Meadows',
 				state: save
 			},
 			null,
@@ -12833,7 +12832,6 @@ async function writeAllEightMeadowSave(page: Page, interior: InteriorGrayboxCase
 							kind: 'autosave',
 							savedAt: new Date().toISOString(),
 							playtimeSeconds: 0,
-							locationLabel: 'Sundrop Meadows',
 							state: save
 						},
 						null,
@@ -18331,7 +18329,6 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 							kind: 'autosave',
 							savedAt: new Date().toISOString(),
 							playtimeSeconds: 0,
-							locationLabel: 'Sundrop Meadows',
 							state: JSON.parse(payload.encoded)
 						},
 						null,
@@ -18417,7 +18414,6 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 							kind: 'autosave',
 							savedAt: new Date().toISOString(),
 							playtimeSeconds: 0,
-							locationLabel: 'Sundrop Meadows',
 							state: JSON.parse(payload.encoded)
 						},
 						null,
@@ -20055,7 +20051,6 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 							kind: 'autosave',
 							savedAt: new Date().toISOString(),
 							playtimeSeconds: 0,
-							locationLabel: 'Sundrop Meadows',
 							state: JSON.parse(payload.encoded)
 						},
 						null,

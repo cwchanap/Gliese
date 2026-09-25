@@ -22,7 +22,7 @@ afterEach(async () => {
 	emitHudState(baseHudState({ ready: false }));
 	localStorage.removeItem(SAVE_SLOTS_STORAGE_KEY);
 	localStorage.removeItem(PREFERENCES_STORAGE_KEY);
-	updatePreferences({ motion: 'on', textSpeed: 'normal', promptMode: 'auto' });
+	updatePreferences({ locale: 'en', motion: 'on', textSpeed: 'normal', promptMode: 'auto' });
 	setLastInputModality('keys');
 	vi.unstubAllGlobals();
 	await page.viewport(1280, 720);
@@ -142,7 +142,7 @@ function mockEquipment(): EquipmentDefinition {
 	} as unknown as EquipmentDefinition;
 }
 
-function mockShopBuyEntry(): HudShopBuyEntry {
+function mockShopBuyEntry(overrides: Partial<HudShopBuyEntry> = {}): HudShopBuyEntry {
 	return {
 		stockId: 'potion-stock',
 		itemId: 'field-potion',
@@ -152,12 +152,14 @@ function mockShopBuyEntry(): HudShopBuyEntry {
 		kind: 'consumable',
 		price: 10,
 		availability: { mode: 'unlimited' },
-		item: mockConsumable()
+		item: mockConsumable(),
+		...overrides
 	};
 }
 
-function mockShopSellEntry(): HudShopSellEntry {
+function mockShopSellEntry(overrides: Partial<HudShopSellEntry> = {}): HudShopSellEntry {
 	return {
+		sellId: 'equipment:practice-sword:0',
 		itemId: 'practice-sword',
 		name: 'Practice Sword',
 		description: 'A wooden training blade.',
@@ -165,7 +167,8 @@ function mockShopSellEntry(): HudShopSellEntry {
 		kind: 'equipment',
 		quantity: 1,
 		price: 5,
-		item: mockEquipment()
+		item: mockEquipment(),
+		...overrides
 	};
 }
 
@@ -186,7 +189,7 @@ function withCommands(fn: (commands: unknown[]) => Promise<void> | void): Promis
 	}
 }
 
-function mockMainQuest(): HudQuestEntry {
+function mockMainQuest(overrides: Partial<HudQuestEntry> = {}): HudQuestEntry {
 	return {
 		questId: 'investigate-the-ruins',
 		title: 'Investigate the Ruins',
@@ -194,12 +197,14 @@ function mockMainQuest(): HudQuestEntry {
 		status: 'active',
 		description: 'Find out what is lurking in the ruins.',
 		objective: 'Enter the ruins and investigate.',
+		objectiveId: 'talk-to-guild-master',
 		progress: { current: 1, target: 3, label: 'Clues found' },
-		rewardSummary: '24 XP / 30 coins'
+		rewardSummary: '24 XP / 30 coins',
+		...overrides
 	};
 }
 
-function mockSideQuest(): HudQuestEntry {
+function mockSideQuest(overrides: Partial<HudQuestEntry> = {}): HudQuestEntry {
 	return {
 		questId: 'thin-village-slimes',
 		title: 'Thin Village Slimes',
@@ -207,18 +212,22 @@ function mockSideQuest(): HudQuestEntry {
 		status: 'active',
 		description: 'Clear the slimes gathering on the village road.',
 		objective: 'Defeat slimes near the village.',
+		objectiveId: 'defeat-village-slimes',
 		progress: { current: 2, target: 3, label: 'Village slimes defeated' },
-		rewardSummary: '6 XP / 12 coins / 1 item'
+		rewardSummary: '6 XP / 12 coins / 1 item',
+		...overrides
 	};
 }
 
-function mockGuildOffer(): HudQuestOffer {
+function mockGuildOffer(overrides: Partial<HudQuestOffer> = {}): HudQuestOffer {
 	return {
 		questId: 'thin-ruins-slimes',
 		title: 'Thin Ruins Slimes',
 		description: 'Reduce the slime presence inside the ruin threshold.',
 		objective: 'Defeat slimes in the ruins.',
-		rewardSummary: '8 XP / 16 coins / 1 item'
+		objectiveId: 'defeat-ruins-slimes',
+		rewardSummary: '8 XP / 16 coins / 1 item',
+		...overrides
 	};
 }
 
@@ -237,6 +246,18 @@ describe('GameShell motion flourishes', () => {
 
 		emitHudState(baseHudState({ hp: 40, maxHp: 50 }));
 		await expect.element(party).not.toHaveClass(/heroic-low-hp/);
+	});
+
+	it('measures the XP bar against the real level threshold, not a hardcoded one', async () => {
+		// Progression thresholds come from getXpForLevel — level 1 levels at
+		// 5 XP, level 2 at 10; the HUD previously displayed 12/24.
+		render(GameShell);
+		emitHudState(baseHudState({ level: 1, xp: 3 }));
+		const party = page.getByTestId('hud-party-panel');
+		await expect.element(party.getByText('3/5')).toBeVisible();
+
+		emitHudState(baseHudState({ level: 2, xp: 7 }));
+		await expect.element(party.getByText('7/10')).toBeVisible();
 	});
 
 	it('treats exactly 25% HP as critically low', async () => {
@@ -1089,6 +1110,74 @@ describe('GameShell shop', () => {
 		await expect.element(page.getByTestId('shop-sell-grid')).toBeVisible();
 	});
 
+	it('labels sold-out stock as Sold out instead of Not enough', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				wallet: { coins: 0 },
+				shop: {
+					shopId: 'miras-item-shop',
+					name: "Mira's Item Shop",
+					merchantName: 'Mira',
+					buy: [
+						mockShopBuyEntry({
+							price: 999,
+							availability: { mode: 'finite', remaining: 0 }
+						})
+					],
+					sell: []
+				}
+			})
+		);
+
+		const dialog = page.getByRole('dialog', { name: "Mira's Item Shop" });
+		await dialog.getByTestId('shop-buy-grid').getByRole('button', { name: 'Field Potion' }).click();
+
+		const action = dialog.getByTestId('shop-detail').getByRole('button');
+		await expect.element(action).toBeDisabled();
+		await expect.element(action).toHaveTextContent('Sold out');
+	});
+
+	it('renders duplicate equipment copies as separate selectable sell rows', async () => {
+		// Two Iron Caps (e.g. bought from two shops) share one itemId — keying
+		// rows by itemId collides, so rows key on the per-instance sellId.
+		render(GameShell);
+		const capA = mockShopSellEntry({
+			sellId: 'equipment:iron-cap:0',
+			itemId: 'iron-cap',
+			name: 'Iron Cap'
+		});
+		const capB = mockShopSellEntry({
+			sellId: 'equipment:iron-cap:1',
+			itemId: 'iron-cap',
+			name: 'Iron Cap'
+		});
+		emitHudState(
+			baseHudState({
+				shop: {
+					shopId: 'miras-item-shop',
+					name: "Mira's Item Shop",
+					merchantName: 'Mira',
+					buy: [],
+					sell: [capA, capB]
+				}
+			})
+		);
+
+		const dialog = page.getByRole('dialog', { name: "Mira's Item Shop" });
+		await dialog.getByRole('tab', { name: 'Sell', exact: true }).click();
+		const tiles = dialog.getByTestId('shop-sell-grid').getByRole('button', { name: 'Iron Cap' });
+		expect(tiles.elements()).toHaveLength(2);
+
+		await withCommands(async (commands) => {
+			await tiles.nth(1).click();
+			await dialog.getByTestId('shop-detail').getByRole('button').click();
+			expect(
+				commands.filter((command) => (command as { type: string }).type === 'sell-inventory-item')
+			).toEqual([expect.objectContaining({ itemId: 'iron-cap' })]);
+		});
+	});
+
 	it.each(['detail', 'double-click'])(
 		'keeps Escape working after the final sale via %s',
 		async (mode) => {
@@ -1393,8 +1482,11 @@ describe('GameShell heroic quest journal', () => {
 		await expect.element(detail.getByTestId('quest-reward-item')).toHaveTextContent('x1');
 
 		// Giver comes from the static quest content, with the map location line
-		// under the name; the map-context card pins the same location.
-		await expect.element(detail.getByText('Guild Master Arlen')).toBeVisible();
+		// under the name; the map-context card pins the same location. The name
+		// also appears in the objective chain, so match the giver-name element.
+		await expect
+			.element(detail.getByTestId('quest-giver-name'))
+			.toHaveTextContent('Guild Master Arlen');
 		await expect
 			.element(questDialog.getByTestId('quest-giver-location'))
 			.toHaveTextContent('Guild Hall');
@@ -1404,6 +1496,49 @@ describe('GameShell heroic quest journal', () => {
 		await expect.element(detail.getByText(/Clues found: 1 \/ 3/)).toBeVisible();
 		// The live objective sentence renders in the detail panel.
 		await expect.element(detail.getByText('Enter the ruins and investigate.')).toBeVisible();
+	});
+
+	it('keeps chapter progress and localized chain labels after a locale switch', async () => {
+		// The journal matches the current objective by id, not by translated
+		// description text — matching translated text collapsed to node 0 and
+		// 0% the moment the active locale differed from the publish locale.
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				quests: {
+					main: mockMainQuest({
+						objectiveId: 'defeat-ruins-warden',
+						objective: 'Defeat the Ruins Warden.'
+					}),
+					side: [],
+					completed: [],
+					guildOffer: null
+				}
+			})
+		);
+
+		const questDialog = await openQuestLog();
+		const panel = questDialog.getByTestId('quest-chapter-progress');
+		await expect.element(panel.getByText('50%')).toBeVisible();
+
+		try {
+			updatePreferences({ locale: 'ja' });
+
+			// After the switch the dialog's localized name no longer matches
+			// /quest log/i — re-resolve the panel by testid from the page root.
+			const jaPanel = page.getByTestId('quest-chapter-progress');
+			await expect.element(jaPanel.getByText('50%')).toBeVisible();
+			const rows = jaPanel.getByTestId('quest-progress-row').elements();
+			expect(rows.map((row) => row.classList.contains('quest-chapter-row-current'))).toEqual([
+				false,
+				true
+			]);
+			// Chain labels localize with the active locale, not raw content ids.
+			await expect.element(jaPanel.getByText('ギルドマスター・アーレン')).toBeVisible();
+			await expect.element(jaPanel.getByText('遺跡の守護者')).toBeVisible();
+		} finally {
+			updatePreferences({ locale: 'en' });
+		}
 	});
 
 	it('renders chapter progress from real main-quest objectives', async () => {
@@ -1635,7 +1770,6 @@ function createSlotRecord(): SaveSlotRecord {
 		kind: 'manual',
 		savedAt: '2026-09-04T12:00:00.000Z',
 		playtimeSeconds: 42,
-		locationLabel: 'Sundrop Meadows',
 		state: createNewSaveState()
 	};
 }
@@ -1781,8 +1915,11 @@ describe('GameShell save screen', () => {
 				}
 			});
 
-			// Fill slot 1, then click it again to raise the overwrite alertdialog.
+			// Fill slot 1 — WorldScene defers the write to the post-render tick
+			// and publishes HUD state when it lands — then click it again to
+			// raise the overwrite alertdialog.
 			await saveDialog.getByTestId('save-slot-1').click();
+			emitHudState(baseHudState({ status: 'Saved.' }));
 			await saveDialog.getByTestId('save-slot-1').click();
 			const alertDialog = saveDialog.getByRole('alertdialog');
 			await expect.element(alertDialog).toBeVisible();
@@ -2355,6 +2492,41 @@ describe('GameShell keyboard shortcuts', () => {
 		}
 	});
 
+	it('swallows held-arrow key repeats during dialogue so Phaser never sees them', async () => {
+		// Phaser reads raw window keydowns; a held arrow repeats with
+		// event.repeat=true and must stay prevented or the hero walks
+		// mid-conversation. userEvent.keyboard cannot emit repeats, so this
+		// dispatches the synthetic repeat event directly.
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				dialogue: {
+					id: 'dialogue-conversation',
+					npcId: 'npc-mira',
+					speaker: 'Mira',
+					line: 'Welcome!',
+					lineIndex: 0,
+					lineCount: 1,
+					mode: 'conversation',
+					choices: [],
+					canClose: true
+				}
+			})
+		);
+		await expect.element(page.getByRole('dialog', { name: 'Mira' })).toBeVisible();
+
+		for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
+			const repeat = new KeyboardEvent('keydown', {
+				key,
+				repeat: true,
+				bubbles: true,
+				cancelable: true
+			});
+			window.dispatchEvent(repeat);
+			expect(repeat.defaultPrevented, key).toBe(true);
+		}
+	});
+
 	it('moves keyboard arrows along the Title cards', async () => {
 		render(GameShell);
 		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
@@ -2385,14 +2557,9 @@ describe('GameShell keyboard shortcuts', () => {
 		await userEvent.keyboard('{ArrowRight}');
 		await expect.element(page.getByRole('button', { name: 'Gear' })).toHaveFocus();
 
-		// Rest is disabled (heals: 0): down the column has no enabled cell, so
-		// focus stays on Gear.
-		await userEvent.keyboard('{ArrowDown}');
-		await expect.element(page.getByRole('button', { name: 'Gear' })).toHaveFocus();
-
-		await userEvent.keyboard('{ArrowLeft}');
-		await expect.element(page.getByRole('button', { name: 'Bag' })).toHaveFocus();
-
+		// Rest is disabled (heals: 0): down from Gear has no aligned cell, so
+		// the uneven-grid fallback moves to the nearest enabled tile below —
+		// Skill.
 		await userEvent.keyboard('{ArrowDown}');
 		await expect.element(page.getByRole('button', { name: 'Skill' })).toHaveFocus();
 
@@ -2426,6 +2593,7 @@ describe('GameShell quest log guild offers', () => {
 								title: 'Thin the Village Slimes',
 								description: 'Reduce the slime population.',
 								objective: 'Defeat 3 slimes.',
+								objectiveId: 'defeat-village-slimes',
 								rewardSummary: '6 XP / 12 coins'
 							}
 						]
@@ -2496,6 +2664,74 @@ describe('GameShell title mode', () => {
 		await page.getByRole('button', { name: /new run/i }).click();
 		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
 		expect(page.getByRole('heading', { name: 'GLIESE' }).elements()).toHaveLength(0);
+	});
+
+	it('labels save slots with the active-locale area name, not the save-time one', async () => {
+		updatePreferences({ locale: 'ja' });
+		writeSaveSlot(1, createSlotRecord());
+		render(GameShell);
+		try {
+			await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+			// The slot was written with an English locationLabel; the active
+			// locale is ja, so the label must come from the map id.
+			await expect.element(page.getByText(/サンドロップ草原/)).toBeVisible();
+		} finally {
+			updatePreferences({ locale: 'en' });
+		}
+	});
+
+	it('opens a Load picker on Continue and resumes the picked slot', async () => {
+		writeSaveSlot(1, createSlotRecord());
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		await page.getByRole('button', { name: /continue/i }).click();
+
+		// Continue must not boot the newest save directly: manual slots stay
+		// unreachable without a picker (review finding 2).
+		const loadDialog = page.getByRole('dialog', { name: /load/i });
+		await expect.element(loadDialog).toBeVisible();
+		expect(document.querySelector('canvas')).toBeNull();
+
+		await loadDialog.getByTestId('save-slot-1').click();
+		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+	});
+
+	it('lets the Load picker reach an autosave slot too', async () => {
+		writeSaveSlot(0, { ...createSlotRecord(), kind: 'autosave' });
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		await page.getByRole('button', { name: /continue/i }).click();
+		const loadDialog = page.getByRole('dialog', { name: /load/i });
+		await expect.element(loadDialog).toBeVisible();
+
+		await loadDialog.getByTestId('save-slot-0').click();
+		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+	});
+
+	it('asks before overwriting the autosave on New Run', async () => {
+		writeSaveSlot(0, { ...createSlotRecord(), kind: 'autosave' });
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		await page.getByRole('button', { name: /new run/i }).click();
+		const confirm = page.getByRole('alertdialog');
+		await expect.element(confirm).toBeVisible();
+		expect(document.querySelector('canvas')).toBeNull();
+
+		await confirm.getByTestId('confirm-new-run').click();
+		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+	});
+
+	it('starts a New Run without asking when no autosave exists', async () => {
+		writeSaveSlot(1, createSlotRecord());
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		await page.getByRole('button', { name: /new run/i }).click();
+		expect(page.getByRole('alertdialog').elements()).toHaveLength(0);
+		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
 	});
 
 	it('restores focus to the System card after closing System from Title', async () => {
@@ -2700,13 +2936,16 @@ describe('GameShell pad layer', () => {
 		await tiltAxis(0.8, 0);
 		expect(focusedFocusId()).toBe('field-cmd-gear');
 
-		// Rest below Gear is disabled (heals: 0): focus stays.
+		// Rest below Gear is disabled (heals: 0): the fallback moves to the
+		// nearest enabled tile below — Skill.
 		await tiltAxis(0, 0.8);
-		expect(focusedFocusId()).toBe('field-cmd-gear');
+		expect(focusedFocusId()).toBe('field-cmd-skill');
 
+		// Up from Skill is aligned with Bag's column.
 		await tiltAxis(0, -0.8);
-		expect(focusedFocusId()).toBe('field-cmd-gear');
+		expect(focusedFocusId()).toBe('field-cmd-bag');
 
+		await tiltAxis(0.8, 0);
 		await tiltAxis(0.8, 0);
 		expect(focusedFocusId()).toBe('field-cmd-quest');
 	});
@@ -3113,8 +3352,11 @@ describe('GameShell pad layer', () => {
 			const saveDialog = page.getByRole('dialog', { name: /save/i });
 			await expect.element(saveDialog).toBeVisible();
 
-			// Fill slot 1, then re-pick it to raise the overwrite alertdialog.
+			// Fill slot 1 — WorldScene defers the write to the post-render tick
+			// and publishes HUD state when it lands — then re-pick it to raise
+			// the overwrite alertdialog.
 			await saveDialog.getByTestId('save-slot-1').click();
+			emitHudState(baseHudState({ status: 'Saved.' }));
 			await saveDialog.getByTestId('save-slot-1').click();
 			const confirmButton = saveDialog.getByTestId('confirm-overwrite');
 			await expect.element(confirmButton).toBeVisible();

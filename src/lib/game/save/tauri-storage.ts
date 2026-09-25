@@ -8,12 +8,14 @@ import {
 } from '@tauri-apps/plugin-fs';
 
 import { PREFERENCES_STORAGE_KEY } from '$lib/game/i18n/preferences';
-import { SAVE_SLOTS_STORAGE_KEY } from '$lib/game/save/slots';
+import { SAVE_SLOTS_BACKUP_STORAGE_KEY, SAVE_SLOTS_STORAGE_KEY } from '$lib/game/save/slots';
 import type { SaveStorage } from '$lib/game/save/storage';
 
 export const SAVE_FILE_DIR = 'com.gliese.app';
 export const SAVE_FILE_NAME = 'gliese-save.json';
 export const SAVE_FILE_TMP_NAME = 'gliese-save.json.tmp';
+export const SAVE_BACKUP_FILE_NAME = 'gliese-save-backup.json';
+export const SAVE_BACKUP_FILE_TMP_NAME = 'gliese-save-backup.json.tmp';
 export const PREFERENCES_FILE_NAME = 'gliese-preferences.json';
 export const PREFERENCES_FILE_TMP_NAME = 'gliese-preferences.json.tmp';
 
@@ -44,6 +46,10 @@ function createPersistedFileSpec(fileName: string, tmpName: string): PersistedFi
 // disk; every other key stays cache-only inside the adapter.
 const persistedFiles = new Map<string, PersistedFileSpec>([
 	[SAVE_SLOTS_STORAGE_KEY, createPersistedFileSpec(SAVE_FILE_NAME, SAVE_FILE_TMP_NAME)],
+	[
+		SAVE_SLOTS_BACKUP_STORAGE_KEY,
+		createPersistedFileSpec(SAVE_BACKUP_FILE_NAME, SAVE_BACKUP_FILE_TMP_NAME)
+	],
 	[
 		PREFERENCES_STORAGE_KEY,
 		createPersistedFileSpec(PREFERENCES_FILE_NAME, PREFERENCES_FILE_TMP_NAME)

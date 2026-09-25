@@ -364,6 +364,22 @@ describe('shop core', () => {
 		expect(buildShopBuyEntries('missing-shop', {}, 'en')).toEqual([]);
 	});
 
+	it('gives duplicate equipment copies distinct sellIds so keyed rows cannot collide', () => {
+		// Buying the same gear from two shops leaves two inventory.equipment
+		// entries with the same itemId; the Sell tab keys rows by sellId.
+		const entries = buildShopSellEntries({
+			inventory: { stacks: [], equipment: ['iron-cap', 'training-sword', 'iron-cap'] },
+			equipment: createEmptyEquipment(),
+			locale: 'en'
+		});
+
+		expect(entries).toHaveLength(3);
+		expect(new Set(entries.map((entry) => entry.sellId)).size).toBe(3);
+		const caps = entries.filter((entry) => entry.itemId === 'iron-cap');
+		expect(caps).toHaveLength(2);
+		expect(caps[0]!.sellId).not.toBe(caps[1]!.sellId);
+	});
+
 	it('omits equipped equipment from sell entries', () => {
 		const entries = buildShopSellEntries({
 			inventory: { stacks: [], equipment: ['iron-cap'] },

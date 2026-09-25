@@ -16,7 +16,8 @@
 	import { locale, motionReduced } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import { resetPlaytime, formatPlaytimeSeconds } from '$lib/game/save/playtime';
-	import { getNewestSaveSlot } from '$lib/game/save/slots';
+	import { getAreaName } from '$lib/game/core/area-map';
+	import { getNewestSaveSlot, loadSaveSlots, type SaveSlotIndex } from '$lib/game/save/slots';
 	import type { GameStartRequest } from '$lib/game/phaser/createGame';
 	import { hasRenderOptionOverrides } from '$lib/game/phaser/world-render-options';
 	import {
@@ -31,6 +32,7 @@
 		type GamepadSnapshot,
 		type GamepadUiAction
 	} from '$lib/game/core/gamepad';
+	import { trapTabFocus } from '$lib/game/ui/focus-trap';
 	import { onHudState } from '$lib/game/ui-bridge/events';
 	import {
 		hudState,
@@ -79,11 +81,15 @@
 		resetPlaytime(directBootSlot?.record.playtimeSeconds ?? 0);
 	}
 
+	const titleSlots = loadSaveSlots();
 	const titleSlot = getNewestSaveSlot();
+	// Only the autosave slot is destroyed by starting a new run — the
+	// overwrite confirmation guards exactly that case (review finding 2).
+	const titleHasAutosave = titleSlots.slots[0] !== null;
 	let titleCanContinue = $state(titleSlot !== null);
-	let titleContinueSubtitle = $state(
+	let titleContinueSubtitle = $derived(
 		titleSlot
-			? `${titleSlot.record.locationLabel} · ${formatPlaytimeSeconds(titleSlot.record.playtimeSeconds)}`
+			? `${getAreaName($locale, titleSlot.record.state.mapId)} · ${formatPlaytimeSeconds(titleSlot.record.playtimeSeconds)}`
 			: ''
 	);
 
@@ -97,10 +103,42 @@
 		beginRun({ reason: 'new', saveState: null }, 0);
 	}
 
-	function continueNewestRun() {
-		const newest = getNewestSaveSlot();
-		if (!newest) return;
-		beginRun({ reason: 'resume', saveState: newest.record.state }, newest.record.playtimeSeconds);
+	function requestNewRun() {
+		if (titleHasAutosave) {
+			newRunConfirmOpen = true;
+			void focusNewRunConfirm();
+			return;
+		}
+		startNewRun();
+	}
+
+	function confirmNewRun() {
+		newRunConfirmOpen = false;
+		startNewRun();
+	}
+
+	function cancelNewRun() {
+		newRunConfirmOpen = false;
+		document.querySelector<HTMLElement>('[data-focus-id="title-new-run"]')?.focus();
+	}
+
+	function openLoadPicker() {
+		if (loadPickerOpen || mode !== 'title') return;
+		loadPickerOpen = true;
+		void focusLoadDialog();
+	}
+
+	function closeLoadPicker() {
+		if (!loadPickerOpen) return;
+		loadPickerOpen = false;
+		document.querySelector<HTMLElement>('[data-focus-id="title-continue"]')?.focus();
+	}
+
+	function pickLoadSlot(index: SaveSlotIndex) {
+		const record = loadSaveSlots().slots[index];
+		if (!record) return;
+		loadPickerOpen = false;
+		beginRun({ reason: 'resume', saveState: record.state }, record.playtimeSeconds);
 	}
 
 	let mountNode = $state<HTMLDivElement>();
@@ -134,6 +172,8 @@
 	let areaMapOpen = $state(false);
 	let systemOpen = $state(false);
 	let saveOpen = $state(false);
+	let loadPickerOpen = $state(false);
+	let newRunConfirmOpen = $state(false);
 	let pauseOwner = $state<OverlayPauseOwner | null>(null);
 
 	const battlePhase = $derived($hudState.battle.phase);
@@ -386,6 +426,7 @@
 		const surface: ParentNode =
 			document.querySelector<HTMLElement>('.jrpg-dialogue-panel') ??
 			battleSummaryDialog ??
+			loadDialog ??
 			systemDialog ??
 			saveDialog ??
 			shopDialog ??
@@ -423,22 +464,24 @@
 							: null;
 		if (!direction) return false;
 		if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
-		if (event.repeat) return false;
 		if (isEditableTarget(event.target)) return false;
 
-		// Dialogue owns arrows. Revealed choice rows carry lattice coords, so
-		// arrows move the selection exactly like the pad does (final review).
-		// Conversation/system/pre-reveal states expose no enabled choice —
-		// swallow (prevented, never reaches Phaser movement).
+		// Dialogue owns arrows — held-key repeats included. Phaser reads raw
+		// window keydowns, so an un-prevented repeat registers as movement
+		// input and walks the hero mid-conversation. Only the first press
+		// moves the selection; repeats stay swallowed.
 		if ($hudState.dialogue) {
-			const choicesRevealed =
-				$hudState.dialogue.mode === 'choice' &&
-				document.querySelector('.jrpg-dialogue-choice:not([disabled])') !== null;
-			if (choicesRevealed) moveMenuFocus(direction);
+			if (!event.repeat) {
+				const choicesRevealed =
+					$hudState.dialogue.mode === 'choice' &&
+					document.querySelector('.jrpg-dialogue-choice:not([disabled])') !== null;
+				if (choicesRevealed) moveMenuFocus(direction);
+			}
 			event.preventDefault();
 			return true;
 		}
 
+		if (event.repeat) return false;
 		if (!moveMenuFocus(direction)) return false;
 		event.preventDefault();
 		return true;
@@ -592,6 +635,8 @@
 			return;
 		}
 		if (battleSummary) return;
+		if (newRunConfirmOpen) return cancelNewRun();
+		if (loadPickerOpen) return closeLoadPicker();
 		if (commandOpen) return closeCommand();
 		if (inventoryOpen) return closeInventory();
 		if (shopOpen) return closeShop();
@@ -680,6 +725,44 @@
 
 	let saveDialog = $state<HTMLDivElement>();
 	let saveCloseButton = $state<HTMLButtonElement>();
+	let loadDialog = $state<HTMLDivElement>();
+	let loadCloseButton = $state<HTMLButtonElement>();
+	let newRunConfirmDialog = $state<HTMLDivElement>();
+	let newRunConfirmButton = $state<HTMLButtonElement>();
+
+	async function focusLoadDialog() {
+		await tick();
+		// Primary action first: land on the first occupied slot, not Back.
+		(
+			loadDialog?.querySelector<HTMLElement>('[data-focus-id^="save-slot-"]:not([disabled])') ??
+			loadCloseButton ??
+			loadDialog
+		)?.focus();
+	}
+
+	async function focusNewRunConfirm() {
+		await tick();
+		(newRunConfirmButton ?? newRunConfirmDialog)?.focus();
+	}
+
+	function handleLoadDialogKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			closeLoadPicker();
+			return;
+		}
+		trapTabFocus(event, loadDialog);
+	}
+
+	function handleNewRunConfirmKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			event.stopPropagation();
+			cancelNewRun();
+			return;
+		}
+		trapTabFocus(event, newRunConfirmDialog);
+	}
 
 	async function focusSaveDialog() {
 		await tick();
@@ -702,52 +785,13 @@
 		menuButton?.focus();
 	}
 
-	function getInventoryFocusableElements() {
-		if (!inventoryDialog) return [];
-
-		return Array.from(
-			inventoryDialog.querySelectorAll<HTMLElement>(
-				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-			)
-		).filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0);
-	}
-
 	function handleInventoryDialogKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
 			event.preventDefault();
 			closeInventory();
 			return;
 		}
-
-		if (event.key !== 'Tab') return;
-
-		const focusableElements = getInventoryFocusableElements();
-		if (focusableElements.length === 0) {
-			event.preventDefault();
-			inventoryDialog?.focus();
-			return;
-		}
-
-		const firstElement = focusableElements[0];
-		const lastElement = focusableElements.at(-1);
-
-		if (event.shiftKey && document.activeElement === firstElement) {
-			event.preventDefault();
-			lastElement?.focus();
-		} else if (!event.shiftKey && document.activeElement === lastElement) {
-			event.preventDefault();
-			firstElement.focus();
-		}
-	}
-
-	function getShopFocusableElements() {
-		if (!shopDialog) return [];
-
-		return Array.from(
-			shopDialog.querySelectorAll<HTMLElement>(
-				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-			)
-		).filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0);
+		trapTabFocus(event, inventoryDialog);
 	}
 
 	function handleShopDialogKeydown(event: KeyboardEvent) {
@@ -756,36 +800,7 @@
 			closeShop();
 			return;
 		}
-
-		if (event.key !== 'Tab') return;
-
-		const focusableElements = getShopFocusableElements();
-		if (focusableElements.length === 0) {
-			event.preventDefault();
-			shopDialog?.focus();
-			return;
-		}
-
-		const firstElement = focusableElements[0];
-		const lastElement = focusableElements.at(-1);
-
-		if (event.shiftKey && document.activeElement === firstElement) {
-			event.preventDefault();
-			lastElement?.focus();
-		} else if (!event.shiftKey && document.activeElement === lastElement) {
-			event.preventDefault();
-			firstElement.focus();
-		}
-	}
-
-	function getAreaMapFocusableElements() {
-		if (!areaMapDialog) return [];
-
-		return Array.from(
-			areaMapDialog.querySelectorAll<HTMLElement | SVGElement>(
-				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-			)
-		).filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0);
+		trapTabFocus(event, shopDialog);
 	}
 
 	function handleAreaMapDialogKeydown(event: KeyboardEvent) {
@@ -794,36 +809,7 @@
 			closeAreaMap();
 			return;
 		}
-
-		if (event.key !== 'Tab') return;
-
-		const focusableElements = getAreaMapFocusableElements();
-		if (focusableElements.length === 0) {
-			event.preventDefault();
-			areaMapDialog?.focus();
-			return;
-		}
-
-		const firstElement = focusableElements[0];
-		const lastElement = focusableElements.at(-1);
-
-		if (event.shiftKey && document.activeElement === firstElement) {
-			event.preventDefault();
-			lastElement?.focus();
-		} else if (!event.shiftKey && document.activeElement === lastElement) {
-			event.preventDefault();
-			firstElement.focus();
-		}
-	}
-
-	function getSystemFocusableElements() {
-		if (!systemDialog) return [];
-
-		return Array.from(
-			systemDialog.querySelectorAll<HTMLElement>(
-				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-			)
-		).filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0);
+		trapTabFocus(event, areaMapDialog);
 	}
 
 	function handleSystemDialogKeydown(event: KeyboardEvent) {
@@ -832,36 +818,7 @@
 			closeSystem();
 			return;
 		}
-
-		if (event.key !== 'Tab') return;
-
-		const focusableElements = getSystemFocusableElements();
-		if (focusableElements.length === 0) {
-			event.preventDefault();
-			systemDialog?.focus();
-			return;
-		}
-
-		const firstElement = focusableElements[0];
-		const lastElement = focusableElements.at(-1);
-
-		if (event.shiftKey && document.activeElement === firstElement) {
-			event.preventDefault();
-			lastElement?.focus();
-		} else if (!event.shiftKey && document.activeElement === lastElement) {
-			event.preventDefault();
-			firstElement.focus();
-		}
-	}
-
-	function getSkillFocusableElements() {
-		if (!skillDialog) return [];
-
-		return Array.from(
-			skillDialog.querySelectorAll<HTMLElement>(
-				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-			)
-		).filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0);
+		trapTabFocus(event, systemDialog);
 	}
 
 	function handleSkillDialogKeydown(event: KeyboardEvent) {
@@ -870,26 +827,7 @@
 			closeSkill();
 			return;
 		}
-
-		if (event.key !== 'Tab') return;
-
-		const focusableElements = getSkillFocusableElements();
-		if (focusableElements.length === 0) {
-			event.preventDefault();
-			skillDialog?.focus();
-			return;
-		}
-
-		const firstElement = focusableElements[0];
-		const lastElement = focusableElements.at(-1);
-
-		if (event.shiftKey && document.activeElement === firstElement) {
-			event.preventDefault();
-			lastElement?.focus();
-		} else if (!event.shiftKey && document.activeElement === lastElement) {
-			event.preventDefault();
-			firstElement.focus();
-		}
+		trapTabFocus(event, skillDialog);
 	}
 
 	function handleSaveDialogKeydown(event: KeyboardEvent) {
@@ -898,72 +836,11 @@
 			closeSave();
 			return;
 		}
-
-		if (event.key !== 'Tab' || !saveDialog) return;
-
-		const focusableElements = Array.from(
-			saveDialog.querySelectorAll<HTMLElement>(
-				'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
-			)
-		).filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0);
-		if (focusableElements.length === 0) {
-			event.preventDefault();
-			saveDialog.focus();
-			return;
-		}
-
-		const firstElement = focusableElements[0];
-		const lastElement = focusableElements.at(-1);
-
-		if (event.shiftKey && document.activeElement === firstElement) {
-			event.preventDefault();
-			lastElement?.focus();
-		} else if (!event.shiftKey && document.activeElement === lastElement) {
-			event.preventDefault();
-			firstElement.focus();
-		}
-	}
-
-	function getBattleSummaryFocusableElements() {
-		if (!battleSummaryDialog) return [];
-
-		return Array.from(
-			battleSummaryDialog.querySelectorAll<HTMLElement>(
-				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-			)
-		).filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0);
+		trapTabFocus(event, saveDialog);
 	}
 
 	function handleBattleSummaryDialogKeydown(event: KeyboardEvent) {
-		if (event.key !== 'Tab') return;
-
-		const focusableElements = getBattleSummaryFocusableElements();
-		if (focusableElements.length === 0) {
-			event.preventDefault();
-			battleSummaryDialog?.focus();
-			return;
-		}
-
-		const firstElement = focusableElements[0];
-		const lastElement = focusableElements.at(-1);
-
-		if (event.shiftKey && document.activeElement === firstElement) {
-			event.preventDefault();
-			lastElement?.focus();
-		} else if (!event.shiftKey && document.activeElement === lastElement) {
-			event.preventDefault();
-			firstElement.focus();
-		}
-	}
-
-	function getQuestLogFocusableElements() {
-		if (!questLogDialog) return [];
-
-		return Array.from(
-			questLogDialog.querySelectorAll<HTMLElement>(
-				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-			)
-		).filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0);
+		trapTabFocus(event, battleSummaryDialog);
 	}
 
 	function handleQuestLogDialogKeydown(event: KeyboardEvent) {
@@ -972,26 +849,7 @@
 			closeQuestLog();
 			return;
 		}
-
-		if (event.key !== 'Tab') return;
-
-		const focusableElements = getQuestLogFocusableElements();
-		if (focusableElements.length === 0) {
-			event.preventDefault();
-			questLogDialog?.focus();
-			return;
-		}
-
-		const firstElement = focusableElements[0];
-		const lastElement = focusableElements.at(-1);
-
-		if (event.shiftKey && document.activeElement === firstElement) {
-			event.preventDefault();
-			lastElement?.focus();
-		} else if (!event.shiftKey && document.activeElement === lastElement) {
-			event.preventDefault();
-			firstElement.focus();
-		}
+		trapTabFocus(event, questLogDialog);
 	}
 
 	// Mount Phaser only once the player commits to a run (Continue / New Run /
@@ -1060,10 +918,47 @@
 		<TitleScreen
 			canContinue={titleCanContinue}
 			continueSubtitle={titleContinueSubtitle}
-			onContinue={continueNewestRun}
-			onNewRun={startNewRun}
+			onContinue={openLoadPicker}
+			onNewRun={requestNewRun}
 			onSystem={openSystem}
 		/>
+		{#if newRunConfirmOpen}
+			<!-- Scrim blocks pointer input to the title cards behind the prompt. -->
+			<div class="title-confirm-scrim" aria-hidden="true"></div>
+			<div
+				class="title-newrun-confirm"
+				role="alertdialog"
+				aria-modal="true"
+				aria-label={t($locale, 'ui.titleNewRunConfirm')}
+				bind:this={newRunConfirmDialog}
+				tabindex="-1"
+				onkeydown={handleNewRunConfirmKeydown}
+			>
+				<p class="font-display">{t($locale, 'ui.titleNewRunConfirm')}</p>
+				<button
+					type="button"
+					class="heroic-segment"
+					data-focus-id="title-newrun-cancel"
+					data-focus-row={0}
+					data-focus-column={0}
+					onclick={cancelNewRun}
+				>
+					{t($locale, 'ui.back')}
+				</button>
+				<button
+					type="button"
+					class="heroic-segment heroic-segment-selected"
+					data-testid="confirm-new-run"
+					data-focus-id="title-newrun-confirm"
+					data-focus-row={0}
+					data-focus-column={1}
+					bind:this={newRunConfirmButton}
+					onclick={confirmNewRun}
+				>
+					{t($locale, 'ui.titleNewRun')}
+				</button>
+			</div>
+		{/if}
 	{:else}
 		<div
 			bind:this={mountNode}
@@ -1186,6 +1081,17 @@
 		/>
 	{/if}
 
+	<SaveScreen
+		mode="load"
+		open={loadPickerOpen}
+		hudStatus=""
+		bind:dialog={loadDialog}
+		bind:closeButton={loadCloseButton}
+		onClose={closeLoadPicker}
+		onPickSlot={pickLoadSlot}
+		onkeydown={handleLoadDialogKeydown}
+	/>
+
 	<SkillScreen
 		open={skillOpen}
 		bind:dialog={skillDialog}
@@ -1244,6 +1150,38 @@
 	.jrpg-command-toggle:focus-visible,
 	.jrpg-command-toggle:hover {
 		opacity: 1;
+	}
+
+	/* New-run overwrite confirm: same treatment as the save screen's
+	   overwrite alertdialog, scoped to the title surface. */
+	.title-confirm-scrim {
+		position: absolute;
+		inset: 0;
+		z-index: 55;
+		background: rgba(5, 8, 20, 0.55);
+	}
+
+	.title-newrun-confirm {
+		position: absolute;
+		left: 50%;
+		bottom: 24vh;
+		z-index: 56;
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 0.7rem;
+		transform: translateX(-50%);
+		border: 1px solid rgba(255, 232, 168, 0.4);
+		border-radius: 0.7rem;
+		background: rgba(10, 15, 34, 0.92);
+		padding: 0.6rem 0.8rem;
+	}
+
+	.title-newrun-confirm p {
+		margin: 0 auto 0 0;
+		color: var(--color-parchment);
+		font-size: 0.85rem;
+		font-weight: 800;
 	}
 
 	@media (max-width: 720px) {

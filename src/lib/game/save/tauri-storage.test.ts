@@ -99,7 +99,11 @@ describe('tauri storage adapter', () => {
 
 	it('hydrates from disk when the preference file exists', async () => {
 		setTauriPresent(true);
-		mockedFs.exists.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+		// Hydration order: save file → save-backup file → preferences file.
+		mockedFs.exists
+			.mockResolvedValueOnce(false)
+			.mockResolvedValueOnce(false)
+			.mockResolvedValueOnce(true);
 		mockedFs.readTextFile.mockResolvedValueOnce(PREFERENCES_DOC);
 
 		const adapter = await hydrateTauriStorage();

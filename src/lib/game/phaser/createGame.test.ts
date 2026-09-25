@@ -94,6 +94,24 @@ describe('createGame', () => {
 		expect(phaserState.destroyMock).toHaveBeenCalledWith(true);
 	}, 20_000);
 
+	it('does not pin the WebGL drawing buffer for thumbnails', async () => {
+		Object.defineProperty(globalThis, 'window', {
+			configurable: true,
+			value: {}
+		});
+		const { createGame } = await import('./createGame');
+		const mountNode = { id: 'mount-node' } as HTMLElement;
+
+		await createGame(mountNode, { reason: 'new', saveState: null });
+
+		// Thumbnails capture on the renderer's post-render tick instead, so the
+		// buffer must not be preserved — preserving it slows every frame.
+		const config = phaserState.gameMock.mock.calls[0]?.[0] as {
+			render?: { preserveDrawingBuffer?: boolean };
+		};
+		expect(config.render?.preserveDrawingBuffer).not.toBe(true);
+	}, 20_000);
+
 	it('throws when called outside the browser', async () => {
 		delete (globalThis as { window?: unknown }).window;
 		const { createGame } = await import('./createGame');

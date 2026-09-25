@@ -1,12 +1,12 @@
 <script lang="ts">
 	import type { SaveState } from '$lib/game/save/save-state';
 	import { loadSaveSlots, type SaveSlotRecord, type SaveSlotsState } from '$lib/game/save/slots';
-	import { getBaseMaxHp } from '$lib/game/core/progression';
-	import { startingPlayer } from '$lib/game/content/player';
-	import { deriveEffectiveStats } from '$lib/game/core/stats';
+	import { deriveEffectiveStats, getHeroBaseStats } from '$lib/game/core/stats';
+	import { getAreaName } from '$lib/game/core/area-map';
 	import { formatPlaytimeSeconds } from '$lib/game/save/playtime';
 	import { motionReduced, preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
+	import { onHudState } from '$lib/game/ui-bridge/events';
 	import { tick } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
@@ -15,25 +15,31 @@
 		open: boolean;
 		/** Latest HUD status line; surfaces "Saved without preview image" feedback. */
 		hudStatus: string;
+		/** 'save' writes manual slots; 'load' offers every occupied slot for resume. */
+		mode?: 'save' | 'load';
 		dialog?: HTMLDivElement;
 		closeButton?: HTMLButtonElement;
 		onClose: () => void;
 		onkeydown: (event: KeyboardEvent) => void;
-		onConfirmSlot: (slot: 1 | 2) => void;
+		onConfirmSlot?: (slot: 1 | 2) => void;
+		onPickSlot?: (slot: 0 | 1 | 2) => void;
 	}
 
 	let {
 		open,
 		hudStatus,
+		mode = 'save',
 		dialog = $bindable(),
 		closeButton = $bindable(),
 		onClose,
 		onkeydown,
-		onConfirmSlot
+		onConfirmSlot,
+		onPickSlot
 	}: Props = $props();
 
 	let slots = $state<SaveSlotsState>(loadSaveSlots());
 	let confirmSlot = $state<1 | 2 | null>(null);
+	let pendingSave = $state(false);
 	let confirmDialog = $state<HTMLDivElement>();
 	let confirmOverwriteButton = $state<HTMLButtonElement>();
 
@@ -42,6 +48,17 @@
 			slots = loadSaveSlots();
 			confirmSlot = null;
 		}
+	});
+
+	// Manual-slot writes are deferred to the renderer's post-render tick so the
+	// thumbnail captures a completed frame; the HUD publish that follows the
+	// write (saved or failed) is the completion signal for refreshing the rows.
+	$effect(() => {
+		if (!open || !pendingSave) return;
+		return onHudState(() => {
+			pendingSave = false;
+			slots = loadSaveSlots();
+		});
 	});
 
 	// Focus entry: the alertdialog must own focus the moment it opens
@@ -62,14 +79,7 @@
 	const stackedSaveSlots = new MediaQuery('(max-width: 720px)');
 
 	function slotStats(state: SaveState) {
-		const effective = deriveEffectiveStats(
-			{
-				hp: getBaseMaxHp(startingPlayer.baseHp, state.player.level),
-				attack: state.player.attack,
-				defense: 0
-			},
-			state.equipment
-		);
+		const effective = deriveEffectiveStats(getHeroBaseStats(state.player), state.equipment);
 		return {
 			level: state.player.level,
 			coins: state.wallet.coins,
@@ -94,26 +104,29 @@
 	function slotAriaLabel(index: number, record: SaveSlotRecord | null): string {
 		const displaySlot = index + 1;
 		if (!record) return `${t(locale, 'ui.slotEmpty')} ${displaySlot}`;
-		return `${displaySlot} · ${record.kind === 'autosave' ? t(locale, 'ui.slotAutosave') : t(locale, 'ui.slotManual')} · ${record.locationLabel}`;
+		return `${displaySlot} · ${record.kind === 'autosave' ? t(locale, 'ui.slotAutosave') : t(locale, 'ui.slotManual')} · ${getAreaName(locale, record.state.mapId)}`;
 	}
 
-	function chooseSlot(index: 1 | 2) {
-		if (slots.slots[index]) {
-			confirmSlot = index;
+	function chooseSlot(index: number) {
+		if (mode === 'load') {
+			if (slots.slots[index]) onPickSlot?.(index as 0 | 1 | 2);
 			return;
 		}
-		onConfirmSlot(index);
-		// The save-slot command handler writes synchronously; refresh so the new
-		// record shows immediately and a repeat save on this slot asks to overwrite.
-		slots = loadSaveSlots();
+		if (index === 0) return;
+		if (slots.slots[index]) {
+			confirmSlot = index as 1 | 2;
+			return;
+		}
+		onConfirmSlot?.(index as 1 | 2);
+		pendingSave = true;
 	}
 
 	function confirmOverwrite() {
 		if (confirmSlot === null) return;
-		onConfirmSlot(confirmSlot);
+		onConfirmSlot?.(confirmSlot);
 		const slot = confirmSlot;
 		confirmSlot = null;
-		slots = loadSaveSlots();
+		pendingSave = true;
 		// Same restore as cancel: the closing alertdialog must not drop focus.
 		focusSlotButton(slot);
 	}
@@ -189,7 +202,7 @@
 				/>
 			</svg>
 			<span class="save-slot-well-hint font-display">
-				{index === 0 ? t(locale, 'ui.slotEmpty') : t(locale, 'ui.saveHere')}
+				{index === 0 || mode === 'load' ? t(locale, 'ui.slotEmpty') : t(locale, 'ui.saveHere')}
 			</span>
 		{/if}
 	</div>
@@ -209,7 +222,7 @@
 		</p>
 		{#if record}
 			{@const stats = slotStats(record.state)}
-			<p class="save-slot-location font-display">{record.locationLabel}</p>
+			<p class="save-slot-location font-display">{getAreaName(locale, record.state.mapId)}</p>
 			<p class="save-slot-stats font-display">
 				<span class="save-slot-stat">✦ LV {stats.level}</span>
 				<span class="save-slot-stat">
@@ -230,7 +243,7 @@
 			</div>
 		{:else}
 			<p class="save-slot-location font-display">
-				{index === 0 ? t(locale, 'ui.slotEmpty') : t(locale, 'ui.saveHere')}
+				{index === 0 || mode === 'load' ? t(locale, 'ui.slotEmpty') : t(locale, 'ui.saveHere')}
 			</p>
 			<div class="save-slot-meta">
 				<span class="save-slot-prompt" aria-hidden="true">
@@ -255,7 +268,9 @@
 		<header class="save-header">
 			<div>
 				<p class="heroic-eyebrow">{t(locale, 'ui.waystone')}</p>
-				<h2 id="save-heading" class="save-heading font-display">{t(locale, 'ui.saveScreen')}</h2>
+				<h2 id="save-heading" class="save-heading font-display">
+					{t(locale, mode === 'load' ? 'ui.loadScreen' : 'ui.saveScreen')}
+				</h2>
 			</div>
 			<button bind:this={closeButton} type="button" class="save-back" onclick={onClose}>
 				<span class="save-back-glyph" aria-hidden="true">
@@ -267,7 +282,7 @@
 
 		<div class="save-slots heroic-stagger">
 			{#each slots.slots as record, index (index)}
-				{#if index === 0}
+				{#if mode === 'save' && index === 0}
 					<article
 						class="save-slot"
 						class:save-slot-autosave={record !== null}
@@ -281,10 +296,11 @@
 						class="save-slot save-slot-action"
 						data-testid="save-slot-{index}"
 						data-focus-id={`save-slot-${index}`}
-						data-focus-row={stackedSaveSlots.current ? index - 1 : 0}
-						data-focus-column={stackedSaveSlots.current ? 0 : index - 1}
+						data-focus-row={stackedSaveSlots.current ? index - (mode === 'load' ? 0 : 1) : 0}
+						data-focus-column={stackedSaveSlots.current ? 0 : index - (mode === 'load' ? 0 : 1)}
 						aria-label={slotAriaLabel(index, record)}
-						onclick={() => chooseSlot(index as 1 | 2)}
+						disabled={mode === 'load' && record === null}
+						onclick={() => chooseSlot(index)}
 					>
 						{@render slotBody(record, index)}
 					</button>

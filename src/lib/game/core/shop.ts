@@ -78,6 +78,9 @@ export type HudShopBuyEntry = {
 };
 
 export type HudShopSellEntry = {
+	/** Unique per row — duplicate equipment copies share an itemId, so keyed
+	 *  lists and selection track this instead. */
+	sellId: string;
 	itemId: string;
 	name: string;
 	description: string;
@@ -335,6 +338,7 @@ export function buildShopSellEntries({
 
 		return [
 			{
+				sellId: `stack:${item.id}`,
 				itemId: item.id,
 				name: itemText?.name ?? item.name,
 				description: itemText?.description ?? item.description,
@@ -347,6 +351,7 @@ export function buildShopSellEntries({
 		];
 	});
 
+	const equipmentCounts = new Map<string, number>();
 	const equipmentEntries = inventory.equipment.flatMap((itemId) => {
 		const item = getItem(itemId);
 		const price = getSellValue(itemId);
@@ -354,10 +359,13 @@ export function buildShopSellEntries({
 		if (item?.type !== 'equipment' || price === undefined || isEquipped(equipment, itemId)) {
 			return [];
 		}
+		const occurrence = equipmentCounts.get(itemId) ?? 0;
+		equipmentCounts.set(itemId, occurrence + 1);
 		const itemText = getItemText(locale, item.id);
 
 		return [
 			{
+				sellId: `equipment:${item.id}:${occurrence}`,
 				itemId: item.id,
 				name: itemText?.name ?? item.name,
 				description: itemText?.description ?? item.description,

@@ -3,8 +3,10 @@
  * in Task 11). Grid geometry only — no DOM, no Phaser.
  *
  * Semantics:
- * - move along row/column from the current node, skipping disabled nodes,
- * - stay on the current node when the edge is reached,
+ * - move to the nearest enabled node in the movement half-plane — the closest
+ *   row/column ahead wins, then the smallest cross-axis drift (document order
+ *   breaks remaining ties), so uneven grids never strand focus,
+ * - stay on the current node when nothing lies in that direction,
  * - a null/unknown current resolves to the first enabled node (document order),
  * - no enabled node at all resolves to null.
  */
@@ -37,17 +39,33 @@ export function resolveMenuFocusTarget(
 
 	const vertical = direction === 'up' || direction === 'down';
 	const step = direction === 'down' || direction === 'right' ? 1 : -1;
-	let coordinate = vertical ? current.row : current.column;
-	const fixed = vertical ? current.column : current.row;
 
-	for (;;) {
-		coordinate += step;
-		const candidate = nodes.find((node) =>
-			vertical
-				? node.column === fixed && node.row === coordinate
-				: node.row === fixed && node.column === coordinate
-		);
-		if (!candidate) return current.id;
-		if (!candidate.disabled) return candidate.id;
+	// Same row/column first: the nearest enabled node in the direction, gaps
+	// and disabled nodes skipped.
+	let aligned: MenuFocusNode | null = null;
+	let alignedAxis = Number.POSITIVE_INFINITY;
+	// Uneven-grid fallback: the nearest row/column ahead, least cross drift.
+	let fallback: MenuFocusNode | null = null;
+	let fallbackAxis = Number.POSITIVE_INFINITY;
+	let fallbackCross = Number.POSITIVE_INFINITY;
+	for (const node of nodes) {
+		if (node.disabled || node.id === current.id) continue;
+		const axisDelta = (vertical ? node.row - current.row : node.column - current.column) * step;
+		if (axisDelta <= 0) continue;
+		const crossDelta = Math.abs(vertical ? node.column - current.column : node.row - current.row);
+		if (crossDelta === 0) {
+			if (axisDelta < alignedAxis) {
+				aligned = node;
+				alignedAxis = axisDelta;
+			}
+			continue;
+		}
+		if (axisDelta < fallbackAxis || (axisDelta === fallbackAxis && crossDelta < fallbackCross)) {
+			fallback = node;
+			fallbackAxis = axisDelta;
+			fallbackCross = crossDelta;
+		}
 	}
+
+	return (aligned ?? fallback)?.id ?? current.id;
 }

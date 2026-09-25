@@ -90,6 +90,9 @@ export type HudQuestEntry = {
 	type: QuestDefinition['type'];
 	status: QuestEntryStatus | 'available';
 	description: string;
+	/** Stable id of the current objective — the journal matches the chain
+	 *  position on this, never on the translated `objective` text. */
+	objectiveId: string;
 	objective: string;
 	progress: { current: number; target: number; label: string };
 	rewardSummary: string;
@@ -99,6 +102,7 @@ export type HudQuestOffer = {
 	questId: QuestId;
 	title: string;
 	description: string;
+	objectiveId: string;
 	objective: string;
 	rewardSummary: string;
 };
@@ -456,6 +460,7 @@ function buildHudEntry(
 		type: quest.type,
 		status: entry.status,
 		description: questText?.description ?? quest.description,
+		objectiveId: objective.id,
 		objective: objectiveText?.description ?? objective.description,
 		progress: {
 			current: entry.progress,
@@ -478,6 +483,7 @@ function buildHudOffer(
 		questId: quest.id,
 		title: questText?.title ?? quest.title,
 		description: questText?.description ?? quest.description,
+		objectiveId: objective.id,
 		objective: objectiveText?.description ?? objective.description,
 		rewardSummary: formatRewardSummary(locale, quest.reward)
 	};

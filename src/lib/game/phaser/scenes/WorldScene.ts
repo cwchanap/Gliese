@@ -72,7 +72,7 @@ import {
 } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
 import { emitPlayerMovementDiagnostic } from '$lib/game/phaser/player-movement-diagnostics';
 import { advanceBossPhase } from '$lib/game/core/boss';
-import { buildAreaMapState, getAreaName } from '$lib/game/core/area-map';
+import { buildAreaMapState } from '$lib/game/core/area-map';
 import {
 	applyBattleResultToSaveState,
 	rollBattleEnemyCount,
@@ -101,11 +101,7 @@ import {
 	revealMapArea,
 	type MapExplorationState
 } from '$lib/game/core/map-exploration';
-import {
-	applyExperienceGain,
-	getBaseMaxHp,
-	type ProgressionState
-} from '$lib/game/core/progression';
+import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
 import {
 	acceptQuest,
 	applyQuestEvent,
@@ -128,7 +124,12 @@ import {
 	type ShopStockState,
 	type WalletState
 } from '$lib/game/core/shop';
-import { clampHpToMax, deriveEffectiveStats, type EffectiveStats } from '$lib/game/core/stats';
+import {
+	clampHpToMax,
+	deriveEffectiveStats,
+	getHeroBaseStats,
+	type EffectiveStats
+} from '$lib/game/core/stats';
 import {
 	advanceDialogue,
 	buildDialogueFallback,
@@ -327,6 +328,24 @@ function cloneShopStockState(shopStockState: ShopStockState): ShopStockState {
 		Object.entries(shopStockState).map(([shopId, stockById]) => [shopId, { ...stockById }])
 	);
 }
+
+// HUD commands that can never change the save payload — battle-scoped ones
+// return before mutating, pause/resume and shop open/close only touch
+// runtime flags, save-slot writes its own slot, and dialogue-close just
+// ends the session. Anything not listed keeps the before/after compare so a
+// new command can't silently skip the durable-mutation autosave.
+const NON_MUTATING_HUD_COMMANDS: ReadonlySet<HudCommand['type']> = new Set([
+	'dismiss-battle-summary',
+	'battle-cycle-target',
+	'battle-select-target',
+	'battle-flee',
+	'pause-game',
+	'resume-game',
+	'save-slot',
+	'open-shop',
+	'close-shop',
+	'dialogue-close'
+]);
 
 export class WorldScene extends Phaser.Scene {
 	static readonly key = 'world';
@@ -637,9 +656,11 @@ export class WorldScene extends Phaser.Scene {
 		this.revealCurrentMapArea();
 		// Explicit durable points write the autosave slot: new-run readiness,
 		// map transitions, and applied battle results. Resume and fog reveal do not.
-		// The write waits for this scene's first render (Phaser RENDER event) so the
-		// slot thumbnail captures the arrival map instead of the previous frame (or
-		// a blank canvas).
+		// The write waits for this scene's first render (Phaser RENDER event) and
+		// then hops to the renderer's post-render tick, so the slot thumbnail
+		// captures the arrival map as a completed frame.
+		this.lastThumbnailMapId = null;
+		this.lastThumbnail = undefined;
 		if (reason === 'new' || reason === 'transition' || battleApplication) {
 			this.events?.once?.('render', () => this.writeAutosave(this.buildSaveState()));
 		}
@@ -1158,22 +1179,18 @@ export class WorldScene extends Phaser.Scene {
 		return this.status('status.itemCannotBeSold');
 	}
 
-	private getBaseMaxHp() {
-		return getBaseMaxHp(startingPlayer.baseHp, this.playerProgress.level);
-	}
-
 	private getEffectiveStats(): EffectiveStats {
-		return deriveEffectiveStats(
-			{
-				hp: this.getBaseMaxHp(),
-				attack: this.playerProgress.attack,
-				defense: 0
-			},
-			this.equipment
-		);
+		return deriveEffectiveStats(getHeroBaseStats(this.playerProgress), this.equipment);
 	}
 
 	private handleHudCommand(command: HudCommand) {
+		// Commands that can't touch the save payload skip the before/after
+		// serialization entirely — they were paying two serializeSaveState
+		// calls per keypress for nothing.
+		if (NON_MUTATING_HUD_COMMANDS.has(command.type)) {
+			this.applyHudCommand(command);
+			return;
+		}
 		// Durable-mutation autosave: compare the serialized state before/after the
 		// command and persist slot 0 only when the command changed something.
 		const before = serializeSaveState(this.buildSaveState());
@@ -1450,7 +1467,7 @@ export class WorldScene extends Phaser.Scene {
 			description: shopText?.description ?? shop.description,
 			bustPath: shop.bustPath,
 			buy: buildShopBuyEntries(shop.id, this.shopStockState, locale, {
-				base: { hp: this.getBaseMaxHp(), attack: this.playerProgress.attack, defense: 0 },
+				base: getHeroBaseStats(this.playerProgress),
 				equipment: this.equipment,
 				inventory: this.inventory
 			}),
@@ -2799,31 +2816,64 @@ export class WorldScene extends Phaser.Scene {
 			kind,
 			savedAt: new Date().toISOString(),
 			playtimeSeconds: getPlaytimeSeconds(),
-			locationLabel: getAreaName(this.getLocale(), state.mapId),
-			thumbnail: captureSaveThumbnail(this.game?.canvas),
+			thumbnail: this.captureSlotThumbnail(state.mapId),
 			state
 		};
 	}
 
-	private writeAutosave(state: SaveState) {
-		try {
-			writeSaveSlot(0, this.buildSlotRecord('autosave', state));
-		} catch (error) {
-			// The envelope already retried without thumbnails; a remaining failure
-			// means storage is unavailable. Never break gameplay over the autosave.
-			console.error('Failed to persist autosave slot.', error);
+	// Copying the canvas and encoding a JPEG is expensive, so thumbnails are
+	// captured once per map and reused while the save stays on it.
+	private lastThumbnailMapId: string | null = null;
+	private lastThumbnail: string | undefined;
+
+	private captureSlotThumbnail(mapId: string): string | undefined {
+		if (mapId !== this.lastThumbnailMapId) {
+			this.lastThumbnail = captureSaveThumbnail(this.game?.canvas);
+			this.lastThumbnailMapId = mapId;
 		}
+		return this.lastThumbnail;
+	}
+
+	/**
+	 * Run `action` on the renderer's post-render tick — after every scene has
+	 * drawn, while the canvas buffer still holds the completed frame. This is
+	 * what lets thumbnail capture work without preserveDrawingBuffer (which
+	 * would slow every frame). Renderers without an event emitter — mocked or
+	 * headless environments — run the action immediately.
+	 */
+	private afterNextRenderedFrame(action: () => void) {
+		const renderer = this.game?.renderer;
+		if (typeof renderer?.once !== 'function') {
+			action();
+			return;
+		}
+		renderer.once(Phaser.Renderer.Events.POST_RENDER, action);
+	}
+
+	private writeAutosave(state: SaveState) {
+		this.afterNextRenderedFrame(() => {
+			try {
+				writeSaveSlot(0, this.buildSlotRecord('autosave', state));
+			} catch (error) {
+				// The envelope already retried without thumbnails; a remaining failure
+				// means storage is unavailable. Never break gameplay over the autosave.
+				console.error('Failed to persist autosave slot.', error);
+			}
+		});
 	}
 
 	private writeManualSlot(slot: 1 | 2) {
-		try {
-			const result = writeSaveSlot(slot, this.buildSlotRecord('manual', this.buildSaveState()));
-			this.publishHudState(
-				this.status(result.thumbnailDropped ? 'status.savedWithoutThumbnail' : 'status.saved')
-			);
-		} catch {
-			this.publishHudState(this.status('status.saveFailed'));
-		}
+		const state = this.buildSaveState();
+		this.afterNextRenderedFrame(() => {
+			try {
+				const result = writeSaveSlot(slot, this.buildSlotRecord('manual', state));
+				this.publishHudState(
+					this.status(result.thumbnailDropped ? 'status.savedWithoutThumbnail' : 'status.saved')
+				);
+			} catch {
+				this.publishHudState(this.status('status.saveFailed'));
+			}
+		});
 	}
 
 	private setupEncounters(map: WorldMapDefinition) {

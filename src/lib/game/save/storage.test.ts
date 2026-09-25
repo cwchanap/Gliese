@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createNewSaveState } from '$lib/game/save/save-state';
 import {
+	SAVE_SLOTS_BACKUP_STORAGE_KEY,
 	SAVE_SLOTS_STORAGE_KEY,
 	getNewestSaveSlot,
 	loadSaveSlots,
@@ -33,7 +34,6 @@ function createRecord(
 		kind: overrides.kind ?? 'manual',
 		savedAt: overrides.savedAt ?? '2026-09-04T12:00:00.000Z',
 		playtimeSeconds: overrides.playtimeSeconds ?? 42,
-		locationLabel: overrides.locationLabel ?? 'Sundrop Meadows',
 		thumbnail: overrides.thumbnail,
 		state: overrides.state ?? createNewSaveState()
 	};
@@ -82,23 +82,12 @@ describe('save slots', () => {
 
 	it('returns the newest slot by savedAt', () => {
 		const storage = createStorage();
-		writeSaveSlot(
-			1,
-			createRecord({ savedAt: '2026-09-01T00:00:00.000Z', locationLabel: 'Guild Hall' }),
-			storage
-		);
-		writeSaveSlot(
-			2,
-			createRecord({ savedAt: '2026-09-03T00:00:00.000Z', locationLabel: 'Ruins Threshold' }),
-			storage
-		);
+		writeSaveSlot(1, createRecord({ savedAt: '2026-09-01T00:00:00.000Z' }), storage);
+		writeSaveSlot(2, createRecord({ savedAt: '2026-09-03T00:00:00.000Z' }), storage);
 
 		expect(getNewestSaveSlot(storage)).toEqual({
 			index: 2,
-			record: createRecord({
-				savedAt: '2026-09-03T00:00:00.000Z',
-				locationLabel: 'Ruins Threshold'
-			})
+			record: createRecord({ savedAt: '2026-09-03T00:00:00.000Z' })
 		});
 	});
 
@@ -106,20 +95,26 @@ describe('save slots', () => {
 		expect(getNewestSaveSlot(createStorage())).toBeNull();
 	});
 
-	it('falls back to an empty envelope for invalid stored payloads', () => {
+	it('falls back to an empty envelope and backs up invalid stored payloads', () => {
 		const storage = createStorage();
 		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		storage.setItem(SAVE_SLOTS_STORAGE_KEY, '{"version":4,"bad":true}');
 
 		expect(loadSaveSlots(storage)).toEqual({ version: 1, slots: [null, null, null] });
+		expect(storage.getItem(SAVE_SLOTS_BACKUP_STORAGE_KEY)).toBe('{"version":4,"bad":true}');
 		expect(warnSpy).toHaveBeenCalled();
 	});
 
-	it('does not read the retired single-save key', () => {
+	it('migrates the retired single-save key into the autosave slot', () => {
 		const storage = createStorage();
-		storage.setItem('gliese.save.v9', JSON.stringify(createNewSaveState()));
+		const legacy = { ...createNewSaveState(), mapId: 'guild-hall' };
+		storage.setItem('gliese.save.v9', JSON.stringify(legacy));
 
-		expect(loadSaveSlots(storage)).toEqual({ version: 1, slots: [null, null, null] });
+		const slots = loadSaveSlots(storage);
+		expect(slots.slots[0]?.kind).toBe('autosave');
+		expect(slots.slots[0]?.state.mapId).toBe('guild-hall');
+		expect(storage.getItem('gliese.save.v9')).toBeNull();
+		expect(JSON.parse(storage.getItem(SAVE_SLOTS_STORAGE_KEY) ?? 'null').version).toBe(1);
 	});
 
 	it('retries without thumbnails when the synchronous write quota fails', () => {
