@@ -1137,6 +1137,11 @@ vi.mock('phaser', () => {
 				Between: (x1: number, y1: number, x2: number, y2: number) => Math.hypot(x2 - x1, y2 - y1)
 			}
 		},
+		Renderer: {
+			Events: {
+				POST_RENDER: 'postrender'
+			}
+		},
 		Input: {
 			Keyboard: {
 				KeyCodes: {
@@ -7437,6 +7442,116 @@ describe('WorldScene', () => {
 			expect(autosave?.kind).toBe('autosave');
 			expect(autosave?.state.mapId).toBe('meadow-entry');
 		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('defers the autosave write to the renderer post-render tick for the thumbnail', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+
+		// Give the mocked renderer a post-render hook so the scene has to wait
+		// for a completed frame before writing — the contract that replaces
+		// preserveDrawingBuffer.
+		const postrenderCallbacks: Array<() => void> = [];
+		const rendererOnce = vi.fn((event: string, callback: () => void) => {
+			if (event === 'postrender') postrenderCallbacks.push(callback);
+		});
+		const renderer = phaserState.renderer as { once?: unknown };
+		const originalOnce = renderer.once;
+		renderer.once = rendererOnce;
+		try {
+			scene.create({ reason: 'new', saveState: null });
+			scene.events.emit('render');
+
+			expect(rendererOnce).toHaveBeenCalledWith('postrender', expect.any(Function));
+			expect(memoryStorage.setItem).not.toHaveBeenCalled();
+
+			for (const callback of postrenderCallbacks.splice(0)) {
+				callback();
+			}
+
+			expect(memoryStorage.setItem).toHaveBeenCalledWith(
+				slots.SAVE_SLOTS_STORAGE_KEY,
+				expect.any(String)
+			);
+		} finally {
+			renderer.once = originalOnce;
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('does not serialize the save state for commands that cannot mutate it', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({ reason: 'new', saveState: null });
+			scene.events.emit('render');
+
+			const sceneState = scene as unknown as {
+				handleHudCommand: (command: HudCommand) => void;
+			};
+			const stringifySpy = vi.spyOn(JSON, 'stringify');
+			try {
+				// pause/resume only flip runtime flags — no save payload can
+				// change, so the before/after serialization must not run.
+				sceneState.handleHudCommand({ type: 'pause-game' });
+				sceneState.handleHudCommand({ type: 'resume-game' });
+				expect(stringifySpy).not.toHaveBeenCalled();
+			} finally {
+				stringifySpy.mockRestore();
+			}
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('reuses the slot thumbnail while the map is unchanged', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const thumbnail = await import('$lib/game/save/thumbnail');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		const captureSpy = vi
+			.spyOn(thumbnail, 'captureSaveThumbnail')
+			.mockReturnValue('data:image/jpeg;base64,AAAA');
+		try {
+			scene.create({
+				reason: 'new',
+				saveState: null
+			});
+			scene.events.emit('render');
+
+			// A second autosave on the same map reuses the capture instead of
+			// re-encoding the canvas on the game loop.
+			const sceneState = scene as unknown as {
+				handleHudCommand: (command: HudCommand) => void;
+				inventory: { stacks: Array<{ itemId: string; quantity: number }> };
+				playerProgress: { hp: number };
+			};
+			sceneState.playerProgress.hp = 1;
+			sceneState.inventory.stacks.push({ itemId: 'field-potion', quantity: 1 });
+			sceneState.handleHudCommand({ type: 'use-item', itemId: 'field-potion' });
+
+			expect(memoryStorage.setItem).toHaveBeenCalledTimes(2);
+			expect(captureSpy).toHaveBeenCalledTimes(1);
+			expect(slots.loadSaveSlots(memoryStorage).slots[0]?.thumbnail).toBe(
+				'data:image/jpeg;base64,AAAA'
+			);
+		} finally {
+			captureSpy.mockRestore();
 			storage.setSaveStorage(undefined);
 		}
 	});

@@ -3,7 +3,7 @@
 	import { t, type MessageKey } from '$lib/game/i18n/translate';
 	import type { Locale } from '$lib/game/i18n/locales';
 	import { getQuest, type QuestObjective } from '$lib/game/content/quests';
-	import { getNpcText, getQuestObjectiveText } from '$lib/game/i18n/content';
+	import { getEnemyText, getItemText, getNpcText } from '$lib/game/i18n/content';
 	import { maps } from '$lib/game/content/maps';
 	import { VILLAGE_INTERIOR_PACKAGES } from '$lib/game/content/backgrounds/village-interior-packages';
 	import { getItem } from '$lib/game/content/items';
@@ -43,18 +43,16 @@
 		return 'progress' in quest;
 	}
 
-	/** Objective-chain node labels: title-cased content ids (locale-neutral). */
-	function titleCaseId(id: string): string {
-		return id
-			.split('-')
-			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-			.join(' ');
-	}
-
-	function objectiveChainLabel(objective: QuestObjective): string {
-		if (objective.kind === 'talk-to-npc') return titleCaseId(objective.npcId);
-		if (objective.kind === 'defeat-enemy') return titleCaseId(objective.enemyId);
-		return titleCaseId(objective.sources[0]?.itemId ?? objective.id);
+	/** Objective-chain node labels: localized content names — never raw ids. */
+	function objectiveChainLabel(locale: Locale, objective: QuestObjective): string {
+		if (objective.kind === 'talk-to-npc') {
+			return getNpcText(locale, objective.npcId)?.name ?? objective.description;
+		}
+		if (objective.kind === 'defeat-enemy') {
+			return getEnemyText(locale, objective.enemyId)?.name ?? objective.description;
+		}
+		const itemId = objective.sources[0]?.itemId;
+		return (itemId ? getItemText(locale, itemId)?.name : null) ?? objective.description;
 	}
 
 	function questGiverLocation(locale: Locale, npcId: string): string | null {
@@ -113,12 +111,10 @@
 
 		const definition = getQuest(row.entry.questId);
 		const objectives = definition?.objectives ?? [];
-		// The HUD entry carries the current objective's description; match it
-		// back to the chain position (fallback: first node).
+		// Match the chain position on the stable objective id — translated
+		// description text changes under the player's feet on a locale switch.
 		const currentMatch = objectives.findIndex(
-			(objective) =>
-				getQuestObjectiveText($locale, row.entry.questId, objective.id)?.description ===
-				row.entry.objective
+			(objective) => objective.id === row.entry.objectiveId
 		);
 		const giverNpcId =
 			definition?.giverNpcId ??
@@ -136,7 +132,7 @@
 			mapArt,
 			chain: objectives.map<ChainNode>((objective) => ({
 				id: objective.id,
-				label: objectiveChainLabel(objective),
+				label: objectiveChainLabel($locale, objective),
 				kind: objective.kind
 			})),
 			currentIndex: Math.max(0, currentMatch),
@@ -162,17 +158,13 @@
 				? objectives.length
 				: Math.max(
 						0,
-						objectives.findIndex(
-							(objective) =>
-								getQuestObjectiveText($locale, main.questId, objective.id)?.description ===
-								main.objective
-						)
+						objectives.findIndex((objective) => objective.id === main.objectiveId)
 					);
 		return {
 			percent: Math.round((doneCount / objectives.length) * 100),
 			rows: objectives.map((objective, index) => ({
 				id: objective.id,
-				label: objectiveChainLabel(objective),
+				label: objectiveChainLabel($locale, objective),
 				state:
 					index < doneCount
 						? ('done' as const)
@@ -460,7 +452,9 @@
 									</svg>
 								</span>
 								<div class="quest-giver-copy">
-									<p class="quest-giver-name font-display">{detail.giverName}</p>
+									<p class="quest-giver-name font-display" data-testid="quest-giver-name">
+										{detail.giverName}
+									</p>
 									{#if detail.locationLabel}
 										<p class="quest-giver-location font-display" data-testid="quest-giver-location">
 											{detail.locationLabel}

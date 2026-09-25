@@ -47,12 +47,21 @@
 	);
 	const bustPath = $derived(getDialogueBustPath(dialogue.npcId));
 
+	// HUD publishes rebuild the dialogue object every frame, so the reveal keys on
+	// scalar identity — id + lineIndex (plus the derived line length, which only
+	// notifies on a real change). A republished object with the same line leaves
+	// the typewriter and the enabled choices untouched.
+	const dialogueId = $derived(dialogue.id);
+	const dialogueLineIndex = $derived(dialogue.lineIndex);
+
 	// A new line resets the reveal; instant speed renders the full line with no ticker.
 	$effect(() => {
-		void dialogue.lineIndex;
-		void dialogue.line;
-		if (selectedForDialogueId !== dialogue.id) {
-			selectedForDialogueId = dialogue.id;
+		void dialogueId;
+		void dialogueLineIndex;
+		void totalCharacters;
+		void $preferences.textSpeed;
+		if (selectedForDialogueId !== dialogueId) {
+			selectedForDialogueId = dialogueId;
 			selectedChoiceIndex = 0;
 		}
 		if ($preferences.textSpeed === 'instant') {

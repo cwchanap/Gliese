@@ -493,6 +493,35 @@ describe('DialoguePanel.svelte', () => {
 		expect(onchoose).not.toHaveBeenCalledWith('quest:thin-village-slimes');
 	});
 
+	it('keeps the revealed line and enabled choices when the same line republishes as a new object', async () => {
+		// HUD publishes rebuild the dialogue object every frame (walking, fog
+		// reveals, hits). A new object carrying the same id + lineIndex must not
+		// restart the typewriter or re-disable the choices.
+		updatePreferences({ textSpeed: 'normal' });
+		const { rerender } = render(DialoguePanel, {
+			props: {
+				dialogue: { ...dialogue },
+				onadvance: vi.fn(),
+				onclose: vi.fn(),
+				onchoose: vi.fn()
+			}
+		});
+
+		// First confirm press completes the reveal instead of advancing.
+		await page.getByRole('button', { name: 'Next' }).click();
+		const line = page
+			.getByRole('dialog', { name: 'Guild Master Arlen' })
+			.element()
+			.querySelector('.jrpg-dialogue-line')!;
+		expect(line.textContent).toBe('Choose the Guild work you want to review.');
+		await expect.element(page.getByRole('button', { name: 'Thin Village Slimes' })).toBeEnabled();
+
+		await rerender({ dialogue: { ...dialogue } });
+
+		expect(line.textContent).toBe('Choose the Guild work you want to review.');
+		await expect.element(page.getByRole('button', { name: 'Thin Village Slimes' })).toBeEnabled();
+	});
+
 	it('resets the gilded selection to the first row in a new choice session', async () => {
 		const onadvance = vi.fn();
 		const onclose = vi.fn();
@@ -714,6 +743,7 @@ describe('DialoguePanel.svelte', () => {
 						status: 'active',
 						description: 'Report to the Guild Master, then defeat the ruins warden.',
 						objective: 'Talk to the Guild Master.',
+						objectiveId: 'talk-to-guild-master',
 						progress: { label: 'Guild Master spoken to', current: 0, target: 1 },
 						rewardSummary: '8 XP / 20 coins'
 					},
@@ -1013,6 +1043,7 @@ describe('DialoguePanel.svelte', () => {
 						status: 'active',
 						description: 'Report to the Guild Master, then defeat the ruins warden.',
 						objective: 'Talk to the Guild Master.',
+						objectiveId: 'talk-to-guild-master',
 						progress: { label: 'Guild Master spoken to', current: 0, target: 1 },
 						rewardSummary: '8 XP / 20 coins'
 					},

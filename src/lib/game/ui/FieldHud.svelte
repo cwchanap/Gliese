@@ -2,6 +2,7 @@
 	import { locale } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import { parseCellKey } from '$lib/game/core/map-exploration';
+	import { getXpForLevel } from '$lib/game/core/progression';
 	import CommandGrid, { type FieldCommand } from '$lib/game/ui/CommandGrid.svelte';
 	import type { HudState } from '$lib/game/ui-bridge/events';
 
@@ -16,7 +17,8 @@
 	let { hudState, commandOpen = false, commandEnabled, onCommand }: Props = $props();
 
 	const hpPercent = $derived((hudState.hp / Math.max(hudState.maxHp, 1)) * 100);
-	const xpTarget = $derived(hudState.level > 1 ? 24 : 12);
+	// Cumulative XP needed to reach the next level (level 1 → 5, 2 → 10, …).
+	const xpTarget = $derived(Math.max(1, getXpForLevel(hudState.level + 1)));
 	const xpPercent = $derived((Math.min(hudState.xp, xpTarget) / xpTarget) * 100);
 	const lowHp = $derived(hudState.maxHp > 0 && hudState.hp / hudState.maxHp <= 0.25);
 

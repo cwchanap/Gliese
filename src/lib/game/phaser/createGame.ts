@@ -32,9 +32,8 @@ export async function createGame(target: HTMLElement, start: GameStartRequest) {
 			mode: Phaser.Scale.RESIZE,
 			autoCenter: Phaser.Scale.CENTER_BOTH
 		},
-		// Save-slot thumbnails read the canvas via toDataURL after the frame;
-		// without this WebGL clears the buffer first and captures come out black.
-		render: { preserveDrawingBuffer: true },
+		// Save-slot thumbnails read the canvas on the renderer's post-render
+		// tick, so preserveDrawingBuffer stays off and doesn't slow every frame.
 		// BootScene is the auto-started first scene: it preloads the sprite sheets
 		// before WorldScene runs. The start request reaches it via the registry,
 		// populated in preBoot so it lands before any scene init no matter how

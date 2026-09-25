@@ -49,7 +49,7 @@
 
 	let activeShopTab = $state<ShopTab>('buy');
 	let selectedBuyStockId = $state<string | null>(null);
-	let selectedSellItemId = $state<string | null>(null);
+	let selectedSellId = $state<string | null>(null);
 	let hoveredShopBuyItem = $state<HudShopBuyEntry | null>(null);
 	let hoveredShopSellItem = $state<HudShopSellEntry | null>(null);
 
@@ -57,7 +57,7 @@
 		if (open) return;
 		activeShopTab = 'buy';
 		selectedBuyStockId = null;
-		selectedSellItemId = null;
+		selectedSellId = null;
 		hoveredShopBuyItem = null;
 		hoveredShopSellItem = null;
 	});
@@ -69,8 +69,8 @@
 		return shop.buy.find((entry) => entry.stockId === selectedBuyStockId) ?? null;
 	});
 	const selectedSellItem = $derived.by(() => {
-		if (!shop || !selectedSellItemId) return null;
-		return shop.sell.find((entry) => entry.itemId === selectedSellItemId) ?? null;
+		if (!shop || !selectedSellId) return null;
+		return shop.sell.find((entry) => entry.sellId === selectedSellId) ?? null;
 	});
 
 	const shopName = $derived(shop?.name ?? nearbyShop?.name ?? t($locale, 'ui.shop'));
@@ -79,7 +79,7 @@
 	async function focusShopTab(tab: ShopTab) {
 		activeShopTab = tab;
 		selectedBuyStockId = null;
-		selectedSellItemId = null;
+		selectedSellId = null;
 		hoveredShopBuyItem = null;
 		hoveredShopSellItem = null;
 		await tick();
@@ -89,7 +89,7 @@
 	function setShopTab(tab: ShopTab) {
 		activeShopTab = tab;
 		selectedBuyStockId = null;
-		selectedSellItemId = null;
+		selectedSellId = null;
 		hoveredShopBuyItem = null;
 		hoveredShopSellItem = null;
 	}
@@ -151,7 +151,7 @@
 
 	function selectShopBuyItem(item: HudShopBuyEntry) {
 		selectedBuyStockId = item.stockId;
-		selectedSellItemId = null;
+		selectedSellId = null;
 	}
 
 	function activateShopBuyItem(item: HudShopBuyEntry) {
@@ -178,7 +178,7 @@
 	}
 
 	function selectShopSellItem(item: HudShopSellEntry) {
-		selectedSellItemId = item.itemId;
+		selectedSellId = item.sellId;
 		selectedBuyStockId = null;
 	}
 
@@ -257,6 +257,14 @@
 
 	function getActionLabel(): string {
 		if (activeShopTab === 'buy' && !isSelectionAffordable()) {
+			// Sold out outranks the coins message — the purse is irrelevant when
+			// no stock remains.
+			if (
+				selectedBuyItem?.availability.mode === 'finite' &&
+				selectedBuyItem.availability.remaining <= 0
+			) {
+				return t($locale, 'ui.soldOut');
+			}
 			return t($locale, 'ui.shopNotEnough');
 		}
 		return getShopTabLabel(activeShopTab);
@@ -427,8 +435,8 @@
 						{/if}
 					{:else if shop?.sell.length}
 						<div data-testid="shop-sell-grid" class="shop-grid">
-							{#each shop.sell as item, index (item.itemId)}
-								{@const selected = selectedSellItemId === item.itemId}
+							{#each shop.sell as item, index (item.sellId)}
+								{@const selected = selectedSellId === item.sellId}
 								<button
 									type="button"
 									class="shop-tile font-display"
