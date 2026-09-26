@@ -144,6 +144,44 @@ describe('navigation grid compilation', () => {
 		).toEqual({ x: 8, y: 24 });
 	});
 
+	it('does not let a negative sweep end just past an internal boundary inside a blocked cell', () => {
+		// Floating-point residue can put a leftward/upward step's endpoint a few
+		// ulps past a cell boundary, so the crossing time is within 1e-12 of the
+		// endpoint. The endpoint must still be tested against the cell it lands
+		// in; otherwise the player rests inside a blocked cell and every later
+		// sweep is rejected at its start (a movement soft-lock).
+		const verticalBoundary = compileNavigationGrid(
+			source({ widthCells: 2, heightCells: 1, rows: ['#.'] })
+		);
+		const horizontalBoundary = compileNavigationGrid(
+			source({ widthCells: 1, heightCells: 2, rows: ['#', '.'] })
+		);
+		const justPastBoundary = 16 - 9e-13;
+		const from = justPastBoundary + 4.0008;
+
+		expect(isWalkable(verticalBoundary, justPastBoundary, 8)).toBe(false);
+		expect(
+			resolveMovementSegment(
+				verticalBoundary,
+				[],
+				{ x: from, y: 8 },
+				{ x: justPastBoundary, y: 8 },
+				0
+			)
+		).toEqual({ x: from, y: 8 });
+
+		expect(isWalkable(horizontalBoundary, 8, justPastBoundary)).toBe(false);
+		expect(
+			resolveMovementSegment(
+				horizontalBoundary,
+				[],
+				{ x: 8, y: from },
+				{ x: 8, y: justPastBoundary },
+				0
+			)
+		).toEqual({ x: 8, y: from });
+	});
+
 	it('compiles clearance from localized blocker neighborhoods instead of candidate-wide raw scans', () => {
 		const rows = Array.from({ length: 32 }, (_unused, row) =>
 			row === 16 ? `${'.'.repeat(16)}#${'.'.repeat(15)}` : '.'.repeat(32)

@@ -303,8 +303,20 @@ function isGridSegmentBlocked(
 	while (nextBoundaryT <= 1 || nextBoundaryY <= 1) {
 		if (Math.abs(nextBoundaryT - nextBoundaryY) <= 1e-12) {
 			if (nextBoundaryT > 1) break;
-			const crossesX = !isWorldEdgeEndpoint(to.x, grid.widthPx, stepX, nextBoundaryT);
-			const crossesY = !isWorldEdgeEndpoint(to.y, grid.heightPx, stepY, nextBoundaryY);
+			const crossesX = !isWorldEdgeEndpoint(
+				to.x,
+				grid.widthPx,
+				stepX,
+				nextBoundaryT,
+				column * grid.cellSizePx
+			);
+			const crossesY = !isWorldEdgeEndpoint(
+				to.y,
+				grid.heightPx,
+				stepY,
+				nextBoundaryY,
+				row * grid.cellSizePx
+			);
 			if (!crossesX && !crossesY) break;
 			if (crossesX && isGridCellBlocked(grid, row, column + stepX)) return true;
 			if (crossesY && isGridCellBlocked(grid, row + stepY, column)) return true;
@@ -318,7 +330,7 @@ function isGridSegmentBlocked(
 
 		if (nextBoundaryT < nextBoundaryY) {
 			if (nextBoundaryT > 1) break;
-			if (isWorldEdgeEndpoint(to.x, grid.widthPx, stepX, nextBoundaryT)) {
+			if (isWorldEdgeEndpoint(to.x, grid.widthPx, stepX, nextBoundaryT, column * grid.cellSizePx)) {
 				nextBoundaryT = Number.POSITIVE_INFINITY;
 				continue;
 			}
@@ -329,7 +341,7 @@ function isGridSegmentBlocked(
 		}
 
 		if (nextBoundaryY > 1) break;
-		if (isWorldEdgeEndpoint(to.y, grid.heightPx, stepY, nextBoundaryY)) {
+		if (isWorldEdgeEndpoint(to.y, grid.heightPx, stepY, nextBoundaryY, row * grid.cellSizePx)) {
 			nextBoundaryY = Number.POSITIVE_INFINITY;
 			continue;
 		}
@@ -352,15 +364,23 @@ function isInsideWorld(grid: NavigationGrid, point: NavigationPoint): boolean {
 	);
 }
 
+/**
+ * A crossing at the very end of the sweep is skipped only when the endpoint
+ * still belongs to the current cell under the floor convention: exactly on the
+ * world maximum for a positive step, or exactly on the crossed (lower) boundary
+ * for a negative step. An endpoint that floating-point residue leaves a few ulps
+ * past a negative boundary lands in the next cell and must be tested against it.
+ */
 function isWorldEdgeEndpoint(
 	coordinate: number,
 	maximum: number,
 	step: number,
-	boundaryT: number
+	boundaryT: number,
+	negativeBoundary: number
 ): boolean {
 	return (
 		Math.abs(boundaryT - 1) <= 1e-12 &&
-		((step > 0 && coordinate === maximum) || (step < 0 && coordinate >= 0))
+		((step > 0 && coordinate === maximum) || (step < 0 && coordinate === negativeBoundary))
 	);
 }
 
