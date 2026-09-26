@@ -1284,9 +1284,21 @@ async function installRuntimeProbes(
 			// Far past-target while pending must wait so Guild Hall idle oscillation
 			// (> reachTolerance) cannot cancel the paced reverse; once pending clears,
 			// past-target settle stops --fully-parallel thrash.
+			// An approach sample (not yet past the target) may only use the looser
+			// reachTolerance after a correction tap, as before PR #40. Settling the
+			// first approach sample inside reachTolerance stopped the hero up to 18px
+			// short of the waypoint (e.g. x=718 for the Item Shop office at x=736),
+			// which lands in a clearance-blocked navigation cell, so the following
+			// orthogonal leg (office doorway convergence, interior exit walk) was
+			// blocked. Before a tap, such a sample falls through to one paced
+			// correction toward the waypoint, which leaves only a few px of residue.
 			if (
 				distance <= routeState.settleTolerance ||
-				(!diagnostic.blocked && reached && distance <= routeState.reachTolerance && !pastTarget) ||
+				(routeState.correctionTaps > 0 &&
+					!diagnostic.blocked &&
+					reached &&
+					distance <= routeState.reachTolerance &&
+					!pastTarget) ||
 				(!diagnostic.blocked &&
 					pastTarget &&
 					routeState.correctionTaps >= 1 &&
