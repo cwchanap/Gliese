@@ -6,7 +6,7 @@ import '../../app.css';
 import DialoguePanel from '$lib/game/DialoguePanel.svelte';
 import GameShell from '$lib/game/GameShell.svelte';
 import { en } from '$lib/game/i18n/messages/en';
-import { getActiveLocale, setActiveLocale } from '$lib/game/i18n/store';
+import { getActiveLocale, setActiveLocale, updatePreferences } from '$lib/game/i18n/store';
 import { emitHudState, type HudDialogueState, type HudState } from '$lib/game/ui-bridge/events';
 
 vi.mock('$lib/game/i18n/store', async (importOriginal) => {
@@ -24,6 +24,7 @@ vi.mock('$lib/game/phaser/createGame', () => ({
 
 const dialogue: HudDialogueState = {
 	id: 'npc:guild-master',
+	npcId: 'guild-master',
 	speaker: 'Guild Master Arlen',
 	line: 'Choose the Guild work you want to review.',
 	lineIndex: 0,
@@ -31,8 +32,8 @@ const dialogue: HudDialogueState = {
 	mode: 'choice',
 	canClose: true,
 	choices: [
-		{ id: 'quest:thin-village-slimes', label: 'Thin Village Slimes' },
-		{ id: 'close', label: 'Close' }
+		{ id: 'quest:thin-village-slimes', label: 'Thin Village Slimes', kind: 'ask' },
+		{ id: 'close', label: 'Close', kind: 'leave' }
 	]
 };
 
@@ -61,6 +62,7 @@ function renderDialogue(overrides: Partial<HudDialogueState> = {}) {
 
 const originalCloseLabel = en.ui.close;
 const originalNextLabel = en.ui.next;
+const originalTextSpeed = 'normal' as const;
 const mockedSetActiveLocale = vi.mocked(setActiveLocale);
 const mutableUiMessages = en.ui as { close: string; next: string };
 
@@ -106,7 +108,6 @@ function createReadyHudState(overrides: Partial<HudState> = {}): HudState {
 		attack: 4,
 		defense: 1,
 		heals: 1,
-		canResume: false,
 		status: 'Ready',
 		wallet: { coins: 30 },
 		nearbyShop: null,
@@ -114,7 +115,8 @@ function createReadyHudState(overrides: Partial<HudState> = {}): HudState {
 		dialogue: null,
 		battle: {
 			phase: 'none',
-			summary: null
+			summary: null,
+			active: null
 		},
 		quests: {
 			main: null,
@@ -142,12 +144,15 @@ describe('DialoguePanel.svelte', () => {
 	beforeEach(() => {
 		setDialogueLabels(originalCloseLabel, originalNextLabel);
 		setActiveLocale('en');
+		// Interaction tests want the full line and enabled choices immediately.
+		updatePreferences({ textSpeed: 'instant' });
 		mockedSetActiveLocale.mockClear();
 	});
 
 	afterEach(() => {
 		setDialogueLabels(originalCloseLabel, originalNextLabel);
 		setActiveLocale('en');
+		updatePreferences({ textSpeed: originalTextSpeed });
 		mockedSetActiveLocale.mockClear();
 	});
 
@@ -155,7 +160,13 @@ describe('DialoguePanel.svelte', () => {
 		renderDialogue();
 
 		await expect.element(page.getByRole('dialog', { name: 'Guild Master Arlen' })).toBeVisible();
-		await expect.element(page.getByText('Choose the Guild work you want to review.')).toBeVisible();
+		// Scope to the visible line: the sr-only status twin repeats the text.
+		expect(
+			page
+				.getByRole('dialog', { name: 'Guild Master Arlen' })
+				.element()
+				.querySelector('.jrpg-dialogue-line')!.textContent
+		).toBe('Choose the Guild work you want to review.');
 		await expect.element(page.getByRole('button', { name: 'Thin Village Slimes' })).toBeVisible();
 	});
 
@@ -163,7 +174,9 @@ describe('DialoguePanel.svelte', () => {
 		const { onchoose, onclose } = renderDialogue();
 
 		await page.getByRole('button', { name: 'Thin Village Slimes' }).click();
-		await page.getByRole('button', { name: 'Close' }).first().click();
+		// Bar prompt order: the close choice renders in the choices column (first),
+		// the B-glyph Close action on the bar (last).
+		await page.getByRole('button', { name: 'Close' }).last().click();
 
 		expect(onchoose).toHaveBeenCalledWith('quest:thin-village-slimes');
 		expect(onclose).toHaveBeenCalledOnce();
@@ -204,17 +217,339 @@ describe('DialoguePanel.svelte', () => {
 		expect(event.defaultPrevented).toBe(true);
 	});
 
-	it('keeps dialogue in a lower plaza message box instead of full-width chrome', async () => {
-		renderDialogue();
+	it('traps Tab inside the panel instead of escaping to controls behind it', async () => {
+		renderDialogue(conversationDialogue);
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+		const next = panel.getByRole('button', { name: 'Next' });
+		const close = panel.getByRole('button', { name: 'Close' });
 
-		const bounds = page
+		await expect.element(panel).toHaveFocus();
+
+		// Shift+Tab from the initially-focused panel wraps to the LAST control
+		// instead of escaping behind the aria-modal surface.
+		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+		await expect.element(close).toHaveFocus();
+
+		// Panel → Next → Close → wraps back to Next; Shift+Tab reverses.
+		await userEvent.keyboard('{Tab}');
+		await expect.element(next).toHaveFocus();
+		await userEvent.keyboard('{Tab}');
+		await expect.element(close).toHaveFocus();
+		await userEvent.keyboard('{Tab}');
+		await expect.element(next).toHaveFocus();
+		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+		await expect.element(close).toHaveFocus();
+	});
+
+	it('exposes the aria-modal dialogue contract', async () => {
+		renderDialogue(conversationDialogue);
+
+		await expect
+			.element(page.getByRole('dialog', { name: 'Guild Master Arlen' }))
+			.toHaveAttribute('aria-modal', 'true');
+	});
+
+	it('keeps the dialogue composition anchored to the lower plaza like the mockup', async () => {
+		// Earlier focus/click steps can leave the window scrolled; the dialog is
+		// absolutely positioned in the document, so measurements need origin.
+		window.scrollTo(0, 0);
+		renderDialogue({ npcId: 'shopkeeper-mira', speaker: 'Mira' });
+
+		const dialogPanel = page.getByRole('dialog', { name: 'Mira' }).element();
+		const bust = dialogPanel.querySelector('.jrpg-dialogue-bust');
+		const bar = dialogPanel.querySelector('.jrpg-dialogue-bar');
+		expect(bust).not.toBeNull();
+		expect(bar).not.toBeNull();
+
+		const panelBounds = dialogPanel.getBoundingClientRect();
+		const bustBounds = bust!.getBoundingClientRect();
+		const barBounds = bar!.getBoundingClientRect();
+
+		expect(panelBounds.bottom).toBeGreaterThan(window.innerHeight - 48);
+		// Mockup insets: 44px side gutters, bust card flush-left of the bar.
+		expect(bustBounds.left).toBeGreaterThanOrEqual(36);
+		expect(bustBounds.right).toBeLessThan(barBounds.left);
+		expect(barBounds.right).toBeGreaterThan(window.innerWidth - 56);
+		// Name plate overlaps the bar's top edge like the mockup pill.
+		const plate = dialogPanel.querySelector('.jrpg-dialogue-speaker');
+		expect(plate).not.toBeNull();
+		const plateBounds = plate!.getBoundingClientRect();
+		expect(plateBounds.top).toBeLessThan(barBounds.top);
+		expect(plateBounds.bottom).toBeGreaterThan(barBounds.top);
+	});
+
+	it('renders the neutral bust for the session npc id', async () => {
+		renderDialogue({ npcId: 'shopkeeper-mira', speaker: 'Mira' });
+
+		const bustImage = page.getByRole('img', { name: 'Mira, dialogue portrait' });
+		await expect.element(bustImage).toBeVisible();
+		expect(bustImage.element().getAttribute('src')).toBe('/game/assets/heroic-ui/busts/mira.png');
+	});
+
+	it('renders no bust for NPCs outside the neutral bust map', async () => {
+		renderDialogue({ npcId: 'villager-lynn' });
+
+		// Unsupported NPCs render no bust rather than guessing from the speaker string.
+		expect(
+			page
+				.getByRole('dialog', { name: 'Guild Master Arlen' })
+				.element()
+				.querySelector('.jrpg-dialogue-bust')
+		).toBeNull();
+	});
+
+	it('renders the gilded choice column above the bar like the mockup', async () => {
+		// Mockup canvas: the composition claims are exact at 1440x900.
+		page.viewport(1440, 900);
+		await vi.waitFor(() => {
+			expect(window.innerWidth).toBe(1440);
+		});
+		try {
+			window.scrollTo(0, 0);
+			renderDialogue();
+
+			const dialogPanel = page.getByRole('dialog', { name: 'Guild Master Arlen' }).element();
+			const bar = dialogPanel.querySelector('.jrpg-dialogue-bar');
+			const choices = dialogPanel.querySelector('.jrpg-dialogue-choices');
+			const firstRow = dialogPanel.querySelector('.jrpg-dialogue-choice');
+			expect(choices).not.toBeNull();
+			expect(firstRow).not.toBeNull();
+
+			const panelBounds = dialogPanel.getBoundingClientRect();
+			const barBounds = bar!.getBoundingClientRect();
+			const choicesBounds = choices!.getBoundingClientRect();
+			const rowBounds = firstRow!.getBoundingClientRect();
+
+			// Mockup: column bottom sits 270px above the viewport floor with the
+			// panel floor at 40px -> 230px above the panel floor. The full source
+			// artboard keeps the column inside its 44px right gutter.
+			expect(panelBounds.bottom - choicesBounds.bottom).toBeCloseTo(230, -1);
+			expect(choicesBounds.right).toBeCloseTo(panelBounds.right, 0);
+			expect(choicesBounds.right).toBeLessThan(window.innerWidth);
+			expect(choicesBounds.bottom).toBeLessThan(barBounds.top);
+			// Decorative column carries the full 23rem (368px) visual row
+			// (sub-percent rendering drift tolerated).
+			expect(choicesBounds.width).toBeLessThanOrEqual(368.5);
+			expect(choicesBounds.width).toBeGreaterThan(356);
+			// The button hitbox stops flush inside the viewport so the row stays
+			// clickable under the shell's overflow: clip.
+			expect(rowBounds.right).toBeLessThanOrEqual(window.innerWidth);
+			expect(rowBounds.left).toBeGreaterThanOrEqual(0);
+			// The whole 23rem row stays visible and clickable.
+			expect(rowBounds.width).toBeLessThanOrEqual(368.5);
+			expect(rowBounds.width).toBeGreaterThan(356);
+		} finally {
+			page.viewport(414, 730);
+		}
+	});
+
+	it('keeps every choice row inside a 640×360 viewport with three choices', async () => {
+		// Quest-detail accept flows render three rows; the short-viewport
+		// fallback must keep them all on-screen — the shell's overflow: clip
+		// makes any off-viewport rect unreachable (Playwright click hangs).
+		await page.viewport(640, 360);
+		try {
+			window.scrollTo(0, 0);
+			const renderDialogueReturn = renderDialogue({
+				choices: [
+					{ id: 'quest:accept', label: 'Accept the Commission', kind: 'trade' },
+					{ id: 'quest:ask', label: 'Ask About the Ruins', kind: 'ask' },
+					{ id: 'close', label: 'Leave', kind: 'leave' }
+				]
+			});
+			const { onchoose } = renderDialogueReturn;
+
+			const dialogPanel = page.getByRole('dialog', { name: 'Guild Master Arlen' }).element();
+			// Settle the entrance animation so the rects below are the at-rest
+			// composition the real pointer flow sees.
+			await vi.waitFor(() => {
+				expect(dialogPanel.getAnimations().every(({ playState }) => playState === 'finished')).toBe(
+					true
+				);
+			});
+
+			const rows = [...dialogPanel.querySelectorAll('.jrpg-dialogue-choice')];
+			expect(rows).toHaveLength(3);
+			const panelRect = dialogPanel.getBoundingClientRect();
+			const lineRect = dialogPanel.querySelector('.jrpg-dialogue-line')!.getBoundingClientRect();
+			for (const [index, row] of rows.entries()) {
+				const rect = row.getBoundingClientRect();
+				expect(rect.height, `row ${index}`).toBeGreaterThan(0);
+				expect(rect.top, `row ${index}`).toBeGreaterThanOrEqual(0);
+				expect(rect.bottom, `row ${index}`).toBeLessThanOrEqual(360);
+				expect(rect.left, `row ${index}`).toBeGreaterThanOrEqual(0);
+				expect(rect.right, `row ${index}`).toBeLessThanOrEqual(640);
+				// The compacted column must clear the panel box AND the prose
+				// area by ≥8px — wrapped lines previously grew the bottom-anchored
+				// panel up into the column and intercepted its pointer events.
+				expect(rect.bottom, `row ${index} clears panel`).toBeLessThanOrEqual(panelRect.top - 8);
+				expect(rect.bottom, `row ${index} clears line`).toBeLessThanOrEqual(lineRect.top - 8);
+			}
+
+			// A real hit-tested click must land on the choice, not the prose.
+			await page
+				.getByRole('dialog', { name: 'Guild Master Arlen' })
+				.getByRole('button', { name: 'Accept the Commission' })
+				.click();
+			expect(onchoose).toHaveBeenCalledWith('quest:accept');
+		} finally {
+			page.viewport(414, 730);
+		}
+	});
+
+	it('keeps wrapped multi-line prose clear of the compacted choice column at 640×360', async () => {
+		// Regression: at ≤500px heights Oren's shop offer wrapped to several
+		// lines in the 640×360 gate viewport, and the bottom-anchored bar grew
+		// upward until .jrpg-dialogue-line sat under the choice column — every
+		// click failed with "line intercepts pointer events".
+		await page.viewport(640, 360);
+		try {
+			window.scrollTo(0, 0);
+			const { onchoose } = renderDialogue({
+				line: 'Steel holds when the hand behind it does. Take what fits, and keep it dry.',
+				choices: [{ id: 'shop', label: 'Shop', kind: 'trade' }]
+			});
+
+			const dialogPanel = page.getByRole('dialog', { name: 'Guild Master Arlen' }).element();
+			await vi.waitFor(() => {
+				expect(dialogPanel.getAnimations().every(({ playState }) => playState === 'finished')).toBe(
+					true
+				);
+			});
+
+			const panelRect = dialogPanel.getBoundingClientRect();
+			const lineRect = dialogPanel.querySelector('.jrpg-dialogue-line')!.getBoundingClientRect();
+			const rowRect = dialogPanel.querySelector('.jrpg-dialogue-choice')!.getBoundingClientRect();
+			expect(rowRect.bottom).toBeLessThanOrEqual(panelRect.top - 8);
+			expect(rowRect.bottom).toBeLessThanOrEqual(lineRect.top - 8);
+
+			await page
+				.getByRole('dialog', { name: 'Guild Master Arlen' })
+				.getByRole('button', { name: 'Shop' })
+				.click();
+			expect(onchoose).toHaveBeenCalledWith('shop');
+		} finally {
+			page.viewport(414, 730);
+		}
+	});
+
+	it('renders per-kind leading icons like the mockup glyph list', async () => {
+		renderDialogue({
+			choices: [
+				{ id: 'shop', label: 'Trade', kind: 'trade' },
+				{ id: 'ask', label: 'Ask about the road', kind: 'ask' },
+				{ id: 'close', label: 'Leave', kind: 'leave' },
+				{ id: 'mystery', label: 'Mystery' }
+			]
+		});
+
+		const rows = [
+			...page
+				.getByRole('dialog', { name: 'Guild Master Arlen' })
+				.element()
+				.querySelectorAll('.jrpg-dialogue-choice')
+		];
+		expect(rows.map((row) => row.getAttribute('data-kind'))).toEqual([
+			'trade',
+			'ask',
+			'leave',
+			'ask'
+		]);
+		for (const row of rows) {
+			expect(row.querySelector('svg')).not.toBeNull();
+		}
+	});
+
+	it('applies the gilded selected treatment to the first choice row', async () => {
+		renderDialogue();
+		const rows = [
+			...page
+				.getByRole('dialog', { name: 'Guild Master Arlen' })
+				.element()
+				.querySelectorAll('.jrpg-dialogue-choice')
+		];
+
+		// Mockup: the first row renders pre-selected (cream-gold, dark text).
+		expect(rows[0]?.getAttribute('data-selected')).toBe('true');
+		expect(rows[1]?.getAttribute('data-selected')).toBe('false');
+		const style = getComputedStyle(rows[0]!);
+		expect(style.backgroundImage).toContain('rgb(255, 246, 220)');
+		expect(style.color).toBe('rgb(90, 61, 8)');
+	});
+
+	it('activates the gilded selection — not hardcoded row 0 — on panel Enter', async () => {
+		const { onchoose } = renderDialogue();
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+		await expect.element(panel).toHaveFocus();
+
+		// Hovering row 2 moves the gild; focus stays on the panel.
+		const secondChoice = page.getByRole('button', { name: 'Close' }).first();
+		await userEvent.hover(secondChoice);
+		expect(secondChoice.element().getAttribute('data-selected')).toBe('true');
+
+		await userEvent.keyboard('{Enter}');
+		expect(onchoose).toHaveBeenCalledOnce();
+		expect(onchoose).toHaveBeenCalledWith('close');
+		expect(onchoose).not.toHaveBeenCalledWith('quest:thin-village-slimes');
+	});
+
+	it('keeps the revealed line and enabled choices when the same line republishes as a new object', async () => {
+		// HUD publishes rebuild the dialogue object every frame (walking, fog
+		// reveals, hits). A new object carrying the same id + lineIndex must not
+		// restart the typewriter or re-disable the choices.
+		updatePreferences({ textSpeed: 'normal' });
+		const { rerender } = render(DialoguePanel, {
+			props: {
+				dialogue: { ...dialogue },
+				onadvance: vi.fn(),
+				onclose: vi.fn(),
+				onchoose: vi.fn()
+			}
+		});
+
+		// First confirm press completes the reveal instead of advancing.
+		await page.getByRole('button', { name: 'Next' }).click();
+		const line = page
 			.getByRole('dialog', { name: 'Guild Master Arlen' })
 			.element()
-			.getBoundingClientRect();
+			.querySelector('.jrpg-dialogue-line')!;
+		expect(line.textContent).toBe('Choose the Guild work you want to review.');
+		await expect.element(page.getByRole('button', { name: 'Thin Village Slimes' })).toBeEnabled();
 
-		expect(bounds.bottom).toBeGreaterThan(window.innerHeight - 24);
-		expect(bounds.width).toBeLessThan(window.innerWidth * 0.75);
-		expect(bounds.left).toBeGreaterThanOrEqual(12);
+		await rerender({ dialogue: { ...dialogue } });
+
+		expect(line.textContent).toBe('Choose the Guild work you want to review.');
+		await expect.element(page.getByRole('button', { name: 'Thin Village Slimes' })).toBeEnabled();
+	});
+
+	it('resets the gilded selection to the first row in a new choice session', async () => {
+		const onadvance = vi.fn();
+		const onclose = vi.fn();
+		const onchoose = vi.fn();
+		const { rerender } = render(DialoguePanel, {
+			props: { dialogue: { ...dialogue }, onadvance, onclose, onchoose }
+		});
+
+		// Choosing a non-first row leaves the cursor on it within the session...
+		await userEvent.hover(page.getByRole('button', { name: 'Close' }).first());
+		expect(
+			page
+				.getByRole('dialog', { name: 'Guild Master Arlen' })
+				.element()
+				.querySelectorAll('.jrpg-dialogue-choice')[1]
+				?.getAttribute('data-selected')
+		).toBe('true');
+
+		// ...but the next choice step (new dialogue id, still choice mode)
+		// gilds the first row again like the mockup.
+		await rerender({ dialogue: { ...dialogue, id: 'npc:guild-master:quest-detail' } });
+
+		const rows = page
+			.getByRole('dialog', { name: 'Guild Master Arlen' })
+			.element()
+			.querySelectorAll('.jrpg-dialogue-choice');
+		expect(rows[0]?.getAttribute('data-selected')).toBe('true');
+		expect(rows[1]?.getAttribute('data-selected')).toBe('false');
 	});
 
 	it('uses the JRPG dialogue frame class', async () => {
@@ -233,7 +568,7 @@ describe('DialoguePanel.svelte', () => {
 		async (_label, key) => {
 			const { onchoose } = renderDialogue();
 			const onWindowKeydown = vi.fn();
-			const secondChoice = page.getByRole('button', { name: 'Close' }).last();
+			const secondChoice = page.getByRole('button', { name: 'Close' }).first();
 
 			window.addEventListener('keydown', onWindowKeydown);
 			try {
@@ -252,14 +587,15 @@ describe('DialoguePanel.svelte', () => {
 	);
 
 	it('exposes the close choice by visible accessible name and emits its choice id', async () => {
-		const { onchoose } = renderDialogue();
+		const { onchoose, onclose } = renderDialogue();
 		const closeChoices = page.getByRole('button', { name: 'Close' });
 
 		expect(closeChoices.elements()).toHaveLength(2);
-		await closeChoices.last().click();
+		await closeChoices.first().click();
 
 		expect(onchoose).toHaveBeenCalledOnce();
 		expect(onchoose).toHaveBeenCalledWith('close');
+		expect(onclose).not.toHaveBeenCalled();
 	});
 
 	it('renders Close and Next from the active locale messages', async () => {
@@ -268,6 +604,76 @@ describe('DialoguePanel.svelte', () => {
 
 		await expect.element(page.getByRole('button', { name: 'Dismiss' })).toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Advance' })).toBeVisible();
+	});
+
+	it('renders the full line immediately at instant speed and advances on the first confirm', async () => {
+		const { onadvance } = renderDialogue(conversationDialogue);
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+
+		await expect.element(panel).toHaveFocus();
+		expect(panel.element().querySelector('.jrpg-dialogue-line')?.textContent).toBe(
+			conversationDialogue.line
+		);
+
+		await userEvent.keyboard('{Enter}');
+		expect(onadvance).toHaveBeenCalledOnce();
+	});
+
+	it('reveals the line progressively and completes it on the first confirm at slow speed', async () => {
+		updatePreferences({ textSpeed: 'slow' });
+		const { onadvance } = renderDialogue(conversationDialogue);
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+		const line = panel.element().querySelector('.jrpg-dialogue-line')!;
+
+		await expect.element(panel).toHaveFocus();
+		// Mid-typewriter: partial render, first confirm completes without advancing.
+		expect(line.textContent!.length).toBeLessThan(conversationDialogue.line.length);
+
+		await userEvent.keyboard('{Enter}');
+		expect(line.textContent).toBe(conversationDialogue.line);
+		expect(onadvance).not.toHaveBeenCalled();
+
+		await userEvent.keyboard('{Enter}');
+		expect(onadvance).toHaveBeenCalledOnce();
+	});
+
+	it('announces the full line to screen readers even mid-typewriter', async () => {
+		updatePreferences({ textSpeed: 'slow' });
+		renderDialogue(conversationDialogue);
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+
+		await expect.element(panel).toHaveFocus();
+		// Mid-reveal: the visible line is partial, the live status is not.
+		expect(panel.element().querySelector('.jrpg-dialogue-line')!.textContent!.length).toBeLessThan(
+			conversationDialogue.line.length
+		);
+		const status = panel.element().querySelector('[role="status"]')!;
+		expect(status.textContent).toBe(conversationDialogue.line);
+	});
+
+	it('keeps choices inert until the line fully reveals', async () => {
+		updatePreferences({ textSpeed: 'slow' });
+		const { onchoose } = renderDialogue();
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+		const firstChoice = page.getByRole('button', { name: 'Thin Village Slimes' });
+
+		await expect.element(panel).toHaveFocus();
+		expect(firstChoice.element()).toBeDisabled();
+
+		// Enter at panel level is also inert mid-reveal...
+		await userEvent.keyboard('{Enter}');
+		expect(onchoose).not.toHaveBeenCalled();
+
+		// ...and the choice unlocks only once the full line has rendered.
+		await vi.waitFor(
+			() => {
+				expect(firstChoice.element()).toBeEnabled();
+			},
+			{ timeout: 4_000 }
+		);
+
+		await firstChoice.click();
+		expect(onchoose).toHaveBeenCalledWith('quest:thin-village-slimes');
 	});
 
 	it('renders Japanese labels when the active locale is Japanese', async () => {
@@ -279,25 +685,19 @@ describe('DialoguePanel.svelte', () => {
 		await expect.element(page.getByRole('button', { name: '次へ' })).toBeVisible();
 	});
 
-	it('renders a Settings language selector and applies Japanese selection', async () => {
+	it('applies a Japanese selection from the System screen language segments', async () => {
 		render(GameShell);
 
+		// Phaser mounts only after committing to a run from the Title screen.
+		await page.getByRole('button', { name: /New Run/i }).click();
 		await page.getByRole('button', { name: 'Menu' }).click();
+		await page.getByRole('button', { name: 'System' }).click();
 
-		const languageSelector = page.getByLabelText('Language');
-		await expect.element(languageSelector).toBeVisible();
+		const languageGroup = page.getByRole('group', { name: 'Language' });
+		await expect.element(languageGroup).toBeVisible();
 
-		const selectElement = languageSelector.element() as HTMLSelectElement;
-		expect([...selectElement.options].map((option) => [option.value, option.label])).toEqual([
-			['en', 'English'],
-			['zh-Hant', 'Traditional Chinese'],
-			['ja', 'Japanese']
-		]);
+		await languageGroup.getByRole('button', { name: '日本語' }).click();
 
-		selectElement.value = 'ja';
-		selectElement.dispatchEvent(new Event('change', { bubbles: true }));
-
-		expect(mockedSetActiveLocale).toHaveBeenCalledWith('ja');
 		expect(getActiveLocale()).toBe('ja');
 	});
 
@@ -309,9 +709,21 @@ describe('DialoguePanel.svelte', () => {
 
 		const commandBox = page.getByRole('region', { name: 'Command' });
 		await expect.element(commandBox).toBeVisible();
-		await expect.element(commandBox.getByRole('button', { name: 'Inventory' })).toBeVisible();
-		await expect.element(commandBox.getByRole('button', { name: 'Quests' })).toBeVisible();
-		await expect.element(commandBox.getByRole('button', { name: 'Save Game' })).toBeVisible();
+		await expect.element(commandBox.getByRole('button', { name: 'Bag' })).toBeVisible();
+		await expect
+			.element(commandBox.getByRole('button', { name: 'Quest', exact: true }))
+			.toBeVisible();
+		await expect
+			.element(commandBox.getByRole('button', { name: 'Save', exact: true }))
+			.toBeVisible();
+		// The mockup's grid-open composition shows no status pill; the live
+		// region stays mounted but offscreen so status changes still announce
+		// (Rest at full HP was silent — final-review finding 8).
+		const status = page.getByRole('status', { name: 'Field status' }).element() as HTMLElement;
+		expect(status.className).toContain('heroic-field-status-offscreen');
+
+		await page.getByRole('button', { name: 'Menu' }).click();
+		expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
 		await expect
 			.element(page.getByRole('status', { name: 'Field status' }))
 			.toHaveTextContent('HP already full');
@@ -331,6 +743,7 @@ describe('DialoguePanel.svelte', () => {
 						status: 'active',
 						description: 'Report to the Guild Master, then defeat the ruins warden.',
 						objective: 'Talk to the Guild Master.',
+						objectiveId: 'talk-to-guild-master',
 						progress: { label: 'Guild Master spoken to', current: 0, target: 1 },
 						rewardSummary: '8 XP / 20 coins'
 					},
@@ -341,11 +754,8 @@ describe('DialoguePanel.svelte', () => {
 			})
 		);
 
-		await expect
-			.element(page.getByTestId('hud-location-panel'))
-			.toHaveTextContent('Sundrop Meadows');
-		await expect.element(page.getByTestId('hud-minimap')).toHaveTextContent('Area Map');
-		await expect.element(page.getByTestId('hud-party-panel')).toHaveTextContent('LIAM');
+		await expect.element(page.getByTestId('hud-minimap')).toHaveTextContent('Sundrop Meadows');
+		await expect.element(page.getByTestId('hud-party-panel')).toHaveTextContent('Liam');
 		await expect.element(page.getByTestId('hud-side-panel')).toHaveTextContent('30G');
 		await expect
 			.element(page.getByTestId('hud-side-panel'))
@@ -368,7 +778,7 @@ describe('DialoguePanel.svelte', () => {
 
 	it('ignores the M shortcut during battle', async () => {
 		render(GameShell);
-		emitHudState(createReadyHudState({ battle: { phase: 'active', summary: null } }));
+		emitHudState(createReadyHudState({ battle: { phase: 'active', summary: null, active: null } }));
 
 		await userEvent.keyboard('m');
 
@@ -544,6 +954,38 @@ describe('DialoguePanel.svelte', () => {
 		expect(commandBounds.bottom).toBeLessThan(window.innerHeight * 0.78);
 	});
 
+	it('keeps every command tile inside a wide short viewport (1000×360)', async () => {
+		render(GameShell);
+		emitHudState(createReadyHudState());
+
+		// The Tauri window is resizable; widths above the old ≤720px gate are
+		// equally valid at the 640×360 floor, so the short-height fallback must
+		// be width-independent — the shell's overflow: clip makes any
+		// off-viewport tile unreachable (Playwright click hangs).
+		await page.viewport(1000, 360);
+		try {
+			await page.getByRole('button', { name: 'Menu' }).click();
+
+			const grid = page.getByRole('region', { name: 'Command' }).element();
+			const gridRect = grid.getBoundingClientRect();
+			expect(gridRect.top).toBeGreaterThanOrEqual(0);
+			expect(gridRect.bottom).toBeLessThanOrEqual(360);
+			expect(gridRect.right).toBeLessThanOrEqual(1000);
+
+			const tiles = [...grid.querySelectorAll<HTMLElement>('[data-focus-id^="field-cmd-"]')];
+			expect(tiles).toHaveLength(8);
+			for (const tile of tiles) {
+				const rect = tile.getBoundingClientRect();
+				expect(rect.height, tile.dataset.focusId).toBeGreaterThan(0);
+				expect(rect.top, tile.dataset.focusId).toBeGreaterThanOrEqual(0);
+				expect(rect.bottom, tile.dataset.focusId).toBeLessThanOrEqual(360);
+				expect(rect.right, tile.dataset.focusId).toBeLessThanOrEqual(1000);
+			}
+		} finally {
+			page.viewport(414, 730);
+		}
+	});
+
 	it('renders inventory equipment badges with localized slot labels', async () => {
 		render(GameShell);
 		emitHudState(
@@ -574,10 +1016,10 @@ describe('DialoguePanel.svelte', () => {
 		);
 
 		await page.getByRole('button', { name: 'Menu' }).click();
-		const inventoryButton = page.getByRole('button', { name: 'Inventory' });
+		const inventoryButton = page.getByRole('button', { name: 'Bag' });
 		await expect.element(inventoryButton).toBeEnabled();
 		await inventoryButton.click();
-		await page.getByRole('tab', { name: 'Equipment' }).click();
+		await page.getByRole('tab', { name: 'Gear' }).click();
 
 		const equipmentTile = document.querySelector<HTMLElement>('[aria-label="Training Sword"]');
 		expect(equipmentTile).not.toBeNull();
@@ -601,6 +1043,7 @@ describe('DialoguePanel.svelte', () => {
 						status: 'active',
 						description: 'Report to the Guild Master, then defeat the ruins warden.',
 						objective: 'Talk to the Guild Master.',
+						objectiveId: 'talk-to-guild-master',
 						progress: { label: 'Guild Master spoken to', current: 0, target: 1 },
 						rewardSummary: '8 XP / 20 coins'
 					},
@@ -612,19 +1055,23 @@ describe('DialoguePanel.svelte', () => {
 		);
 
 		await page.getByRole('button', { name: 'Menu' }).click();
-		await page.getByRole('button', { name: 'Inventory' }).click();
+		await page.getByRole('button', { name: 'Bag' }).click();
 
+		// The bag migrated to the full-bleed Heroic surface with its category rail.
 		const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' }).element();
-		expect(inventoryDialog.classList.contains('jrpg-window')).toBe(true);
-		expect(inventoryDialog.querySelector('.jrpg-window-header')).not.toBeNull();
-		expect(inventoryDialog.querySelector('.jrpg-side-rail')).not.toBeNull();
+		expect(inventoryDialog.classList.contains('bag-screen')).toBe(true);
+		expect(inventoryDialog.querySelector('.bag-rail')).not.toBeNull();
+		expect(inventoryDialog.querySelector('[data-testid="inventory-worn"]')).not.toBeNull();
 
 		await page.getByRole('button', { name: 'Close' }).click();
 		await page.getByRole('button', { name: 'Menu' }).click();
-		await page.getByRole('button', { name: 'Quests' }).click();
+		await page.getByRole('button', { name: 'Quest', exact: true }).click();
 
 		const questDialog = page.getByRole('dialog', { name: 'Quest Log' }).element();
-		expect(questDialog.classList.contains('jrpg-window')).toBe(true);
-		expect(questDialog.querySelector('.jrpg-window-header')).not.toBeNull();
+		// The quest journal migrated to the full-bleed Heroic surface with its
+		// roster rail and detail panel.
+		expect(questDialog.classList.contains('quest-screen')).toBe(true);
+		expect(questDialog.querySelector('.quest-rail')).not.toBeNull();
+		expect(questDialog.querySelector('[data-testid="quest-detail"]')).not.toBeNull();
 	});
 });

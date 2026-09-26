@@ -3,20 +3,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const phaserState = vi.hoisted(() => {
 	const destroyMock = vi.fn();
 	const gameMock = vi.fn();
+	const registrySetMock = vi.fn();
 	class SceneMock {
 		constructor(...args: unknown[]) {
 			void args;
 		}
 	}
 	class GameMock {
+		registry = { set: registrySetMock };
+		destroy = destroyMock;
+
 		constructor(config: unknown) {
 			gameMock(config);
+			// Real Phaser fires callbacks.preBoot(game) before booting scenes.
+			const { callbacks } = config as {
+				callbacks?: { preBoot?: (game: GameMock) => void };
+			};
+			callbacks?.preBoot?.(this);
 		}
-
-		destroy = destroyMock;
 	}
 
-	return { destroyMock, gameMock, SceneMock, GameMock };
+	return { destroyMock, gameMock, registrySetMock, SceneMock, GameMock };
 });
 
 vi.mock('phaser', () => {
@@ -42,6 +49,7 @@ describe('createGame', () => {
 	beforeEach(() => {
 		phaserState.destroyMock.mockClear();
 		phaserState.gameMock.mockClear();
+		phaserState.registrySetMock.mockClear();
 		vi.resetModules();
 	});
 
@@ -63,8 +71,9 @@ describe('createGame', () => {
 		const { WorldScene } = await import('$lib/game/phaser/scenes/WorldScene');
 		const { BattleScene } = await import('$lib/game/phaser/scenes/BattleScene');
 		const mountNode = { id: 'mount-node' } as HTMLElement;
+		const startRequest = { reason: 'new', saveState: null } as const;
 
-		const instance = await createGame(mountNode);
+		const instance = await createGame(mountNode, startRequest);
 
 		expect(phaserState.gameMock).toHaveBeenCalledOnce();
 		expect(phaserState.gameMock).toHaveBeenCalledWith(
@@ -77,6 +86,7 @@ describe('createGame', () => {
 				scene: [BootScene, WorldScene, BattleScene]
 			})
 		);
+		expect(phaserState.registrySetMock).toHaveBeenCalledWith('startRequest', startRequest);
 		expect(instance.destroy).toBeTypeOf('function');
 
 		instance.destroy();
@@ -84,12 +94,32 @@ describe('createGame', () => {
 		expect(phaserState.destroyMock).toHaveBeenCalledWith(true);
 	}, 20_000);
 
+	it('does not pin the WebGL drawing buffer for thumbnails', async () => {
+		Object.defineProperty(globalThis, 'window', {
+			configurable: true,
+			value: {}
+		});
+		const { createGame } = await import('./createGame');
+		const mountNode = { id: 'mount-node' } as HTMLElement;
+
+		await createGame(mountNode, { reason: 'new', saveState: null });
+
+		// Thumbnails capture on the renderer's post-render tick instead, so the
+		// buffer must not be preserved — preserving it slows every frame.
+		const config = phaserState.gameMock.mock.calls[0]?.[0] as {
+			render?: { preserveDrawingBuffer?: boolean };
+		};
+		expect(config.render?.preserveDrawingBuffer).not.toBe(true);
+	}, 20_000);
+
 	it('throws when called outside the browser', async () => {
 		delete (globalThis as { window?: unknown }).window;
 		const { createGame } = await import('./createGame');
 		const mountNode = { id: 'mount-node' } as HTMLElement;
 
-		await expect(createGame(mountNode)).rejects.toThrow('createGame must run in the browser');
+		await expect(createGame(mountNode, { reason: 'new', saveState: null })).rejects.toThrow(
+			'createGame must run in the browser'
+		);
 		expect(phaserState.gameMock).not.toHaveBeenCalled();
 	});
 });

@@ -13,7 +13,7 @@ import type { SaveState } from '$lib/game/save/save-state';
 
 export const battleEnemyCountRange = { min: 1, max: 10 } as const;
 
-export type BattleOutcome = 'victory' | 'defeat';
+export type BattleOutcome = 'victory' | 'defeat' | 'fled';
 
 export type BattleReturnPosition = {
 	mapId: string;
@@ -58,7 +58,6 @@ export type BattleStartPayload = {
 		attack: number;
 		defense: number;
 	};
-	persistExplorationChanges?: boolean;
 };
 
 export type BattleResult = {
@@ -73,8 +72,17 @@ export type BattleResult = {
 	defeatedUnits: BattleDefeatedUnit[];
 };
 
+/**
+ * Marks the encounter the player just fled so the field can suppress an
+ * instant re-trigger. `fledAt` is Phaser loop time (ms), shared across scenes.
+ */
+export type RecentlyFledEncounter = {
+	encounterId: string;
+	fledAt: number;
+};
+
 export type BattleSummary = {
-	outcome: BattleOutcome;
+	outcome: Extract<BattleOutcome, 'victory' | 'defeat'>;
 	enemiesDefeated: number;
 	xpGained: number;
 	coinsGained: number;
@@ -87,7 +95,7 @@ export type BattleSummary = {
 
 export type BattleApplication = {
 	saveState: SaveState;
-	summary: BattleSummary;
+	summary: BattleSummary | null;
 };
 
 export function rollBattleEnemyCount(random: () => number = Math.random): number {
@@ -149,6 +157,10 @@ export function applyBattleResultToSaveState(
 ): BattleApplication {
 	if (result.outcome === 'defeat') {
 		return applyBattleDefeat(saveState, result);
+	}
+
+	if (result.outcome === 'fled') {
+		return applyBattleFled(saveState, result);
 	}
 
 	return applyBattleVictory(saveState, result);
@@ -291,6 +303,24 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 			questRewards,
 			questProgress
 		}
+	};
+}
+
+function applyBattleFled(saveState: SaveState, result: BattleResult): BattleApplication {
+	return {
+		saveState: {
+			...saveState,
+			mapId: result.returnPosition.mapId,
+			player: {
+				...saveState.player,
+				hp: result.finalHeroHp,
+				x: result.returnPosition.x,
+				y: result.returnPosition.y,
+				facing: result.returnPosition.facing
+			},
+			inventory: result.inventory
+		},
+		summary: null
 	};
 }
 

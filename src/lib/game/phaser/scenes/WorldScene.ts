@@ -76,7 +76,8 @@ import { buildAreaMapState } from '$lib/game/core/area-map';
 import {
 	applyBattleResultToSaveState,
 	rollBattleEnemyCount,
-	type BattleResult
+	type BattleResult,
+	type RecentlyFledEncounter
 } from '$lib/game/core/battle';
 import { canReceiveHit } from '$lib/game/core/combat';
 import {
@@ -100,11 +101,7 @@ import {
 	revealMapArea,
 	type MapExplorationState
 } from '$lib/game/core/map-exploration';
-import {
-	applyExperienceGain,
-	getBaseMaxHp,
-	type ProgressionState
-} from '$lib/game/core/progression';
+import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
 import {
 	acceptQuest,
 	applyQuestEvent,
@@ -127,7 +124,12 @@ import {
 	type ShopStockState,
 	type WalletState
 } from '$lib/game/core/shop';
-import { clampHpToMax, deriveEffectiveStats, type EffectiveStats } from '$lib/game/core/stats';
+import {
+	clampHpToMax,
+	deriveEffectiveStats,
+	getHeroBaseStats,
+	type EffectiveStats
+} from '$lib/game/core/stats';
 import {
 	advanceDialogue,
 	buildDialogueFallback,
@@ -141,8 +143,10 @@ import type { Direction } from '$lib/game/core/types';
 import { getItemText, getNpcText, getQuestText, getShopText } from '$lib/game/i18n/content';
 import { getActiveLocale } from '$lib/game/i18n/store';
 import { t, type MessageKey } from '$lib/game/i18n/translate';
-import { createNewSaveState, type SaveState } from '$lib/game/save/save-state';
-import { loadStoredSaveResult, saveGameState } from '$lib/game/save/storage';
+import { createNewSaveState, serializeSaveState, type SaveState } from '$lib/game/save/save-state';
+import { getPlaytimeSeconds } from '$lib/game/save/playtime';
+import { writeSaveSlot, type SaveSlotRecord } from '$lib/game/save/slots';
+import { captureSaveThumbnail } from '$lib/game/save/thumbnail';
 import { getNpcStoryDialogue, type StoryQuestSummary } from '$lib/game/story/client';
 import {
 	emitHudState,
@@ -199,8 +203,8 @@ interface WorldSceneData {
 	battleResult?: BattleResult;
 	mapId?: string;
 	mapBackgroundPackageSelection?: MapBackgroundPackageSelection;
-	persistExplorationChanges?: boolean;
-	reason?: 'battle-result' | 'invalid-save' | 'new' | 'resume' | 'transition';
+	reason?: 'battle-result' | 'new' | 'resume' | 'transition';
+	recentlyFled?: RecentlyFledEncounter;
 	saveState?: SaveState | null;
 }
 
@@ -325,6 +329,24 @@ function cloneShopStockState(shopStockState: ShopStockState): ShopStockState {
 	);
 }
 
+// HUD commands that can never change the save payload — battle-scoped ones
+// return before mutating, pause/resume and shop open/close only touch
+// runtime flags, save-slot writes its own slot, and dialogue-close just
+// ends the session. Anything not listed keeps the before/after compare so a
+// new command can't silently skip the durable-mutation autosave.
+const NON_MUTATING_HUD_COMMANDS: ReadonlySet<HudCommand['type']> = new Set([
+	'dismiss-battle-summary',
+	'battle-cycle-target',
+	'battle-select-target',
+	'battle-flee',
+	'pause-game',
+	'resume-game',
+	'save-slot',
+	'open-shop',
+	'close-shop',
+	'dialogue-close'
+]);
+
 export class WorldScene extends Phaser.Scene {
 	static readonly key = 'world';
 	private static readonly attackReach = 40;
@@ -373,6 +395,8 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly discoveryRevealRadius = 240;
 	// Rendered above all gameplay layers, live hedges, and the baked regional background.
 	private static readonly collisionDebugOverlayDepth = 10_000;
+	/** Window after a fled battle during which that encounter cannot re-trigger. */
+	private static readonly recentlyFledGraceMs = 1_500;
 
 	private clearedEncounterIds = new Set<string>();
 	private clearedEncounterUnitCounts: Record<string, number> = {};
@@ -399,11 +423,11 @@ export class WorldScene extends Phaser.Scene {
 	private mapExploration: MapExplorationState = createEmptyMapExploration();
 	private mapId = openingMapId;
 	private lastPublishedStatus = '';
-	private shouldPersistExplorationChanges = true;
 	private currentNearbyNpcId: string | null = null;
 	private npcMarkers = new Map<string, NpcMarker>();
 	private pickupMarkers = new Map<string, PickupMarker>();
 	private player?: ActorMarker;
+	private recentlyFled: RecentlyFledEncounter | null = null;
 	private playerAttackCooldownUntil = 0;
 	private playerInvulnerableUntil = 0;
 	private playerProgress: ProgressionState = {
@@ -487,11 +511,6 @@ export class WorldScene extends Phaser.Scene {
 		const width = map.width * WorldScene.tileSize;
 		const height = map.height * WorldScene.tileSize;
 		const reason = data.reason ?? (activeSave ? 'resume' : 'new');
-		// A probe run can coexist with a stored save before the player chooses Resume. Do not
-		// auto-persist exploration from that run over the stored save until it is resumed.
-		this.shouldPersistExplorationChanges =
-			data.persistExplorationChanges ??
-			(activeSave !== undefined || loadStoredSaveResult().status === 'missing');
 
 		this.clearedEncounterIds = new Set(activeSave?.flags.clearedEncounters ?? []);
 		this.clearedEncounterUnitCounts = {
@@ -539,6 +558,7 @@ export class WorldScene extends Phaser.Scene {
 		};
 		this.playerInvulnerableUntil = 0;
 		this.playerAttackCooldownUntil = 0;
+		this.recentlyFled = data.battleResult?.outcome === 'fled' ? (data.recentlyFled ?? null) : null;
 		this.simulationPaused = false;
 		this.victoryAchieved = false;
 		this.worldSize = { width, height };
@@ -633,9 +653,16 @@ export class WorldScene extends Phaser.Scene {
 		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
 		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
 
-		const initialExplorationChanged = this.revealCurrentMapArea();
-		if (this.shouldPersistExplorationChanges && (battleApplication || initialExplorationChanged)) {
-			saveGameState(this.buildSaveState());
+		this.revealCurrentMapArea();
+		// Explicit durable points write the autosave slot: new-run readiness,
+		// map transitions, and applied battle results. Resume and fog reveal do not.
+		// The write waits for this scene's first render (Phaser RENDER event) and
+		// then hops to the renderer's post-render tick, so the slot thumbnail
+		// captures the arrival map as a completed frame.
+		this.lastThumbnailMapId = null;
+		this.lastThumbnail = undefined;
+		if (reason === 'new' || reason === 'transition' || battleApplication) {
+			this.events?.once?.('render', () => this.writeAutosave(this.buildSaveState()));
 		}
 
 		this.publishHudState(
@@ -673,14 +700,25 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		this.updateHitReactions(time);
+		// A dialogue session freezes the world's moving parts: WASD reaches
+		// Phaser as raw window keydowns the DOM handler cannot swallow, and
+		// combat reactions/enemies must not run mid-conversation. Proximity
+		// sensing (NPC refresh, the interact key, transitions, pickups) stays
+		// live so an open prompt can still be superseded by a real interaction.
+		const dialogueFrozen = this.dialogueSession !== null;
 
-		const direction = resolveMovementVector({
-			left: Boolean(this.cursorKeys?.left?.isDown || this.wasdKeys?.left?.isDown),
-			right: Boolean(this.cursorKeys?.right?.isDown || this.wasdKeys?.right?.isDown),
-			up: Boolean(this.cursorKeys?.up?.isDown || this.wasdKeys?.up?.isDown),
-			down: Boolean(this.cursorKeys?.down?.isDown || this.wasdKeys?.down?.isDown)
-		});
+		if (!dialogueFrozen) {
+			this.updateHitReactions(time);
+		}
+
+		const direction = dialogueFrozen
+			? { x: 0, y: 0 }
+			: resolveMovementVector({
+					left: Boolean(this.cursorKeys?.left?.isDown || this.wasdKeys?.left?.isDown),
+					right: Boolean(this.cursorKeys?.right?.isDown || this.wasdKeys?.right?.isDown),
+					up: Boolean(this.cursorKeys?.up?.isDown || this.wasdKeys?.up?.isDown),
+					down: Boolean(this.cursorKeys?.down?.isDown || this.wasdKeys?.down?.isDown)
+				});
 		this.updateHeroMovementAnimation(direction, time);
 
 		const step = startingPlayer.moveSpeed * (Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
@@ -712,9 +750,8 @@ export class WorldScene extends Phaser.Scene {
 
 		const explorationChanged = this.revealCurrentMapArea();
 		if (explorationChanged) {
-			if (this.shouldPersistExplorationChanges) {
-				saveGameState(this.buildSaveState());
-			}
+			// Fog reveal mutates exploration in memory only; the next durable
+			// mutation persists it. Movement itself never writes the save.
 			this.publishHudState(this.lastPublishedStatus);
 		}
 
@@ -728,10 +765,12 @@ export class WorldScene extends Phaser.Scene {
 		this.tryCollectPickup();
 
 		const battleTarget =
-			time >= this.playerAttackCooldownUntil ? this.findHeroAttackTarget(time) : undefined;
+			!dialogueFrozen && time >= this.playerAttackCooldownUntil
+				? this.findHeroAttackTarget(time)
+				: undefined;
 
 		if (battleTarget) {
-			this.startBattle(battleTarget);
+			this.startBattle(battleTarget, time);
 			return;
 		}
 
@@ -739,7 +778,9 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		this.updateEnemyBehavior(time, delta);
+		if (!dialogueFrozen) {
+			this.updateEnemyBehavior(time, delta);
+		}
 	}
 
 	private applyReward(xpReward: number): ProgressionState {
@@ -898,8 +939,16 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private startBattle(enemy: EnemyInstance) {
+	private startBattle(enemy: EnemyInstance, time: number) {
 		if (!this.player) {
+			return;
+		}
+
+		if (
+			this.recentlyFled &&
+			enemy.id === this.recentlyFled.encounterId &&
+			time - this.recentlyFled.fledAt < WorldScene.recentlyFledGraceMs
+		) {
 			return;
 		}
 
@@ -921,8 +970,7 @@ export class WorldScene extends Phaser.Scene {
 			hero: {
 				hp: this.playerProgress.hp,
 				...effectiveStats
-			},
-			persistExplorationChanges: this.shouldPersistExplorationChanges
+			}
 		});
 	}
 
@@ -1146,24 +1194,36 @@ export class WorldScene extends Phaser.Scene {
 		return this.status('status.itemCannotBeSold');
 	}
 
-	private getBaseMaxHp() {
-		return getBaseMaxHp(startingPlayer.baseHp, this.playerProgress.level);
-	}
-
 	private getEffectiveStats(): EffectiveStats {
-		return deriveEffectiveStats(
-			{
-				hp: this.getBaseMaxHp(),
-				attack: this.playerProgress.attack,
-				defense: 0
-			},
-			this.equipment
-		);
+		return deriveEffectiveStats(getHeroBaseStats(this.playerProgress), this.equipment);
 	}
 
 	private handleHudCommand(command: HudCommand) {
+		// Commands that can't touch the save payload skip the before/after
+		// serialization entirely — they were paying two serializeSaveState
+		// calls per keypress for nothing.
+		if (NON_MUTATING_HUD_COMMANDS.has(command.type)) {
+			this.applyHudCommand(command);
+			return;
+		}
+		// Durable-mutation autosave: compare the serialized state before/after the
+		// command and persist slot 0 only when the command changed something.
+		const before = serializeSaveState(this.buildSaveState());
+		this.applyHudCommand(command);
+		const after = this.buildSaveState();
+
+		if (serializeSaveState(after) !== before) {
+			this.writeAutosave(after);
+		}
+	}
+
+	private applyHudCommand(command: HudCommand) {
 		switch (command.type) {
 			case 'dismiss-battle-summary':
+			case 'battle-cycle-target':
+			case 'battle-select-target':
+			case 'battle-flee':
+				// Battle-scoped commands are handled by BattleScene.
 				return;
 			case 'pause-game':
 				this.simulationPaused = true;
@@ -1174,11 +1234,8 @@ export class WorldScene extends Phaser.Scene {
 			case 'heal':
 				this.consumeHeal();
 				return;
-			case 'resume-save':
-				this.resumeStoredSave();
-				return;
-			case 'save':
-				this.saveCurrentState();
+			case 'save-slot':
+				this.writeManualSlot(command.slot);
 				return;
 			case 'use-item':
 				this.useItem(command.itemId);
@@ -1312,7 +1369,6 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private publishHudState(status: string) {
-		const saveResult = loadStoredSaveResult();
 		const effectiveStats = this.getEffectiveStats();
 		this.lastPublishedStatus = status;
 		const map = this.resolveMap(this.mapId);
@@ -1328,7 +1384,6 @@ export class WorldScene extends Phaser.Scene {
 			attack: effectiveStats.attack,
 			defense: effectiveStats.defense,
 			heals: this.getConsumableCount(),
-			canResume: saveResult.status === 'loaded',
 			status,
 			areaMap: buildAreaMapState({
 				map,
@@ -1347,7 +1402,8 @@ export class WorldScene extends Phaser.Scene {
 			dialogue: this.buildHudDialogue(),
 			battle: {
 				phase: 'none',
-				summary: null
+				summary: null,
+				active: null
 			},
 			quests: buildHudQuestState({
 				state: this.quests,
@@ -1365,6 +1421,7 @@ export class WorldScene extends Phaser.Scene {
 
 		return {
 			id: this.dialogueSession.id,
+			npcId: this.dialogueSession.npcId,
 			speaker: this.dialogueSession.speaker,
 			line: this.dialogueSession.line,
 			lineIndex: this.dialogueSession.lineIndex,
@@ -1372,7 +1429,13 @@ export class WorldScene extends Phaser.Scene {
 			mode: this.dialogueSession.mode,
 			choices: this.dialogueSession.choices.map((choice) => ({
 				id: choice.id,
-				label: choice.label
+				label: choice.label,
+				kind:
+					choice.intent.type === 'openShop'
+						? 'trade'
+						: choice.intent.type === 'close'
+							? 'leave'
+							: 'ask'
 			})),
 			canClose: this.dialogueSession.canClose
 		};
@@ -1393,7 +1456,9 @@ export class WorldScene extends Phaser.Scene {
 		return {
 			shopId: shop.id,
 			name: shopText?.name ?? shop.name,
-			merchantName: shopText?.merchantName ?? shop.merchantName
+			merchantName: shopText?.merchantName ?? shop.merchantName,
+			description: shopText?.description ?? shop.description,
+			bustPath: shop.bustPath
 		};
 	}
 
@@ -1414,7 +1479,13 @@ export class WorldScene extends Phaser.Scene {
 			shopId: shop.id,
 			name: shopText?.name ?? shop.name,
 			merchantName: shopText?.merchantName ?? shop.merchantName,
-			buy: buildShopBuyEntries(shop.id, this.shopStockState, locale),
+			description: shopText?.description ?? shop.description,
+			bustPath: shop.bustPath,
+			buy: buildShopBuyEntries(shop.id, this.shopStockState, locale, {
+				base: getHeroBaseStats(this.playerProgress),
+				equipment: this.equipment,
+				inventory: this.inventory
+			}),
 			sell: buildShopSellEntries({ inventory: this.inventory, equipment: this.equipment, locale })
 		};
 	}
@@ -2751,26 +2822,80 @@ export class WorldScene extends Phaser.Scene {
 		return result.changed;
 	}
 
-	private resumeStoredSave() {
-		const storedSave = loadStoredSaveResult();
-
-		if (storedSave.status === 'missing') {
-			this.publishHudState(this.status('status.noSaveFound'));
-			return;
-		}
-
-		if (storedSave.status === 'invalid') {
-			this.scene.restart({ mapId: openingMapId, reason: 'invalid-save' });
-			return;
-		}
-
-		this.scene.restart({ saveState: storedSave.saveState, reason: 'resume' });
+	/**
+	 * Build a slot record for the current run state. `game.canvas` is undefined
+	 * in mocked/headless environments; captureSaveThumbnail then omits the image.
+	 */
+	private buildSlotRecord(kind: SaveSlotRecord['kind'], state: SaveState): SaveSlotRecord {
+		return {
+			kind,
+			savedAt: new Date().toISOString(),
+			playtimeSeconds: getPlaytimeSeconds(),
+			thumbnail: this.captureSlotThumbnail(state.mapId),
+			state
+		};
 	}
 
-	private saveCurrentState() {
-		this.shouldPersistExplorationChanges = true;
-		saveGameState(this.buildSaveState());
-		this.publishHudState(this.status('status.saved'));
+	// Copying the canvas and encoding a JPEG is expensive, so thumbnails are
+	// captured once per map and reused while the save stays on it.
+	private lastThumbnailMapId: string | null = null;
+	private lastThumbnail: string | undefined;
+
+	private captureSlotThumbnail(mapId: string): string | undefined {
+		if (mapId !== this.lastThumbnailMapId) {
+			const captured = captureSaveThumbnail(this.game?.canvas);
+			// Cache only a successful capture — a failed one (canvas not ready
+			// yet) must retry on the next save, not stay dropped until the map
+			// changes.
+			if (captured !== undefined) {
+				this.lastThumbnail = captured;
+				this.lastThumbnailMapId = mapId;
+			}
+			return captured;
+		}
+		return this.lastThumbnail;
+	}
+
+	/**
+	 * Run `action` on the renderer's post-render tick — after every scene has
+	 * drawn, while the canvas buffer still holds the completed frame. This is
+	 * what lets thumbnail capture work without preserveDrawingBuffer (which
+	 * would slow every frame). Renderers without an event emitter — mocked or
+	 * headless environments — run the action immediately.
+	 */
+	private afterNextRenderedFrame(action: () => void) {
+		const renderer = this.game?.renderer;
+		if (typeof renderer?.once !== 'function') {
+			action();
+			return;
+		}
+		renderer.once(Phaser.Renderer.Events.POST_RENDER, action);
+	}
+
+	private writeAutosave(state: SaveState) {
+		this.afterNextRenderedFrame(() => {
+			try {
+				writeSaveSlot(0, this.buildSlotRecord('autosave', state));
+			} catch (error) {
+				// The envelope already retried without thumbnails; a remaining failure
+				// means storage is unavailable. Never break gameplay over the autosave.
+				console.error('Failed to persist autosave slot.', error);
+			}
+		});
+	}
+
+	private writeManualSlot(slot: 1 | 2) {
+		const state = this.buildSaveState();
+		this.afterNextRenderedFrame(() => {
+			try {
+				const result = writeSaveSlot(slot, this.buildSlotRecord('manual', state));
+				this.publishHudState(
+					this.status(result.thumbnailDropped ? 'status.savedWithoutThumbnail' : 'status.saved')
+				);
+			} catch {
+				this.publishHudState(this.status('status.saveFailed'));
+			}
+		});
 	}
 
 	private setupEncounters(map: WorldMapDefinition) {
@@ -2850,7 +2975,6 @@ export class WorldScene extends Phaser.Scene {
 		if (reason === 'battle-result') return this.status('status.battleReturned');
 		if (reason === 'resume') return this.status('status.saveResumed');
 		if (reason === 'transition') return this.status('status.enteredArea');
-		if (reason === 'invalid-save') return this.status('status.invalidSaveReset');
 		return this.status('status.newRun');
 	}
 
@@ -2927,7 +3051,6 @@ export class WorldScene extends Phaser.Scene {
 
 				this.scene.restart({
 					saveState: this.buildTransitionSaveState(transition),
-					...(this.shouldPersistExplorationChanges ? {} : { persistExplorationChanges: false }),
 					reason: 'transition'
 				});
 				return true;
@@ -3062,9 +3185,8 @@ export class WorldScene extends Phaser.Scene {
 
 		if (!this.seenDiscoveryIds.has(discovery.id)) {
 			this.seenDiscoveryIds.add(discovery.id);
-			if (this.shouldPersistExplorationChanges) {
-				saveGameState(this.buildSaveState());
-			}
+			// Discovery is a durable point: persist the new seen id immediately.
+			this.writeAutosave(this.buildSaveState());
 		}
 
 		this.publishHudState(this.status('status.dialogueUpdated'));
@@ -3216,6 +3338,9 @@ export class WorldScene extends Phaser.Scene {
 				},
 				this.status('status.foundItem', { itemName: this.getItemName(pickup.itemId) })
 			);
+			// Pickup is a durable point: persist after the collect-item quest event
+			// so quest progress and rewards land in the same autosave.
+			this.writeAutosave(this.buildSaveState());
 			return;
 		}
 	}
@@ -3302,7 +3427,7 @@ export class WorldScene extends Phaser.Scene {
 				this.canEnemyAttackPlayer(enemy) &&
 				this.isEnemyInBattleRange(enemy)
 			) {
-				this.startBattle(enemy);
+				this.startBattle(enemy, time);
 				return;
 			}
 		}

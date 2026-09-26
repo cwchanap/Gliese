@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import type { GameStartRequest } from '$lib/game/phaser/createGame';
 import {
 	animationPackAsset,
 	battleBackgroundAssets,
@@ -17,7 +18,7 @@ import {
 	villageDressingAsset,
 	villageHedgeAsset
 } from '$lib/game/content/assets';
-import { maps, openingMapId } from '$lib/game/content/maps';
+import { maps } from '$lib/game/content/maps';
 import { MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 import {
 	MAP_BACKGROUND_DEFAULT_SELECTIONS,
@@ -34,8 +35,19 @@ import { WorldScene } from './WorldScene';
 export class BootScene extends Phaser.Scene {
 	static readonly key = 'boot';
 
+	private startRequest: GameStartRequest = { reason: 'new', saveState: null };
+
 	constructor() {
 		super(BootScene.key);
+	}
+
+	init() {
+		// createGame passes the start request through the game registry (BootScene
+		// auto-starts as the config's first scene, so it cannot receive scene data).
+		const request = this.registry?.get('startRequest') as GameStartRequest | undefined;
+		if (request?.reason === 'new' || request?.reason === 'resume') {
+			this.startRequest = request;
+		}
 	}
 
 	preload() {
@@ -153,6 +165,6 @@ export class BootScene extends Phaser.Scene {
 	}
 
 	create() {
-		this.scene.start(WorldScene.key, { mapId: openingMapId });
+		this.scene.start(WorldScene.key, this.startRequest);
 	}
 }

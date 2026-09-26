@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readSlotEnvelope, saveThroughSaveScreen, seedSaveSlots } from './helpers/game';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { meadowEntryMap } from '../../src/lib/game/content/maps';
@@ -35,8 +36,6 @@ type JourneyProbeWindow = Window & {
 	__completeJourneyBackgrounds?: BackgroundDiagnostic[];
 };
 
-const SAVE_STORAGE_KEY = 'gliese.save.v9';
-const SAVE_SEED_MARKER = '__gliese_complete_journey_seeded_v1';
 const COMPLETE_PACKAGE_ID = 'meadow-entry-painted-v2-complete';
 const COMPLETE_BACKGROUND_IDS = MEADOW_ENTRY_PAINTED_V2_COMPLETE_APPROVED_RUNTIME_BACKGROUNDS.map(
 	({ id }) => id
@@ -265,18 +264,7 @@ function createHeroHouseSave() {
 }
 
 async function seedHeroHouse(page: Page) {
-	await page.addInitScript(
-		({ encoded, key, marker }: { encoded: string; key: string; marker: string }) => {
-			if (window.sessionStorage.getItem(marker) === '1') return;
-			window.localStorage.setItem(key, encoded);
-			window.sessionStorage.setItem(marker, '1');
-		},
-		{
-			encoded: JSON.stringify(createHeroHouseSave()),
-			key: SAVE_STORAGE_KEY,
-			marker: SAVE_SEED_MARKER
-		}
-	);
+	await seedSaveSlots(page, [{ kind: 'autosave', state: createHeroHouseSave() }]);
 }
 
 async function installJourneyProbes(page: Page) {
@@ -479,11 +467,7 @@ test('complete world layout journey renders approved Meadow art and survives sav
 	await page.goto(completeUrl());
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await page
-		.getByRole('region', { name: 'Command' })
-		.getByRole('button', { name: 'Resume Save' })
-		.click();
+	// Direct tooling boot resumes the newest slot automatically.
 	await waitForHud(page, 'hero-house', HERO_HOUSE_SPAWN);
 	await saveCanvas(page, 'route-hero-house-interior-1920x1080.png');
 
@@ -601,29 +585,19 @@ test('complete world layout journey renders approved Meadow art and survives sav
 	const savedPoint = wildwoodPoint;
 	expect(Math.abs(savedPoint.x - 4_992)).toBeLessThanOrEqual(24);
 	expect(Math.abs(savedPoint.y - 3_904)).toBeLessThanOrEqual(24);
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await page
-		.getByRole('region', { name: 'Command' })
-		.getByRole('button', { name: 'Save Game' })
-		.click();
-	await expect(page.getByRole('status', { name: 'Field status' })).toContainText('Saved');
+	await saveThroughSaveScreen(page, 1);
 
-	const persisted = await page.evaluate(
-		(key) => JSON.parse(localStorage.getItem(key) ?? 'null'),
-		SAVE_STORAGE_KEY
-	);
-	expect(persisted).toMatchObject({
-		mapId: 'meadow-entry',
-		player: { x: savedPoint?.x, y: savedPoint?.y }
+	const persisted = await readSlotEnvelope(page);
+	expect(persisted?.slots[1]).toMatchObject({
+		kind: 'manual',
+		state: {
+			mapId: 'meadow-entry',
+			player: { x: savedPoint?.x, y: savedPoint?.y }
+		}
 	});
 
 	await page.reload();
 	await expect(page.locator('canvas')).toBeVisible();
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await page
-		.getByRole('region', { name: 'Command' })
-		.getByRole('button', { name: 'Resume Save' })
-		.click();
 	await waitForHud(page, 'meadow-entry', savedPoint);
 	await assertCompletePackage(page);
 	await saveCanvas(page, 'route-post-reload-meadow-1920x1080.png');

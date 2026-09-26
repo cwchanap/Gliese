@@ -6,16 +6,10 @@ import { buildInitialAreaMapState } from '$lib/game/core/area-map';
 import { buildHudQuestState, createInitialQuestState } from '$lib/game/core/quests';
 import { getActiveLocale } from '$lib/game/i18n/store';
 import { t } from '$lib/game/i18n/translate';
-import { loadStoredSaveResult } from '$lib/game/save/storage';
 import { emitHudCommand, onHudState, type HudState } from '$lib/game/ui-bridge/events';
 
-const initialSaveResult = loadStoredSaveResult();
 const initialLocale = getActiveLocale();
 const initialAreaMap = buildInitialAreaMapState(initialLocale);
-const initialQuestState =
-	initialSaveResult.status === 'loaded'
-		? initialSaveResult.saveState.quests
-		: createInitialQuestState();
 const emptyEquipped = Object.fromEntries(equipmentSlots.map((slot) => [slot, null])) as Record<
 	EquipmentSlot,
 	string | null
@@ -32,20 +26,20 @@ const initialHudState: HudState = {
 	attack: startingPlayer.baseAttack,
 	defense: 0,
 	heals: 1,
-	canResume: initialSaveResult.status === 'loaded',
 	status: t(initialLocale, 'status.loadingGame'),
 	wallet: {
-		coins: initialSaveResult.status === 'loaded' ? initialSaveResult.saveState.wallet.coins : 30
+		coins: 30
 	},
 	nearbyShop: null,
 	shop: null,
 	dialogue: null,
 	battle: {
 		phase: 'none',
-		summary: null
+		summary: null,
+		active: null
 	},
 	quests: buildHudQuestState({
-		state: initialQuestState,
+		state: createInitialQuestState(),
 		nearbyQuestGiverId: null,
 		locale: initialLocale
 	}),
@@ -59,12 +53,8 @@ const initialHudState: HudState = {
 
 export const hudState = readable(initialHudState, (set) => onHudState(set));
 
-export function requestSave() {
-	emitHudCommand({ type: 'save' });
-}
-
-export function requestResume() {
-	emitHudCommand({ type: 'resume-save' });
+export function requestSaveSlot(slot: 1 | 2) {
+	emitHudCommand({ type: 'save-slot', slot });
 }
 
 export function requestHeal() {
@@ -125,4 +115,16 @@ export function requestDialogueChoice(choiceId: string) {
 
 export function requestDismissBattleSummary() {
 	emitHudCommand({ type: 'dismiss-battle-summary' });
+}
+
+export function requestBattleCycleTarget(direction: -1 | 1) {
+	emitHudCommand({ type: 'battle-cycle-target', direction });
+}
+
+export function requestBattleSelectTarget(unitId: string) {
+	emitHudCommand({ type: 'battle-select-target', unitId });
+}
+
+export function requestBattleFlee() {
+	emitHudCommand({ type: 'battle-flee' });
 }

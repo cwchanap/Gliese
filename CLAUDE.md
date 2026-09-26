@@ -114,7 +114,14 @@ which:
 A `tauri://close-requested` handler in `main.ts` flushes pending writes
 (3s timeout) before the window closes.
 
-The same `SaveStorage` adapter also backs **non-save** preferences (language: key `gliese.preferences.v1`), so anything written through `getSaveStorage()` lands in the same backing store as the main save.
+The same `SaveStorage` adapter also backs **non-save** preferences: a `UiPreferences`
+record (locale, textSpeed, motion, promptMode) persisted under key
+`gliese.preferences.v1` (`PREFERENCES_STORAGE_KEY` in `src/lib/game/i18n/preferences.ts`).
+In Tauri the adapter routes each key through the `persistedFiles` table to its own
+file — `gliese.saves.v1` → `gliese-save.json`, `gliese.saves.v1.backup` →
+`gliese-save-backup.json`, `gliese.preferences.v1` → `gliese-preferences.json`;
+keys not in the table stay cache-only. In a plain browser each key lands in
+`localStorage` under its own entry.
 
 ### Game Layer (`src/lib/game/`)
 
@@ -138,12 +145,14 @@ phaser/      Phaser integration
 save/        SaveState type, serialize/parse/validate, storage adapter swapping
 story/       Story client boundary: client.ts routes to the Tauri command or browser fixture
 i18n/        Locale-aware UI text: locales registry (en, ja, zh-Hant), translate()/content
-             helpers, preferences persistence, and a Svelte-readable `locale` store. Boot
-             calls `initializeLocale()` from `main.ts` after the save storage is wired up.
+             helpers, UiPreferences persistence, and Svelte-readable `preferences`/`locale`
+             stores. Boot calls `initializePreferences()` from `main.ts` after the save
+             storage is wired up.
 ui-bridge/   Phaser ↔ Svelte communication
   events.ts   Custom DOM events: gliese:hud-state (Phaser → UI) and gliese:hud-command (UI → Phaser)
   store.ts    Svelte readable store wrapping onHudState; exposes request helpers
-GameShell.svelte    Mounts the Phaser canvas via onMount, renders the HUD overlay
+GameShell.svelte    Mounts the Phaser canvas in a $effect once play starts (Continue /
+                    New Run / direct boot), renders the HUD overlay
 DialoguePanel.svelte NPC / system dialogue UI driven by `HudState.dialogue`
 ```
 
@@ -153,7 +162,7 @@ Phaser and Svelte communicate exclusively through custom `window` events (define
 
 - `WorldScene` calls `emitHudState(...)` after every meaningful state change
 - The Svelte HUD reads `$hudState` (a readable store backed by `onHudState`)
-- The Svelte HUD dispatches commands via `emitHudCommand(...)`, which `WorldScene` receives via `onHudCommand`. The `HudCommand` union currently covers: `heal`, `save`, `resume-save`, `pause-game`, `resume-game`, `use-item`, `equip-item`, `unequip-slot`, `open-shop`, `close-shop`, `buy-shop-item`, `sell-inventory-item`, `accept-quest`, `dialogue-advance`, `dialogue-close`, `dialogue-choose`, `dismiss-battle-summary`. When adding a new command, update the union in `ui-bridge/events.ts` and handle it in both `WorldScene` and the HUD.
+- The Svelte HUD dispatches commands via `emitHudCommand(...)`, which `WorldScene` receives via `onHudCommand`. The `HudCommand` union currently covers: `heal`, `save-slot`, `pause-game`, `resume-game`, `use-item`, `equip-item`, `unequip-slot`, `open-shop`, `close-shop`, `buy-shop-item`, `sell-inventory-item`, `accept-quest`, `dialogue-advance`, `dialogue-close`, `dialogue-choose`, `battle-cycle-target`, `battle-select-target`, `battle-flee`, `dismiss-battle-summary`. When adding a new command, update the union in `ui-bridge/events.ts` and handle it in both `WorldScene` and the HUD (`battle-cycle-target` / `battle-select-target` / `battle-flee` / `dismiss-battle-summary` are battle-scoped: `BattleScene` handles them and `WorldScene` ignores them).
 
 ### Content / Data Model
 
@@ -178,9 +187,20 @@ a walkable graybox first.
 - **Items / shops**: Items are defined in `content/items.ts` (consumables, equipment with `StatModifiers`, key items). Shops in `content/shops.ts` reference item IDs with per-shop stock and pricing. Wallet/coin state lives in `core/shop.ts`.
 - **Dialogue**: NPC **prose lives in `story/`, not in TypeScript** (see Story Pipeline). `content/dialogue.ts` holds only the per-NPC action/intent definitions and their localized labels. Runtime traversal/state lives in `core/dialogue.ts` and is surfaced to the HUD as `HudState.dialogue` (modes: `conversation`, `choice`, `system`). The HUD drives it with the `dialogue-advance` / `dialogue-close` / `dialogue-choose` commands.
 - **Quests**: Definitions in `content/quests.ts` (including `mainQuestId`); runtime state machine in `core/quests.ts`. `QuestState` is part of `SaveState`; HUD surfaces it as `HudState.quests` and accepts via `accept-quest`.
-- **i18n**: Locales are `en` (default), `ja`, `zh-Hant`. `initializeLocale()` resolves preference order: persisted preference (key `gliese.preferences.v1` via `SaveStorage`) → first supported `navigator.languages` match → `defaultLocale`. Use `translate(...)` for UI strings and `content(...)` for content-derived text; new UI strings must be added to every locale file under `i18n/messages/`.
+- **i18n**: Locales are `en` (default), `ja`, `zh-Hant`. `initializePreferences()` resolves preference order: persisted preference (key `gliese.preferences.v1` via `SaveStorage`) → first supported `navigator.languages` match → `defaultLocale`. Use `translate(...)` for UI strings and `content(...)` for content-derived text; new UI strings must be added to every locale file under `i18n/messages/`.
 - **Sprites**: Single sprite sheet at `public/game/assets/starter-pack.png`; frame coordinates are declared in `content/assets.ts` and registered at runtime in `WorldScene.registerStarterPackFrames()`
-- **Save**: JSON serialized via the active `SaveStorage` adapter under key `gliese.save.v9` (`SAVE_STORAGE_KEY` in `src/lib/game/save/storage.ts`). In Tauri the adapter persists to `gliese-save.json` in the app-data directory; in a plain browser it falls back to `localStorage`. The payload's `version` field tracks the schema and is currently `9`; bump both `SAVE_STORAGE_KEY` and `version` and update `isSaveState` whenever `SaveState` changes shape.
+- **Save**: Slots persist through the active `SaveStorage` adapter as one envelope under
+  key `gliese.saves.v1` (`SAVE_SLOTS_STORAGE_KEY` in `src/lib/game/save/slots.ts`): a
+  `SaveSlotsState` holding three `SaveSlotRecord` slots — slot 0 is the autosave, written
+  at durable-mutation points; slots 1–2 are manual. In Tauri the adapter persists to
+  `gliese-save.json` in the app-data directory; in a plain browser it falls back to
+  `localStorage`. An invalid or missing envelope yields an empty slot state, but an
+  unrecognized payload is first copied under `gliese.saves.v1.backup`, and pre-slots
+  legacy data (`gliese.save.v9`/`gliese.save.v8` keys, or a bare `SaveState` written
+  to `gliese-save.json` by older desktop builds) migrates into the autosave slot.
+  Each slot's `state` payload is a `SaveState` whose `version` field
+  (currently `9`) tracks the schema; bump it and update `isSaveState` in
+  `save/save-state.ts` whenever `SaveState` changes shape.
 
 ### Story Pipeline (Rust-owned)
 
