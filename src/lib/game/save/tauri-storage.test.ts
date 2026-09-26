@@ -16,12 +16,14 @@ import {
 	hydrateTauriStorage,
 	PREFERENCES_FILE_NAME,
 	PREFERENCES_FILE_TMP_NAME,
+	SAVE_BACKUP_FILE_NAME,
+	SAVE_BACKUP_FILE_TMP_NAME,
 	SAVE_FILE_DIR,
 	SAVE_FILE_NAME,
 	SAVE_FILE_TMP_NAME
 } from '$lib/game/save/tauri-storage';
 import { PREFERENCES_STORAGE_KEY } from '$lib/game/i18n/preferences';
-import { SAVE_SLOTS_STORAGE_KEY } from '$lib/game/save/slots';
+import { SAVE_SLOTS_BACKUP_STORAGE_KEY, SAVE_SLOTS_STORAGE_KEY } from '$lib/game/save/slots';
 
 const mockedFs = vi.mocked(fs);
 
@@ -156,6 +158,25 @@ describe('tauri storage adapter', () => {
 		expect(mockedFs.rename).toHaveBeenCalledWith(
 			`${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`,
 			`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`,
+			{ oldPathBaseDir: fs.BaseDirectory.AppData, newPathBaseDir: fs.BaseDirectory.AppData }
+		);
+	});
+
+	it('writes the slot backup key to the save-backup file', async () => {
+		setTauriPresent(true);
+		const adapter = await hydrateTauriStorage();
+
+		adapter.setItem(SAVE_SLOTS_BACKUP_STORAGE_KEY, '{"forensic":"copy"}');
+		await flushPendingWrites();
+
+		expect(mockedFs.writeTextFile).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${SAVE_BACKUP_FILE_TMP_NAME}`,
+			'{"forensic":"copy"}',
+			{ baseDir: fs.BaseDirectory.AppData }
+		);
+		expect(mockedFs.rename).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${SAVE_BACKUP_FILE_TMP_NAME}`,
+			`${SAVE_FILE_DIR}/${SAVE_BACKUP_FILE_NAME}`,
 			{ oldPathBaseDir: fs.BaseDirectory.AppData, newPathBaseDir: fs.BaseDirectory.AppData }
 		);
 	});

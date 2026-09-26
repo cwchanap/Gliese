@@ -120,7 +120,7 @@ export type HudBattleActive = {
 	enemies: HudBattleEnemyPlate[];
 	/** Hero (unitId 'hero') plus living enemies, ascending by readiness timestamp. */
 	ribbon: Array<{ unitId: string; readyAt: number }>;
-	/** Newest 4 combat events, oldest last. */
+	/** Last 4 combat events, oldest first; the HUD reverses for display. */
 	feed: HudBattleFeedEntry[];
 	heals: number;
 	items: number;

@@ -118,9 +118,10 @@ The same `SaveStorage` adapter also backs **non-save** preferences: a `UiPrefere
 record (locale, textSpeed, motion, promptMode) persisted under key
 `gliese.preferences.v1` (`PREFERENCES_STORAGE_KEY` in `src/lib/game/i18n/preferences.ts`).
 In Tauri the adapter routes each key through the `persistedFiles` table to its own
-file — `gliese.saves.v1` → `gliese-save.json`, `gliese.preferences.v1` →
-`gliese-preferences.json`; keys not in the table stay cache-only. In a plain browser
-each key lands in `localStorage` under its own entry.
+file — `gliese.saves.v1` → `gliese-save.json`, `gliese.saves.v1.backup` →
+`gliese-save-backup.json`, `gliese.preferences.v1` → `gliese-preferences.json`;
+keys not in the table stay cache-only. In a plain browser each key lands in
+`localStorage` under its own entry.
 
 ### Game Layer (`src/lib/game/`)
 
@@ -150,7 +151,8 @@ i18n/        Locale-aware UI text: locales registry (en, ja, zh-Hant), translate
 ui-bridge/   Phaser ↔ Svelte communication
   events.ts   Custom DOM events: gliese:hud-state (Phaser → UI) and gliese:hud-command (UI → Phaser)
   store.ts    Svelte readable store wrapping onHudState; exposes request helpers
-GameShell.svelte    Mounts the Phaser canvas via onMount, renders the HUD overlay
+GameShell.svelte    Mounts the Phaser canvas in a $effect once play starts (Continue /
+                    New Run / direct boot), renders the HUD overlay
 DialoguePanel.svelte NPC / system dialogue UI driven by `HudState.dialogue`
 ```
 
@@ -192,8 +194,11 @@ a walkable graybox first.
   `SaveSlotsState` holding three `SaveSlotRecord` slots — slot 0 is the autosave, written
   at durable-mutation points; slots 1–2 are manual. In Tauri the adapter persists to
   `gliese-save.json` in the app-data directory; in a plain browser it falls back to
-  `localStorage`. An invalid or missing envelope yields an empty slot state — there is no
-  legacy key fallback. Each slot's `state` payload is a `SaveState` whose `version` field
+  `localStorage`. An invalid or missing envelope yields an empty slot state, but an
+  unrecognized payload is first copied under `gliese.saves.v1.backup`, and pre-slots
+  legacy data (`gliese.save.v9`/`gliese.save.v8` keys, or a bare `SaveState` written
+  to `gliese-save.json` by older desktop builds) migrates into the autosave slot.
+  Each slot's `state` payload is a `SaveState` whose `version` field
   (currently `9`) tracks the schema; bump it and update `isSaveState` in
   `save/save-state.ts` whenever `SaveState` changes shape.
 

@@ -3,9 +3,10 @@
  * in Task 11). Grid geometry only — no DOM, no Phaser.
  *
  * Semantics:
- * - move to the nearest enabled node in the movement half-plane — the closest
- *   row/column ahead wins, then the smallest cross-axis drift (document order
- *   breaks remaining ties), so uneven grids never strand focus,
+ * - an aligned node (same row/column) ahead always wins over any diagonal,
+ *   nearest along the axis first; otherwise the nearest row/column ahead,
+ *   then the smallest cross-axis drift (document order breaks remaining
+ *   ties), so uneven grids never strand focus,
  * - stay on the current node when nothing lies in that direction,
  * - a null/unknown current resolves to the first enabled node (document order),
  * - no enabled node at all resolves to null.

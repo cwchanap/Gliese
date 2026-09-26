@@ -2859,6 +2859,70 @@ describe('GameShell pad layer', () => {
 		expect(page.getByRole('button', { name: 'Bag' }).elements()).toHaveLength(0);
 	});
 
+	it('maps battle pad buttons: A heals, B flees, X uses the item', async () => {
+		installPadStub();
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					hp: 12,
+					maxHp: 20,
+					heals: 1,
+					inventory: {
+						consumables: [
+							{
+								itemId: 'field-potion',
+								name: 'Field Potion',
+								description: 'Restores HP.',
+								iconPath: '/icon.png',
+								quantity: 3
+							}
+						],
+						equipment: [],
+						keyItems: [],
+						equipped: { weapon: null, head: null, body: null, hands: null, accessory: null }
+					},
+					battle: {
+						phase: 'active',
+						summary: null,
+						active: {
+							targetUnitId: 'encounter:unit:0',
+							enemies: [
+								{
+									unitId: 'encounter:unit:0',
+									enemyId: 'slime-scout',
+									name: 'Slime Scout',
+									hp: 5,
+									maxHp: 8,
+									defeated: false,
+									artPath: '/game/assets/heroic-ui/enemies/slime-scout.png'
+								}
+							],
+							ribbon: [
+								{ unitId: 'hero', readyAt: 0 },
+								{ unitId: 'encounter:unit:0', readyAt: 200 }
+							],
+							feed: [],
+							heals: 1,
+							items: 3,
+							flee: { status: 'idle', progress: 0 },
+							now: 0
+						}
+					}
+				})
+			);
+			await expect.element(page.getByTestId('battle-tile-heal')).toBeVisible();
+
+			await press(0); // A (confirm) → Heal tile
+			await press(1); // B (cancel) → Flee tile
+			await press(2); // X (action) → Item tile
+
+			expect(commands).toContainEqual({ type: 'heal' });
+			expect(commands).toContainEqual({ type: 'battle-flee' });
+			expect(commands).toContainEqual({ type: 'use-item', itemId: 'field-potion' });
+		});
+	});
+
 	it('Start cannot raise the command grid behind an open dialogue', async () => {
 		installPadStub();
 		await withCommands(async (commands) => {

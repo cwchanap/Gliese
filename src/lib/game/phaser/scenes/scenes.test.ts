@@ -9338,6 +9338,41 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('freezes hero movement for the whole dialogue session', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			player: { x: number; y: number };
+			facing: string;
+		};
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, guildMasterApproach);
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		// WASD reaches Phaser as raw window keydowns the DOM handler cannot
+		// swallow — it must not walk the hero mid-conversation.
+		Object.assign(phaserState.wasdKeys.left, { isDown: true });
+		const xBefore = sceneState.player.x;
+		const yBefore = sceneState.player.y;
+		scene.update(32, 16);
+		scene.update(48, 16);
+		expect(sceneState.player.x).toBe(xBefore);
+		expect(sceneState.player.y).toBe(yBefore);
+
+		// Closing the dialogue resumes movement (facing flips even against a
+		// wall, so it observes the unfreeze without depending on collision).
+		sceneState.handleHudCommand({ type: 'dialogue-close' });
+		Object.assign(phaserState.wasdKeys.left, { isDown: false });
+		Object.assign(phaserState.wasdKeys.right, { isDown: true });
+		scene.update(64, 16);
+		expect(sceneState.facing).toBe('right');
+		expect(sceneState.player.x).toBeGreaterThan(xBefore);
+	});
+
 	it('closes terminal dialogue when advance is pressed at the final line', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
