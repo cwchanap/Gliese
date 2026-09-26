@@ -700,14 +700,25 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		this.updateHitReactions(time);
+		// A dialogue session freezes the world's moving parts: WASD reaches
+		// Phaser as raw window keydowns the DOM handler cannot swallow, and
+		// combat reactions/enemies must not run mid-conversation. Proximity
+		// sensing (NPC refresh, the interact key, transitions, pickups) stays
+		// live so an open prompt can still be superseded by a real interaction.
+		const dialogueFrozen = this.dialogueSession !== null;
 
-		const direction = resolveMovementVector({
-			left: Boolean(this.cursorKeys?.left?.isDown || this.wasdKeys?.left?.isDown),
-			right: Boolean(this.cursorKeys?.right?.isDown || this.wasdKeys?.right?.isDown),
-			up: Boolean(this.cursorKeys?.up?.isDown || this.wasdKeys?.up?.isDown),
-			down: Boolean(this.cursorKeys?.down?.isDown || this.wasdKeys?.down?.isDown)
-		});
+		if (!dialogueFrozen) {
+			this.updateHitReactions(time);
+		}
+
+		const direction = dialogueFrozen
+			? { x: 0, y: 0 }
+			: resolveMovementVector({
+					left: Boolean(this.cursorKeys?.left?.isDown || this.wasdKeys?.left?.isDown),
+					right: Boolean(this.cursorKeys?.right?.isDown || this.wasdKeys?.right?.isDown),
+					up: Boolean(this.cursorKeys?.up?.isDown || this.wasdKeys?.up?.isDown),
+					down: Boolean(this.cursorKeys?.down?.isDown || this.wasdKeys?.down?.isDown)
+				});
 		this.updateHeroMovementAnimation(direction, time);
 
 		const step = startingPlayer.moveSpeed * (Math.min(delta, WorldScene.maxMovementDeltaMs) / 1000);
@@ -754,7 +765,9 @@ export class WorldScene extends Phaser.Scene {
 		this.tryCollectPickup();
 
 		const battleTarget =
-			time >= this.playerAttackCooldownUntil ? this.findHeroAttackTarget(time) : undefined;
+			!dialogueFrozen && time >= this.playerAttackCooldownUntil
+				? this.findHeroAttackTarget(time)
+				: undefined;
 
 		if (battleTarget) {
 			this.startBattle(battleTarget, time);
@@ -765,7 +778,9 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		this.updateEnemyBehavior(time, delta);
+		if (!dialogueFrozen) {
+			this.updateEnemyBehavior(time, delta);
+		}
 	}
 
 	private applyReward(xpReward: number): ProgressionState {
@@ -2828,8 +2843,15 @@ export class WorldScene extends Phaser.Scene {
 
 	private captureSlotThumbnail(mapId: string): string | undefined {
 		if (mapId !== this.lastThumbnailMapId) {
-			this.lastThumbnail = captureSaveThumbnail(this.game?.canvas);
-			this.lastThumbnailMapId = mapId;
+			const captured = captureSaveThumbnail(this.game?.canvas);
+			// Cache only a successful capture — a failed one (canvas not ready
+			// yet) must retry on the next save, not stay dropped until the map
+			// changes.
+			if (captured !== undefined) {
+				this.lastThumbnail = captured;
+				this.lastThumbnailMapId = mapId;
+			}
+			return captured;
 		}
 		return this.lastThumbnail;
 	}

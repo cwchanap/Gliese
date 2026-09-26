@@ -17,7 +17,13 @@
 	import { t } from '$lib/game/i18n/translate';
 	import { resetPlaytime, formatPlaytimeSeconds } from '$lib/game/save/playtime';
 	import { getAreaName } from '$lib/game/core/area-map';
-	import { getNewestSaveSlot, loadSaveSlots, type SaveSlotIndex } from '$lib/game/save/slots';
+	import {
+		discardUnreadableSaveSlots,
+		getNewestSaveSlot,
+		loadSaveSlots,
+		saveSlotsUnreadable,
+		type SaveSlotIndex
+	} from '$lib/game/save/slots';
 	import type { GameStartRequest } from '$lib/game/phaser/createGame';
 	import { hasRenderOptionOverrides } from '$lib/game/phaser/world-render-options';
 	import {
@@ -83,9 +89,11 @@
 
 	const titleSlots = loadSaveSlots();
 	const titleSlot = getNewestSaveSlot();
+	const titleSaveUnreadable = saveSlotsUnreadable();
 	// Only the autosave slot is destroyed by starting a new run — the
-	// overwrite confirmation guards exactly that case (review finding 2).
-	const titleHasAutosave = titleSlots.slots[0] !== null;
+	// overwrite confirmation guards exactly that case (review finding 2). An
+	// unreadable envelope may still hold a real autosave, so it confirms too.
+	const titleHasAutosave = titleSlots.slots[0] !== null || titleSaveUnreadable;
 	let titleCanContinue = $state(titleSlot !== null);
 	let titleContinueSubtitle = $derived(
 		titleSlot
@@ -114,6 +122,9 @@
 
 	function confirmNewRun() {
 		newRunConfirmOpen = false;
+		// Confirming the overwrite is the player's consent to discard an
+		// unreadable envelope — unblock writes after one last backup attempt.
+		if (titleSaveUnreadable) discardUnreadableSaveSlots();
 		startNewRun();
 	}
 

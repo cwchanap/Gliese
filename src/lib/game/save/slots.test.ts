@@ -5,8 +5,10 @@ import {
 	SAVE_SLOTS_BACKUP_STORAGE_KEY,
 	SAVE_SLOTS_STORAGE_KEY,
 	createEmptySaveSlots,
+	discardUnreadableSaveSlots,
 	getNewestSaveSlot,
 	loadSaveSlots,
+	saveSlotsUnreadable,
 	type SaveSlotRecord,
 	writeSaveSlot
 } from './slots';
@@ -304,5 +306,91 @@ describe('save slots', () => {
 		const stored = JSON.parse(storage.getItem(SAVE_SLOTS_STORAGE_KEY) ?? 'null');
 		expect(stored.slots[1]).toEqual(invalidSlot);
 		expect(loadSaveSlots(storage).slots[1]).toBeNull();
+	});
+
+	it('blocks writes over an unrecognized envelope whose backup failed, until discard', () => {
+		const base = memoryStorage({ [SAVE_SLOTS_STORAGE_KEY]: '{"envelope":"corrupt"}' });
+		const storage: SaveStorage = {
+			getItem: (key) => base.getItem(key),
+			setItem: (key, value) => {
+				if (key === SAVE_SLOTS_BACKUP_STORAGE_KEY) throw new Error('quota');
+				base.setItem(key, value);
+			},
+			removeItem: (key) => base.removeItem(key)
+		};
+		setSaveStorage(storage);
+
+		// Reads as empty, but the unbacked payload must not be destroyed by the
+		// next write (review: critical).
+		expect(loadSaveSlots(storage).slots).toEqual([null, null, null]);
+		expect(saveSlotsUnreadable(storage)).toBe(true);
+		expect(() => writeSaveSlot(1, record('2026-09-04T12:00:00.000Z'), storage)).toThrow();
+		expect(storage.getItem(SAVE_SLOTS_STORAGE_KEY)).toBe('{"envelope":"corrupt"}');
+
+		// Player-consented discard unblocks writes again.
+		discardUnreadableSaveSlots(storage);
+		expect(saveSlotsUnreadable(storage)).toBe(false);
+		writeSaveSlot(1, record('2026-09-04T12:00:00.000Z'), storage);
+		expect(JSON.parse(storage.getItem(SAVE_SLOTS_STORAGE_KEY) ?? 'null').version).toBe(1);
+	});
+
+	it('blocks writes when storage reads throw outright', () => {
+		const storage: SaveStorage = {
+			getItem: () => {
+				throw new Error('io');
+			},
+			setItem: () => {},
+			removeItem: () => {}
+		};
+		setSaveStorage(storage);
+
+		expect(loadSaveSlots(storage)).toEqual(createEmptySaveSlots());
+		expect(saveSlotsUnreadable(storage)).toBe(true);
+		expect(() =>
+			writeSaveSlot(0, { ...record('2026-09-04T12:00:00.000Z'), kind: 'autosave' }, storage)
+		).toThrow();
+	});
+
+	it('flags a bare SaveState it could not migrate and keeps the payload intact', () => {
+		const base = memoryStorage({
+			[SAVE_SLOTS_STORAGE_KEY]: JSON.stringify(createNewSaveState())
+		});
+		const storage: SaveStorage = {
+			getItem: (key) => base.getItem(key),
+			setItem: (key, value) => {
+				if (key === SAVE_SLOTS_STORAGE_KEY) throw new Error('quota');
+				base.setItem(key, value);
+			},
+			removeItem: (key) => base.removeItem(key)
+		};
+		setSaveStorage(storage);
+
+		expect(loadSaveSlots(storage)).toEqual(createEmptySaveSlots());
+		expect(saveSlotsUnreadable(storage)).toBe(true);
+		// The bare payload survives for a later retry.
+		expect(JSON.parse(storage.getItem(SAVE_SLOTS_STORAGE_KEY) ?? 'null').version).toBe(9);
+		expect(() => writeSaveSlot(1, record('2026-09-04T12:00:00.000Z'), storage)).toThrow();
+	});
+
+	it('throws instead of reporting success when no storage adapter is wired', () => {
+		setSaveStorage(undefined);
+		expect(() => writeSaveSlot(1, record('2026-09-04T12:00:00.000Z'))).toThrow();
+	});
+
+	it('keeps a forensic copy when overwriting a slot that failed validation', () => {
+		const invalidSlot = { kind: 'manual', savedAt: 'not-a-timestamp', state: { keep: 'me' } };
+		const storage = memoryStorage({
+			[SAVE_SLOTS_STORAGE_KEY]: JSON.stringify({
+				version: 1,
+				slots: [null, invalidSlot, null]
+			})
+		});
+		setSaveStorage(storage);
+
+		writeSaveSlot(1, record('2026-09-04T12:00:00.000Z'), storage);
+
+		const stored = JSON.parse(storage.getItem(SAVE_SLOTS_STORAGE_KEY) ?? 'null');
+		expect(stored.slots[1].savedAt).toBe('2026-09-04T12:00:00.000Z');
+		expect(storage.getItem(SAVE_SLOTS_BACKUP_STORAGE_KEY)).toBe(JSON.stringify(invalidSlot));
 	});
 });

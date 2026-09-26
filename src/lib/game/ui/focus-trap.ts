@@ -23,11 +23,21 @@ export function trapTabFocus(
 
 	const first = focusable[0]!;
 	const last = focusable.at(-1)!;
+	const active = document.activeElement;
 
-	if (event.shiftKey && document.activeElement === first) {
+	// The dialog root carries tabindex="-1" (outside the tab order), and
+	// focus can sit outside the container entirely when the trap attaches
+	// late: both cases wrap into the cycle instead of escaping the modal.
+	if (active === container || !container.contains(active)) {
+		event.preventDefault();
+		(event.shiftKey ? last : first).focus();
+		return;
+	}
+
+	if (event.shiftKey && active === first) {
 		event.preventDefault();
 		last.focus();
-	} else if (!event.shiftKey && document.activeElement === last) {
+	} else if (!event.shiftKey && active === last) {
 		event.preventDefault();
 		first.focus();
 	}

@@ -85,39 +85,6 @@ function parseSlotRecord(value: unknown, index: number): SaveSlotRecord | null {
 	};
 }
 
-/**
- * Decodes the stored envelope, discarding malformed payloads and invalid
- * slot records; accepted thumbnails are normalized through boundSaveThumbnail.
- * @param encoded - The raw `gliese.saves.v1` document, or `null` when absent.
- * @returns SaveSlotsState — the validated slot state or an empty one.
- */
-function parseSaveSlots(encoded: string | null): SaveSlotsState {
-	if (!encoded) return createEmptySaveSlots();
-
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(encoded);
-	} catch {
-		parsed = null;
-	}
-
-	if (!isSlotEnvelopeShape(parsed)) {
-		if (import.meta.env?.DEV) {
-			console.warn(`Invalid save slot envelope found in ${SAVE_SLOTS_STORAGE_KEY}; ignoring it.`);
-		}
-		return createEmptySaveSlots();
-	}
-
-	const state: SaveSlotsState = {
-		version: 1,
-		slots: [null, null, null]
-	};
-	for (let index = 0; index < 3; index += 1) {
-		state.slots[index as SaveSlotIndex] = parseSlotRecord(parsed.slots[index], index);
-	}
-	return state;
-}
-
 // The field-level checks parseSlotRecord applies to a stored payload, minus
 // the embedded-state JSON round-trip — writeSaveSlot's own record already
 // holds a SaveState, not an untrusted blob.
@@ -184,14 +151,17 @@ function cachedEnvelope(resolved: SaveStorage, encoded: string | null): CachedEn
 
 export function loadSaveSlots(storage?: SaveStorage): SaveSlotsState {
 	const resolved = storage ?? getSaveStorage();
+	if (!resolved) return createEmptySaveSlots();
 	try {
-		const encoded = resolved?.getItem(SAVE_SLOTS_STORAGE_KEY) ?? null;
-		if (!resolved) return parseSaveSlots(encoded);
+		const encoded = resolved.getItem(SAVE_SLOTS_STORAGE_KEY) ?? null;
 
 		const cached = cachedEnvelope(resolved, encoded);
 		// A structurally valid envelope is authoritative even when empty —
 		// never resurrect migrated legacy data over it.
-		if (cached) return cached.state;
+		if (cached) {
+			unreadableEnvelopes.delete(resolved);
+			return cached.state;
+		}
 
 		if (encoded === null) {
 			// Browser-era legacy keys may still hold a pre-slots save.
@@ -208,12 +178,58 @@ export function loadSaveSlots(storage?: SaveStorage): SaveSlotsState {
 		// Migration rewrites this key — without a secured backup the payload
 		// would be destroyed, so bail out and retry on the next load.
 		if (!backupUnrecognizedPayload(resolved, SAVE_SLOTS_STORAGE_KEY, encoded)) {
+			markUnreadable(resolved);
 			return createEmptySaveSlots();
 		}
 		return migrateLegacyKeys(resolved) ?? createEmptySaveSlots();
 	} catch {
+		// Storage read failed outright: report empty slots, but block writes so
+		// the next save cannot destroy whatever is actually stored.
+		markUnreadable(resolved);
 		return createEmptySaveSlots();
 	}
+}
+
+// Adapters whose stored payload could not be safely read or migrated. While
+// flagged, loadSaveSlots still reports empty slots (Continue / New Run stay
+// usable) but writeSaveSlot refuses to persist, so the next envelope write
+// cannot destroy data the backup step failed to secure. The flag clears via
+// discardUnreadableSaveSlots once the player confirms the destructive write.
+const unreadableEnvelopes = new WeakSet<SaveStorage>();
+
+// Adapters whose player consented to saving over an unreadable payload:
+// consent lasts for the session, so re-validating loads stop re-arming the
+// block after discardUnreadableSaveSlots cleared it.
+const discardedUnreadable = new WeakSet<SaveStorage>();
+
+function markUnreadable(resolved: SaveStorage): void {
+	if (discardedUnreadable.has(resolved)) return;
+	unreadableEnvelopes.add(resolved);
+}
+
+/** Whether the adapter's save payload is unreadable and writes are blocked. */
+export function saveSlotsUnreadable(storage?: SaveStorage): boolean {
+	const resolved = storage ?? getSaveStorage();
+	return resolved !== undefined && unreadableEnvelopes.has(resolved);
+}
+
+/**
+ * Player-consented discard: one last best-effort forensic backup, then
+ * unblock writes. Called from the New Run overwrite confirmation.
+ */
+export function discardUnreadableSaveSlots(storage?: SaveStorage): void {
+	const resolved = storage ?? getSaveStorage();
+	if (!resolved) return;
+	try {
+		const encoded = resolved.getItem(SAVE_SLOTS_STORAGE_KEY);
+		if (encoded !== null) {
+			backupUnrecognizedPayload(resolved, SAVE_SLOTS_STORAGE_KEY, encoded);
+		}
+	} catch {
+		// Storage is unreachable — nothing left to preserve.
+	}
+	discardedUnreadable.add(resolved);
+	unreadableEnvelopes.delete(resolved);
 }
 
 function migrateLegacyKeys(resolved: SaveStorage): SaveSlotsState | null {
@@ -278,6 +294,9 @@ function persistMigratedSlots(resolved: SaveStorage, state: SaveState): SaveSlot
 	try {
 		resolved.setItem(SAVE_SLOTS_STORAGE_KEY, JSON.stringify(migrated));
 	} catch {
+		// The payload being migrated away is still at risk of the next write —
+		// block writes until the player confirms a discard.
+		markUnreadable(resolved);
 		return null;
 	}
 	return migrated;
@@ -339,6 +358,9 @@ export function getNewestSaveSlot(
  *   wired save storage adapter.
  * @returns SaveSlotWriteResult — the resulting slot state plus whether
  *   thumbnails were dropped to fit.
+ * @throws when the record kind does not match the slot, no storage adapter
+ *   is wired, or the stored envelope is unreadable and a discard was not
+ *   confirmed — never report success without persisting.
  */
 export function writeSaveSlot(
 	index: SaveSlotIndex,
@@ -350,7 +372,14 @@ export function writeSaveSlot(
 	}
 
 	const resolved = storage ?? getSaveStorage();
-	if (!resolved) return { state: createEmptySaveSlots(), thumbnailDropped: false };
+	if (!resolved) {
+		throw new Error('No save storage adapter is wired; the slot was not saved.');
+	}
+	if (unreadableEnvelopes.has(resolved)) {
+		throw new Error(
+			'The stored save envelope is unreadable; confirm a discard before saving over it.'
+		);
+	}
 
 	// Normalize once so the in-memory slot and the persisted payload carry the
 	// same bounded thumbnail a reload through parseSaveSlots would produce.
@@ -370,20 +399,47 @@ export function writeSaveSlot(
 		encoded = null;
 	}
 	const cached = cachedEnvelope(resolved, encoded);
-	const state: SaveSlotsState = cached
-		? { version: 1, slots: [...cached.state.slots] }
-		: loadSaveSlots(resolved);
+	let state: SaveSlotsState;
+	if (cached) {
+		state = { version: 1, slots: [...cached.state.slots] };
+	} else {
+		state = loadSaveSlots(resolved);
+		// loadSaveSlots flags adapters it could not read safely — never write
+		// over a payload whose forensic backup failed (review: critical).
+		if (unreadableEnvelopes.has(resolved)) {
+			throw new Error(
+				'The stored save envelope is unreadable; confirm a discard before saving over it.'
+			);
+		}
+	}
 	// The record-level fields still need the same checks a reload applies —
 	// the returned/cached state must read like a fresh load (invalid records
 	// become null while their raw payload stays in the envelope). The state
 	// is trusted: it's already a SaveState, unlike untrusted stored payloads.
+	const previousSlot = state.slots[index];
 	state.slots[index] = isWellFormedSlotRecord(normalized, index) ? normalized : null;
 
+	const rawSlots = cached?.raw ?? readRawSlots(resolved);
+
 	// Siblings that fail validation read as null but keep their raw payload in
-	// the stored envelope, so saving one slot cannot erase another's data.
+	// the stored envelope, so saving one slot cannot erase another's data. The
+	// slot being written is the one exception: if it holds data that failed
+	// validation, keep a forensic copy first — but never clobber an existing
+	// envelope-level backup (review: invalid slot shown as empty).
+	const replaced = rawSlots?.[index];
+	if (replaced !== null && replaced !== undefined && previousSlot === null) {
+		try {
+			if (resolved.getItem(SAVE_SLOTS_BACKUP_STORAGE_KEY) === null) {
+				resolved.setItem(SAVE_SLOTS_BACKUP_STORAGE_KEY, JSON.stringify(replaced));
+			}
+		} catch {
+			// Forensic copy only — never block the player's save on it.
+		}
+	}
+
 	const persisted: { version: 1; slots: unknown[] } = {
 		version: 1,
-		slots: [...(cached?.raw ?? readRawSlots(resolved) ?? [null, null, null])]
+		slots: [...(rawSlots ?? [null, null, null])]
 	};
 	persisted.slots[index] = normalized;
 
