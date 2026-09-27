@@ -12,12 +12,17 @@ name: Asset Integrity
 # Runs:
 #   - weekly (Monday 03:00 UTC)
 #   - on demand (workflow_dispatch)
-#   - on push/PR when asset-relevant paths change
+#
+# Optional by design: no push/PR triggers — it never gates or marks a PR red,
+# and while the account's LFS budget is exhausted it cannot run at all
+# (checkout fails at the LFS batch API). Trigger it manually after asset
+# changes, or wait for the weekly run.
 #
 # The cadence is weekly (not daily) to limit LFS bandwidth: each run fetches
 # the full LFS payload, and GitHub Actions LFS downloads count against the
-# repo owner's bandwidth allowance. Path-triggered and manual runs cover
-# asset PRs between scheduled runs.
+# repo owner's bandwidth allowance. Manual runs cover asset work between
+# scheduled runs. The remaining pull_request conditions in steps/concurrency
+# are inert (the event can no longer fire) and kept for a future re-enable.
 
 on:
   schedule:
@@ -40,28 +45,6 @@ on:
         options:
           - '2'
           - '4'
-  push:
-    branches: [main]
-    paths:
-      - 'public/game/assets/**'
-      - '.gitattributes'
-      - '.github/workflows/asset-integrity.yml'
-      - 'src/lib/game/content/**'
-      - 'tests/e2e/**'
-      - 'vite.config.ts'
-      - 'playwright.config.ts'
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - 'public/game/assets/**'
-      - '.gitattributes'
-      - '.github/workflows/asset-integrity.yml'
-      - 'src/lib/game/content/**'
-      - 'tests/e2e/**'
-      - 'vite.config.ts'
-      - 'playwright.config.ts'
-
 permissions:
   contents: read
 
