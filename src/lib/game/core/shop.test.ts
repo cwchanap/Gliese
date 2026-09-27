@@ -212,6 +212,38 @@ describe('shop core', () => {
 		expect(sold.inventory.equipment).toEqual(['training-sword']);
 	});
 
+	it('sells a surplus copy of an equipped item while withholding the equipped one', () => {
+		// Duplicates cannot arise at runtime (addItem dedupes equipment); this
+		// mirrors what a hand-edited save would produce.
+		const inventory: InventoryState = {
+			stacks: [],
+			equipment: ['training-sword', 'training-sword']
+		};
+		const equipment = { ...createEmptyEquipment(), weapon: 'training-sword' };
+
+		const sellEntries = buildShopSellEntries({ inventory, equipment, locale: 'en' });
+		const swordEntries = sellEntries.filter((entry) => entry.itemId === 'training-sword');
+		expect(swordEntries).toHaveLength(1);
+
+		const sold = sellInventoryItem({
+			itemId: 'training-sword',
+			wallet: { coins: 0 },
+			inventory,
+			equipment
+		});
+		expect(sold.sold).toBe(true);
+		// One copy remains, still satisfying the equipped slot.
+		expect(sold.inventory.equipment).toEqual(['training-sword']);
+
+		const blocked = sellInventoryItem({
+			itemId: 'training-sword',
+			wallet: { coins: 0 },
+			inventory: sold.inventory,
+			equipment
+		});
+		expect(blocked).toMatchObject({ sold: false, reason: 'equipped-item' });
+	});
+
 	it('uses item-not-owned for missing owned sellable items', () => {
 		const wallet = { coins: 0 };
 		const inventory: InventoryState = { stacks: [], equipment: [] };

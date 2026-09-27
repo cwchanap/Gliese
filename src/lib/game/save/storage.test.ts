@@ -117,8 +117,19 @@ describe('save slots', () => {
 		expect(JSON.parse(storage.getItem(SAVE_SLOTS_STORAGE_KEY) ?? 'null').version).toBe(1);
 	});
 
+	// A well-formed bounded JPEG payload that survives boundSaveThumbnail, so
+	// the retry's stripping is the only thing that can remove it.
+	const VALID_THUMBNAIL = `data:image/jpeg;base64,${'QUJD'.repeat(64)}`;
+
 	it('retries without thumbnails when the synchronous write quota fails', () => {
 		const storage = createStorage();
+		// A sibling slot with a real thumbnail proves the retry strips every
+		// slot's payload, not just the record being written.
+		writeSaveSlot(
+			2,
+			createRecord({ savedAt: '2026-09-03T00:00:00.000Z', thumbnail: VALID_THUMBNAIL }),
+			storage
+		);
 		let attempts = 0;
 		const failingStorage = {
 			getItem: (key: string) => storage.getItem(key),
@@ -132,16 +143,15 @@ describe('save slots', () => {
 			}
 		};
 
-		const result = writeSaveSlot(
-			1,
-			createRecord({ thumbnail: 'data:image/jpeg;base64,abc' }),
-			failingStorage
-		);
+		const result = writeSaveSlot(1, createRecord({ thumbnail: VALID_THUMBNAIL }), failingStorage);
 
 		expect(result.thumbnailDropped).toBe(true);
 		expect(result.state.slots[1]?.thumbnail).toBeUndefined();
-		expect(attempts).toBe(2);
+		// The persisted payload itself must be thumbnail-free — stripping is
+		// observable, not a no-op of a pre-rejected thumbnail.
+		expect(storage.getItem(SAVE_SLOTS_STORAGE_KEY)).not.toContain('data:image/jpeg');
 		expect(loadSaveSlots(failingStorage).slots[1]?.thumbnail).toBeUndefined();
+		expect(loadSaveSlots(failingStorage).slots[2]?.thumbnail).toBeUndefined();
 	});
 
 	it('rethrows when the thumbnail-free retry also fails', () => {

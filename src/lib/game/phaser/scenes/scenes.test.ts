@@ -3146,6 +3146,42 @@ describe('BattleScene', () => {
 		}
 	});
 
+	it('ignores a second flee press while channeling', async () => {
+		const hud = installHudCommandTarget();
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		try {
+			scene.create({
+				saveState: createNewSaveState(),
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'meadow-slime-west',
+				sourceEnemyId: 'slime-scout',
+				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				enemyCount: 1,
+				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+			});
+			scene.update(0, 16);
+
+			hud.dispatch({ type: 'battle-flee' });
+			hud.dispatch({ type: 'battle-flee' });
+			scene.update(1_200, 16);
+
+			// A restart would report (1200-1200)/2400 = 0; the original channel
+			// keeps its deadline and reports 0.5.
+			const payload = emitHudStateSpy.mock.calls.at(-1)![0] as {
+				battle: { active: { flee: { status: string; progress: number } } };
+			};
+			expect(payload.battle.active.flee).toEqual({ status: 'channeling', progress: 0.5 });
+		} finally {
+			emitHudStateSpy.mockRestore();
+			hud.restore();
+		}
+	});
+
 	it('cancels the flee channel when the hero takes damage', async () => {
 		const hud = installHudCommandTarget();
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
@@ -7442,6 +7478,42 @@ describe('WorldScene', () => {
 			expect(autosave?.kind).toBe('autosave');
 			expect(autosave?.state.mapId).toBe('meadow-entry');
 		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('reports save failure on the HUD when the manual slot write fails', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		// A valid empty envelope on read, a hard failure on write: the quota
+		// retry also fails, so writeSaveSlot throws through to the HUD status.
+		const memoryStorage = {
+			getItem: vi.fn(() => JSON.stringify({ version: 1, slots: [null, null, null] })),
+			removeItem: vi.fn(),
+			setItem: vi.fn(() => {
+				throw new DOMException('quota exceeded', 'QuotaExceededError');
+			})
+		};
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({ reason: 'new', saveState: null });
+			emitHudStateSpy.mockClear();
+
+			(scene as unknown as { handleHudCommand: (command: HudCommand) => void }).handleHudCommand({
+				type: 'save-slot',
+				slot: 1
+			});
+			await vi.waitFor(() => {
+				expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+					expect.objectContaining({ status: 'Could not save' })
+				);
+			});
+		} finally {
+			emitHudStateSpy.mockRestore();
 			storage.setSaveStorage(undefined);
 		}
 	});

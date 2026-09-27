@@ -185,8 +185,8 @@
 		return t($locale, 'ui.questOffered');
 	}
 
-	/** Side-quest glyphs follow the mockup vocabulary: slime (defeat) or
-	 *  key (collect), picked from the quest's first objective. */
+	/** Side-quest row icon: the relic token when the first objective is a
+	 *  collect, otherwise the slime glyph (default for defeat/talk steps). */
 	function getSideIconKind(questId: string): 'slime' | 'relic' {
 		const objective = getQuest(questId)?.objectives[0];
 		return objective?.kind === 'collect-item' ? 'relic' : 'slime';

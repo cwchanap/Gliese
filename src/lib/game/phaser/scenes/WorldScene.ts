@@ -146,6 +146,7 @@ import { t, type MessageKey } from '$lib/game/i18n/translate';
 import { createNewSaveState, serializeSaveState, type SaveState } from '$lib/game/save/save-state';
 import { getPlaytimeSeconds } from '$lib/game/save/playtime';
 import { writeSaveSlot, type SaveSlotRecord } from '$lib/game/save/slots';
+import { flushSaveStorage } from '$lib/game/save/storage';
 import { captureSaveThumbnail } from '$lib/game/save/thumbnail';
 import { getNpcStoryDialogue, type StoryQuestSummary } from '$lib/game/story/client';
 import {
@@ -2873,9 +2874,14 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private writeAutosave(state: SaveState) {
-		this.afterNextRenderedFrame(() => {
+		this.afterNextRenderedFrame(async () => {
 			try {
 				writeSaveSlot(0, this.buildSlotRecord('autosave', state));
+				// The adapter queues an asynchronous disk write; a cache-only
+				// "success" must still reach the log when the disk rejects it.
+				if (!(await flushSaveStorage())) {
+					console.error('Autosave slot was not confirmed on disk.');
+				}
 			} catch (error) {
 				// The envelope already retried without thumbnails; a remaining failure
 				// means storage is unavailable. Never break gameplay over the autosave.
@@ -2886,13 +2892,19 @@ export class WorldScene extends Phaser.Scene {
 
 	private writeManualSlot(slot: 1 | 2) {
 		const state = this.buildSaveState();
-		this.afterNextRenderedFrame(() => {
+		this.afterNextRenderedFrame(async () => {
 			try {
 				const result = writeSaveSlot(slot, this.buildSlotRecord('manual', state));
+				// setItem only queues the disk write on Tauri — wait for it before
+				// telling the player the save landed (review: critical).
+				if (!(await flushSaveStorage())) {
+					throw new Error('The save was not confirmed on disk.');
+				}
 				this.publishHudState(
 					this.status(result.thumbnailDropped ? 'status.savedWithoutThumbnail' : 'status.saved')
 				);
-			} catch {
+			} catch (error) {
+				console.error('Failed to persist manual save slot.', error);
 				this.publishHudState(this.status('status.saveFailed'));
 			}
 		});

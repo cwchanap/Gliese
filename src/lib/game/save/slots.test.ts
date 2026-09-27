@@ -393,4 +393,40 @@ describe('save slots', () => {
 		expect(stored.slots[1].savedAt).toBe('2026-09-04T12:00:00.000Z');
 		expect(storage.getItem(SAVE_SLOTS_BACKUP_STORAGE_KEY)).toBe(JSON.stringify(invalidSlot));
 	});
+
+	it('refuses to overwrite an invalid slot whose forensic backup cannot be written', () => {
+		const invalidSlot = { kind: 'manual', savedAt: 'not-a-timestamp', state: { keep: 'me' } };
+		const base = memoryStorage({
+			[SAVE_SLOTS_STORAGE_KEY]: JSON.stringify({
+				version: 1,
+				slots: [null, invalidSlot, null]
+			})
+		});
+		const storage: SaveStorage = {
+			getItem: (key) => base.getItem(key),
+			removeItem: (key) => base.removeItem(key),
+			setItem: (key, value) => {
+				if (key === SAVE_SLOTS_BACKUP_STORAGE_KEY) throw new Error('quota');
+				base.setItem(key, value);
+			}
+		};
+		setSaveStorage(storage);
+
+		expect(() => writeSaveSlot(1, record('2026-09-04T12:00:00.000Z'), storage)).toThrow(/backup/);
+		// The invalid raw slot survives untouched.
+		expect(JSON.parse(storage.getItem(SAVE_SLOTS_STORAGE_KEY) ?? 'null').slots[1]).toEqual(
+			invalidSlot
+		);
+	});
+
+	it('rejects slot records with negative or fractional playtime', () => {
+		const storage = memoryStorage();
+		setSaveStorage(storage);
+		writeSaveSlot(1, { ...record('2026-09-04T12:00:00.000Z'), playtimeSeconds: -1 }, storage);
+		writeSaveSlot(2, { ...record('2026-09-04T13:00:00.000Z'), playtimeSeconds: 1.5 }, storage);
+
+		const slots = loadSaveSlots(storage);
+		expect(slots.slots[1]).toBeNull();
+		expect(slots.slots[2]).toBeNull();
+	});
 });

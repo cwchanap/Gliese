@@ -54,7 +54,6 @@ The shared grammar is authoritative: near-black/navy base, deep blue-violet wind
 - No skill tree, skill registry, skill points, crafting, party/roster system, or invented combat skills.
 - No witness/testimony gauge seam until a witness-boss runtime actually exists.
 - No audio runtime.
-- No legacy-save migration.
 - No configurable Full HUD density until a Full reference/behavior is designed.
 - No controller remapping, rumble, brand-specific glyphs, or analog/D-pad field movement.
 - No speculative mobile redesign; desktop/Tauri is the parity target.
@@ -123,7 +122,11 @@ type SaveSlotsState = {
 };
 ```
 
-Use `gliese.saves.v1`; once cut over, runtime no longer reads `gliese.save.v9` or its predecessor.
+Use `gliese.saves.v1` as the authoritative key. On first load, pre-slots data migrates instead of being dropped (supersedes the original "no legacy-save migration" non-goal — dropping existing saves was judged worse than a one-time migration):
+
+- the retired `gliese.save.v9` / `gliese.save.v8` browser keys migrate into the autosave slot, then are removed;
+- a bare pre-slots `SaveState` left in `gliese-save.json` by older desktop builds recovers into the autosave slot the same way;
+- a payload matching neither shape is first copied under `gliese.saves.v1.backup`, and the envelope only ever reads as empty once that backup is secured.
 
 ### Tauri persistence boundary
 
@@ -132,6 +135,7 @@ Use `gliese.saves.v1`; once cut over, runtime no longer reads `gliese.save.v9` o
 Replace key-specific `if (key === ...)` branches with one explicit persisted-file table that maps:
 
 - `gliese.saves.v1` -> `gliese-save.json` / temp file,
+- `gliese.saves.v1.backup` -> `gliese-save-backup.json` / temp file (forensic copies of unreadable payloads),
 - `gliese.preferences.v1` -> `gliese-preferences.json` / temp file.
 
 Hydration, `setItem`, `removeItem`, and `flushPendingWrites` all derive from that table. Unknown keys can remain in the in-memory cache but must not schedule disk writes. A Tauri adapter test must prove slot writes survive the file-backed path and unknown keys do not write.
@@ -142,7 +146,7 @@ Slot rules:
 
 - Slot 1 is autosave-only.
 - Slots 2/3 are manual.
-- Continue chooses newest `savedAt`.
+- Continue opens the load picker so manual slots stay reachable; the Title card previews the newest `savedAt` slot.
 - New Run does not touch manual slots.
 - Slot 1 saves on initial new-run WorldScene readiness, completed map transition, and applied battle result.
 - Slot 1 also saves after a **successful durable state mutation**.

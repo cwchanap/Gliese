@@ -47,7 +47,8 @@ export type HudOpenShop = HudNearbyShop & {
 export type HudDialogueChoice = {
 	id: string;
 	label: string;
-	/** Mockup glyph family derived from the choice intent: shop = bag, quest/ask = ?, close = exit. */
+	/** Presentation glyph family for the row's leading icon: derived from the
+	 * choice intent when the runtime supplies one, otherwise the ask glyph. */
 	kind?: 'trade' | 'ask' | 'leave';
 };
 
@@ -115,7 +116,8 @@ export type HudBattleFeedEntry = {
 };
 
 export type HudBattleActive = {
-	/** Living target the hero's auto-attack prefers; `null` only with no enemies. */
+	/** Living target the hero's auto-attack prefers; `null` while no target is
+	 * selected (all enemies defeated, or none spawned). */
 	targetUnitId: string | null;
 	enemies: HudBattleEnemyPlate[];
 	/** Hero (unitId 'hero') plus living enemies, ascending by readiness timestamp. */
@@ -129,11 +131,13 @@ export type HudBattleActive = {
 	now: number;
 };
 
-export type HudBattleState = {
-	phase: 'none' | 'active' | 'summary';
-	summary: HudBattleSummary | null;
-	active: HudBattleActive | null;
-};
+/** Discriminated on `phase` so summary/active can never disagree with it —
+ * a locked field must not show a battle HUD, and a summary must carry its
+ * payload (review: phase/summary/active could disagree). */
+export type HudBattleState =
+	| { phase: 'none'; summary: null; active: null }
+	| { phase: 'active'; summary: null; active: HudBattleActive }
+	| { phase: 'summary'; summary: HudBattleSummary; active: null };
 
 export type HudState = {
 	ready: boolean;

@@ -194,10 +194,14 @@ a walkable graybox first.
   `SaveSlotsState` holding three `SaveSlotRecord` slots — slot 0 is the autosave, written
   at durable-mutation points; slots 1–2 are manual. In Tauri the adapter persists to
   `gliese-save.json` in the app-data directory; in a plain browser it falls back to
-  `localStorage`. An invalid or missing envelope yields an empty slot state, but an
-  unrecognized payload is first copied under `gliese.saves.v1.backup`, and pre-slots
-  legacy data (`gliese.save.v9`/`gliese.save.v8` keys, or a bare `SaveState` written
-  to `gliese-save.json` by older desktop builds) migrates into the autosave slot.
+  `localStorage`. Three distinct load outcomes: (1) a missing envelope yields an empty slot
+  state (after checking the legacy keys below); (2) a payload that is neither a v1 envelope
+  nor a parseable legacy save is first copied under `gliese.saves.v1.backup`, and the envelope
+  reads as empty only once that backup is secured — otherwise writes stay blocked until the
+  player confirms a discard from New Run; (3) pre-slots legacy data (`gliese.save.v9`/
+  `gliese.save.v8` keys, or a bare `SaveState` written to `gliese-save.json` by older desktop
+  builds) migrates into the autosave slot. Manual saves additionally await the Tauri disk
+  flush and report `status.saveFailed` when the file write fails.
   Each slot's `state` payload is a `SaveState` whose `version` field
   (currently `9`) tracks the schema; bump it and update `isSaveState` in
   `save/save-state.ts` whenever `SaveState` changes shape.
