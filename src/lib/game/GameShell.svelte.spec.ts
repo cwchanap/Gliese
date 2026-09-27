@@ -6,7 +6,15 @@ import '../../app.css';
 import GameShell from './GameShell.svelte';
 import { HUD_COMMAND_EVENT, HUD_STATE_EVENT, type HudState } from '$lib/game/ui-bridge/events';
 import { createNewSaveState } from '$lib/game/save/save-state';
-import { SAVE_SLOTS_STORAGE_KEY, writeSaveSlot, type SaveSlotRecord } from '$lib/game/save/slots';
+import {
+	SAVE_SLOTS_BACKUP_STORAGE_KEY,
+	SAVE_SLOTS_STORAGE_KEY,
+	loadSaveSlots,
+	saveSlotsUnreadable,
+	writeSaveSlot,
+	type SaveSlotRecord
+} from '$lib/game/save/slots';
+import { setSaveStorage } from '$lib/game/save/storage';
 import { setLastInputModality } from '$lib/game/core/gamepad';
 import { PREFERENCES_STORAGE_KEY } from '$lib/game/i18n/preferences';
 import { updatePreferences } from '$lib/game/i18n/store';
@@ -22,6 +30,8 @@ afterEach(async () => {
 	emitHudState(baseHudState({ ready: false }));
 	localStorage.removeItem(SAVE_SLOTS_STORAGE_KEY);
 	localStorage.removeItem(PREFERENCES_STORAGE_KEY);
+	// Tests that wire a failing adapter must not leak it into later specs.
+	setSaveStorage(globalThis.localStorage);
 	updatePreferences({ locale: 'en', motion: 'on', textSpeed: 'normal', promptMode: 'auto' });
 	setLastInputModality('keys');
 	vi.unstubAllGlobals();
@@ -781,7 +791,20 @@ describe('GameShell battle summary', () => {
 
 			emitHudState(
 				hudStateWithEquippedWeapon({
-					battle: { phase: 'active', summary: null, active: null }
+					battle: {
+						phase: 'active',
+						summary: null,
+						active: {
+							targetUnitId: null,
+							enemies: [],
+							ribbon: [{ unitId: 'hero', readyAt: 0 }],
+							feed: [],
+							heals: 0,
+							items: 0,
+							flee: { status: 'idle', progress: 0 },
+							now: 0
+						}
+					}
 				})
 			);
 
@@ -887,11 +910,10 @@ describe('GameShell command menu', () => {
 				.element(dialog.getByTestId('skill-empty'))
 				.toHaveTextContent(/no skills learned yet/i);
 
-			// Opening the grid itself pauses the game; Skill adds no further command.
-			const fieldCommands = commands.filter(
-				(command) => (command as { type?: string }).type !== 'pause-game'
-			);
-			expect(fieldCommands).toEqual([]);
+			// Opening the grid pauses the game (explicitly asserted — a filter
+			// here used to hide a missing pause-game emission); Skill adds no
+			// further command.
+			expect(commands).toEqual([{ type: 'pause-game' }]);
 
 			await userEvent.keyboard('{Escape}');
 			expect(dialog.elements()).toHaveLength(0);
@@ -901,6 +923,21 @@ describe('GameShell command menu', () => {
 });
 
 describe('GameShell inventory', () => {
+	it('emits pause-game when the Bag overlay opens', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: 'Bag' }).click();
+			await expect.element(page.getByRole('tab', { name: /potions/i })).toBeVisible();
+
+			// The field must stop moving under the overlay (review: the command
+			// was filtered out of assertions instead of being asserted).
+			expect(commands).toContainEqual({ type: 'pause-game' });
+		});
+	});
+
 	it('opens from the command menu and switches categories', async () => {
 		render(GameShell);
 		emitHudState(
@@ -1785,7 +1822,7 @@ describe('GameShell save screen', () => {
 
 			const saveDialog = page.getByRole('dialog', { name: /save/i });
 			await expect.element(saveDialog).toBeVisible();
-			// Slot 1 is the display-only autosave row; slots 2/3 are manual.
+			expect(commands).toContainEqual({ type: 'pause-game' });
 			await expect.element(saveDialog.getByTestId('save-slot-autosave')).toBeVisible();
 			await expect.element(saveDialog.getByTestId('save-slot-1')).toBeVisible();
 			await expect.element(saveDialog.getByTestId('save-slot-2')).toBeVisible();
@@ -1796,7 +1833,7 @@ describe('GameShell save screen', () => {
 		});
 	});
 
-	it('asks for confirmation before overwriting an occupied slot', async () => {
+	it('saves directly into an empty slot without asking for confirmation', async () => {
 		await withCommands(async (commands) => {
 			render(GameShell);
 			emitHudState(baseHudState());
@@ -2625,6 +2662,19 @@ describe('GameShell error handling', () => {
 });
 
 describe('GameShell system screen', () => {
+	it('emits pause-game when the System overlay opens', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: /system/i }).click();
+			await expect.element(page.getByRole('dialog', { name: /display & text/i })).toBeVisible();
+
+			expect(commands).toContainEqual({ type: 'pause-game' });
+		});
+	});
+
 	it('opens from the command menu and closes on Escape restoring focus', async () => {
 		render(GameShell);
 		emitHudState(baseHudState());
@@ -2732,6 +2782,38 @@ describe('GameShell title mode', () => {
 		await page.getByRole('button', { name: /new run/i }).click();
 		expect(page.getByRole('alertdialog').elements()).toHaveLength(0);
 		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+	});
+
+	it('New Run against an unreadable envelope confirms, discards, and unblocks saving', async () => {
+		// A corrupt envelope whose forensic backup cannot be secured keeps the
+		// write block armed; the title flow must clear it via the New Run
+		// confirmation (review: only the storage primitive was tested).
+		const values = new Map<string, string>([[SAVE_SLOTS_STORAGE_KEY, '{"version":4,"bad":true}']]);
+		const blockedBackupStorage = {
+			getItem: (key: string) => values.get(key) ?? null,
+			setItem: (key: string, value: string) => {
+				if (key === SAVE_SLOTS_BACKUP_STORAGE_KEY) throw new Error('quota');
+				values.set(key, value);
+			},
+			removeItem: (key: string) => void values.delete(key)
+		};
+		setSaveStorage(blockedBackupStorage);
+
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+		expect(saveSlotsUnreadable(blockedBackupStorage)).toBe(true);
+
+		await page.getByRole('button', { name: /new run/i }).click();
+		const confirm = page.getByRole('alertdialog');
+		await expect.element(confirm).toBeVisible();
+		await confirm.getByTestId('confirm-new-run').click();
+		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+
+		// The discard cleared the write block, so the run's autosaves land
+		// instead of failing with only a console error.
+		expect(saveSlotsUnreadable(blockedBackupStorage)).toBe(false);
+		writeSaveSlot(0, { ...createSlotRecord(), kind: 'autosave' }, blockedBackupStorage);
+		expect(loadSaveSlots(blockedBackupStorage).slots[0]?.kind).toBe('autosave');
 	});
 
 	it('restores focus to the System card after closing System from Title', async () => {

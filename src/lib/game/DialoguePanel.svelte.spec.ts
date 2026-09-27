@@ -482,15 +482,44 @@ describe('DialoguePanel.svelte', () => {
 		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
 		await expect.element(panel).toHaveFocus();
 
-		// Hovering row 2 moves the gild; focus stays on the panel.
+		// Hovering row 2 moves the gild AND the DOM focus: the shared arrow/pad
+		// grid resolves moves from the focused element's data-focus-id, so the
+		// cursor has to follow the pointer instead of restarting at row 0.
 		const secondChoice = page.getByRole('button', { name: 'Close' }).first();
 		await userEvent.hover(secondChoice);
 		expect(secondChoice.element().getAttribute('data-selected')).toBe('true');
+		await expect.element(secondChoice).toHaveFocus();
 
 		await userEvent.keyboard('{Enter}');
 		expect(onchoose).toHaveBeenCalledOnce();
 		expect(onchoose).toHaveBeenCalledWith('close');
 		expect(onchoose).not.toHaveBeenCalledWith('quest:thin-village-slimes');
+	});
+
+	it('skips the reveal with Enter on a choice line and never confirms an auto-repeat', async () => {
+		updatePreferences({ textSpeed: 'normal' });
+		const { onchoose } = renderDialogue();
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+		await expect.element(panel).toHaveFocus();
+
+		const choice = page.getByRole('button', { name: 'Thin Village Slimes' });
+		await expect.element(choice).toBeDisabled();
+
+		// First press skips the typewriter reveal (mirrors Next / pad A)...
+		await userEvent.keyboard('{Enter}');
+		await expect.element(choice).toBeEnabled();
+		expect(onchoose).not.toHaveBeenCalled();
+
+		// ...while a held key's auto-repeat must not confirm the row.
+		panel
+			.element()
+			.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, repeat: true }));
+		expect(onchoose).not.toHaveBeenCalled();
+
+		// A fresh press confirms the gilded row.
+		await userEvent.hover(choice);
+		await userEvent.keyboard('{Enter}');
+		expect(onchoose).toHaveBeenCalledWith('quest:thin-village-slimes');
 	});
 
 	it('keeps the revealed line and enabled choices when the same line republishes as a new object', async () => {
@@ -778,7 +807,24 @@ describe('DialoguePanel.svelte', () => {
 
 	it('ignores the M shortcut during battle', async () => {
 		render(GameShell);
-		emitHudState(createReadyHudState({ battle: { phase: 'active', summary: null, active: null } }));
+		emitHudState(
+			createReadyHudState({
+				battle: {
+					phase: 'active',
+					summary: null,
+					active: {
+						targetUnitId: null,
+						enemies: [],
+						ribbon: [{ unitId: 'hero', readyAt: 0 }],
+						feed: [],
+						heals: 0,
+						items: 0,
+						flee: { status: 'idle', progress: 0 },
+						now: 0
+					}
+				}
+			})
+		);
 
 		await userEvent.keyboard('m');
 

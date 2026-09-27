@@ -30,6 +30,8 @@ type WriteQueue = {
 	pendingWrite: Promise<void>;
 	queuedValue: string | undefined;
 	tmpName: string;
+	/** Set by the last disk write; `flush` reports it so callers never claim success over a failed write. */
+	lastWriteFailed: boolean;
 };
 
 type PersistedFileSpec = {
@@ -95,6 +97,10 @@ export async function hydrateTauriStorage(): Promise<SaveStorage> {
 			if (spec) {
 				scheduleWrite(spec.queue, '');
 			}
+		},
+		// Durability check for callers that must know a write reached the disk.
+		flush() {
+			return flushSaveWrites();
 		}
 	};
 }
@@ -122,7 +128,8 @@ function createWriteQueue(fileName: string, tmpName: string): WriteQueue {
 		fileName,
 		pendingWrite: Promise.resolve(),
 		queuedValue: undefined,
-		tmpName
+		tmpName,
+		lastWriteFailed: false
 	};
 }
 
@@ -147,16 +154,33 @@ async function performAtomicWrite(queue: WriteQueue, value: string): Promise<voi
 			`${SAVE_FILE_DIR}/${queue.fileName}`,
 			APP_DATA_RENAME
 		);
+		queue.lastWriteFailed = false;
 	} catch (error) {
+		queue.lastWriteFailed = true;
 		console.error(`Failed to persist ${queue.fileName}; previous on-disk value preserved.`, error);
 	}
 }
 
 export async function flushPendingWrites(timeoutMs = 3000): Promise<void> {
-	await Promise.race([
-		Promise.all([...persistedFiles.values()].map((spec) => spec.queue.pendingWrite)),
-		new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))
+	if (!(await flushSaveWrites(timeoutMs))) {
+		console.error('Save storage writes did not complete cleanly before the wait ended.');
+	}
+}
+
+/**
+ * Await every queued disk write and report whether they all succeeded.
+ * Returns false when any write failed or the drain timed out — callers must
+ * not report a save as successful on `false` (review: critical).
+ */
+export async function flushSaveWrites(timeoutMs = 3000): Promise<boolean> {
+	const drained = await Promise.race([
+		Promise.all([...persistedFiles.values()].map((spec) => spec.queue.pendingWrite)).then(
+			() => true
+		),
+		new Promise<boolean>((resolve) => setTimeout(() => resolve(false), timeoutMs))
 	]);
+	if (!drained) return false;
+	return ![...persistedFiles.values()].some((spec) => spec.queue.lastWriteFailed);
 }
 
 /**
@@ -171,4 +195,5 @@ export function __resetTauriStorageForTests(): void {
 function resetWriteQueue(queue: WriteQueue): void {
 	queue.pendingWrite = Promise.resolve();
 	queue.queuedValue = undefined;
+	queue.lastWriteFailed = false;
 }

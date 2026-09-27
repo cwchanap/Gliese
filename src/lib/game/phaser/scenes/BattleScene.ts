@@ -1130,11 +1130,14 @@ export class BattleScene extends Phaser.Scene {
 			nearbyShop: null,
 			shop: null,
 			dialogue: null,
-			battle: {
-				phase: hudSummary ? 'summary' : 'active',
-				summary: hudSummary,
-				active: hudSummary ? null : this.buildHudBattleActive()
-			},
+			// Split ternary so the object literal matches the phase union exactly.
+			battle: hudSummary
+				? { phase: 'summary' as const, summary: hudSummary, active: null }
+				: {
+						phase: 'active' as const,
+						summary: null,
+						active: this.buildHudBattleActive()
+					},
 			quests: buildHudQuestState({
 				state: questState,
 				nearbyQuestGiverId: null,

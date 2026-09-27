@@ -49,6 +49,9 @@ export type BattleStartPayload = {
 	sourceMapId: string;
 	sourceEncounterId: string;
 	sourceEnemyId: string;
+	/** Quest-completion signal copied from the encounter definition — marks
+	 *  the battle as satisfying `requiresCompletion` objectives. Independent
+	 *  of the actual outcome; quest events only fire on victories anyway. */
 	completion?: 'victory';
 	returnPosition: BattleReturnPosition;
 	enemyCount: number;
@@ -65,6 +68,9 @@ export type BattleResult = {
 	sourceMapId: string;
 	sourceEncounterId: string;
 	sourceEnemyId: string;
+	/** Quest-completion signal carried over from the encounter definition; see
+	 *  BattleStartPayload.completion. Only meaningful on victory results —
+	 *  non-victory results fire no quest events. */
 	completion?: 'victory';
 	returnPosition: BattleReturnPosition;
 	finalHeroHp: number;

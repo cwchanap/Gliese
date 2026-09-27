@@ -64,6 +64,10 @@ function parseSlotRecord(value: unknown, index: number): SaveSlotRecord | null {
 		// Continue could resume a stale slot). Reject the record at the envelope.
 		Number.isNaN(Date.parse(record.savedAt)) ||
 		typeof record.playtimeSeconds !== 'number' ||
+		// Slot playtime is whole seconds on a wall clock; negatives, fractions,
+		// and Infinity are envelope corruption, not a playable duration.
+		!Number.isInteger(record.playtimeSeconds) ||
+		record.playtimeSeconds < 0 ||
 		(record.thumbnail !== undefined && typeof record.thumbnail !== 'string') ||
 		typeof record.state !== 'object' ||
 		record.state === null
@@ -94,6 +98,8 @@ function isWellFormedSlotRecord(record: SaveSlotRecord, index: number): boolean 
 		typeof record.savedAt === 'string' &&
 		!Number.isNaN(Date.parse(record.savedAt)) &&
 		typeof record.playtimeSeconds === 'number' &&
+		Number.isInteger(record.playtimeSeconds) &&
+		record.playtimeSeconds >= 0 &&
 		(record.thumbnail === undefined || typeof record.thumbnail === 'string')
 	);
 }
@@ -182,9 +188,10 @@ export function loadSaveSlots(storage?: SaveStorage): SaveSlotsState {
 			return createEmptySaveSlots();
 		}
 		return migrateLegacyKeys(resolved) ?? createEmptySaveSlots();
-	} catch {
+	} catch (error) {
 		// Storage read failed outright: report empty slots, but block writes so
 		// the next save cannot destroy whatever is actually stored.
+		console.warn('Failed to read the save envelope; reporting empty slots.', error);
 		markUnreadable(resolved);
 		return createEmptySaveSlots();
 	}
@@ -382,7 +389,7 @@ export function writeSaveSlot(
 	}
 
 	// Normalize once so the in-memory slot and the persisted payload carry the
-	// same bounded thumbnail a reload through parseSaveSlots would produce.
+	// same bounded thumbnail a reload through loadSaveSlots would produce.
 	const normalized: SaveSlotRecord = {
 		...record,
 		thumbnail: boundSaveThumbnail(record.thumbnail)
@@ -433,7 +440,12 @@ export function writeSaveSlot(
 				resolved.setItem(SAVE_SLOTS_BACKUP_STORAGE_KEY, JSON.stringify(replaced));
 			}
 		} catch {
-			// Forensic copy only — never block the player's save on it.
+			// Same rule as the envelope path: never overwrite raw slot data whose
+			// forensic backup could not be secured — report the save as failed
+			// instead of destroying it (review: ignored backup failure).
+			throw new Error(
+				'Failed to secure a backup of the slot being replaced; the save was not written.'
+			);
 		}
 	}
 

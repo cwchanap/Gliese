@@ -13,6 +13,7 @@ import * as fs from '@tauri-apps/plugin-fs';
 import {
 	__resetTauriStorageForTests,
 	flushPendingWrites,
+	flushSaveWrites,
 	hydrateTauriStorage,
 	PREFERENCES_FILE_NAME,
 	PREFERENCES_FILE_TMP_NAME,
@@ -160,6 +161,22 @@ describe('tauri storage adapter', () => {
 			`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`,
 			{ oldPathBaseDir: fs.BaseDirectory.AppData, newPathBaseDir: fs.BaseDirectory.AppData }
 		);
+	});
+
+	it('flush reports failure after a failed disk write and recovers after a clean one', async () => {
+		setTauriPresent(true);
+		const adapter = await hydrateTauriStorage();
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		mockedFs.rename.mockRejectedValueOnce(new Error('disk full'));
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, '{"version":4}');
+		await expect(adapter.flush?.()).resolves.toBe(false);
+		await expect(flushSaveWrites()).resolves.toBe(false);
+
+		// A later clean write clears the failure flag.
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, '{"version":5}');
+		await expect(adapter.flush?.()).resolves.toBe(true);
+		expect(error).toHaveBeenCalled();
 	});
 
 	it('writes the slot backup key to the save-backup file', async () => {

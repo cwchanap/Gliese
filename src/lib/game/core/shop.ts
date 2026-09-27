@@ -78,8 +78,9 @@ export type HudShopBuyEntry = {
 };
 
 export type HudShopSellEntry = {
-	/** Unique per row — duplicate equipment copies share an itemId, so keyed
-	 *  lists and selection track this instead. */
+	/** Unique per row — keyed lists and selection track this. The sell command
+	 *  itself addresses items by itemId: copies of one equipment id are
+	 *  fungible, so selling removes the first unequipped copy. */
 	sellId: string;
 	itemId: string;
 	name: string;
@@ -109,6 +110,11 @@ function getStockBuyPrice(entry: ShopStockEntry): number | undefined {
 
 function isEquipped(equipment: EquipmentState, itemId: string): boolean {
 	return Object.values(equipment).includes(itemId);
+}
+
+/** Copies of `itemId` currently locked into equipment slots. */
+function countEquippedCopies(equipment: EquipmentState, itemId: string): number {
+	return Object.values(equipment).filter((equipped) => equipped === itemId).length;
 }
 
 export function createInitialShopStockState(): ShopStockState {
@@ -241,7 +247,10 @@ export function sellInventoryItem({
 		return { sold: true, wallet: { coins: wallet.coins + price }, inventory: result.inventory };
 	}
 
-	if (isEquipped(equipment, itemId)) {
+	// Equipped copies are not sellable; a surplus copy beyond the equipped
+	// ones is (duplicates only arise from hand-edited saves — addItem dedupes).
+	const ownedCopies = inventory.equipment.filter((owned) => owned === itemId).length;
+	if (ownedCopies >= 1 && ownedCopies <= countEquippedCopies(equipment, itemId)) {
 		return { sold: false, reason: 'equipped-item', wallet, inventory };
 	}
 
@@ -352,12 +361,22 @@ export function buildShopSellEntries({
 	});
 
 	const equipmentCounts = new Map<string, number>();
+	const equippedWithheld = new Map<string, number>();
 	const equipmentEntries = inventory.equipment.flatMap((itemId) => {
 		const item = getItem(itemId);
 		const price = getSellValue(itemId);
 
-		if (item?.type !== 'equipment' || price === undefined || isEquipped(equipment, itemId)) {
+		if (item?.type !== 'equipment' || price === undefined) {
 			return [];
+		}
+		// Withhold one copy per equipped slot holding this id; surplus copies
+		// (hand-edited saves only — addItem dedupes) stay sellable.
+		if (isEquipped(equipment, itemId)) {
+			const withheld = equippedWithheld.get(itemId) ?? 0;
+			equippedWithheld.set(itemId, withheld + 1);
+			if (withheld < countEquippedCopies(equipment, itemId)) {
+				return [];
+			}
 		}
 		const occurrence = equipmentCounts.get(itemId) ?? 0;
 		equipmentCounts.set(itemId, occurrence + 1);

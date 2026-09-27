@@ -178,6 +178,8 @@
 </script>
 
 {#snippet slotBody(record: SaveSlotRecord | null, index: number)}
+	<!-- Display chips are 1-based (1 = autosave) per the spec's slot numbering;
+		storage and the save-slot command stay 0-based (slot 0 = autosave). -->
 	<span class="save-slot-chip font-display" class:save-slot-chip-gold={index === 0}>
 		{index + 1}
 	</span>

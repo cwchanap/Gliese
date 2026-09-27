@@ -152,7 +152,14 @@
 		event.stopPropagation();
 
 		if (dialogue.mode === 'choice') {
-			if (!fullyRevealed) return;
+			// Keyboard confirm mirrors the Next button / pad A: the first press
+			// skips the reveal, a fresh press confirms. Auto-repeat never confirms —
+			// a held Enter must not lock in choice 0 the moment the line completes.
+			if (event.repeat) return;
+			if (!fullyRevealed) {
+				visibleCharacters = totalCharacters;
+				return;
+			}
 			const selectedChoice = dialogue.choices[selectedChoiceIndex];
 			if (selectedChoice) onchoose(selectedChoice.id);
 			return;
@@ -175,6 +182,9 @@
 		<div class="jrpg-dialogue-choices">
 			{#each dialogue.choices as choice, index (choice.id)}
 				{@const glyphs = CHOICE_GLYPHS[choice.kind ?? 'ask']}
+				<!-- Hover must move DOM focus too: the shared arrow/pad grid resolves
+				     moves from the focused element's data-focus-id, and Enter-on-panel
+				     confirms selectedChoiceIndex — pointer, keys, and pad must agree. -->
 				<button
 					type="button"
 					class="jrpg-dialogue-choice"
@@ -186,7 +196,7 @@
 					disabled={!fullyRevealed}
 					onclick={() => onchoose(choice.id)}
 					onfocus={() => (selectedChoiceIndex = index)}
-					onmouseenter={() => (selectedChoiceIndex = index)}
+					onmouseenter={(event) => event.currentTarget.focus({ preventScroll: true })}
 				>
 					<span class="jrpg-dialogue-choice-shimmer" aria-hidden="true"></span>
 					<svg
