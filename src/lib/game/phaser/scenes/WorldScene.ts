@@ -141,7 +141,7 @@ import {
 } from '$lib/game/core/dialogue';
 import type { Direction } from '$lib/game/core/types';
 import { getItemText, getNpcText, getQuestText, getShopText } from '$lib/game/i18n/content';
-import { getActiveLocale } from '$lib/game/i18n/store';
+import { getActiveLocale, preferences } from '$lib/game/i18n/store';
 import { t, type MessageKey } from '$lib/game/i18n/translate';
 import { createNewSaveState, serializeSaveState, type SaveState } from '$lib/game/save/save-state';
 import { getPlaytimeSeconds } from '$lib/game/save/playtime';
@@ -652,7 +652,24 @@ export class WorldScene extends Phaser.Scene {
 			: [];
 		this.removeHudCommandListener();
 		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
-		this.events?.once?.('shutdown', () => this.removeHudCommandListener());
+		this.unsubscribePreferences?.();
+		let preferencesInitialized = false;
+		this.unsubscribePreferences = preferences.subscribe(() => {
+			// Svelte stores emit once on subscribe; skip that and re-publish only
+			// on real changes, so a locale switch refreshes the translated quest
+			// and status strings without waiting for the next world event.
+			if (!preferencesInitialized) {
+				preferencesInitialized = true;
+				return;
+			}
+			this.publishHudState(this.lastPublishedStatus);
+		});
+		this.events?.once?.('shutdown', () => {
+			this.renderEpoch += 1;
+			this.removeHudCommandListener();
+			this.unsubscribePreferences?.();
+			this.unsubscribePreferences = null;
+		});
 
 		this.revealCurrentMapArea();
 		// Explicit durable points write the autosave slot: new-run readiness,
@@ -2823,26 +2840,25 @@ export class WorldScene extends Phaser.Scene {
 		return result.changed;
 	}
 
-	/**
-	 * Build a slot record for the current run state. `game.canvas` is undefined
-	 * in mocked/headless environments; captureSaveThumbnail then omits the image.
-	 */
-	private buildSlotRecord(kind: SaveSlotRecord['kind'], state: SaveState): SaveSlotRecord {
-		return {
-			kind,
-			savedAt: new Date().toISOString(),
-			playtimeSeconds: getPlaytimeSeconds(),
-			thumbnail: this.captureSlotThumbnail(state.mapId),
-			state
-		};
-	}
-
 	// Copying the canvas and encoding a JPEG is expensive, so thumbnails are
 	// captured once per map and reused while the save stays on it.
 	private lastThumbnailMapId: string | null = null;
 	private lastThumbnail: string | undefined;
 
-	private captureSlotThumbnail(mapId: string): string | undefined {
+	// Bumped on scene shutdown: a deferred POST_RENDER callback that was queued
+	// before a same-update scene switch (pickup autosave followed by
+	// startBattle) must not treat the shared canvas as this scene's frame.
+	private renderEpoch = 0;
+	private unsubscribePreferences: (() => void) | null = null;
+
+	private captureSlotThumbnail(mapId: string, canvasOwned = true): string | undefined {
+		// The canvas belongs to another scene (battle started after this save
+		// was queued): capturing would cache a foreign frame under this map's
+		// id. Reuse the last good thumbnail or save without one — the save
+		// itself must still land.
+		if (!canvasOwned) {
+			return this.lastThumbnail;
+		}
 		if (mapId !== this.lastThumbnailMapId) {
 			const captured = captureSaveThumbnail(this.game?.canvas);
 			// Cache only a successful capture — a failed one (canvas not ready
@@ -2863,20 +2879,42 @@ export class WorldScene extends Phaser.Scene {
 	 * what lets thumbnail capture work without preserveDrawingBuffer (which
 	 * would slow every frame). Renderers without an event emitter — mocked or
 	 * headless environments — run the action immediately.
+	 *
+	 * The action receives whether THIS scene still owned the canvas when the
+	 * frame rendered: a same-update scene switch (pickup autosave queued, then
+	 * startBattle) shuts this scene down before the render pass, so the
+	 * post-render canvas holds another scene's frame.
 	 */
-	private afterNextRenderedFrame(action: () => void) {
+	private afterNextRenderedFrame(action: (canvasOwned: boolean) => void) {
 		const renderer = this.game?.renderer;
 		if (typeof renderer?.once !== 'function') {
-			action();
+			action(true);
 			return;
 		}
-		renderer.once(Phaser.Renderer.Events.POST_RENDER, action);
+		const epoch = this.renderEpoch;
+		renderer.once(Phaser.Renderer.Events.POST_RENDER, () => {
+			action(epoch === this.renderEpoch);
+		});
+	}
+
+	private buildSlotRecord(
+		kind: SaveSlotRecord['kind'],
+		state: SaveState,
+		canvasOwned = true
+	): SaveSlotRecord {
+		return {
+			kind,
+			savedAt: new Date().toISOString(),
+			playtimeSeconds: getPlaytimeSeconds(),
+			thumbnail: this.captureSlotThumbnail(state.mapId, canvasOwned),
+			state
+		};
 	}
 
 	private writeAutosave(state: SaveState) {
-		this.afterNextRenderedFrame(async () => {
+		this.afterNextRenderedFrame(async (canvasOwned) => {
 			try {
-				writeSaveSlot(0, this.buildSlotRecord('autosave', state));
+				writeSaveSlot(0, this.buildSlotRecord('autosave', state, canvasOwned));
 				// The adapter queues an asynchronous disk write; a cache-only
 				// "success" must still reach the log when the disk rejects it.
 				if (!(await flushSaveStorage())) {
@@ -2892,9 +2930,9 @@ export class WorldScene extends Phaser.Scene {
 
 	private writeManualSlot(slot: 1 | 2) {
 		const state = this.buildSaveState();
-		this.afterNextRenderedFrame(async () => {
+		this.afterNextRenderedFrame(async (canvasOwned) => {
 			try {
-				const result = writeSaveSlot(slot, this.buildSlotRecord('manual', state));
+				const result = writeSaveSlot(slot, this.buildSlotRecord('manual', state, canvasOwned));
 				// setItem only queues the disk write on Tauri — wait for it before
 				// telling the player the save landed (review: critical).
 				if (!(await flushSaveStorage())) {

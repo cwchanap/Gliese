@@ -8,7 +8,13 @@ import {
 } from '@tauri-apps/plugin-fs';
 
 import { PREFERENCES_STORAGE_KEY } from '$lib/game/i18n/preferences';
-import { SAVE_SLOTS_BACKUP_STORAGE_KEY, SAVE_SLOTS_STORAGE_KEY } from '$lib/game/save/slots';
+import {
+	SAVE_SLOTS_BACKUP_STORAGE_KEY,
+	SAVE_SLOTS_STORAGE_KEY,
+	markSaveStorageUnreadable,
+	saveSlotBackupStorageKey,
+	type SaveSlotIndex
+} from '$lib/game/save/slots';
 import type { SaveStorage } from '$lib/game/save/storage';
 
 export const SAVE_FILE_DIR = 'com.gliese.app';
@@ -16,6 +22,11 @@ export const SAVE_FILE_NAME = 'gliese-save.json';
 export const SAVE_FILE_TMP_NAME = 'gliese-save.json.tmp';
 export const SAVE_BACKUP_FILE_NAME = 'gliese-save-backup.json';
 export const SAVE_BACKUP_FILE_TMP_NAME = 'gliese-save-backup.json.tmp';
+export const SAVE_SLOT_BACKUP_FILE_NAMES = [
+	'gliese-save-backup-slot0.json',
+	'gliese-save-backup-slot1.json',
+	'gliese-save-backup-slot2.json'
+] as const;
 export const PREFERENCES_FILE_NAME = 'gliese-preferences.json';
 export const PREFERENCES_FILE_TMP_NAME = 'gliese-preferences.json.tmp';
 
@@ -29,6 +40,8 @@ type WriteQueue = {
 	fileName: string;
 	pendingWrite: Promise<void>;
 	queuedValue: string | undefined;
+	/** The most recent value handed to the queue — the retry source for forensic backups. */
+	lastValue: string | undefined;
 	tmpName: string;
 	/** Set by the last disk write; `flush` reports it so callers never claim success over a failed write. */
 	lastWriteFailed: boolean;
@@ -52,11 +65,30 @@ const persistedFiles = new Map<string, PersistedFileSpec>([
 		SAVE_SLOTS_BACKUP_STORAGE_KEY,
 		createPersistedFileSpec(SAVE_BACKUP_FILE_NAME, SAVE_BACKUP_FILE_TMP_NAME)
 	],
+	...([0, 1, 2] as SaveSlotIndex[]).map((index) => {
+		const fileName = SAVE_SLOT_BACKUP_FILE_NAMES[index];
+		return [
+			saveSlotBackupStorageKey(index),
+			createPersistedFileSpec(fileName, `${fileName}.tmp`)
+		] as [string, PersistedFileSpec];
+	}),
 	[
 		PREFERENCES_STORAGE_KEY,
 		createPersistedFileSpec(PREFERENCES_FILE_NAME, PREFERENCES_FILE_TMP_NAME)
 	]
 ]);
+
+// The save file's writes are gated on every forensic backup queue: the
+// original payload's only durable copy lives in those files, so the save
+// file must never be replaced while a backup is still pending or failed
+// (review: failed backup permits save replacement).
+const saveFileQueue = persistedFiles.get(SAVE_SLOTS_STORAGE_KEY)!.queue;
+const forensicBackupQueues = [
+	persistedFiles.get(SAVE_SLOTS_BACKUP_STORAGE_KEY)!.queue,
+	...([0, 1, 2] as SaveSlotIndex[]).map(
+		(index) => persistedFiles.get(saveSlotBackupStorageKey(index))!.queue
+	)
+];
 
 function isTauriRuntime(): boolean {
 	const win = (globalThis as { window?: { __TAURI_INTERNALS__?: unknown } }).window;
@@ -75,12 +107,19 @@ export async function hydrateTauriStorage(): Promise<SaveStorage> {
 	}
 
 	const cache = new Map<string, string>();
+	let saveFileUnreadable = false;
 
 	for (const [storageKey, spec] of persistedFiles) {
-		await readStorageFile(cache, storageKey, spec.fileName);
+		const readOk = await readStorageFile(cache, storageKey, spec.fileName);
+		// An existing save file that could not be read is not "missing" — flag
+		// the adapter so writes stay blocked until the player confirms a
+		// discard, instead of silently overwriting the unreadable file.
+		if (!readOk && storageKey === SAVE_SLOTS_STORAGE_KEY) {
+			saveFileUnreadable = true;
+		}
 	}
 
-	return {
+	const adapter: SaveStorage = {
 		getItem(key) {
 			return cache.get(key) ?? null;
 		},
@@ -103,23 +142,33 @@ export async function hydrateTauriStorage(): Promise<SaveStorage> {
 			return flushSaveWrites();
 		}
 	};
+	if (saveFileUnreadable) markSaveStorageUnreadable(adapter);
+	return adapter;
 }
 
+/**
+ * Hydrates one persisted file into the cache.
+ * @returns true when the file is definitively absent or was read; false when
+ *   it may exist on disk but could not be read (callers must treat the
+ *   payload as unreadable, not missing).
+ */
 async function readStorageFile(
 	cache: Map<string, string>,
 	storageKey: string,
 	fileName: string
-): Promise<void> {
+): Promise<boolean> {
 	try {
 		if (await exists(`${SAVE_FILE_DIR}/${fileName}`, APP_DATA)) {
 			const text = await readTextFile(`${SAVE_FILE_DIR}/${fileName}`, APP_DATA);
 			cache.set(storageKey, text);
 		}
+		return true;
 	} catch (error) {
 		console.warn(
 			`Failed to read existing ${fileName}; starting with an empty cache. The corrupt file is preserved.`,
 			error
 		);
+		return false;
 	}
 }
 
@@ -128,6 +177,7 @@ function createWriteQueue(fileName: string, tmpName: string): WriteQueue {
 		fileName,
 		pendingWrite: Promise.resolve(),
 		queuedValue: undefined,
+		lastValue: undefined,
 		tmpName,
 		lastWriteFailed: false
 	};
@@ -135,6 +185,7 @@ function createWriteQueue(fileName: string, tmpName: string): WriteQueue {
 
 function scheduleWrite(queue: WriteQueue, value: string): void {
 	queue.queuedValue = value;
+	queue.lastValue = value;
 	queue.pendingWrite = queue.pendingWrite.then(async () => {
 		// Drain coalesced writes: keep flushing while a newer queued value arrived during the prior await.
 		while (queue.queuedValue !== undefined) {
@@ -146,6 +197,29 @@ function scheduleWrite(queue: WriteQueue, value: string): void {
 }
 
 async function performAtomicWrite(queue: WriteQueue, value: string): Promise<void> {
+	// Forensic gate: before the save file is replaced on disk, every backup
+	// write must be durable. Wait for pending backups, retry failed ones once
+	// more, and refuse the destructive write entirely if any backup still
+	// fails — the original payload must never be destroyed unsecured.
+	if (queue === saveFileQueue) {
+		for (const backupQueue of forensicBackupQueues) {
+			// `queuedValue` is consumed before the backup's await resolves, so
+			// only the chain's completion proves the backup reached disk.
+			if (backupQueue.lastValue !== undefined) {
+				await backupQueue.pendingWrite;
+			}
+			if (backupQueue.lastWriteFailed && backupQueue.lastValue) {
+				await performAtomicWrite(backupQueue, backupQueue.lastValue);
+			}
+			if (backupQueue.lastWriteFailed) {
+				queue.lastWriteFailed = true;
+				console.error(
+					`Refusing to persist ${queue.fileName}: its forensic backup ${backupQueue.fileName} could not be secured; the original file is preserved.`
+				);
+				return;
+			}
+		}
+	}
 	try {
 		await mkdir(SAVE_FILE_DIR, { baseDir: BaseDirectory.AppData, recursive: true });
 		await writeTextFile(`${SAVE_FILE_DIR}/${queue.tmpName}`, value, APP_DATA);
@@ -195,5 +269,6 @@ export function __resetTauriStorageForTests(): void {
 function resetWriteQueue(queue: WriteQueue): void {
 	queue.pendingWrite = Promise.resolve();
 	queue.queuedValue = undefined;
+	queue.lastValue = undefined;
 	queue.lastWriteFailed = false;
 }

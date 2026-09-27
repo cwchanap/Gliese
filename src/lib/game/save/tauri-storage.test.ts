@@ -24,7 +24,11 @@ import {
 	SAVE_FILE_TMP_NAME
 } from '$lib/game/save/tauri-storage';
 import { PREFERENCES_STORAGE_KEY } from '$lib/game/i18n/preferences';
-import { SAVE_SLOTS_BACKUP_STORAGE_KEY, SAVE_SLOTS_STORAGE_KEY } from '$lib/game/save/slots';
+import {
+	SAVE_SLOTS_BACKUP_STORAGE_KEY,
+	SAVE_SLOTS_STORAGE_KEY,
+	saveSlotsUnreadable
+} from '$lib/game/save/slots';
 
 const mockedFs = vi.mocked(fs);
 
@@ -102,11 +106,10 @@ describe('tauri storage adapter', () => {
 
 	it('hydrates from disk when the preference file exists', async () => {
 		setTauriPresent(true);
-		// Hydration order: save file → save-backup file → preferences file.
-		mockedFs.exists
-			.mockResolvedValueOnce(false)
-			.mockResolvedValueOnce(false)
-			.mockResolvedValueOnce(true);
+		// Hydration walks every persisted file; only the preferences file exists.
+		mockedFs.exists.mockImplementation(
+			async (path) => path === `${SAVE_FILE_DIR}/${PREFERENCES_FILE_NAME}`
+		);
 		mockedFs.readTextFile.mockResolvedValueOnce(PREFERENCES_DOC);
 
 		const adapter = await hydrateTauriStorage();
@@ -118,6 +121,64 @@ describe('tauri storage adapter', () => {
 			}
 		);
 		expect(adapter.getItem(PREFERENCES_STORAGE_KEY)).toBe(PREFERENCES_DOC);
+	});
+
+	it('flags the adapter unreadable when the existing save file cannot be read', async () => {
+		setTauriPresent(true);
+		// The save file exists but the disk read fails: the payload must be
+		// treated as unreadable, not missing, so writes stay blocked instead of
+		// overwriting the preserved file (review: unreadable desktop saves).
+		mockedFs.exists.mockImplementation(
+			async (path) => path === `${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`
+		);
+		mockedFs.readTextFile.mockRejectedValueOnce(new Error('temporarily unavailable'));
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+		const adapter = await hydrateTauriStorage();
+
+		expect(adapter.getItem(SAVE_SLOTS_STORAGE_KEY)).toBeNull();
+		expect(saveSlotsUnreadable(adapter)).toBe(true);
+		warn.mockRestore();
+	});
+
+	it('refuses to replace the save file while its forensic backup cannot be secured', async () => {
+		setTauriPresent(true);
+		const adapter = await hydrateTauriStorage();
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		// The backup write fails on disk while the save write would succeed.
+		mockedFs.writeTextFile.mockImplementation(async (path) => {
+			if (path === `${SAVE_FILE_DIR}/${SAVE_BACKUP_FILE_TMP_NAME}`) {
+				throw new Error('disk error');
+			}
+		});
+
+		adapter.setItem(SAVE_SLOTS_BACKUP_STORAGE_KEY, '{"forensic":"copy"}');
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, '{"version":4}');
+		await expect(flushSaveWrites()).resolves.toBe(false);
+
+		// The save file was never replaced — the original payload survives.
+		expect(mockedFs.rename).not.toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`,
+			`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`,
+			expect.anything()
+		);
+
+		// Once the disk recovers, the next save retries the backup and lands.
+		mockedFs.writeTextFile.mockResolvedValue(undefined);
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, '{"version":5}');
+		await expect(flushSaveWrites()).resolves.toBe(true);
+		expect(mockedFs.rename).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${SAVE_BACKUP_FILE_TMP_NAME}`,
+			`${SAVE_FILE_DIR}/${SAVE_BACKUP_FILE_NAME}`,
+			expect.anything()
+		);
+		expect(mockedFs.rename).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`,
+			`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`,
+			expect.anything()
+		);
+		error.mockRestore();
 	});
 
 	it('returns an empty adapter when no save file exists', async () => {

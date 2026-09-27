@@ -8,6 +8,7 @@ import {
 	discardUnreadableSaveSlots,
 	getNewestSaveSlot,
 	loadSaveSlots,
+	saveSlotBackupStorageKey,
 	saveSlotsUnreadable,
 	type SaveSlotRecord,
 	writeSaveSlot
@@ -391,7 +392,26 @@ describe('save slots', () => {
 
 		const stored = JSON.parse(storage.getItem(SAVE_SLOTS_STORAGE_KEY) ?? 'null');
 		expect(stored.slots[1].savedAt).toBe('2026-09-04T12:00:00.000Z');
-		expect(storage.getItem(SAVE_SLOTS_BACKUP_STORAGE_KEY)).toBe(JSON.stringify(invalidSlot));
+		expect(storage.getItem(saveSlotBackupStorageKey(1))).toBe(JSON.stringify(invalidSlot));
+	});
+
+	it('backs up each replaced corrupt slot under its own key', () => {
+		const invalidSlot1 = { kind: 'manual', savedAt: 'not-a-timestamp', state: { keep: 'one' } };
+		const invalidSlot2 = { kind: 'manual', savedAt: 'also-bad', state: { keep: 'two' } };
+		const storage = memoryStorage({
+			[SAVE_SLOTS_STORAGE_KEY]: JSON.stringify({
+				version: 1,
+				slots: [null, invalidSlot1, invalidSlot2]
+			})
+		});
+		setSaveStorage(storage);
+
+		writeSaveSlot(1, record('2026-09-04T12:00:00.000Z'), storage);
+		writeSaveSlot(2, record('2026-09-04T12:01:00.000Z'), storage);
+
+		// A shared backup key would have kept only the first slot's raw data.
+		expect(storage.getItem(saveSlotBackupStorageKey(1))).toBe(JSON.stringify(invalidSlot1));
+		expect(storage.getItem(saveSlotBackupStorageKey(2))).toBe(JSON.stringify(invalidSlot2));
 	});
 
 	it('refuses to overwrite an invalid slot whose forensic backup cannot be written', () => {
@@ -406,7 +426,7 @@ describe('save slots', () => {
 			getItem: (key) => base.getItem(key),
 			removeItem: (key) => base.removeItem(key),
 			setItem: (key, value) => {
-				if (key === SAVE_SLOTS_BACKUP_STORAGE_KEY) throw new Error('quota');
+				if (key === saveSlotBackupStorageKey(1)) throw new Error('quota');
 				base.setItem(key, value);
 			}
 		};
