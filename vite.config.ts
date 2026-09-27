@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import tailwindcss from '@tailwindcss/vite';
 import { playwright } from '@vitest/browser-playwright';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 // Asset-byte tests that hash/decode real Git LFS-tracked PNGs, plus the
@@ -19,6 +20,17 @@ const lfsAssetTestFiles = [
 	'src/lib/game/content/backgrounds/meadow-entry-painted-v2-complete-assembly.test.ts'
 ];
 const skipLfsAssetTests = process.env.CI_SKIP_LFS_ASSET_TESTS === '1';
+
+// These three read generation source material under artifacts/, which is
+// local-only now (untracked to keep the LFS payload at the shipped public/
+// assets). They run wherever the artifacts tree exists — dev machines — and
+// skip everywhere else, including the Asset Integrity workflow.
+const artifactsAssetTestFiles = [
+	'src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts',
+	'src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot.test.ts',
+	'src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts'
+];
+const skipArtifactsAssetTests = !existsSync('artifacts/meadow-entry');
 
 export default defineConfig({
 	plugins: [tailwindcss(), svelte()],
@@ -66,7 +78,8 @@ export default defineConfig({
 					],
 					exclude: [
 						'src/**/*.svelte.{test,spec}.{js,ts}',
-						...(skipLfsAssetTests ? lfsAssetTestFiles : [])
+						...(skipLfsAssetTests ? lfsAssetTestFiles : []),
+						...(skipArtifactsAssetTests ? artifactsAssetTestFiles : [])
 					]
 				}
 			}

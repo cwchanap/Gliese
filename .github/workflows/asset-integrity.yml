@@ -1,10 +1,13 @@
 name: Asset Integrity
 
-# Verifies tests that read real Git LFS image bytes (interior base PNGs,
-# meadow-entry painted-v2 source panels / underlays / proof snapshots) and
-# the e2e suite, which renders those images as Phaser textures. These cannot
-# run in the core CI workflow, which checks out without LFS to stay fast and
-# within GitHub LFS bandwidth quotas.
+# Verifies tests that read real Git LFS image bytes (interior base PNGs and
+# the synthetic master-assembly test) and the e2e suite, which renders those
+# images as Phaser textures. These cannot run in the core CI workflow, which
+# checks out without LFS to stay fast and within GitHub LFS bandwidth quotas.
+#
+# The LFS payload is the shipped public/game/assets art only (~191 MB).
+# Generation source material under artifacts/ is local-only (untracked);
+# the three tests that read it skip wherever that tree is absent.
 #
 # Runs:
 #   - weekly (Monday 03:00 UTC)
@@ -12,8 +15,8 @@ name: Asset Integrity
 #   - on push/PR when asset-relevant paths change
 #
 # The cadence is weekly (not daily) to limit LFS bandwidth: each run fetches
-# the full ~184 MB LFS payload, and GitHub Actions LFS downloads count against
-# the repo owner's bandwidth allowance. Path-triggered and manual runs cover
+# the full LFS payload, and GitHub Actions LFS downloads count against the
+# repo owner's bandwidth allowance. Path-triggered and manual runs cover
 # asset PRs between scheduled runs.
 
 on:
@@ -41,7 +44,6 @@ on:
     branches: [main]
     paths:
       - 'public/game/assets/**'
-      - 'artifacts/**'
       - '.gitattributes'
       - '.github/workflows/asset-integrity.yml'
       - 'src/lib/game/content/**'
@@ -53,7 +55,6 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'public/game/assets/**'
-      - 'artifacts/**'
       - '.gitattributes'
       - '.github/workflows/asset-integrity.yml'
       - 'src/lib/game/content/**'
@@ -125,12 +126,12 @@ jobs:
         run: bunx playwright install --with-deps chromium
 
       - name: Run LFS-dependent asset unit tests
+        # The three artifacts/-sourced suites (art-proofs, painted-v2-pilot,
+        # underlay-assembly) are excluded by vite.config.ts wherever the
+        # local-only artifacts tree is absent — including this workflow.
         run: |
           bun run test:unit -- --run \
             src/lib/game/content/village-interior-assets.asset.test.ts \
-            src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts \
-            src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot.test.ts \
-            src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts \
             src/lib/game/content/backgrounds/meadow-entry-painted-v2-complete-assembly.test.ts
 
       - name: Build for e2e
