@@ -75,3 +75,4 @@ dist/
 # Python cache
 __pycache__/
 
+artifacts/
