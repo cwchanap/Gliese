@@ -396,7 +396,10 @@ vi.mock('$lib/game/story/client', () => ({
 }));
 
 vi.mock('$lib/game/i18n/store', () => ({
-	getActiveLocale: () => localeState.activeLocale
+	getActiveLocale: () => localeState.activeLocale,
+	preferences: {
+		subscribe: (_listener: (value: unknown) => void) => () => {}
+	}
 }));
 
 vi.mock('$lib/game/i18n/translate', async () => {
@@ -7553,6 +7556,65 @@ describe('WorldScene', () => {
 				expect.any(String)
 			);
 		} finally {
+			renderer.once = originalOnce;
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('still writes the autosave after a same-update scene switch, without capturing the foreign canvas', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const thumbnail = await import('$lib/game/save/thumbnail');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+
+		const postrenderCallbacks: Array<() => void> = [];
+		const rendererOnce = vi.fn((event: string, callback: () => void) => {
+			if (event === 'postrender') postrenderCallbacks.push(callback);
+		});
+		const renderer = phaserState.renderer as { once?: unknown };
+		const originalOnce = renderer.once;
+		renderer.once = rendererOnce;
+		const captureSpy = vi
+			.spyOn(thumbnail, 'captureSaveThumbnail')
+			.mockReturnValue('data:image/jpeg;base64,QUJD');
+		const sceneInternals = scene as unknown as {
+			writeAutosave: (state: unknown) => void;
+			buildSaveState: () => never;
+		};
+		try {
+			scene.create({ reason: 'new', saveState: null });
+			scene.events.emit('render');
+			expect(postrenderCallbacks.length).toBe(1);
+
+			// The battle scene took over before this frame rendered: WorldScene
+			// queued the autosave, then startBattle shut it down in the same update.
+			scene.events.emit('shutdown');
+
+			for (const callback of postrenderCallbacks.splice(0)) {
+				callback();
+			}
+
+			// The autosave must still land ...
+			expect(memoryStorage.setItem).toHaveBeenCalledWith(
+				slots.SAVE_SLOTS_STORAGE_KEY,
+				expect.any(String)
+			);
+			// ... but the canvas — now owned by the battle scene — must not be
+			// captured, and its per-map cache must not be poisoned.
+			expect(captureSpy).not.toHaveBeenCalled();
+
+			// Control: with the scene alive, the same deferred write captures.
+			sceneInternals.writeAutosave(sceneInternals.buildSaveState());
+			for (const callback of postrenderCallbacks.splice(0)) {
+				callback();
+			}
+			expect(captureSpy).toHaveBeenCalledTimes(1);
+		} finally {
+			captureSpy.mockRestore();
 			renderer.once = originalOnce;
 			storage.setSaveStorage(undefined);
 		}

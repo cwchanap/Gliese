@@ -12,6 +12,16 @@ export const SAVE_SLOTS_STORAGE_KEY = 'gliese.saves.v1';
  */
 export const SAVE_SLOTS_BACKUP_STORAGE_KEY = 'gliese.saves.v1.backup';
 
+/**
+ * Forensic backup key for a single replaced slot entry. Per-slot keys keep
+ * a second corrupt slot from overwriting the first slot's backup — each
+ * replaced raw payload is secured under its own key (review: second corrupt
+ * slot loses its backup).
+ */
+export function saveSlotBackupStorageKey(index: SaveSlotIndex): string {
+	return `${SAVE_SLOTS_STORAGE_KEY}.backup.slot${index}`;
+}
+
 function backupStorageKeyFor(sourceKey: string): string {
 	return `${sourceKey}.backup`;
 }
@@ -214,10 +224,21 @@ function markUnreadable(resolved: SaveStorage): void {
 	unreadableEnvelopes.add(resolved);
 }
 
-/** Whether the adapter's save payload is unreadable and writes are blocked. */
+/**
+ * Whether the adapter's save payload is unreadable and writes are blocked.
+ */
 export function saveSlotsUnreadable(storage?: SaveStorage): boolean {
 	const resolved = storage ?? getSaveStorage();
 	return resolved !== undefined && unreadableEnvelopes.has(resolved);
+}
+
+/**
+ * Boot-time hook for adapters whose on-disk payload exists but could not be
+ * read: block envelope writes until the player confirms a discard, exactly
+ * like an unparseable payload (review: unreadable desktop saves overwritten).
+ */
+export function markSaveStorageUnreadable(storage: SaveStorage): void {
+	markUnreadable(storage);
 }
 
 /**
@@ -431,13 +452,15 @@ export function writeSaveSlot(
 	// Siblings that fail validation read as null but keep their raw payload in
 	// the stored envelope, so saving one slot cannot erase another's data. The
 	// slot being written is the one exception: if it holds data that failed
-	// validation, keep a forensic copy first — but never clobber an existing
-	// envelope-level backup (review: invalid slot shown as empty).
+	// validation, keep a forensic copy first under that slot's own backup key —
+	// a shared key would let a second corrupt slot overwrite the first slot's
+	// only copy (review: second corrupt slot loses its backup).
 	const replaced = rawSlots?.[index];
 	if (replaced !== null && replaced !== undefined && previousSlot === null) {
 		try {
-			if (resolved.getItem(SAVE_SLOTS_BACKUP_STORAGE_KEY) === null) {
-				resolved.setItem(SAVE_SLOTS_BACKUP_STORAGE_KEY, JSON.stringify(replaced));
+			const slotBackupKey = saveSlotBackupStorageKey(index);
+			if (resolved.getItem(slotBackupKey) === null) {
+				resolved.setItem(slotBackupKey, JSON.stringify(replaced));
 			}
 		} catch {
 			// Same rule as the envelope path: never overwrite raw slot data whose
