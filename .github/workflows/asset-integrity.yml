@@ -10,13 +10,18 @@ name: Asset Integrity
 # the three tests that read it skip wherever that tree is absent.
 #
 # Runs:
-#   - weekly (Monday 03:00 UTC)
-#   - on demand (workflow_dispatch)
+#   - on demand (workflow_dispatch) only
 #
 # Optional by design: no push/PR triggers — it never gates or marks a PR red,
 # and while the account's LFS budget is exhausted it cannot run at all
 # (checkout fails at the LFS batch API). Trigger it manually after asset
-# changes, or wait for the weekly run.
+# changes.
+#
+# ponytail: weekly cron disabled while the LFS budget blocks checkout —
+# re-enable by uncommenting the schedule below once budget is paid/reset.
+# on:
+#   schedule:
+#     - cron: '0 3 * * * 1'
 #
 # The cadence is weekly (not daily) to limit LFS bandwidth: each run fetches
 # the full LFS payload, and GitHub Actions LFS downloads count against the
@@ -25,8 +30,6 @@ name: Asset Integrity
 # are inert (the event can no longer fire) and kept for a future re-enable.
 
 on:
-  schedule:
-    - cron: '0 3 * * 1'
   workflow_dispatch:
     inputs:
       lanes:
