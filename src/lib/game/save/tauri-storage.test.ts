@@ -13,17 +13,32 @@ import * as fs from '@tauri-apps/plugin-fs';
 import {
 	__resetTauriStorageForTests,
 	flushPendingWrites,
+	flushSaveWrites,
 	hydrateTauriStorage,
 	PREFERENCES_FILE_NAME,
 	PREFERENCES_FILE_TMP_NAME,
+	SAVE_BACKUP_FILE_NAME,
+	SAVE_BACKUP_FILE_TMP_NAME,
 	SAVE_FILE_DIR,
 	SAVE_FILE_NAME,
 	SAVE_FILE_TMP_NAME
 } from '$lib/game/save/tauri-storage';
-import { LANGUAGE_PREFERENCE_STORAGE_KEY } from '$lib/game/i18n/preferences';
-import { SAVE_STORAGE_KEY } from '$lib/game/save/storage';
+import { PREFERENCES_STORAGE_KEY } from '$lib/game/i18n/preferences';
+import {
+	SAVE_SLOTS_BACKUP_STORAGE_KEY,
+	SAVE_SLOTS_STORAGE_KEY,
+	saveSlotsUnreadable
+} from '$lib/game/save/slots';
 
 const mockedFs = vi.mocked(fs);
+
+// The unified preferences record stored at PREFERENCES_STORAGE_KEY.
+const PREFERENCES_DOC = JSON.stringify({
+	locale: 'ja',
+	textSpeed: 'normal',
+	motion: 'on',
+	promptMode: 'auto'
+});
 
 function setTauriPresent(present: boolean) {
 	if (present) {
@@ -86,13 +101,16 @@ describe('tauri storage adapter', () => {
 		expect(mockedFs.readTextFile).toHaveBeenCalledWith(`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`, {
 			baseDir: fs.BaseDirectory.AppData
 		});
-		expect(adapter.getItem(SAVE_STORAGE_KEY)).toBe('{"version":4,"foo":"bar"}');
+		expect(adapter.getItem(SAVE_SLOTS_STORAGE_KEY)).toBe('{"version":4,"foo":"bar"}');
 	});
 
 	it('hydrates from disk when the preference file exists', async () => {
 		setTauriPresent(true);
-		mockedFs.exists.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-		mockedFs.readTextFile.mockResolvedValueOnce('ja');
+		// Hydration walks every persisted file; only the preferences file exists.
+		mockedFs.exists.mockImplementation(
+			async (path) => path === `${SAVE_FILE_DIR}/${PREFERENCES_FILE_NAME}`
+		);
+		mockedFs.readTextFile.mockResolvedValueOnce(PREFERENCES_DOC);
 
 		const adapter = await hydrateTauriStorage();
 
@@ -102,7 +120,65 @@ describe('tauri storage adapter', () => {
 				baseDir: fs.BaseDirectory.AppData
 			}
 		);
-		expect(adapter.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY)).toBe('ja');
+		expect(adapter.getItem(PREFERENCES_STORAGE_KEY)).toBe(PREFERENCES_DOC);
+	});
+
+	it('flags the adapter unreadable when the existing save file cannot be read', async () => {
+		setTauriPresent(true);
+		// The save file exists but the disk read fails: the payload must be
+		// treated as unreadable, not missing, so writes stay blocked instead of
+		// overwriting the preserved file (review: unreadable desktop saves).
+		mockedFs.exists.mockImplementation(
+			async (path) => path === `${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`
+		);
+		mockedFs.readTextFile.mockRejectedValueOnce(new Error('temporarily unavailable'));
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+		const adapter = await hydrateTauriStorage();
+
+		expect(adapter.getItem(SAVE_SLOTS_STORAGE_KEY)).toBeNull();
+		expect(saveSlotsUnreadable(adapter)).toBe(true);
+		warn.mockRestore();
+	});
+
+	it('refuses to replace the save file while its forensic backup cannot be secured', async () => {
+		setTauriPresent(true);
+		const adapter = await hydrateTauriStorage();
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		// The backup write fails on disk while the save write would succeed.
+		mockedFs.writeTextFile.mockImplementation(async (path) => {
+			if (path === `${SAVE_FILE_DIR}/${SAVE_BACKUP_FILE_TMP_NAME}`) {
+				throw new Error('disk error');
+			}
+		});
+
+		adapter.setItem(SAVE_SLOTS_BACKUP_STORAGE_KEY, '{"forensic":"copy"}');
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, '{"version":4}');
+		await expect(flushSaveWrites()).resolves.toBe(false);
+
+		// The save file was never replaced — the original payload survives.
+		expect(mockedFs.rename).not.toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`,
+			`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`,
+			expect.anything()
+		);
+
+		// Once the disk recovers, the next save retries the backup and lands.
+		mockedFs.writeTextFile.mockResolvedValue(undefined);
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, '{"version":5}');
+		await expect(flushSaveWrites()).resolves.toBe(true);
+		expect(mockedFs.rename).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${SAVE_BACKUP_FILE_TMP_NAME}`,
+			`${SAVE_FILE_DIR}/${SAVE_BACKUP_FILE_NAME}`,
+			expect.anything()
+		);
+		expect(mockedFs.rename).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${SAVE_FILE_TMP_NAME}`,
+			`${SAVE_FILE_DIR}/${SAVE_FILE_NAME}`,
+			expect.anything()
+		);
+		error.mockRestore();
 	});
 
 	it('returns an empty adapter when no save file exists', async () => {
@@ -111,8 +187,8 @@ describe('tauri storage adapter', () => {
 
 		const adapter = await hydrateTauriStorage();
 
-		expect(adapter.getItem(SAVE_STORAGE_KEY)).toBeNull();
-		expect(adapter.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY)).toBeNull();
+		expect(adapter.getItem(SAVE_SLOTS_STORAGE_KEY)).toBeNull();
+		expect(adapter.getItem(PREFERENCES_STORAGE_KEY)).toBeNull();
 		expect(mockedFs.readTextFile).not.toHaveBeenCalled();
 	});
 
@@ -124,7 +200,7 @@ describe('tauri storage adapter', () => {
 
 		const adapter = await hydrateTauriStorage();
 
-		expect(adapter.getItem(SAVE_STORAGE_KEY)).toBeNull();
+		expect(adapter.getItem(SAVE_SLOTS_STORAGE_KEY)).toBeNull();
 		expect(mockedFs.writeTextFile).not.toHaveBeenCalled();
 		expect(warn).toHaveBeenCalled();
 	});
@@ -133,7 +209,7 @@ describe('tauri storage adapter', () => {
 		setTauriPresent(true);
 		const adapter = await hydrateTauriStorage();
 
-		adapter.setItem(SAVE_STORAGE_KEY, '{"version":4}');
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, '{"version":4}');
 		await flushPendingWrites();
 
 		expect(mockedFs.writeTextFile).toHaveBeenCalledWith(
@@ -148,16 +224,51 @@ describe('tauri storage adapter', () => {
 		);
 	});
 
-	it('writes language preference changes to the preference file only', async () => {
+	it('flush reports failure after a failed disk write and recovers after a clean one', async () => {
+		setTauriPresent(true);
+		const adapter = await hydrateTauriStorage();
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		mockedFs.rename.mockRejectedValueOnce(new Error('disk full'));
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, '{"version":4}');
+		await expect(adapter.flush?.()).resolves.toBe(false);
+		await expect(flushSaveWrites()).resolves.toBe(false);
+
+		// A later clean write clears the failure flag.
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, '{"version":5}');
+		await expect(adapter.flush?.()).resolves.toBe(true);
+		expect(error).toHaveBeenCalled();
+	});
+
+	it('writes the slot backup key to the save-backup file', async () => {
 		setTauriPresent(true);
 		const adapter = await hydrateTauriStorage();
 
-		adapter.setItem(LANGUAGE_PREFERENCE_STORAGE_KEY, 'zh-Hant');
+		adapter.setItem(SAVE_SLOTS_BACKUP_STORAGE_KEY, '{"forensic":"copy"}');
+		await flushPendingWrites();
+
+		expect(mockedFs.writeTextFile).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${SAVE_BACKUP_FILE_TMP_NAME}`,
+			'{"forensic":"copy"}',
+			{ baseDir: fs.BaseDirectory.AppData }
+		);
+		expect(mockedFs.rename).toHaveBeenCalledWith(
+			`${SAVE_FILE_DIR}/${SAVE_BACKUP_FILE_TMP_NAME}`,
+			`${SAVE_FILE_DIR}/${SAVE_BACKUP_FILE_NAME}`,
+			{ oldPathBaseDir: fs.BaseDirectory.AppData, newPathBaseDir: fs.BaseDirectory.AppData }
+		);
+	});
+
+	it('writes preference record changes to the preference file only', async () => {
+		setTauriPresent(true);
+		const adapter = await hydrateTauriStorage();
+
+		adapter.setItem(PREFERENCES_STORAGE_KEY, PREFERENCES_DOC);
 		await flushPendingWrites();
 
 		expect(mockedFs.writeTextFile).toHaveBeenCalledWith(
 			`${SAVE_FILE_DIR}/${PREFERENCES_FILE_TMP_NAME}`,
-			'zh-Hant',
+			PREFERENCES_DOC,
 			{ baseDir: fs.BaseDirectory.AppData }
 		);
 		expect(mockedFs.rename).toHaveBeenCalledWith(
@@ -176,8 +287,8 @@ describe('tauri storage adapter', () => {
 		setTauriPresent(true);
 		const adapter = await hydrateTauriStorage();
 
-		adapter.setItem(SAVE_STORAGE_KEY, '{"version":4}');
-		adapter.setItem(LANGUAGE_PREFERENCE_STORAGE_KEY, 'ja');
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, '{"version":4}');
+		adapter.setItem(PREFERENCES_STORAGE_KEY, PREFERENCES_DOC);
 		await flushPendingWrites();
 
 		expect(mockedFs.writeTextFile).toHaveBeenCalledWith(
@@ -187,7 +298,7 @@ describe('tauri storage adapter', () => {
 		);
 		expect(mockedFs.writeTextFile).toHaveBeenCalledWith(
 			`${SAVE_FILE_DIR}/${PREFERENCES_FILE_TMP_NAME}`,
-			'ja',
+			PREFERENCES_DOC,
 			{ baseDir: fs.BaseDirectory.AppData }
 		);
 	});
@@ -196,9 +307,9 @@ describe('tauri storage adapter', () => {
 		setTauriPresent(true);
 		const adapter = await hydrateTauriStorage();
 
-		adapter.setItem(SAVE_STORAGE_KEY, 'v1');
-		adapter.setItem(SAVE_STORAGE_KEY, 'v2');
-		adapter.setItem(SAVE_STORAGE_KEY, 'v3');
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, 'v1');
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, 'v2');
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, 'v3');
 		await flushPendingWrites();
 
 		const calls = mockedFs.writeTextFile.mock.calls.filter(
@@ -215,10 +326,10 @@ describe('tauri storage adapter', () => {
 		mockedFs.readTextFile.mockResolvedValueOnce('seed');
 		const adapter = await hydrateTauriStorage();
 
-		adapter.removeItem(SAVE_STORAGE_KEY);
+		adapter.removeItem(SAVE_SLOTS_STORAGE_KEY);
 		await flushPendingWrites();
 
-		expect(adapter.getItem(SAVE_STORAGE_KEY)).toBeNull();
+		expect(adapter.getItem(SAVE_SLOTS_STORAGE_KEY)).toBeNull();
 		// We expect a write of "" then a rename — a "best-effort delete" approach.
 		const writes = mockedFs.writeTextFile.mock.calls;
 		expect(writes[writes.length - 1][1]).toBe('');
@@ -229,7 +340,7 @@ describe('tauri storage adapter', () => {
 		mockedFs.exists.mockResolvedValueOnce(false).mockResolvedValueOnce(false); // initial existence checks
 
 		const adapter = await hydrateTauriStorage();
-		adapter.setItem(SAVE_STORAGE_KEY, 'value');
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, 'value');
 		await flushPendingWrites();
 
 		expect(mockedFs.mkdir).toHaveBeenCalledWith(SAVE_FILE_DIR, {
@@ -238,14 +349,31 @@ describe('tauri storage adapter', () => {
 		});
 	});
 
-	it('removeItem deletes the preference file when removing the language key', async () => {
+	it('keeps unknown keys cache-only without touching the filesystem', async () => {
 		setTauriPresent(true);
 		const adapter = await hydrateTauriStorage();
 
-		adapter.removeItem(LANGUAGE_PREFERENCE_STORAGE_KEY);
+		adapter.setItem('some.unknown.key', 'value');
 		await flushPendingWrites();
 
-		expect(adapter.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY)).toBeNull();
+		expect(adapter.getItem('some.unknown.key')).toBe('value');
+		expect(mockedFs.writeTextFile).not.toHaveBeenCalled();
+		expect(mockedFs.rename).not.toHaveBeenCalled();
+
+		adapter.removeItem('some.unknown.key');
+		await flushPendingWrites();
+		expect(adapter.getItem('some.unknown.key')).toBeNull();
+		expect(mockedFs.writeTextFile).not.toHaveBeenCalled();
+	});
+
+	it('removeItem deletes the preference file when removing the preferences key', async () => {
+		setTauriPresent(true);
+		const adapter = await hydrateTauriStorage();
+
+		adapter.removeItem(PREFERENCES_STORAGE_KEY);
+		await flushPendingWrites();
+
+		expect(adapter.getItem(PREFERENCES_STORAGE_KEY)).toBeNull();
 		const writes = mockedFs.writeTextFile.mock.calls;
 		expect(writes[writes.length - 1][1]).toBe('');
 	});
@@ -256,7 +384,7 @@ describe('tauri storage adapter', () => {
 		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 		const adapter = await hydrateTauriStorage();
-		adapter.setItem(SAVE_STORAGE_KEY, 'value');
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, 'value');
 		await flushPendingWrites();
 
 		expect(errorSpy).toHaveBeenCalledWith(

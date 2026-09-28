@@ -98,6 +98,12 @@ export function getDialogueText(locale: Locale, dialogueId: string): LocalizedDi
 	};
 }
 
+export function getEnemyText(locale: Locale, enemyId: string): { name: string } | null {
+	if (enemyId !== 'slime-scout' && enemyId !== 'ruins-warden') return null;
+
+	return { name: t(locale, `content.enemies.${enemyId}.name`) };
+}
+
 export function getNpcText(locale: Locale, npcId: string): { name: string } | null {
 	for (const map of Object.values(maps)) {
 		const npc = (map.npcs ?? []).find((candidate) => candidate.id === npcId);

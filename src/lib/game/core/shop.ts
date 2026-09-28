@@ -14,6 +14,7 @@ import {
 } from '$lib/game/core/inventory';
 import { getItemText } from '$lib/game/i18n/content';
 import type { Locale } from '$lib/game/i18n/locales';
+import { previewEquipmentSwap, type BaseStats, type EquipmentSwapPreview } from './stats';
 
 export type WalletState = { coins: number };
 
@@ -70,9 +71,17 @@ export type HudShopBuyEntry = {
 	price: number;
 	availability: { mode: 'unlimited' } | { mode: 'finite'; remaining: number };
 	item: ConsumableDefinition | EquipmentDefinition;
+	/** Canonical stat deltas for equipment, resolved by the caller's context. */
+	preview?: EquipmentSwapPreview | null;
+	/** Copies of this item already owned (stacks + unequipped gear). */
+	owned?: number;
 };
 
 export type HudShopSellEntry = {
+	/** Unique per row — keyed lists and selection track this. The sell command
+	 *  itself addresses items by itemId: copies of one equipment id are
+	 *  fungible, so selling removes the first unequipped copy. */
+	sellId: string;
 	itemId: string;
 	name: string;
 	description: string;
@@ -101,6 +110,11 @@ function getStockBuyPrice(entry: ShopStockEntry): number | undefined {
 
 function isEquipped(equipment: EquipmentState, itemId: string): boolean {
 	return Object.values(equipment).includes(itemId);
+}
+
+/** Copies of `itemId` currently locked into equipment slots. */
+function countEquippedCopies(equipment: EquipmentState, itemId: string): number {
+	return Object.values(equipment).filter((equipped) => equipped === itemId).length;
 }
 
 export function createInitialShopStockState(): ShopStockState {
@@ -233,7 +247,10 @@ export function sellInventoryItem({
 		return { sold: true, wallet: { coins: wallet.coins + price }, inventory: result.inventory };
 	}
 
-	if (isEquipped(equipment, itemId)) {
+	// Equipped copies are not sellable; a surplus copy beyond the equipped
+	// ones is (duplicates only arise from hand-edited saves — addItem dedupes).
+	const ownedCopies = inventory.equipment.filter((owned) => owned === itemId).length;
+	if (ownedCopies >= 1 && ownedCopies <= countEquippedCopies(equipment, itemId)) {
 		return { sold: false, reason: 'equipped-item', wallet, inventory };
 	}
 
@@ -246,10 +263,20 @@ export function sellInventoryItem({
 	return { sold: true, wallet: { coins: wallet.coins + price }, inventory: result.inventory };
 }
 
+/**
+ * Builds the HUD's buy-list entries for a shop, in stock order.
+ * @param shopId - Shop definition id; unknown ids yield an empty list.
+ * @param stockState - Per-shop stock ledger used to resolve finite availability.
+ * @param locale - Locale for localized item names/descriptions.
+ * @param context - Optional caller stats/equipment/inventory; when supplied,
+ *   each entry gains an equipment-swap preview and owned count.
+ * @returns HudShopBuyEntry[] — one entry per sellable stock line.
+ */
 export function buildShopBuyEntries(
 	shopId: string,
 	stockState: ShopStockState,
-	locale: Locale
+	locale: Locale,
+	context?: { base: BaseStats; equipment: EquipmentState; inventory: InventoryState }
 ): HudShopBuyEntry[] {
 	const shop = getShop(shopId);
 
@@ -282,7 +309,19 @@ export function buildShopBuyEntries(
 								remaining: stockState[shopId]?.[entry.id] ?? entry.availability.quantity
 							}
 						: { mode: 'unlimited' as const },
-				item
+				item,
+				...(context
+					? {
+							preview: previewEquipmentSwap({
+								base: context.base,
+								equipment: context.equipment,
+								itemId: item.id
+							}),
+							owned:
+								(context.inventory.stacks.find((stack) => stack.itemId === item.id)?.quantity ??
+									0) + context.inventory.equipment.filter((id) => id === item.id).length
+						}
+					: {})
 			}
 		];
 	});
@@ -308,6 +347,7 @@ export function buildShopSellEntries({
 
 		return [
 			{
+				sellId: `stack:${item.id}`,
 				itemId: item.id,
 				name: itemText?.name ?? item.name,
 				description: itemText?.description ?? item.description,
@@ -320,17 +360,31 @@ export function buildShopSellEntries({
 		];
 	});
 
+	const equipmentCounts = new Map<string, number>();
+	const equippedWithheld = new Map<string, number>();
 	const equipmentEntries = inventory.equipment.flatMap((itemId) => {
 		const item = getItem(itemId);
 		const price = getSellValue(itemId);
 
-		if (item?.type !== 'equipment' || price === undefined || isEquipped(equipment, itemId)) {
+		if (item?.type !== 'equipment' || price === undefined) {
 			return [];
 		}
+		// Withhold one copy per equipped slot holding this id; surplus copies
+		// (hand-edited saves only — addItem dedupes) stay sellable.
+		if (isEquipped(equipment, itemId)) {
+			const withheld = equippedWithheld.get(itemId) ?? 0;
+			equippedWithheld.set(itemId, withheld + 1);
+			if (withheld < countEquippedCopies(equipment, itemId)) {
+				return [];
+			}
+		}
+		const occurrence = equipmentCounts.get(itemId) ?? 0;
+		equipmentCounts.set(itemId, occurrence + 1);
 		const itemText = getItemText(locale, item.id);
 
 		return [
 			{
+				sellId: `equipment:${item.id}:${occurrence}`,
 				itemId: item.id,
 				name: itemText?.name ?? item.name,
 				description: itemText?.description ?? item.description,

@@ -40,3 +40,22 @@ export function resolveWorldRenderOptions(
 ): WorldRenderOptions {
 	return parseWorldRenderOptions(readSearch());
 }
+
+const RENDER_OPTION_KEYS = [
+	'regionalBackground',
+	'meadowPaintedPilot',
+	'mapBackgroundReview',
+	'mapDebug',
+	'movementDiagnostics',
+	'regionalBackgroundFault'
+] as const;
+
+/**
+ * True when the URL carries at least one game render-option parameter. Used by
+ * the shell to decide whether a URL is a direct-boot tooling link (skip Title)
+ * or a normal player entry point.
+ */
+export function hasRenderOptionOverrides(search: string): boolean {
+	const parameters = new URLSearchParams(search);
+	return RENDER_OPTION_KEYS.some((key) => parameters.has(key));
+}

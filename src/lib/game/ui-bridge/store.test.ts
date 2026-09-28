@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('$lib/game/save/storage', () => ({
-	loadStoredSaveResult: vi.fn().mockReturnValue({ status: 'new' }),
 	getSaveStorage: vi.fn().mockReturnValue(null)
 }));
 
@@ -31,9 +30,8 @@ import {
 	requestHeal,
 	requestOpenShop,
 	requestPauseGame,
-	requestResume,
 	requestResumeGame,
-	requestSave,
+	requestSaveSlot,
 	requestSellInventoryItem,
 	requestUnequipSlot,
 	requestUseItem
@@ -47,14 +45,9 @@ describe('ui-bridge store request helpers', () => {
 		mockedEmit.mockClear();
 	});
 
-	it('requestSave emits a save command', () => {
-		requestSave();
-		expect(mockedEmit).toHaveBeenCalledWith({ type: 'save' });
-	});
-
-	it('requestResume emits a resume-save command', () => {
-		requestResume();
-		expect(mockedEmit).toHaveBeenCalledWith({ type: 'resume-save' });
+	it('requestSaveSlot emits a save-slot command', () => {
+		requestSaveSlot(2);
+		expect(mockedEmit).toHaveBeenCalledWith({ type: 'save-slot', slot: 2 });
 	});
 
 	it('requestHeal emits a heal command', () => {

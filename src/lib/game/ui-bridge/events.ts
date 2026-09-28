@@ -33,6 +33,10 @@ export type HudNearbyShop = {
 	shopId: string;
 	name: string;
 	merchantName: string;
+	/** Localized shop flavor line (mockup merchant quote); optional for older payloads. */
+	description?: string;
+	/** Merchant bust art path; optional for older payloads. */
+	bustPath?: string;
 };
 
 export type HudOpenShop = HudNearbyShop & {
@@ -43,10 +47,15 @@ export type HudOpenShop = HudNearbyShop & {
 export type HudDialogueChoice = {
 	id: string;
 	label: string;
+	/** Presentation glyph family for the row's leading icon: derived from the
+	 * choice intent when the runtime supplies one, otherwise the ask glyph. */
+	kind?: 'trade' | 'ask' | 'leave';
 };
 
 export type HudDialogueState = {
 	id: string;
+	/** Stable NPC id of the session owner; presentation identity for busts only. */
+	npcId: string | null;
 	speaker: string;
 	line: string;
 	lineIndex: number;
@@ -88,10 +97,47 @@ export type HudBattleSummary = {
 	questProgress: HudBattleSummaryQuestProgress[];
 };
 
-export type HudBattleState = {
-	phase: 'none' | 'active' | 'summary';
-	summary: HudBattleSummary | null;
+export type HudBattleEnemyPlate = {
+	unitId: string;
+	enemyId: string;
+	name: string;
+	hp: number;
+	maxHp: number;
+	defeated: boolean;
+	artPath: string;
 };
+
+export type HudBattleFeedEntry = {
+	id: number;
+	kind: 'hit' | 'hurt' | 'heal' | 'defeat';
+	amount: number;
+	/** Localized name of the affected side (enemy name, hero name, or item name). */
+	subject: string;
+};
+
+export type HudBattleActive = {
+	/** Living target the hero's auto-attack prefers; `null` while no target is
+	 * selected (all enemies defeated, or none spawned). */
+	targetUnitId: string | null;
+	enemies: HudBattleEnemyPlate[];
+	/** Hero (unitId 'hero') plus living enemies, ascending by readiness timestamp. */
+	ribbon: Array<{ unitId: string; readyAt: number }>;
+	/** Last 4 combat events, oldest first; the HUD reverses for display. */
+	feed: HudBattleFeedEntry[];
+	heals: number;
+	items: number;
+	flee: { status: 'idle' | 'channeling'; progress: number };
+	/** Scene clock (ms) matching `readyAt` values. */
+	now: number;
+};
+
+/** Discriminated on `phase` so summary/active can never disagree with it —
+ * a locked field must not show a battle HUD, and a summary must carry its
+ * payload (review: phase/summary/active could disagree). */
+export type HudBattleState =
+	| { phase: 'none'; summary: null; active: null }
+	| { phase: 'active'; summary: null; active: HudBattleActive }
+	| { phase: 'summary'; summary: HudBattleSummary; active: null };
 
 export type HudState = {
 	ready: boolean;
@@ -104,7 +150,6 @@ export type HudState = {
 	attack: number;
 	defense: number;
 	heals: number;
-	canResume: boolean;
 	status: string;
 	wallet: { coins: number };
 	nearbyShop: HudNearbyShop | null;
@@ -126,8 +171,7 @@ export type HudStatePayload = Omit<HudState, 'dialogue'> & {
 
 export type HudCommand =
 	| { type: 'heal' }
-	| { type: 'resume-save' }
-	| { type: 'save' }
+	| { type: 'save-slot'; slot: 1 | 2 }
 	| { type: 'pause-game' }
 	| { type: 'resume-game' }
 	| { type: 'use-item'; itemId: string }
@@ -141,6 +185,9 @@ export type HudCommand =
 	| { type: 'dialogue-advance' }
 	| { type: 'dialogue-close' }
 	| { type: 'dialogue-choose'; choiceId: string }
+	| { type: 'battle-cycle-target'; direction: -1 | 1 }
+	| { type: 'battle-select-target'; unitId: string }
+	| { type: 'battle-flee' }
 	| { type: 'dismiss-battle-summary' };
 
 export const HUD_STATE_EVENT = 'gliese:hud-state';

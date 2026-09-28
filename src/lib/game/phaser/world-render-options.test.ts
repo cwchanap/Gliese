@@ -1,6 +1,27 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseWorldRenderOptions, resolveWorldRenderOptions } from './world-render-options';
+import {
+	hasRenderOptionOverrides,
+	parseWorldRenderOptions,
+	resolveWorldRenderOptions
+} from './world-render-options';
+
+describe('hasRenderOptionOverrides', () => {
+	it('detects direct-boot tooling links by render-option parameter presence', () => {
+		expect(hasRenderOptionOverrides('?movementDiagnostics=on')).toBe(true);
+		expect(hasRenderOptionOverrides('?meadowPaintedPilot=off')).toBe(true);
+		expect(hasRenderOptionOverrides('?mapBackgroundReview=hero-house-review')).toBe(true);
+		expect(hasRenderOptionOverrides('?regionalBackground=off')).toBe(true);
+		expect(
+			hasRenderOptionOverrides('?regionalBackgroundFault=sundrop-village-foreground-image:render')
+		).toBe(true);
+	});
+
+	it('treats player URLs without render options as Title entry points', () => {
+		expect(hasRenderOptionOverrides('')).toBe(false);
+		expect(hasRenderOptionOverrides('?utm_source=newsletter')).toBe(false);
+	});
+});
 
 describe('world render URL options', () => {
 	it('enables regional backgrounds and disables collision debug by default', () => {

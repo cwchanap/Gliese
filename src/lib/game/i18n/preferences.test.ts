@@ -1,12 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
-	LANGUAGE_PREFERENCE_STORAGE_KEY,
-	loadLanguagePreference,
-	resolveInitialLocale,
-	saveLanguagePreference
+	DEFAULT_PREFERENCES,
+	PREFERENCES_STORAGE_KEY,
+	loadPreferences,
+	savePreferences,
+	type UiPreferences
 } from '$lib/game/i18n/preferences';
-import type { SaveStorage } from '$lib/game/save/storage';
+import { setSaveStorage, type SaveStorage } from '$lib/game/save/storage';
 
 function createMemoryStorage(initial: Record<string, string> = {}): SaveStorage {
 	const values = new Map(Object.entries(initial));
@@ -17,41 +18,101 @@ function createMemoryStorage(initial: Record<string, string> = {}): SaveStorage 
 	};
 }
 
-describe('language preferences', () => {
-	it('loads a valid saved locale override', () => {
-		const storage = createMemoryStorage({ [LANGUAGE_PREFERENCE_STORAGE_KEY]: 'ja' });
+function stubNavigatorLanguages(languages: readonly string[]): void {
+	vi.stubGlobal('navigator', { languages });
+}
 
-		expect(loadLanguagePreference(storage)).toBe('ja');
-		expect(resolveInitialLocale({ storage, languages: ['en-US'] })).toBe('ja');
+describe('preferences', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		setSaveStorage(undefined);
 	});
 
-	it('ignores invalid saved values and falls back to detection', () => {
-		const storage = createMemoryStorage({ [LANGUAGE_PREFERENCE_STORAGE_KEY]: 'fr-CA' });
+	it('loads a valid JSON preferences record', () => {
+		const record: UiPreferences = {
+			locale: 'ja',
+			textSpeed: 'instant',
+			motion: 'reduced',
+			promptMode: 'pad'
+		};
+		const storage = createMemoryStorage({
+			[PREFERENCES_STORAGE_KEY]: JSON.stringify(record)
+		});
 
-		expect(loadLanguagePreference(storage)).toBeNull();
-		expect(resolveInitialLocale({ storage, languages: ['zh-TW'] })).toBe('zh-Hant');
+		expect(loadPreferences(storage)).toEqual(record);
 	});
 
-	it('saves and clears language preference separately from the game save key', () => {
+	it('falls back to defaults (with detected locale) on malformed JSON', () => {
+		stubNavigatorLanguages(['zh-TW']);
+		const storage = createMemoryStorage({ [PREFERENCES_STORAGE_KEY]: '{not json' });
+
+		expect(loadPreferences(storage)).toEqual({ ...DEFAULT_PREFERENCES, locale: 'zh-Hant' });
+	});
+
+	it('falls back to defaults when the JSON record has invalid field values', () => {
+		stubNavigatorLanguages(['fr-FR']);
+		const storage = createMemoryStorage({
+			[PREFERENCES_STORAGE_KEY]:
+				'{"locale":"de","textSpeed":"ludicrous","motion":"sometimes","promptMode":"voice"}'
+		});
+
+		expect(loadPreferences(storage)).toEqual(DEFAULT_PREFERENCES);
+	});
+
+	it('migrates the old raw locale string to a defaults record keeping the locale', () => {
+		const storage = createMemoryStorage({ [PREFERENCES_STORAGE_KEY]: 'ja' });
+
+		expect(loadPreferences(storage)).toEqual({ ...DEFAULT_PREFERENCES, locale: 'ja' });
+	});
+
+	it('falls back to defaults when nothing is stored, detecting the locale from the browser', () => {
+		stubNavigatorLanguages(['ja-JP', 'en-US']);
+
+		expect(loadPreferences(createMemoryStorage())).toEqual({
+			...DEFAULT_PREFERENCES,
+			locale: 'ja'
+		});
+	});
+
+	it('falls back to the default locale when detection finds no supported language', () => {
+		stubNavigatorLanguages(['fr-FR', 'de-DE']);
+
+		expect(loadPreferences(createMemoryStorage())).toEqual(DEFAULT_PREFERENCES);
+	});
+
+	it('returns defaults when no storage is wired', () => {
+		stubNavigatorLanguages(['fr-FR']);
+		setSaveStorage(undefined);
+
+		expect(loadPreferences()).toEqual(DEFAULT_PREFERENCES);
+	});
+
+	it('saves the record as a JSON document under the preferences key', () => {
 		const storage = createMemoryStorage();
+		const record: UiPreferences = {
+			locale: 'zh-Hant',
+			textSpeed: 'slow',
+			motion: 'on',
+			promptMode: 'keys'
+		};
 
-		saveLanguagePreference('zh-Hant', storage);
-		expect(storage.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY)).toBe('zh-Hant');
+		savePreferences(record, storage);
 
-		saveLanguagePreference(null, storage);
-		expect(storage.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY)).toBeNull();
+		expect(storage.getItem(PREFERENCES_STORAGE_KEY)).toBe(JSON.stringify(record));
 	});
 
-	it('returns null when storage is undefined', () => {
-		expect(loadLanguagePreference(undefined)).toBeNull();
-	});
-
-	it('does nothing when saving to undefined storage', () => {
-		expect(() => saveLanguagePreference('ja', undefined)).not.toThrow();
-	});
-
-	it('resolves initial locale from browser languages when no storage preference exists', () => {
+	it('round-trips save then load', () => {
 		const storage = createMemoryStorage();
-		expect(resolveInitialLocale({ storage, languages: ['ja-JP'] })).toBe('ja');
+		const record: UiPreferences = { ...DEFAULT_PREFERENCES, textSpeed: 'instant' };
+
+		savePreferences(record, storage);
+
+		expect(loadPreferences(storage)).toEqual(record);
+	});
+
+	it('tolerates a missing storage on save', () => {
+		const record: UiPreferences = { ...DEFAULT_PREFERENCES };
+
+		expect(() => savePreferences(record, undefined)).not.toThrow();
 	});
 });

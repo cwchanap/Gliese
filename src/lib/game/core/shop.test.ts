@@ -212,6 +212,38 @@ describe('shop core', () => {
 		expect(sold.inventory.equipment).toEqual(['training-sword']);
 	});
 
+	it('sells a surplus copy of an equipped item while withholding the equipped one', () => {
+		// Duplicates cannot arise at runtime (addItem dedupes equipment); this
+		// mirrors what a hand-edited save would produce.
+		const inventory: InventoryState = {
+			stacks: [],
+			equipment: ['training-sword', 'training-sword']
+		};
+		const equipment = { ...createEmptyEquipment(), weapon: 'training-sword' };
+
+		const sellEntries = buildShopSellEntries({ inventory, equipment, locale: 'en' });
+		const swordEntries = sellEntries.filter((entry) => entry.itemId === 'training-sword');
+		expect(swordEntries).toHaveLength(1);
+
+		const sold = sellInventoryItem({
+			itemId: 'training-sword',
+			wallet: { coins: 0 },
+			inventory,
+			equipment
+		});
+		expect(sold.sold).toBe(true);
+		// One copy remains, still satisfying the equipped slot.
+		expect(sold.inventory.equipment).toEqual(['training-sword']);
+
+		const blocked = sellInventoryItem({
+			itemId: 'training-sword',
+			wallet: { coins: 0 },
+			inventory: sold.inventory,
+			equipment
+		});
+		expect(blocked).toMatchObject({ sold: false, reason: 'equipped-item' });
+	});
+
 	it('uses item-not-owned for missing owned sellable items', () => {
 		const wallet = { coins: 0 };
 		const inventory: InventoryState = { stacks: [], equipment: [] };
@@ -298,6 +330,35 @@ describe('shop core', () => {
 		]);
 	});
 
+	it('attaches canonical previews and owned counts from the caller context', () => {
+		const entries = buildShopBuyEntries(
+			'guild-quartermaster',
+			createInitialShopStockState(),
+			'en',
+			{
+				base: { hp: 20, attack: 3, defense: 0 },
+				equipment: { ...createEmptyEquipment(), weapon: 'training-sword' },
+				inventory: { stacks: [{ itemId: 'iron-cap', quantity: 2 }], equipment: [] }
+			}
+		);
+
+		const vest = entries.find((entry) => entry.itemId === 'traveler-vest');
+		expect(vest?.preview).toEqual({
+			slot: 'body',
+			replacedItemId: null,
+			before: { maxHp: 20, attack: 4, defense: 0 },
+			after: { maxHp: 24, attack: 4, defense: 0 }
+		});
+		const cap = entries.find((entry) => entry.itemId === 'iron-cap');
+		expect(cap?.owned).toBe(2);
+		expect(cap?.preview).toEqual({
+			slot: 'head',
+			replacedItemId: null,
+			before: { maxHp: 20, attack: 4, defense: 0 },
+			after: { maxHp: 20, attack: 4, defense: 1 }
+		});
+	});
+
 	it('localizes shop entry text for Japanese', () => {
 		const buyEntries = buildShopBuyEntries(
 			'guild-quartermaster',
@@ -333,6 +394,22 @@ describe('shop core', () => {
 
 	it('returns an empty buy list for a missing shop', () => {
 		expect(buildShopBuyEntries('missing-shop', {}, 'en')).toEqual([]);
+	});
+
+	it('gives duplicate equipment copies distinct sellIds so keyed rows cannot collide', () => {
+		// Buying the same gear from two shops leaves two inventory.equipment
+		// entries with the same itemId; the Sell tab keys rows by sellId.
+		const entries = buildShopSellEntries({
+			inventory: { stacks: [], equipment: ['iron-cap', 'training-sword', 'iron-cap'] },
+			equipment: createEmptyEquipment(),
+			locale: 'en'
+		});
+
+		expect(entries).toHaveLength(3);
+		expect(new Set(entries.map((entry) => entry.sellId)).size).toBe(3);
+		const caps = entries.filter((entry) => entry.itemId === 'iron-cap');
+		expect(caps).toHaveLength(2);
+		expect(caps[0]!.sellId).not.toBe(caps[1]!.sellId);
 	});
 
 	it('omits equipped equipment from sell entries', () => {

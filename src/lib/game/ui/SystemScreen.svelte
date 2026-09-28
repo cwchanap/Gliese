@@ -1,0 +1,503 @@
+<script lang="ts">
+	import { MediaQuery } from 'svelte/reactivity';
+	import { supportedLocales, type Locale } from '$lib/game/i18n/locales';
+	import { locale, motionReduced, preferences, updatePreferences } from '$lib/game/i18n/store';
+	import { t } from '$lib/game/i18n/translate';
+
+	interface Props {
+		open: boolean;
+		dialog?: HTMLDivElement;
+		closeButton?: HTMLButtonElement;
+		onClose: () => void;
+		onkeydown: (event: KeyboardEvent) => void;
+	}
+
+	let {
+		open,
+		dialog = $bindable(),
+		closeButton = $bindable(),
+		onClose,
+		onkeydown
+	}: Props = $props();
+
+	// Language options use native-script labels so each entry is readable in
+	// the language it switches to.
+	const nativeLocaleLabels: Record<Locale, string> = {
+		en: 'English',
+		ja: '日本語',
+		'zh-Hant': '繁體中文'
+	};
+
+	let promptsRow = $state<HTMLDivElement>();
+	let rail = $state<HTMLDivElement>();
+
+	// The rail flips from a vertical side column to a 3-column row across the
+	// top at ≤900px. Focus geometry follows: horizontal mode parks the rail on
+	// its own lattice row above the settings rows (which keep columns 1–3) so
+	// Left/Right traverse the cards, Down drops into the settings column
+	// below, and Up returns — instead of the vertical model where Right would
+	// leak into the first settings row.
+	const horizontalRail = new MediaQuery('(max-width: 900px)');
+
+	function railRow(index: number): number {
+		return horizontalRail.current ? -1 : index;
+	}
+
+	function railColumn(index: number): number {
+		return horizontalRail.current ? index + 1 : 0;
+	}
+
+	function focusPromptsRow(): void {
+		promptsRow?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
+	}
+
+	/** Rail roving (BagScreen category-rail pattern): the keys parallel to the
+	 *  rendered axis move focus among enabled tabs, skipping the disabled
+	 *  Audio tab; swallows the event so the shell's lattice doesn't also move
+	 *  focus. Cross-axis keys fall through to the lattice. */
+	function handleRailKeydown(event: KeyboardEvent): void {
+		const forwardKey = horizontalRail.current ? 'ArrowRight' : 'ArrowDown';
+		const backKey = horizontalRail.current ? 'ArrowLeft' : 'ArrowUp';
+		if (event.key !== forwardKey && event.key !== backKey) return;
+		event.preventDefault();
+		event.stopPropagation();
+		const tabs = Array.from(
+			rail?.querySelectorAll<HTMLButtonElement>('[role="tab"]:not([disabled])') ?? []
+		);
+		if (tabs.length === 0) return;
+		const step = event.key === forwardKey ? 1 : -1;
+		const index = tabs.indexOf(document.activeElement as HTMLButtonElement);
+		tabs[(index + step + tabs.length) % tabs.length]?.focus();
+	}
+</script>
+
+{#if open}
+	<div class="jrpg-modal-backdrop" role="presentation">
+		<div class="absolute inset-0 cursor-default" role="presentation" onclick={onClose}></div>
+		<div
+			bind:this={dialog}
+			class="heroic-window system-screen heroic-anim"
+			class:heroic-motion-reduced={$motionReduced}
+			aria-labelledby="system-heading"
+			aria-modal="true"
+			role="dialog"
+			tabindex="-1"
+			{onkeydown}
+		>
+			<div
+				class="heroic-rail"
+				role="tablist"
+				aria-label={t($locale, 'ui.system')}
+				aria-orientation={horizontalRail.current ? 'horizontal' : 'vertical'}
+				bind:this={rail}
+				tabindex="-1"
+				onkeydown={handleRailKeydown}
+			>
+				<button
+					type="button"
+					class="heroic-rail-card heroic-rail-card-selected"
+					role="tab"
+					aria-selected="true"
+					aria-current="page"
+					tabindex="0"
+					data-focus-id="system-rail-display"
+					data-focus-row={railRow(0)}
+					data-focus-column={railColumn(0)}
+				>
+					<svg
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						aria-hidden="true"
+					>
+						<rect x="1.8" y="3" width="12.4" height="8.2" rx="1.2" />
+						<path d="M5.8 13.8h4.4M8 11.2v2.6" />
+					</svg>
+					<span>{t($locale, 'ui.railDisplay')}</span>
+				</button>
+				<button
+					type="button"
+					role="tab"
+					class="heroic-rail-card"
+					aria-selected="false"
+					disabled
+					data-focus-id="system-rail-audio"
+					data-focus-row={railRow(1)}
+					data-focus-column={railColumn(1)}
+					aria-describedby="system-audio-unavailable"
+					title={t($locale, 'ui.audioUnavailable')}
+				>
+					<svg
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						aria-hidden="true"
+					>
+						<path d="M2.5 6.2v3.6h2.4L8.8 12.6V3.4L4.9 6.2H2.5z" />
+						<path d="M11 5.6a3.6 3.6 0 0 1 0 4.8" />
+					</svg>
+					<span>{t($locale, 'ui.railAudio')}</span>
+				</button>
+				<span id="system-audio-unavailable" class="sr-only">
+					{t($locale, 'ui.audioUnavailable')}
+				</span>
+				<button
+					type="button"
+					role="tab"
+					class="heroic-rail-card"
+					aria-selected="false"
+					tabindex="-1"
+					data-focus-id="system-rail-input"
+					data-focus-row={railRow(2)}
+					data-focus-column={railColumn(2)}
+					onclick={focusPromptsRow}
+				>
+					<svg
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						aria-hidden="true"
+					>
+						<rect x="1.5" y="4.6" width="13" height="6.8" rx="3.2" />
+						<path d="M4.6 8h2.6M5.9 6.7v2.6" />
+						<circle cx="10.9" cy="9.1" r="0.2" />
+						<circle cx="12.4" cy="7" r="0.2" />
+					</svg>
+					<span>{t($locale, 'ui.railInput')}</span>
+				</button>
+			</div>
+
+			<section class="system-content">
+				<header class="system-header">
+					<div>
+						<p class="heroic-eyebrow">{t($locale, 'ui.system')}</p>
+						<h2 id="system-heading" class="heroic-title">
+							{t($locale, 'ui.systemTitle')}
+						</h2>
+					</div>
+					<button
+						bind:this={closeButton}
+						type="button"
+						class="heroic-chip-button"
+						onclick={onClose}
+					>
+						{t($locale, 'ui.close')}
+					</button>
+				</header>
+
+				<div class="heroic-rows heroic-stagger">
+					<div class="heroic-row" data-testid="system-language-row">
+						<span class="heroic-row-icon" aria-hidden="true">
+							<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+								<circle cx="8" cy="8" r="5.7" />
+								<path d="M2.3 8h11.4" />
+								<ellipse cx="8" cy="8" rx="2.5" ry="5.7" />
+							</svg>
+						</span>
+						<div class="heroic-row-copy">
+							<p class="heroic-row-title">{t($locale, 'ui.language')}</p>
+							<p class="heroic-row-subtitle">{t($locale, 'ui.systemLanguageHint')}</p>
+						</div>
+						<div class="heroic-segments" role="group" aria-label={t($locale, 'ui.language')}>
+							{#each supportedLocales as option, index (option)}
+								<button
+									type="button"
+									class="heroic-segment"
+									class:heroic-segment-selected={$preferences.locale === option}
+									data-focus-id={`system-locale-${option}`}
+									data-focus-row={0}
+									data-focus-column={1 + index}
+									aria-pressed={$preferences.locale === option}
+									onclick={() => updatePreferences({ locale: option })}
+								>
+									{nativeLocaleLabels[option]}
+								</button>
+							{/each}
+						</div>
+					</div>
+
+					<div class="heroic-row" data-testid="system-text-speed-row">
+						<span class="heroic-row-icon" aria-hidden="true">
+							<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+								<path d="M2.5 4.4h11M2.5 8h6.8M2.5 11.6h11" />
+							</svg>
+						</span>
+						<div class="heroic-row-copy">
+							<p class="heroic-row-title">{t($locale, 'ui.textSpeed')}</p>
+							<p class="heroic-row-subtitle">{t($locale, 'ui.textSpeedHint')}</p>
+						</div>
+						<div class="heroic-segments" role="group" aria-label={t($locale, 'ui.textSpeed')}>
+							<button
+								type="button"
+								class="heroic-segment"
+								class:heroic-segment-selected={$preferences.textSpeed === 'slow'}
+								data-focus-id="system-speed-slow"
+								data-focus-row={1}
+								data-focus-column={1}
+								aria-pressed={$preferences.textSpeed === 'slow'}
+								onclick={() => updatePreferences({ textSpeed: 'slow' })}
+							>
+								{t($locale, 'ui.speedSlow')}
+							</button>
+							<button
+								type="button"
+								class="heroic-segment"
+								class:heroic-segment-selected={$preferences.textSpeed === 'normal'}
+								data-focus-id="system-speed-normal"
+								data-focus-row={1}
+								data-focus-column={2}
+								aria-pressed={$preferences.textSpeed === 'normal'}
+								onclick={() => updatePreferences({ textSpeed: 'normal' })}
+							>
+								{t($locale, 'ui.speedNormal')}
+							</button>
+							<button
+								type="button"
+								class="heroic-segment"
+								class:heroic-segment-selected={$preferences.textSpeed === 'instant'}
+								data-focus-id="system-speed-instant"
+								data-focus-row={1}
+								data-focus-column={3}
+								aria-pressed={$preferences.textSpeed === 'instant'}
+								onclick={() => updatePreferences({ textSpeed: 'instant' })}
+							>
+								{t($locale, 'ui.speedInstant')}
+							</button>
+						</div>
+					</div>
+
+					<div class="heroic-row" data-testid="system-hud-density-row">
+						<span class="heroic-row-icon" aria-hidden="true">
+							<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+								<rect x="2.4" y="2.4" width="4.6" height="4.6" rx="1" />
+								<rect x="9" y="2.4" width="4.6" height="4.6" rx="1" />
+								<rect x="2.4" y="9" width="4.6" height="4.6" rx="1" />
+								<rect x="9" y="9" width="4.6" height="4.6" rx="1" />
+							</svg>
+						</span>
+						<div class="heroic-row-copy">
+							<p class="heroic-row-title">{t($locale, 'ui.hudDensity')}</p>
+							<p class="heroic-row-subtitle">{t($locale, 'ui.hudDensityHint')}</p>
+						</div>
+						<div class="heroic-segments" role="group" aria-label={t($locale, 'ui.hudDensity')}>
+							<button
+								type="button"
+								class="heroic-segment heroic-segment-selected"
+								data-focus-id="system-density-quiet"
+								data-focus-row={2}
+								data-focus-column={1}
+								aria-pressed="true"
+							>
+								{t($locale, 'ui.densityQuiet')}
+							</button>
+							<button
+								type="button"
+								class="heroic-segment"
+								disabled
+								data-focus-id="system-density-full"
+								data-focus-row={2}
+								data-focus-column={2}
+								aria-describedby="system-density-full-unavailable"
+								title={t($locale, 'ui.densityFullUnavailable')}
+							>
+								{t($locale, 'ui.densityFull')}
+							</button>
+						</div>
+						<span id="system-density-full-unavailable" class="sr-only">
+							{t($locale, 'ui.densityFullUnavailable')}
+						</span>
+					</div>
+
+					<div class="heroic-row" data-testid="system-motion-row">
+						<span class="heroic-row-icon" aria-hidden="true">
+							<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+								<path d="M1.6 8h3.1l1.7-3.8 2.6 7.6L10.7 8h3.7" />
+							</svg>
+						</span>
+						<div class="heroic-row-copy">
+							<p class="heroic-row-title">{t($locale, 'ui.motion')}</p>
+							<p class="heroic-row-subtitle">{t($locale, 'ui.motionHint')}</p>
+						</div>
+						<div class="heroic-segments" role="group" aria-label={t($locale, 'ui.motion')}>
+							<button
+								type="button"
+								class="heroic-segment"
+								class:heroic-segment-selected={$preferences.motion === 'on'}
+								data-focus-id="system-motion-on"
+								data-focus-row={3}
+								data-focus-column={1}
+								aria-pressed={$preferences.motion === 'on'}
+								onclick={() => updatePreferences({ motion: 'on' })}
+							>
+								{t($locale, 'ui.motionOn')}
+							</button>
+							<button
+								type="button"
+								class="heroic-segment"
+								class:heroic-segment-selected={$preferences.motion === 'reduced'}
+								data-focus-id="system-motion-reduced"
+								data-focus-row={3}
+								data-focus-column={2}
+								aria-pressed={$preferences.motion === 'reduced'}
+								onclick={() => updatePreferences({ motion: 'reduced' })}
+							>
+								{t($locale, 'ui.motionReduced')}
+							</button>
+						</div>
+					</div>
+
+					<div class="heroic-row" bind:this={promptsRow} data-testid="system-prompts-row">
+						<span class="heroic-row-icon" aria-hidden="true">
+							<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+								<rect x="1.5" y="4.6" width="13" height="6.8" rx="3.2" />
+								<path d="M4.6 8h2.6M5.9 6.7v2.6" />
+								<circle cx="10.9" cy="9.1" r="0.2" />
+								<circle cx="12.4" cy="7" r="0.2" />
+							</svg>
+						</span>
+						<div class="heroic-row-copy">
+							<p class="heroic-row-title">{t($locale, 'ui.prompts')}</p>
+							<p class="heroic-row-subtitle">{t($locale, 'ui.promptsHint')}</p>
+						</div>
+						<div class="heroic-segments" role="group" aria-label={t($locale, 'ui.prompts')}>
+							<button
+								type="button"
+								class="heroic-segment"
+								class:heroic-segment-selected={$preferences.promptMode === 'auto'}
+								data-focus-id="system-prompt-auto"
+								data-focus-row={4}
+								data-focus-column={1}
+								aria-pressed={$preferences.promptMode === 'auto'}
+								onclick={() => updatePreferences({ promptMode: 'auto' })}
+							>
+								{t($locale, 'ui.promptAuto')}
+							</button>
+							<button
+								type="button"
+								class="heroic-segment"
+								class:heroic-segment-selected={$preferences.promptMode === 'pad'}
+								data-focus-id="system-prompt-pad"
+								data-focus-row={4}
+								data-focus-column={2}
+								aria-pressed={$preferences.promptMode === 'pad'}
+								onclick={() => updatePreferences({ promptMode: 'pad' })}
+							>
+								{t($locale, 'ui.promptPad')}
+							</button>
+							<button
+								type="button"
+								class="heroic-segment"
+								class:heroic-segment-selected={$preferences.promptMode === 'keys'}
+								data-focus-id="system-prompt-keys"
+								data-focus-row={4}
+								data-focus-column={3}
+								aria-pressed={$preferences.promptMode === 'keys'}
+								onclick={() => updatePreferences({ promptMode: 'keys' })}
+							>
+								{t($locale, 'ui.promptKeys')}
+							</button>
+						</div>
+					</div>
+				</div>
+			</section>
+		</div>
+	</div>
+{/if}
+
+<style>
+	.jrpg-modal-backdrop {
+		position: absolute;
+		inset: 0;
+		z-index: 50;
+		background: var(--color-ink);
+	}
+
+	.system-screen {
+		width: 100%;
+		height: 100%;
+		max-height: none;
+		padding: 3.25rem 3.5rem;
+		border: 0;
+		border-radius: 0;
+		background: var(--heroic-screen-background);
+	}
+
+	.heroic-rail {
+		gap: 1.125rem;
+	}
+	.heroic-rail-card {
+		min-height: 6.25rem;
+		border-radius: 1rem;
+	}
+	.heroic-rows {
+		flex: 1;
+		align-content: start;
+		overflow: visible;
+		gap: 1.125rem;
+		margin-top: 1.625rem;
+	}
+	.heroic-row {
+		min-height: 6.8rem;
+		padding: 1.25rem 1.5rem;
+		border-radius: 1.25rem;
+		border-color: color-mix(in srgb, var(--color-gold) 50%, transparent);
+		background: linear-gradient(135deg, rgba(34, 74, 164, 0.75), rgba(12, 26, 74, 0.88));
+		box-shadow:
+			inset 0 0 0 3px rgba(255, 214, 120, 0.1),
+			inset 0 2px 0 rgba(255, 255, 255, 0.2);
+	}
+	.heroic-segment {
+		border-radius: 0.75rem;
+		padding: 0.65rem 1rem;
+	}
+	.heroic-title {
+		font-size: 2.2rem;
+	}
+
+	.system-content {
+		display: flex;
+		flex: 1;
+		min-width: 0;
+		min-height: 0;
+		flex-direction: column;
+	}
+
+	.system-header {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	@media (max-width: 900px) {
+		.system-screen {
+			padding: 1rem;
+		}
+		.heroic-window {
+			flex-direction: column;
+		}
+
+		.heroic-rail {
+			grid-template-columns: repeat(3, 1fr);
+			width: 100%;
+		}
+		.heroic-row {
+			flex-wrap: wrap;
+		}
+		.heroic-segments {
+			flex-wrap: wrap;
+		}
+	}
+	@media (max-height: 600px) {
+		.system-screen {
+			padding: 1rem;
+		}
+		.system-content {
+			flex: none;
+			min-height: auto;
+		}
+	}
+</style>

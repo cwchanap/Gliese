@@ -205,7 +205,7 @@ const areaNameKeys = {
 
 type AreaNameMapId = keyof typeof areaNameKeys;
 
-function getAreaName(locale: Locale, mapId: string): string {
+export function getAreaName(locale: Locale, mapId: string): string {
 	const key = areaNameKeys[mapId as AreaNameMapId];
 	return key ? t(locale, key) : mapId;
 }
