@@ -232,11 +232,30 @@ describe('tauri storage adapter', () => {
 		mockedFs.rename.mockRejectedValueOnce(new Error('disk full'));
 		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, '{"version":4}');
 		await expect(adapter.flush?.()).resolves.toBe(false);
-		await expect(flushSaveWrites()).resolves.toBe(false);
+		// A flush with no new write activity must not keep re-reporting the
+		// old failure — only writes that run during the flush count.
+		await expect(flushSaveWrites()).resolves.toBe(true);
 
 		// A later clean write clears the failure flag.
 		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, '{"version":5}');
 		await expect(adapter.flush?.()).resolves.toBe(true);
+		expect(error).toHaveBeenCalled();
+	});
+
+	it('a stale failure in an unrelated queue does not poison later save flushes', async () => {
+		setTauriPresent(true);
+		const adapter = await hydrateTauriStorage();
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		// One failed preferences write leaves that queue marked failed…
+		mockedFs.rename.mockRejectedValueOnce(new Error('prefs disk unavailable'));
+		adapter.setItem(PREFERENCES_STORAGE_KEY, PREFERENCES_DOC);
+		await flushPendingWrites();
+
+		// …but a later manual save whose own write lands cleanly must still be
+		// reported as successful (review: false-failure poisoning).
+		adapter.setItem(SAVE_SLOTS_STORAGE_KEY, '{"version":4}');
+		await expect(flushSaveWrites()).resolves.toBe(true);
 		expect(error).toHaveBeenCalled();
 	});
 
