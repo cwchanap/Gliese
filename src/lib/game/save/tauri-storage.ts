@@ -45,6 +45,10 @@ type WriteQueue = {
 	tmpName: string;
 	/** Set by the last disk write; `flush` reports it so callers never claim success over a failed write. */
 	lastWriteFailed: boolean;
+	/** Monotonic attempt counter — every disk attempt (or forensic refusal) takes a fresh generation. */
+	writeGeneration: number;
+	/** Generation of the newest failed attempt; flush compares snapshots so it reports only fresh failures. */
+	failedGeneration: number;
 };
 
 type PersistedFileSpec = {
@@ -179,7 +183,9 @@ function createWriteQueue(fileName: string, tmpName: string): WriteQueue {
 		queuedValue: undefined,
 		lastValue: undefined,
 		tmpName,
-		lastWriteFailed: false
+		lastWriteFailed: false,
+		writeGeneration: 0,
+		failedGeneration: 0
 	};
 }
 
@@ -197,6 +203,7 @@ function scheduleWrite(queue: WriteQueue, value: string): void {
 }
 
 async function performAtomicWrite(queue: WriteQueue, value: string): Promise<void> {
+	const generation = ++queue.writeGeneration;
 	// Forensic gate: before the save file is replaced on disk, every backup
 	// write must be durable. Wait for pending backups, retry failed ones once
 	// more, and refuse the destructive write entirely if any backup still
@@ -213,6 +220,7 @@ async function performAtomicWrite(queue: WriteQueue, value: string): Promise<voi
 			}
 			if (backupQueue.lastWriteFailed) {
 				queue.lastWriteFailed = true;
+				queue.failedGeneration = generation;
 				console.error(
 					`Refusing to persist ${queue.fileName}: its forensic backup ${backupQueue.fileName} could not be secured; the original file is preserved.`
 				);
@@ -231,6 +239,7 @@ async function performAtomicWrite(queue: WriteQueue, value: string): Promise<voi
 		queue.lastWriteFailed = false;
 	} catch (error) {
 		queue.lastWriteFailed = true;
+		queue.failedGeneration = generation;
 		console.error(`Failed to persist ${queue.fileName}; previous on-disk value preserved.`, error);
 	}
 }
@@ -247,6 +256,12 @@ export async function flushPendingWrites(timeoutMs = 3000): Promise<void> {
  * not report a save as successful on `false` (review: critical).
  */
 export async function flushSaveWrites(timeoutMs = 3000): Promise<boolean> {
+	// Report only failures from writes that ran at or after this flush: a
+	// stale failure in an unrelated queue (e.g. preferences) must not mark
+	// every later save as failed while its own write landed cleanly.
+	const staleFailures = new Map(
+		[...persistedFiles.values()].map((spec) => [spec.queue, spec.queue.failedGeneration] as const)
+	);
 	const drained = await Promise.race([
 		Promise.all([...persistedFiles.values()].map((spec) => spec.queue.pendingWrite)).then(
 			() => true
@@ -254,7 +269,10 @@ export async function flushSaveWrites(timeoutMs = 3000): Promise<boolean> {
 		new Promise<boolean>((resolve) => setTimeout(() => resolve(false), timeoutMs))
 	]);
 	if (!drained) return false;
-	return ![...persistedFiles.values()].some((spec) => spec.queue.lastWriteFailed);
+	return ![...persistedFiles.values()].some(
+		(spec) =>
+			spec.queue.lastWriteFailed && spec.queue.failedGeneration !== staleFailures.get(spec.queue)
+	);
 }
 
 /**
@@ -271,4 +289,6 @@ function resetWriteQueue(queue: WriteQueue): void {
 	queue.queuedValue = undefined;
 	queue.lastValue = undefined;
 	queue.lastWriteFailed = false;
+	queue.writeGeneration = 0;
+	queue.failedGeneration = 0;
 }
