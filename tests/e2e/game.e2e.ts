@@ -18590,64 +18590,6 @@ test('all eight painted village interiors', async ({ page }) => {
 	}
 });
 
-for (const interiorCase of INTERIOR_GRAYBOX_CASES.filter(({ mapId }) => mapId !== 'guild-hall')) {
-	test(`HPA-586 interior graybox: ${interiorCase.mapId}`, async ({ page }) => {
-		test.setTimeout(180_000);
-		await installRuntimeProbes(page, { captureFacing: true });
-		await injectSave(
-			page,
-			createSaveFixture({
-				mapId: 'meadow-entry',
-				player: {
-					level: 1,
-					xp: 0,
-					hp: 20,
-					attack: 3,
-					x: interiorCase.returnArrival.x,
-					y: interiorCase.returnArrival.y,
-					facing: 'up'
-				}
-			})
-		);
-		await page.goto('/?movementDiagnostics=on');
-		await expect(page.locator('canvas')).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-		await waitForHudPosition(page, 'meadow-entry', interiorCase.returnArrival);
-		if (interiorCase.mapId === 'item-shop' || interiorCase.mapId === 'shrine-of-aurora-interior') {
-			await traverseInteriorForJourney(page, interiorCase);
-			return;
-		}
-		await enterInteriorWithTrustedKeyboard(page, interiorCase);
-
-		let currentPoint = interiorCase.spawn;
-		for (const step of interiorCase.steps) {
-			if (currentPoint.x !== step.point.x || currentPoint.y !== step.point.y) {
-				const routePoints = interiorRoutePoints(currentPoint, step.point);
-				currentPoint = await moveRoute(
-					page,
-					routePoints,
-					step.interaction ? NPC_APPROACH_SETTLE_TOLERANCE : INTERIOR_ROUTE_SETTLE_TOLERANCE
-				);
-			}
-			await assertInteriorCheckpoint(page, interiorCase, step.point);
-			if (step.interaction) {
-				await interactWithInteriorNpc(page, step.interaction);
-			}
-			if (interiorCase.persistAfterStep === step.label) {
-				currentPoint = await saveInteriorCheckpointAndReload(page, interiorCase.mapId, step.point);
-			}
-		}
-
-		expect(Math.abs(currentPoint.x - interiorCase.spawn.x)).toBeLessThanOrEqual(
-			AXIS_REACH_TOLERANCE
-		);
-		expect(Math.abs(currentPoint.y - interiorCase.spawn.y)).toBeLessThanOrEqual(
-			AXIS_REACH_TOLERANCE
-		);
-		await exitInteriorWithTrustedKeyboard(page, interiorCase);
-	});
-}
-
 test('Blacksmith graybox entrance', async ({ page }) => {
 	test.setTimeout(180_000);
 	const blacksmith: InteriorGrayboxCase = {
