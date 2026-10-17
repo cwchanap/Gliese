@@ -2747,13 +2747,22 @@ const INTERIOR_ROUTE_SETTLE_TOLERANCE = 4;
 // below the doorway row) before the authored vertical descent to the bedroom,
 // and the Shrine archive aisles (safe columns 232/792) sit one 16px cell from
 // nav-blocked columns, so their descent legs must start inside the safe column.
+// The Shrine east staging/aisle checkpoints also sit a fixed 4-5px design gap
+// from their routes' transit-column endpoints, so an 18px accepted residue plus
+// that gap can exceed the 18px checkpoint assert; those legs converge at reach 6.
 const TIGHT_HANDOFF_REACH_TOLERANCE = 6;
 const TIGHT_HANDOFF_STEP_LABELS = new Set([
 	'fallback-spawn-return',
 	'spawn-return',
 	'bedroom-entry',
 	'west-room-aisle',
-	'east-room-aisle'
+	'east-room-aisle',
+	'east-archive-return-aisle',
+	'east-room-aisle-return',
+	'east-door-staging',
+	'east-door-staging-return',
+	'east-door-lateral',
+	'east-door-lateral-return'
 ]);
 
 function villagerHouse1LynnStagingPoint(): Point {
