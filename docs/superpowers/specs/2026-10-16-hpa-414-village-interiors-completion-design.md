@@ -2,119 +2,157 @@
 
 ## Problem
 
-HPA-414 was written when Hero House, Item Shop, Shrine of Aurora, and Villager Houses 1-3 were still compact one-room interiors. Its intended outcome remains valid: those six maps should be distinct, explorable direct maps that preserve their existing gameplay semantics and provide a second real field validation of `gliese-world-expansion`.
+HPA-414 was written when Hero House, Item Shop, Shrine of Aurora, and Villager Houses 1-3 were still compact one-room interiors. That implementation premise is obsolete.
 
-The implementation premise is no longer current. HPA-586 and the follow-on painted-interior work already re-authored these maps around coordinate-first multi-zone layouts, generated navigation, direct `WorldMapDefinition` content, and production painted packages. Later work also completed Villager House 3, the Shrine, and an eighth Blacksmith interior.
+HPA-586 and the later painted-interior work already delivered the coordinate-first V2 interiors, generated navigation, direct `WorldMapDefinition` content, production painted packages, live interactions, and the Blacksmith expansion. The resulting eight-interior runtime package was reviewed on 2026-08-31 in `docs/superpowers/reports/2026-08-29-complete-eight-village-interiors-runtime-review.md` and received an **APPROVED** verdict.
 
-Re-running the original two migration batches would duplicate shipped work and risk regressing the newer V2 geometry.
+Therefore HPA-414 should not recreate either the migration or the acceptance matrix that already approved it.
+
+## Why HPA-414 still needs a current-main pass
+
+The 2026-08-31 approval predates changes that touch the exact HPA-414 contracts around saving and the Item Shop:
+
+- `d8167fc` — slot-based saves and title/save flow;
+- `146956d` — Heroic shop presentation and shop interaction changes;
+- `06025d1` — save migration/backups and load-picker changes.
+
+Those changes do not justify re-authoring the interiors, but they do justify re-verifying the approved result on current `main`.
 
 ## Decision
 
-Treat HPA-414 as a **completion and acceptance slice**, not another interior migration.
+Treat HPA-414 as a **targeted re-verification and closure slice**.
 
 The HPA-414 PR will:
 
-1. preserve the current V2 layouts and painted packages as the implementation baseline;
-2. prove the six originally named interiors against HPA-414's player-facing and semantic acceptance criteria;
-3. fix only concrete gaps found by that acceptance pass;
-4. record the result as HPA-495's second real interior field-validation outcome;
-5. close HPA-414 and, if all other children remain complete, allow HPA-397 to close.
+1. preserve the approved V2 interior implementation;
+2. re-run the existing structural, semantic, asset, navigation, and all-eight runtime owners on current `main`;
+3. focus any new coverage on post-2026-08-31 risk, especially save/reload and Mira's Item Shop flow;
+4. fix only concrete defects that reproduce in the product, not route-helper flake;
+5. append the HPA-414 result to the existing approved runtime review instead of creating a second acceptance report;
+6. add the concise HPA-495 final validation note under `docs/superpowers/specs/` that HPA-495 itself requires;
+7. close HPA-414 and, if no incomplete children remain, HPA-397.
 
-Do not manufacture retroactive Batch 1 / Batch 2 migration code or duplicate the newer HPA-586 / painted-interior design documents. The two original batches remain useful only as an acceptance grouping.
+## Existing owners to reuse
 
-## Current baseline to preserve
+The current repository already owns the relevant contracts:
 
-The current repository already owns the relevant behavior through existing sources:
+- `src/lib/game/content/maps/layouts/village-interiors-v2.ts` — room/corridor/wall/door/spawn/exit/NPC-approach geometry;
+- `src/lib/game/content/maps.ts` — direct map definitions and fallback content;
+- `src/lib/game/content/maps/layouts/meadow-entry-v2.ts` and `src/lib/game/content/maps/regions/village.ts` — exterior/interior round trips;
+- `src/lib/game/content/backgrounds/village-interior-navigation-sources.ts` — navigation inputs;
+- `src/lib/game/content/backgrounds/village-interior-packages.ts` and `map-background-registry.ts` — painted package/fallback ownership;
+- `src/lib/game/content/backgrounds/map-background-registry.test.ts` — existing all-eight contract matrix;
+- `src/lib/game/content/maps/layouts/layouts.test.ts` — pinned per-layout geometry;
+- `src/lib/game/core/battle.ts` / `battle.test.ts` — Shrine defeat relocation through `applyBattleDefeat(...)`;
+- `tests/e2e/game.e2e.ts` — all-eight painted/fallback runtime journey plus the older HPA-586 graybox route tests;
+- `docs/superpowers/reports/2026-08-29-complete-eight-village-interiors-runtime-review.md` — approved runtime evidence and command history.
 
-- `src/lib/game/content/maps/layouts/village-interiors-v2.ts` owns room, corridor, wall, door, spawn, exit, NPC approach, prop-zone, and prop-collision geometry;
-- `src/lib/game/content/maps.ts` owns the direct map definitions and live fallback content;
-- `src/lib/game/content/maps/layouts/meadow-entry-v2.ts` plus `src/lib/game/content/maps/regions/village.ts` own the exterior/interior round-trip seam;
-- `src/lib/game/content/backgrounds/village-interior-navigation-sources.ts` and the generated navigation grid own pathing inputs;
-- `src/lib/game/content/backgrounds/village-interior-packages.ts`, manifests, and `map-background-registry.ts` own painted production presentation and atomic fallback;
-- `src/lib/game/core/battle.ts` owns defeat relocation through `applyBattleDefeat(...)`, which targets `shrineOfAuroraInteriorMap.spawn` at 1 HP and is covered by `src/lib/game/core/battle.test.ts`;
-- existing dialogue, shop, story, save, and scene code remain authoritative for the other functional semantics.
+Do not copy those contracts into a new HPA-414 inventory or add an issue-specific six-ID runtime constant/test matrix.
 
-There is no reason to add an interior compiler, room graph, generic building framework, compatibility layer, or second map source.
+## Acceptance scope
 
-## Acceptance groups
+### Hero House
 
-### Group A — original HPA-414 Batch 1
+Keep the current bedroom, study, living/kitchen, and hall program. Re-verify entry, meaningful traversal, authored exit/re-entry, and save/reload at a valid interior position.
 
-#### Hero House
+There is no separate "home-state" gameplay contract to preserve; Hero House follows the same interior runtime contract as the other non-shop residences.
 
-Keep the current bedroom, study, living/kitchen, and hall program. Prove that the player can enter from Meadow Entry, traverse the meaningful zones, exit to the authored exterior return, and save/reload without losing a valid position or home-state behavior.
+### Item Shop
 
-#### Item Shop
+Keep the current sales floor, stockroom/office, service circulation, Mira interaction, and shop inventory/state rules.
 
-Keep the current sales floor, stockroom/office, service circulation, and entrance program. Prove that Mira remains reachable, the existing shop opens with the existing inventory/state rules, and round-trip plus save/reload behavior remains valid.
+This map receives the most focused re-verification because the approved 2026-08-31 journey predates the slot-save and Heroic shop changes. The current all-eight data has no `persistAfterStep` for Item Shop, so a mid-interior save/reload after the Mira interaction is the one targeted coverage addition worth considering if the existing helper supports it cleanly.
 
-#### Shrine of Aurora
+### Shrine of Aurora
 
-Keep the current larger ceremonial layout and painted package. Prove the entrance-to-nave/sanctum route and both side areas remain reachable, the existing shrine/story semantics are unchanged, and `applyBattleDefeat(...)` continues to relocate a defeated player to the current V2 Shrine spawn with the authored facing and 1 HP. Prove the exterior return plus save/reload behavior separately; do not create a second browser respawn harness for behavior already owned by the battle regression test.
+Keep the current ceremonial layout, story interactions, painted package, exterior round trip, and save/reload behavior.
 
-This group is the HPA-495 field-validation sample because it spans residential, commercial, and ceremonial/story-loaded interiors without requiring a new authoring abstraction.
+Defeat relocation remains unit-owned: `applyBattleDefeat(...)` must continue to move a defeated player to `shrineOfAuroraInteriorMap.spawn`, use the Shrine's current `spawnDirection`, and set HP to 1. Do not add a browser respawn harness for this contract.
 
-### Group B — original HPA-414 Batch 2
+### Villager Houses 1-3
 
-#### Villager House 1
+Re-verify their current routes, resident/Io interactions, exterior round trips, save/reload, and painted/fallback presentation.
 
-Preserve its larger residence program and existing NPC/story identities. Validate circulation, interaction approaches, exterior round trip, and save/reload.
+Their distinctness remains a design/controller-review criterion. Existing layout tests already pin each house's authored geometry separately; do not add a weak synthetic `layout A !== layout B` assertion.
 
-#### Villager House 2
+## Browser validation ownership
 
-Preserve its distinct workshop/residential program rather than normalizing it into House 1. Validate the same runtime contracts without cloning House 1 geometry or furnishing logic.
+`test('all eight painted village interiors')` in `tests/e2e/game.e2e.ts` is the broader release-gate journey for this slice. It covers the six HPA-414 maps plus Guild Hall and Blacksmith with authored routes/interactions, painted and missing-base fallback phases, re-entry, and save/reload.
 
-#### Villager House 3
+It is **not core-CI-enforced**:
 
-Preserve the scholar/traveler archive-study identity, current Io interaction/story contract, painted package, exterior round trip, and save/reload behavior.
+- core CI does not run Playwright E2E;
+- the all-eight test belongs to the `exhaustive` Playwright project;
+- the Asset Integrity workflow that runs exhaustive E2E is manual-only while LFS budget constraints remain.
 
-The three houses must remain visibly and spatially distinct. Shared runtime helpers are acceptable; shared copy-pasted layouts are not.
+Therefore HPA-414 must run the all-eight journey locally and record the exact commit SHA used for the result.
 
-## Validation strategy
+`tests/e2e/complete-world-layout-journey.e2e.ts` remains Meadow-only and must not gain another interior loop.
 
-Prefer the tests and tools already created by HPA-586 and the painted-interior work. HPA-414 should not add a second acceptance harness just to carry its issue number.
+## Flake-versus-product rule
 
-The durable browser owner already exists in `tests/e2e/game.e2e.ts` as `test('all eight painted village interiors')`. It covers the six HPA-414 maps plus Guild Hall and Blacksmith through the existing interior case data, painted/fallback phases, authored routes/interactions, exterior round trips, and per-interior save/reload flow. HPA-414 should first prove that this broader journey satisfies its six-map contract and extend only genuinely missing assertions in that same owner.
+The older `HPA-586 interior graybox: <mapId>` route tests are already quarantined in Playwright's `flaky` project because route-walking failures vary by map/run.
 
-`tests/e2e/complete-world-layout-journey.e2e.ts` remains the Meadow Entry art/layout journey and must not gain a second interior loop.
+A browser route failure counts as a **product defect only when a manual keyboard or controller walk reproduces the same failure**.
 
-The implementation pass should first run the existing structural, navigation, package, asset, scene, story/shop, save, battle, and browser journeys. Add or change a test only when an original HPA-414 invariant is not already covered or a real regression is found.
+- If manual repro confirms the problem, add/tighten the smallest RED regression and make the smallest production fix.
+- If manual repro does not confirm it, treat it as harness/helper flake and fix only the source-derived route helper/case data.
+- Do not move production walls, collision, spawn, or interaction geometry merely to satisfy a flaky route helper.
 
-The minimum durable contracts are:
+If the broader all-eight release-gate journey passes and still covers the product behaviors exercised by the quarantined graybox loop, remove the redundant graybox loop in this PR rather than carrying two six-map route owners indefinitely.
 
-- all six map IDs remain registered direct maps;
-- each map's inbound Meadow arrival follows its current interior spawn contract and each exit returns to its authored exterior arrival;
-- named functional zones and interaction approaches remain navigation-reachable without collision traps;
-- Hero House home behavior, Item Shop merchant/stock behavior, Shrine story plus `applyBattleDefeat(...)` target behavior, and House 3 Io behavior remain live;
-- saves on each interior normalize to a valid playable point and reload successfully;
-- each map has one production painted package with a valid atomic fallback path;
-- the three villager houses remain distinct layouts;
-- controller walkthroughs cover both web and packaged Tauri for the six-map route.
+## HPA-495 final validation evidence
 
-## HPA-495 field-validation result
+HPA-495's own design asks for one concise dated note under `docs/superpowers/specs/` after HPA-414 Batch 1.
 
-If the existing authoring/validation guidance routes the completion pass to the correct sources and commands without ambiguity, HPA-414 records **no skill change required**.
+The honest evidence is:
 
-Only edit `.agents/skills/gliese-world-expansion/` when the real pass exposes a reusable guidance defect. Do not change the skill merely to mention HPA-414 or to codify a one-off interior detail.
+- the 2026-08-23 interior redesign and subsequent HPA-586 completion were authored under the `gliese-world-expansion` workflow;
+- that work exercised routing across residential, commercial, and ceremonial interiors;
+- no reusable skill defect requiring a change has been demonstrated;
+- HPA-414 itself is a re-verification slice and does not claim new authoring activity;
+- the existing greenfield region/dungeon limitation remains unchanged.
+
+Do not put this process note into a new acceptance-report matrix.
+
+## Verification commands
+
+Use strict/non-mutating validation for this acceptance slice:
+
+```bash
+bun run test:unit -- --run
+bun run world:check:navigation
+bun run art:validate:village-interiors
+bun run story:check:strict
+bun run check
+bun run lint
+bun run build:tauri
+bun run build && bunx playwright test --project=exhaustive -g "all eight painted village interiors"
+bun run tauri build
+```
+
+`build:tauri` already includes `story:check:strict`, so the final consolidated run does not need to repeat both unless the earlier semantic pass changed story data.
 
 ## Art boundary
 
-No new art generation is planned in HPA-414. Existing painted packages are the baseline.
+No new art generation belongs in HPA-414. Existing painted packages are the approved baseline.
 
-If acceptance uncovers a visual defect that genuinely requires new generated art rather than wiring/collision/layout correction, keep that art production out of this implementation slice and track it as a separate art task. HPA-414 may consume approved replacement art later, but should not mix new art generation into the code/acceptance work.
+If re-verification exposes a visual defect that genuinely requires new generated art, create a separate art task. Keep this PR limited to verification, test/harness cleanup, and any demonstrated runtime wiring fix.
 
 ## Non-goals
 
 - redoing HPA-586 coordinate design;
-- recreating the original one-room-to-multi-room migration sequence;
-- changing map IDs, NPC IDs, shop IDs, dialogue IDs, story beats, or save schema without a demonstrated defect;
-- adding quests, economy, crafting, new dialogue, shrine underground content, or additional buildings;
-- creating a generic interior framework or compatibility layer;
-- creating a second navigation, painted-package, or acceptance system;
-- changing the eight-interior Blacksmith work except where a shared regression is proven to affect an HPA-414 map.
+- recreating the original Batch 1 / Batch 2 migration sequence;
+- creating a second six-map acceptance report;
+- copying current coordinates/packages/zones into HPA-414 prose;
+- adding a generic interior framework, compiler, room graph, compatibility layer, or second map source;
+- changing save schema, story content, quests, economy, or dialogue without a demonstrated defect;
+- adding a browser Shrine defeat test;
+- adding new generated art;
+- editing production geometry for a route failure that cannot be manually reproduced.
 
 ## Delivery shape
 
-Use one PR for HPA-414. This initial draft contains the design and implementation plan; after plan review, implementation continues on the same branch and PR.
+Use one PR for HPA-414. Implementation continues on this branch after plan review.
 
-A successful implementation may be deliberately small. If the existing code and tests already satisfy an acceptance item, the task is to prove it, not rewrite it. The final acceptance report is the review artifact for the mixed docs/runtime diff: it must list the six-map results, any demonstrated production fixes, HPA-495 outcome, and exact verification commands so reviewers can distinguish proof work from actual behavior changes.
+A successful implementation should be small: re-run approved owners, add only targeted post-approval coverage, delete redundant flaky coverage when the broader owner supersedes it, append the current-main result to the existing runtime review, add the HPA-495 final validation note, and close the roadmap work.
