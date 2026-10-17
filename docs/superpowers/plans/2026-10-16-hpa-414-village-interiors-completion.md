@@ -15,7 +15,7 @@
 - Keep HPA-414 as one PR. Continue implementation on this branch/PR after design review; do not open a second implementation PR.
 - Target only `hero-house`, `item-shop`, `shrine-of-aurora-interior`, and `villager-house-1/2/3` unless a shared regression necessarily touches another interior.
 - Preserve current V2 coordinates and painted packages unless a failing acceptance check proves a concrete defect.
-- Preserve existing map, transition, NPC, dialogue, shop, story, respawn, quest, item, and save identities.
+- Preserve existing map, transition, NPC, dialogue, shop, story, defeat-relocation, quest, item, and save identities.
 - Do not add an interior framework, compiler, room graph, compatibility path, or HPA-414-specific runtime abstraction.
 - Do not create duplicate Batch 1 / Batch 2 runtime sources. The old batches are acceptance groupings only.
 - No new image generation belongs in this task. If a genuine art replacement is required, scope it as a separate art task and keep this PR on runtime/acceptance wiring.
@@ -101,7 +101,8 @@ Re-run the commands from Step 2 and confirm no target map is missing, duplicated
 
 - Hero House remains a valid player-home interior and reload location.
 - Item Shop keeps Mira's existing dialogue/shop behavior and stock semantics.
-- Shrine keeps the existing defeat-respawn/story behavior while using its current V2 spawn/layout.
+- Shrine defeat relocation is owned by `applyBattleDefeat(...)` in `src/lib/game/core/battle.ts`; it must continue to move the player to `shrineOfAuroraInteriorMap.spawn`, set HP to 1, and use the Shrine's current `spawnDirection`. `src/lib/game/core/battle.test.ts` remains the durable owner for that contract.
+- Shrine story/interaction behavior continues to use the current V2 layout independently of the defeat-relocation regression.
 - Villager House 3 keeps Io's map-scoped dialogue/story behavior.
 - Any valid save on a target interior reloads to a playable point under existing normalization rules.
 
@@ -119,9 +120,15 @@ bun run test:unit -- --run \
 bun run story:check
 ```
 
-- [ ] **Step 2: Check current coordinates against semantic consumers**
+- [ ] **Step 2: Check the known semantic consumers, not arbitrary coordinates**
 
-Search for target-map literal coordinates or stale pre-V2 assumptions in shop/dialogue/respawn/save/scene tests. Replace only stale coordinate coupling that disagrees with the current owning layout source. Do not move layout geometry to satisfy an old test fixture.
+Inspect only the real owners that can couple semantic behavior to interior coordinates or identities:
+
+1. `shops.ts` / `shops.test.ts`, `dialogue.ts` / `dialogue.test.ts`, and `story/browser-fixture.ts` for Mira, Io, and map-scoped interaction bindings;
+2. `core/battle.ts` / `core/battle.test.ts` for `applyBattleDefeat(...)` targeting `shrineOfAuroraInteriorMap.spawn` and `spawnDirection`;
+3. `save/save-state.ts` / `save/save-state.test.ts` and `phaser/scenes/scenes.test.ts` for loaded-position normalization, target-map spawn/arrival fixtures, and stale pre-V2 expectations.
+
+Replace only stale coupling that disagrees with the current owning layout/map source. Do not grep broad numeric literals or move layout geometry to satisfy an old fixture.
 
 - [ ] **Step 3: Fix defects test-first**
 
@@ -133,39 +140,44 @@ Repeat Step 1 and the focused test that captured each defect.
 
 ---
 
-### Task 3: Add One Durable Six-Interior Runtime Journey
+### Task 3: Prove and Extend the Existing All-Eight Runtime Journey
 
 **Files:**
 
-- Modify: `tests/e2e/complete-world-layout-journey.e2e.ts`
+- Review/modify only for genuinely missing assertions: `tests/e2e/game.e2e.ts`
 - Modify only if an existing helper is insufficient: `tests/e2e/helpers/game.ts`
-- Review: `tests/e2e/game.e2e.ts`
+- Review only: `tests/e2e/complete-world-layout-journey.e2e.ts`
 
 **Interfaces:**
 
-- One existing Playwright journey becomes the durable end-to-end owner for the six-map HPA-414 route.
-- It validates entry, a meaningful reachable point/interaction, exit, and save/reload without creating a new E2E harness.
+- `test('all eight painted village interiors')` in `tests/e2e/game.e2e.ts` remains the single durable end-to-end owner for village-interior runtime acceptance.
+- Its existing case data and phase helpers cover the six HPA-414 maps plus Guild Hall and Blacksmith; HPA-414 must prove that broader owner already satisfies the six-map contract before adding anything.
+- `tests/e2e/complete-world-layout-journey.e2e.ts` remains the Meadow Entry art/layout journey and must not gain a second interior loop.
 
-- [ ] **Step 1: Inspect existing interior browser coverage**
+- [ ] **Step 1: Map HPA-414 requirements onto the existing all-eight journey**
 
-Reuse current journey probes, save seeding, movement diagnostics, background diagnostics, and save-screen helpers. Do not copy them into a new spec file.
+Inspect `ALL_EIGHT_PAINTED_INTERIOR_CASES`, the existing all-eight phase helpers, save/reload helper, fallback phase, and NPC-approach guard in `tests/e2e/game.e2e.ts`.
 
-- [ ] **Step 2: Add the smallest missing six-map loop**
+For each HPA-414 map, record whether the existing journey already proves:
 
-Extend `complete-world-layout-journey.e2e.ts` with one data-driven test covering:
+1. authored Meadow entry and active map ID;
+2. meaningful route/zone traversal;
+3. required interaction where present (including Mira's shop and Io);
+4. painted production presentation and atomic missing-base fallback;
+5. save/reload inside the interior;
+6. authored exterior return/re-entry.
 
-1. Hero House — enter/reach the current home route/exit;
-2. Item Shop — reach Mira and prove the shop action is available;
-3. Shrine — reach the central shrine route and preserve the current respawn target contract;
-4. Villager House 1 — reach its representative resident/activity route;
-5. Villager House 2 — reach its distinct workshop/residential route;
-6. Villager House 3 — reach Io/archive-study route.
+Do not add an HPA-414-specific loop when the all-eight journey already owns an item.
 
-For each map, assert the active map ID and painted production presentation, then exercise the authored exit. Perform one save/reload on each target map or use the existing data-driven save helper if it already provides equivalent per-map coverage.
+- [ ] **Step 2: Add only genuinely missing assertions to the existing owner**
+
+If the matrix from Step 1 exposes a missing HPA-414 invariant, extend the nearest existing case data or helper in `tests/e2e/game.e2e.ts` so the all-eight journey continues to be the single owner.
+
+Keep Shrine defeat relocation in the focused `applyBattleDefeat(...)` unit regression from Task 2; do not duplicate it in browser automation merely to make the E2E test mention every semantic contract.
 
 Do not add screenshot-golden assertions; screenshots may be captured as review evidence, not pixel-level tests.
 
-- [ ] **Step 3: Run the focused browser journey**
+- [ ] **Step 3: Run the existing focused browser journey**
 
 Run:
 
@@ -173,11 +185,11 @@ Run:
 bun run test:e2e -- --grep "village interiors"
 ```
 
-If the repository's E2E naming requires a different existing grep after implementation, document the exact final command in the acceptance report.
+The existing `all eight painted village interiors` title already matches this grep. Record the exact final command and result in the acceptance report.
 
 - [ ] **Step 4: Fix only proven runtime gaps**
 
-Any collision, approach, transition, painted/fallback, or save defect discovered by the journey gets a focused RED regression before the smallest fix. Avoid broad visual/layout redesign.
+Any collision, approach, transition, painted/fallback, or save defect discovered by the existing journey gets a focused RED regression before the smallest fix. Avoid broad visual/layout redesign.
 
 ---
 
@@ -240,9 +252,9 @@ Also run the repository's existing village-interior art validator command if it 
 
 Confirm the implementation contains no new framework, compatibility layer, save version, quests/economy, or new generated art. Production-code changes should correspond one-to-one with demonstrated acceptance defects.
 
-- [ ] **Step 3: Update the same draft PR**
+- [ ] **Step 3: Update the same draft PR with the acceptance report as the final review artifact**
 
-Summarize the six-map results, any concrete fixes, HPA-495 field-validation outcome, and final commands in the existing HPA-414 PR. Do not create another PR.
+Summarize the six-map results, any concrete production fixes, HPA-495 field-validation outcome, and exact final commands in the existing HPA-414 PR. The acceptance report must make it easy to distinguish already-green proof/coverage from actual behavior changes in the final mixed diff. Do not create another PR.
 
 - [ ] **Step 4: Close Linear only after acceptance**
 
