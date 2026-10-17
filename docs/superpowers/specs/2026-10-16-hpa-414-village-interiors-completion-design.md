@@ -31,7 +31,8 @@ The current repository already owns the relevant behavior through existing sourc
 - `src/lib/game/content/maps/layouts/meadow-entry-v2.ts` plus `src/lib/game/content/maps/regions/village.ts` own the exterior/interior round-trip seam;
 - `src/lib/game/content/backgrounds/village-interior-navigation-sources.ts` and the generated navigation grid own pathing inputs;
 - `src/lib/game/content/backgrounds/village-interior-packages.ts`, manifests, and `map-background-registry.ts` own painted production presentation and atomic fallback;
-- existing dialogue, shop, story, save, and scene code remain authoritative for functional semantics.
+- `src/lib/game/core/battle.ts` owns defeat relocation through `applyBattleDefeat(...)`, which targets `shrineOfAuroraInteriorMap.spawn` at 1 HP and is covered by `src/lib/game/core/battle.test.ts`;
+- existing dialogue, shop, story, save, and scene code remain authoritative for the other functional semantics.
 
 There is no reason to add an interior compiler, room graph, generic building framework, compatibility layer, or second map source.
 
@@ -49,7 +50,7 @@ Keep the current sales floor, stockroom/office, service circulation, and entranc
 
 #### Shrine of Aurora
 
-Keep the current larger ceremonial layout and painted package. Prove the entrance-to-nave/sanctum route and both side areas remain reachable, the existing shrine/story/respawn semantics are unchanged, and the exterior return plus save/reload behavior is valid.
+Keep the current larger ceremonial layout and painted package. Prove the entrance-to-nave/sanctum route and both side areas remain reachable, the existing shrine/story semantics are unchanged, and `applyBattleDefeat(...)` continues to relocate a defeated player to the current V2 Shrine spawn with the authored facing and 1 HP. Prove the exterior return plus save/reload behavior separately; do not create a second browser respawn harness for behavior already owned by the battle regression test.
 
 This group is the HPA-495 field-validation sample because it spans residential, commercial, and ceremonial/story-loaded interiors without requiring a new authoring abstraction.
 
@@ -73,14 +74,18 @@ The three houses must remain visibly and spatially distinct. Shared runtime help
 
 Prefer the tests and tools already created by HPA-586 and the painted-interior work. HPA-414 should not add a second acceptance harness just to carry its issue number.
 
-The implementation pass should first run the existing structural, navigation, package, asset, scene, story/shop, save, and browser journeys. Add or change a test only when an original HPA-414 invariant is not already covered or a real regression is found.
+The durable browser owner already exists in `tests/e2e/game.e2e.ts` as `test('all eight painted village interiors')`. It covers the six HPA-414 maps plus Guild Hall and Blacksmith through the existing interior case data, painted/fallback phases, authored routes/interactions, exterior round trips, and per-interior save/reload flow. HPA-414 should first prove that this broader journey satisfies its six-map contract and extend only genuinely missing assertions in that same owner.
+
+`tests/e2e/complete-world-layout-journey.e2e.ts` remains the Meadow Entry art/layout journey and must not gain a second interior loop.
+
+The implementation pass should first run the existing structural, navigation, package, asset, scene, story/shop, save, battle, and browser journeys. Add or change a test only when an original HPA-414 invariant is not already covered or a real regression is found.
 
 The minimum durable contracts are:
 
 - all six map IDs remain registered direct maps;
 - each map's inbound Meadow arrival follows its current interior spawn contract and each exit returns to its authored exterior arrival;
 - named functional zones and interaction approaches remain navigation-reachable without collision traps;
-- Hero House home behavior, Item Shop merchant/stock behavior, Shrine story/respawn behavior, and House 3 Io behavior remain live;
+- Hero House home behavior, Item Shop merchant/stock behavior, Shrine story plus `applyBattleDefeat(...)` target behavior, and House 3 Io behavior remain live;
 - saves on each interior normalize to a valid playable point and reload successfully;
 - each map has one production painted package with a valid atomic fallback path;
 - the three villager houses remain distinct layouts;
@@ -112,4 +117,4 @@ If acceptance uncovers a visual defect that genuinely requires new generated art
 
 Use one PR for HPA-414. This initial draft contains the design and implementation plan; after plan review, implementation continues on the same branch and PR.
 
-A successful implementation may be deliberately small. If the existing code and tests already satisfy an acceptance item, the task is to prove it, not rewrite it.
+A successful implementation may be deliberately small. If the existing code and tests already satisfy an acceptance item, the task is to prove it, not rewrite it. The final acceptance report is the review artifact for the mixed docs/runtime diff: it must list the six-map results, any demonstrated production fixes, HPA-495 outcome, and exact verification commands so reviewers can distinguish proof work from actual behavior changes.
