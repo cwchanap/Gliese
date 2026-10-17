@@ -1813,9 +1813,16 @@ async function moveRoute(
 	points: readonly Point[],
 	settleTolerance = AXIS_SETTLE_TOLERANCE,
 	blockedTolerance = settleTolerance,
-	onResult?: (result: BrowserRouteResult) => void
+	onResult?: (result: BrowserRouteResult) => void,
+	reachTolerance: number = AXIS_REACH_TOLERANCE
 ): Promise<Point> {
-	const result = await runBrowserRoute(page, points, settleTolerance, blockedTolerance);
+	const result = await runBrowserRoute(
+		page,
+		points,
+		settleTolerance,
+		blockedTolerance,
+		reachTolerance
+	);
 	onResult?.(result);
 	if (!result.position) {
 		throw new Error(
@@ -2730,6 +2737,24 @@ const INTERIOR_NPC_APPROACH_BINDINGS = {
 
 const NPC_APPROACH_SETTLE_TOLERANCE = 4;
 const INTERIOR_ROUTE_SETTLE_TOLERANCE = 4;
+// Coarse 18px reach settling leaves up to 18px of residue on the approach axis.
+// Legs whose settled residue feeds a strict downstream handoff must converge
+// tighter: interior spawn-return legs exit through clearance-eroded door lanes
+// (Hero House and Item Shop are only two 16px cells wide) right after the route,
+// the Guild Hall quartermaster doorway handoff must settle below the expanded
+// counter before the horizontal crossing, Villager House 2's bedroom-entry leg
+// must land east of the bedroom-divider wall column (x < 784 is nav-blocked
+// below the doorway row) before the authored vertical descent to the bedroom,
+// and the Shrine archive aisles (safe columns 232/792) sit one 16px cell from
+// nav-blocked columns, so their descent legs must start inside the safe column.
+const TIGHT_HANDOFF_REACH_TOLERANCE = 6;
+const TIGHT_HANDOFF_STEP_LABELS = new Set([
+	'fallback-spawn-return',
+	'spawn-return',
+	'bedroom-entry',
+	'west-room-aisle',
+	'east-room-aisle'
+]);
 
 function villagerHouse1LynnStagingPoint(): Point {
 	const { approach } = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].npcApproaches.lynn;
@@ -9596,7 +9621,13 @@ async function traverseInteriorForJourney(
 				? NPC_APPROACH_SETTLE_TOLERANCE
 				: INTERIOR_ROUTE_SETTLE_TOLERANCE;
 			if (quartermasterSemanticStep) {
-				const doorwayRouteResult = await runBrowserRoute(page, routePoints, routeSettleTolerance);
+				const doorwayRouteResult = await runBrowserRoute(
+					page,
+					routePoints,
+					routeSettleTolerance,
+					undefined,
+					TIGHT_HANDOFF_REACH_TOLERANCE
+				);
 				onRoute?.(`${interior.mapId}:${step.label}:doorway`, doorwayRouteResult);
 				expect(doorwayRouteResult.position).not.toBeNull();
 				if (!doorwayRouteResult.position) {
@@ -9781,7 +9812,9 @@ async function traverseInteriorForJourney(
 				const stockroomTerminalRouteResult = await runBrowserRoute(
 					page,
 					routePoints,
-					routeSettleTolerance
+					routeSettleTolerance,
+					undefined,
+					TIGHT_HANDOFF_REACH_TOLERANCE
 				);
 				onRoute?.(`${interior.mapId}:${step.label}`, stockroomTerminalRouteResult);
 				expect(stockroomTerminalRouteResult.position).not.toBeNull();
@@ -9844,7 +9877,13 @@ async function traverseInteriorForJourney(
 				);
 				currentPoint = horizontalRouteResult.position;
 			} else if (doorwayKind) {
-				const fixedAxisRouteResult = await runBrowserRoute(page, routePoints, routeSettleTolerance);
+				const fixedAxisRouteResult = await runBrowserRoute(
+					page,
+					routePoints,
+					routeSettleTolerance,
+					undefined,
+					TIGHT_HANDOFF_REACH_TOLERANCE
+				);
 				onRoute?.(`${interior.mapId}:${step.label}`, fixedAxisRouteResult);
 				expect(fixedAxisRouteResult.position).not.toBeNull();
 				if (!fixedAxisRouteResult.position) {
@@ -10035,7 +10074,8 @@ async function traverseInteriorForJourney(
 					routePoints,
 					routeSettleTolerance,
 					undefined,
-					(result) => onRoute?.(`${interior.mapId}:${step.label}`, result)
+					(result) => onRoute?.(`${interior.mapId}:${step.label}`, result),
+					TIGHT_HANDOFF_STEP_LABELS.has(step.label) ? TIGHT_HANDOFF_REACH_TOLERANCE : undefined
 				);
 			}
 			if (isGuildHallGuildMasterSpineStep(interior, step)) {
@@ -13007,7 +13047,10 @@ async function runAllEightBlacksmithPhase(
 	const armoryPoint = { x: 800, y: 304 };
 	const showroomPoint = { x: 800, y: 624 };
 	const orenApproachPoint = layout.npcApproaches.oren.approach;
-	const orenInteractionStagingPoint = { x: 384, y: 416 };
+	// The staging row between the showroom-divider clearance (y < 400) and the
+	// service-counter prop-zone clearance (y >= 412): the authored (384, 416)
+	// sits inside that nav-blocked counter zone, so no route can converge there.
+	const orenInteractionStagingPoint = { x: 384, y: 400 };
 
 	await enterInteriorWithTrustedKeyboard(page, interior);
 	await assertAllEightPresentation(page, interior, mode, 0, `${mode}-camera-640x360.png`);
@@ -13076,12 +13119,14 @@ async function runAllEightBlacksmithPhase(
 		orenApproachPoint
 	]);
 	await assertInteriorCheckpoint(page, interior, orenApproachPoint);
-	await moveRoute(page, [
-		currentPoint,
-		{ x: 240, y: 480 },
-		{ x: 240, y: 400 },
-		orenInteractionStagingPoint
-	]);
+	await moveRoute(
+		page,
+		[currentPoint, { x: 240, y: 480 }, { x: 240, y: 400 }, orenInteractionStagingPoint],
+		INTERIOR_ROUTE_SETTLE_TOLERANCE,
+		undefined,
+		undefined,
+		TIGHT_HANDOFF_REACH_TOLERANCE
+	);
 	await approachNpcWithTrustedKeyboard(page, {
 		mapId: interior.mapId,
 		speaker: 'Blacksmith Oren',
