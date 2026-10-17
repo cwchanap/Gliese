@@ -1949,6 +1949,7 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 		exteriorDoor: { x: 704, y: 5_184 },
 		spawn: { x: 416, y: 544 },
 		exit: { x: 416, y: 624 },
+		persistAfterStep: 'mira-approach',
 		steps: [
 			{ label: 'sales-west-aisle', point: { x: 192, y: 544 } },
 			{ label: 'ambient-customer', point: { x: 256, y: 512 } },
