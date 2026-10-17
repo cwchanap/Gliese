@@ -113,8 +113,9 @@ Reason: the 2026-08-31 approval predates `d8167fc` (slot-based saves and title/s
 and load-picker changes). HPA-414 re-verified the approved result on current `main` instead of
 re-authoring it.
 
-Tested at `ed8b121`: the all-eight unit/e2e evidence below ran at this SHA, and
-`bun run tauri build` also ran at this SHA.
+Tested across `11dac40`→`1f65191`: unit/structural/nav/art/story evidence @ `11dac40`;
+harness fixes in `af30288..ed8b121`; final all-eight PASS and packaged tauri build @ `ed8b121`;
+final re-verification battery re-run @ `1f65191`.
 
 ### Commands and results
 
@@ -128,9 +129,9 @@ Tested at `ed8b121`: the all-eight unit/e2e evidence below ran at this SHA, and
 - Item Shop mid-interior persistence: ADDED (`persistAfterStep: 'mira-approach'`, `af30288`);
   6 focused save/shop files (94 tests) GREEN; `bun run check` 0 errors; green in the final
   all-eight run.
-- All-eight release-gate journey @ `7372ade`→`ed8b121`: baseline FAIL (hero-house fallback exit,
-  deterministic 2×) → six harness-side settle/clearance fixes plus a shrine east reach-6 fix →
-  **PASS 8/8 painted+fallback @ `ed8b121` (5.1m)**.
+- All-eight release-gate journey: baseline FAIL @ `af30288` (hero-house fallback exit,
+  deterministic 2×) → six harness-side settle/clearance fixes + shrine east reach-6 fix (commits
+  `7372ade`, `0ebc931`) → **PASS 8/8 painted+fallback @ `ed8b121` (5.1m)**.
 - Shrine save/resume diagnostic: persisted P = resumed P′ exactly (P′−P = 0.0px).
 - `bun run tauri build` @ `ed8b121`: `build:tauri` frontend strict gate (story:check:strict →
   `vite build --mode tauri` → prose assertion) GREEN; Rust release build GREEN (1m 42s);
@@ -138,6 +139,10 @@ Tested at `ed8b121`: the all-eight unit/e2e evidence below ran at this SHA, and
   FAILED with `Finder got an error: AppleEvent timed out. (-1712)` from `bundle_dmg.sh`
   (create-dmg Finder automation in a non-UI context); no `.dmg` was produced and no product code
   was touched.
+- Task 5 re-verification battery @ `1f65191` (docs-only delta from `ed8b121`): `bun run check`
+  GREEN; `bun run lint` GREEN; `bun run test:unit -- --run` same 10 pre-existing failures only;
+  `world:check:navigation` GREEN; `art:validate:village-interiors` GREEN; `bun run build:tauri`
+  GREEN (strict story gate at final SHA); all-eight journey **PASS @ `1f65191`** (312s).
 
 ### Product fixes vs harness-only fixes
 
