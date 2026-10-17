@@ -103,3 +103,56 @@ pass.
   test.
 
 Final controller verdict: **APPROVED FOR TASK 8 COMMIT**. Merge and push remain out of scope.
+
+---
+
+## HPA-414 re-verification (2026-10-16)
+
+Reason: the 2026-08-31 approval predates `d8167fc` (slot-based saves and title/save flow),
+`146956d` (Heroic shop presentation and shop interaction), and `06025d1` (save migration/backups
+and load-picker changes). HPA-414 re-verified the approved result on current `main` instead of
+re-authoring it.
+
+Tested at `ed8b121`: the all-eight unit/e2e evidence below ran at this SHA, and
+`bun run tauri build` also ran at this SHA.
+
+### Commands and results
+
+- `bun run world:check:navigation` @ `11dac40`: GREEN.
+- `bun run art:validate:village-interiors` @ `11dac40`: GREEN; 8 manifests.
+- `bun run story:check:strict` @ `11dac40`: GREEN.
+- All 8 village-interior owner files @ `11dac40`: 493/493 GREEN.
+- `bun run test:unit -- --run` @ `11dac40`: 2,016 passed / 10 failed. The 10 failures are
+  pre-existing meadow-entry art/LFS suites (a `30b0cf5` de-LFS skip-list gap; red on any main
+  checkout, unrelated to village interiors). Recorded honestly; not a regression of this slice.
+- Item Shop mid-interior persistence: ADDED (`persistAfterStep: 'mira-approach'`, `af30288`);
+  6 focused save/shop files (94 tests) GREEN; `bun run check` 0 errors; green in the final
+  all-eight run.
+- All-eight release-gate journey @ `7372ade`→`ed8b121`: baseline FAIL (hero-house fallback exit,
+  deterministic 2×) → six harness-side settle/clearance fixes plus a shrine east reach-6 fix →
+  **PASS 8/8 painted+fallback @ `ed8b121` (5.1m)**.
+- Shrine save/resume diagnostic: persisted P = resumed P′ exactly (P′−P = 0.0px).
+- `bun run tauri build` @ `ed8b121`: `build:tauri` frontend strict gate (story:check:strict →
+  `vite build --mode tauri` → prose assertion) GREEN; Rust release build GREEN (1m 42s);
+  `Gliese.app` bundled at `src-tauri/target/release/bundle/macos/Gliese.app`. The final DMG step
+  FAILED with `Finder got an error: AppleEvent timed out. (-1712)` from `bundle_dmg.sh`
+  (create-dmg Finder automation in a non-UI context); no `.dmg` was produced and no product code
+  was touched.
+
+### Product fixes vs harness-only fixes
+
+NO product fixes. Every e2e fix was harness-side (route-helper settle convergence and Oren
+staging case data); production maps, geometry, navigation, and runtime were unchanged. The
+redundant HPA-586 graybox loop was REMOVED at `ed8b121` after the all-eight journey was verified
+as its superset; shared route helpers were kept and the `flaky` project retained for other tests.
+
+### Controller walks
+
+- Web: PENDING — human controller walk not yet performed. A human should run `bun run dev` and
+  walk the six interiors with a controller.
+- Packaged Tauri: PENDING — human controller walk not yet performed. A human should launch the
+  packaged artifact (`src-tauri/target/release/bundle/macos/Gliese.app`; the `.dmg` wrapper failed
+  to bundle for the environment-only reason recorded above).
+
+Re-verification status: structural, asset, save, and runtime gates GREEN on current `main`;
+final closure awaits the two human controller walks.
