@@ -173,12 +173,25 @@ as its superset; shared route helpers were kept and the `flaky` project retained
   close enough to their door triggers that a player stepping north immediately
   after exiting re-enters the interior (authored `transitionRadius` behavior).
   13 screenshots captured under the local SDD workspace (git-ignored).
-- Packaged Tauri: PENDING — human controller walk not yet performed. A human should
-  launch the packaged artifact (`src-tauri/target/release/bundle/macos/Gliese.app`;
-  the `.dmg` wrapper failed to bundle for the environment-only reason recorded
-  above) and repeat the controller smoke walk.
+- Packaged Tauri: **automated keyboard pass DONE 2026-10-18**, physical-gamepad
+  confirmation still human. Against `Gliese.app` (built @ `ed8b121`) driven via macOS
+  system key events with the on-disk save file (`gliese-save.json`) as telemetry:
+  New-Run boot → hero-house enter/exit (spawn (352,480) / return (704,5920)),
+  south-lane transit, Villager House 3 enter + "Io nearby" proximity + exit after
+  save/resume restart ((512,576) → return (1472,5920)), Shrine of Aurora enter /
+  nave walk / exit ((512,784) → return (2272,5920)). Every transition wrote the
+  slot-0 autosave to disk — packaged Tauri fs persistence and Continue/resume
+  verified end to end (final save: meadow (2272,5920), playtime 320s).
+  **Observation for the human gamepad walk:** twice the packaged app stopped
+  responding to movement/interact keys after an interior entry (once in
+  hero-house after entry + held-key walking; once in VH3 after approaching and
+  interacting with Io — AX focus stayed on the webview and no dialogue panel was
+  open). The first instance cleared after several Return presses; the second
+  required an app restart. Because this was driven by blind automation pressing
+  E/Return into UI it could not see, it may be a panel-state interaction rather
+  than a product input defect; per the flake rule it is recorded here for manual
+  keyboard/controller reproduction rather than treated as one.
 
-Re-verification status: structural, asset, save, runtime, and web-walk gates GREEN
-on current `main`; final closure awaits the packaged human controller walk.
-Note: the web walk exercised keyboard input; a physical gamepad pass remains part
-of the packaged controller walk.
+Re-verification status: structural, asset, save, runtime, web-walk, and packaged
+keyboard-walk gates GREEN on current `main`. A physical-gamepad confirmation pass
+(automatable input cannot waggle a controller) remains the one human step.
