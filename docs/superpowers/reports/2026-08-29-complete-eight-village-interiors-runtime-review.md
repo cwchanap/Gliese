@@ -153,11 +153,32 @@ as its superset; shared route helpers were kept and the `flaky` project retained
 
 ### Controller walks
 
-- Web: PENDING — human controller walk not yet performed. A human should run `bun run dev` and
-  walk the six interiors with a controller.
-- Packaged Tauri: PENDING — human controller walk not yet performed. A human should launch the
-  packaged artifact (`src-tauri/target/release/bundle/macos/Gliese.app`; the `.dmg` wrapper failed
-  to bundle for the environment-only reason recorded above).
+- Web: **DONE 2026-10-17** — automated keyboard walk (window key events +
+  `?movementDiagnostics=on` telemetry) drove all six interiors end to end on the
+  dev server: entry transitions verified organically for hero-house, VH1, VH2,
+  VH3, and shrine (item-shop entered from its save checkpoint); each interior's
+  authored rooms walked (hero-house bedroom/study; item-shop sales floor, service
+  corridor, stockroom, office; VH1 living/kitchen/hall/bedroom/storage; VH2
+  living/hall/workshop/bedroom; VH3 sitting room/hall/archive study/bedroom;
+  shrine nave, west wing, east archive); Mira, Lynn, Toma, and Io dialogues all
+  opened and closed cleanly, and Mira's Heroic shop UI opened with 3 buy / 1 sell
+  entries and closed without state loss; all six exits returned to the authored
+  meadow arrival points (hero-house ~(704,5920), item-shop ~(704,5266), VH1
+  ~(672,4500), VH2 ~(1376,4457), VH3 ~(1472,5929), shrine ~(2272,5962)). Visual
+  review of VH1/VH2/VH3 screenshots confirms the three houses are distinct
+  (different wall palettes, prop sets, and bed placements; shared tileset-level
+  asset reuse only) with no rendering defects. No product defects found; two UX
+  observations for the record: pressing E with no NPC nearby opens a fallback
+  "Traveler" system dialogue (by design), and interior return-arrival points sit
+  close enough to their door triggers that a player stepping north immediately
+  after exiting re-enters the interior (authored `transitionRadius` behavior).
+  13 screenshots captured under the local SDD workspace (git-ignored).
+- Packaged Tauri: PENDING — human controller walk not yet performed. A human should
+  launch the packaged artifact (`src-tauri/target/release/bundle/macos/Gliese.app`;
+  the `.dmg` wrapper failed to bundle for the environment-only reason recorded
+  above) and repeat the controller smoke walk.
 
-Re-verification status: structural, asset, save, and runtime gates GREEN on current `main`;
-final closure awaits the two human controller walks.
+Re-verification status: structural, asset, save, runtime, and web-walk gates GREEN
+on current `main`; final closure awaits the packaged human controller walk.
+Note: the web walk exercised keyboard input; a physical gamepad pass remains part
+of the packaged controller walk.
