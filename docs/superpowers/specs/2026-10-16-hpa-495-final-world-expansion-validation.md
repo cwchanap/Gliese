@@ -1,12 +1,12 @@
 # HPA-495 Final World-Expansion Validation
 
 Date: 2026-10-16
-Context: HPA-414 re-verification slice, tested at `ed8b121`
+Context: HPA-414 re-verification slice, tested at `ed8b121` (final battery re-run at `1f65191`)
 
 - **Routing exercised:** the 2026-08-23 interior redesign and the subsequent HPA-586 completion
   were authored under the `gliese-world-expansion` workflow, routing across residential,
   commercial, and ceremonial interiors. The HPA-414 pass re-ran those routes on current `main`;
-  the all-eight release-gate journey passed 8/8 painted+fallback @ `ed8b121`.
+  the all-eight release-gate journey passed 8/8 painted+fallback @ `ed8b121`, re-confirmed @ `1f65191` (312s).
 - **Concrete reusable gaps observed:** none requiring a skill change. This pass reproduced no
   structural, collision, navigation, or package defect attributable to the workflow; the only
   failures were e2e harness-side and a pre-existing meadow-entry art/LFS skip-list gap.
