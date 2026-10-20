@@ -88,9 +88,10 @@ export default defineConfig({
 					hookTimeout: 60_000,
 					include: [
 						'src/**/*.{test,spec}.{js,ts}',
-						// The only tools/ spec that is both vitest-native and CI-safe
-						// (no LFS assets, no bun:test/node:test imports, CPU-cheap).
-						'tools/validate-heroic-ui-art.test.ts'
+						// vitest-native and CI-safe tools specs: no LFS assets, no
+						// bun:test/node:test imports, CPU-cheap.
+						'tools/validate-heroic-ui-art.test.ts',
+						'tools/verify-meadow-entry-art-storage.test.ts'
 					],
 					exclude: [
 						'src/**/*.svelte.{test,spec}.{js,ts}',
