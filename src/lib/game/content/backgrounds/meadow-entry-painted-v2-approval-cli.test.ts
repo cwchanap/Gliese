@@ -49,15 +49,18 @@ describe('painted-v2 approval CLI', () => {
 
 		const runtimeRow = `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text`;
 		const sourceRow = `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.sourcePattern} filter=lfs diff=lfs merge=lfs -text`;
+		expect(getStorageConfigurationSha256(Buffer.from(`${runtimeRow}\n`), 'painted-v2')).toBe(
+			'46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40'
+		);
 		expect(() =>
-			getStorageConfigurationSha256(Buffer.from(`${runtimeRow}\n`), 'painted-v2')
-		).toThrow(/source.*Git LFS configuration/i);
+			getStorageConfigurationSha256(Buffer.from(`${sourceRow}\n`), 'painted-v2')
+		).toThrow(/runtime.*Git LFS configuration/i);
 		expect(() =>
 			getStorageConfigurationSha256(
-				Buffer.from(`${sourceRow.replace('filter=lfs', 'filter=git-lfs')}\n${runtimeRow}\n`),
+				Buffer.from(`${runtimeRow.replace('filter=lfs', 'filter=git-lfs')}\n`),
 				'painted-v2'
 			)
-		).toThrow(/source.*Git LFS configuration/i);
+		).toThrow(/runtime.*Git LFS configuration/i);
 	});
 
 	it('parses --check without publication metadata', () => {
