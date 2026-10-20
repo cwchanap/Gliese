@@ -171,16 +171,13 @@ function sha256(value: Uint8Array | string): string {
 	return createHash('sha256').update(value).digest('hex');
 }
 
+// Active de-LFS contract: only the shipped public/ runtime row stays LFS-tracked.
 function requiredStorageConfigurationLines(): readonly {
-	label: 'source' | 'runtime';
+	label: 'runtime';
 	line: string;
 }[] {
 	validateMeadowEntryPaintedV2StorageContract(MEADOW_ENTRY_PAINTED_V2_ART_STORAGE);
 	return [
-		{
-			label: 'source',
-			line: `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.sourcePattern} filter=lfs diff=lfs merge=lfs -text`
-		},
 		{
 			label: 'runtime',
 			line: `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text`
@@ -188,7 +185,9 @@ function requiredStorageConfigurationLines(): readonly {
 	];
 }
 
-function assertStorageConfiguration(storageConfiguration: Uint8Array): void {
+export function assertActiveMeadowEntryStorageConfiguration(
+	storageConfiguration: Uint8Array
+): void {
 	const text = Buffer.from(storageConfiguration).toString('utf8');
 	if (text.includes('\r') || !text.endsWith('\n')) {
 		throw new Error('Meadow-entry Git LFS configuration must use LF bytes with a final newline.');
@@ -210,7 +209,7 @@ export function getMeadowEntryControlsStorageConfigurationSha256(
 	storageConfiguration: Uint8Array,
 	packageName: MeadowEntryControlPackage = 'legacy'
 ): string {
-	assertStorageConfiguration(storageConfiguration);
+	assertActiveMeadowEntryStorageConfiguration(storageConfiguration);
 	return packageName === 'legacy'
 		? MEADOW_ENTRY_PAINTED_V2_LEGACY_STORAGE_CONFIGURATION_SHA256
 		: sha256(storageConfiguration);
@@ -236,7 +235,7 @@ export function validateMeadowEntryApprovalArtifacts(
 	) {
 		throw new Error('Checked-in bake ownership bytes do not match the current rendered ownership.');
 	}
-	assertStorageConfiguration(snapshot.storageConfiguration);
+	assertActiveMeadowEntryStorageConfiguration(snapshot.storageConfiguration);
 }
 
 function readApprovalValues(

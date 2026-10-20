@@ -57,8 +57,7 @@ async function approvalApi(): Promise<ApprovalToolApi> {
 }
 
 const FINGERPRINT = '1'.repeat(64);
-const ATTRIBUTES = `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.sourcePattern} filter=lfs diff=lfs merge=lfs -text
-${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text
+const ATTRIBUTES = `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text
 `;
 const EVIDENCE_PATH =
 	'docs/superpowers/reports/2026-08-12-meadow-entry-painted-camera-safe-controls.md';
@@ -127,7 +126,7 @@ describe('meadow-entry approval artifact validation', () => {
 		expect(() => validate(artifactSnapshot(overrides))).toThrow(new RegExp(label, 'i'));
 	});
 
-	it('rejects missing proof storage configuration', async () => {
+	it('rejects missing runtime storage configuration', async () => {
 		const api = await approvalApi();
 		const validate = api.validateMeadowEntryApprovalArtifacts;
 
@@ -137,11 +136,11 @@ describe('meadow-entry approval artifact validation', () => {
 			validate(
 				artifactSnapshot({
 					storageConfiguration: Buffer.from(
-						`${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text\n`
+						`${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.sourcePattern} filter=lfs diff=lfs merge=lfs -text\n`
 					)
 				})
 			)
-		).toThrow(/source.*Git LFS configuration/i);
+		).toThrow(/runtime.*Git LFS configuration/i);
 	});
 
 	it('rejects storage configuration with carriage returns or a missing final newline', async () => {
@@ -178,25 +177,17 @@ describe('meadow-entry approval artifact validation', () => {
 		expect(getStorageConfigurationSha256(additive, 'legacy')).toBe(
 			LEGACY_SEALED_STORAGE_CONFIGURATION_SHA256
 		);
+		expect(getStorageConfigurationSha256(Buffer.from(ATTRIBUTES), 'legacy')).toBe(
+			LEGACY_SEALED_STORAGE_CONFIGURATION_SHA256
+		);
 		expect(() =>
 			getStorageConfigurationSha256(
 				Buffer.from(
-					`${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text\n`
+					`${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=git-lfs diff=lfs merge=lfs -text\n`
 				),
 				'legacy'
 			)
-		).toThrow(/source.*Git LFS configuration/i);
-		expect(() =>
-			getStorageConfigurationSha256(
-				Buffer.from(
-					`${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.sourcePattern} filter=lfs diff=lfs merge=lfs -text\n${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text\n`.replace(
-						'filter=lfs',
-						'filter=git-lfs'
-					)
-				),
-				'legacy'
-			)
-		).toThrow(/source.*Git LFS configuration/i);
+		).toThrow(/runtime.*Git LFS configuration/i);
 	});
 });
 
