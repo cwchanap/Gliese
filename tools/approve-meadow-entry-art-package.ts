@@ -43,7 +43,10 @@ import {
 import { readPublishedMeadowEntryExportSnapshot } from './export-meadow-entry-regions';
 import { readCoherentMeadowEntryArtSourceSnapshot } from './read-meadow-entry-art-source-snapshot';
 import { verifyMeadowEntryArtStorage } from './verify-meadow-entry-art-storage';
-import { getMeadowEntryControlsStorageConfigurationSha256 } from './approve-meadow-entry-controls';
+import {
+	assertActiveMeadowEntryStorageConfiguration,
+	getMeadowEntryControlsStorageConfigurationSha256
+} from './approve-meadow-entry-controls';
 
 const PACKAGE_ROOT = 'artifacts/meadow-entry/hpa-399';
 const PROOF_ROOT = 'docs/superpowers/reports/img/hpa-399/proofs';
@@ -379,10 +382,7 @@ async function buildApproval(repositoryRoot: string): Promise<MeadowEntryArtPack
 		'Meadow Entry approved control fingerprint has drifted'
 	);
 	const storageConfiguration = await readFile(join(repositoryRoot, STORAGE_CONFIGURATION));
-	assert(
-		sha256(storageConfiguration) === meadowEntryControlsApproval.storageConfigurationSha256,
-		'Meadow Entry approved storage configuration has drifted'
-	);
+	assertActiveMeadowEntryStorageConfiguration(storageConfiguration);
 
 	const [baseMaster, foregroundMaster] = await Promise.all([
 		inspectPngBytes(BASE_MASTER, sourceSnapshot.basePng).then(({ artifact }) => artifact),

@@ -29,33 +29,33 @@ describe('meadow-entry reviewed control approval', () => {
 	it('seals the exact Git LFS storage configuration independently of the approval tool', () => {
 		const storageConfiguration = readFileSync(resolve(repositoryRoot, '.gitattributes'));
 		const storageText = storageConfiguration.toString('utf8');
-		const requiredLines = [
+		const deLfsLines = [
 			`${MEADOW_ENTRY_ART_STORAGE.assetPattern} filter=lfs diff=lfs merge=lfs -text`,
-			`${MEADOW_ENTRY_ART_STORAGE.proofPattern} filter=lfs diff=lfs merge=lfs -text`
+			`${MEADOW_ENTRY_ART_STORAGE.proofPattern} filter=lfs diff=lfs merge=lfs -text`,
+			`${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.sourcePattern} filter=lfs diff=lfs merge=lfs -text`
 		];
+		const runtimeLine = `${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text`;
 		const actualLines = storageText.slice(0, -1).split('\n');
 
 		expect(MEADOW_ENTRY_ART_STORAGE.mode).toBe('git-lfs');
 		expect(storageText).not.toContain('\r');
 		expect(storageText.endsWith('\n')).toBe(true);
-		for (const requiredLine of requiredLines) {
+		for (const deLfsLine of deLfsLines) {
 			expect(
-				actualLines.filter((line) => line === requiredLine),
-				requiredLine
-			).toHaveLength(1);
+				actualLines.filter((line) => line === deLfsLine),
+				deLfsLine
+			).toHaveLength(0);
 		}
+		expect(
+			actualLines.filter((line) => line === runtimeLine),
+			runtimeLine
+		).toHaveLength(1);
 		expect(meadowEntryControlsApproval.storageMode).toBe('git-lfs');
 		expect(meadowEntryControlsApproval.storageConfigurationSha256).toBe(
 			HISTORICAL_STORAGE_CONFIGURATION_SHA256
 		);
 		expect(meadowEntryPaintedV2ControlsApproval.storageConfigurationSha256).toBe(
 			'46eb41c75bcc1d058c820f59098df48abccbaea1e081214d106d9d8ca6dd4f40'
-		);
-		expect(storageText).toContain(
-			`${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.sourcePattern} filter=lfs diff=lfs merge=lfs -text`
-		);
-		expect(storageText).toContain(
-			`${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern} filter=lfs diff=lfs merge=lfs -text`
 		);
 		expect(meadowEntryControlsApproval.storageConfigurationSha256).toMatch(SHA256);
 	});

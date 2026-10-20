@@ -2,8 +2,6 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import sharp from 'sharp';
-
 import {
 	MEADOW_ENTRY_ART_STORAGE,
 	MEADOW_ENTRY_PAINTED_V2_ART_STORAGE,
@@ -11,17 +9,12 @@ import {
 	validateMeadowEntryStorageContract
 } from '$lib/game/content/backgrounds/meadow-entry-storage';
 
-const historicalCanaryPath = MEADOW_ENTRY_ART_STORAGE.canaryPath;
-const historicalProofProbePath = MEADOW_ENTRY_ART_STORAGE.proofPattern.replace(
-	'**/*.png',
-	'lfs-pattern-probe.png'
-);
-const paintedV2CanaryPath = MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.canaryPath;
-const paintedV2RuntimeProbePath = MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern.replace(
+const paintedV2RuntimePatternProbePath = MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern.replace(
 	'**/*.png',
 	'lfs-pattern-probe.png'
 );
 const expectedPngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const lfsPointerVersionLine = 'version https://git-lfs.github.com/spec/v1\n';
 
 export type MeadowEntryStorageGitRunner = (...args: string[]) => string;
 
@@ -52,7 +45,7 @@ function runGitIn(root: string): MeadowEntryStorageGitRunner {
 /**
  * Verifies that a tracked art path carries the expected Git LFS attributes.
  *
- * @param {string} label - the storage role ('asset' or 'proof') used in failure messages
+ * @param {string} label - the storage role used in failure messages
  * @param {string} path - the repository-relative path checked for Git LFS attributes
  * @param {MeadowEntryStorageGitRunner} git - the Git runner used to query check-attr output
  * @returns {void} throws when any expected attribute line is missing or mismatched
@@ -74,25 +67,18 @@ function verifyLfsAttributes(label: string, path: string, git: MeadowEntryStorag
 	}
 }
 
-export function verifyMeadowEntryHistoricalLfsAttributeCoverage(
-	git: MeadowEntryStorageGitRunner = runGitIn(process.cwd())
-): void {
-	verifyLfsAttributes('asset', historicalCanaryPath, git);
-	verifyLfsAttributes('proof', historicalProofProbePath, git);
-}
-
-export function verifyMeadowEntryPaintedV2LfsAttributeCoverage(
-	git: MeadowEntryStorageGitRunner = runGitIn(process.cwd())
-): void {
-	verifyLfsAttributes('painted-v2 source', paintedV2CanaryPath, git);
-	verifyLfsAttributes('painted-v2 runtime', paintedV2RuntimeProbePath, git);
-}
-
+/**
+ * Verifies Git LFS attribute coverage for the active storage contract: only
+ * the painted-v2 runtime pattern. The historical artifacts/ and docs-proofs
+ * paths left Git LFS in the de-LFS world and are no longer attribute-covered.
+ *
+ * @param {MeadowEntryStorageGitRunner} [git] - the Git runner used to query check-attr output
+ * @returns {void} throws when any expected attribute line is missing or mismatched
+ */
 export function verifyMeadowEntryLfsAttributeCoverage(
 	git: MeadowEntryStorageGitRunner = runGitIn(process.cwd())
 ): void {
-	verifyMeadowEntryHistoricalLfsAttributeCoverage(git);
-	verifyMeadowEntryPaintedV2LfsAttributeCoverage(git);
+	verifyLfsAttributes('painted-v2 runtime', paintedV2RuntimePatternProbePath, git);
 }
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -101,80 +87,71 @@ function assert(condition: unknown, message: string): asserts condition {
 	}
 }
 
-export function assertTransparentOnePixelCanary(
-	metadata: { width?: number; height?: number },
-	rgbaPixel: Uint8Array,
-	canaryPath: string = historicalCanaryPath
-): void {
-	assert(
-		metadata.width === 1 && metadata.height === 1,
-		`${canaryPath} must be a transparent one-pixel PNG, received ${metadata.width}x${metadata.height}`
-	);
-	assert(
-		rgbaPixel.byteLength === 4 && rgbaPixel[3] === 0,
-		`${canaryPath} must be a transparent RGBA pixel`
-	);
-}
-
 /**
- * Validates the meadow-entry art storage contract end to end.
+ * Validates the meadow-entry art storage contract end to end against the
+ * active de-LFS world: Git LFS is installed, the painted-v2 runtime pattern
+ * carries Git LFS attributes, and a tracked runtime probe file is LFS-tracked,
+ * stored as an LFS pointer in the Git index, and materialized as a PNG in the
+ * working tree. Historical artifacts/ canaries and the sharp one-pixel canary
+ * checks are gone with the de-LFS .gitattributes.
  *
- * Verifies the Git LFS configuration and attribute coverage, that the canary is
- * tracked as an LFS pointer in the Git index, that the working tree holds a
- * materialized PNG with the expected signature, and via sharp that the canary
- * is a transparent one-pixel RGBA image.
- *
+ * @param {string} [repositoryRoot] - the repository root directory, defaults
+ *   to `process.cwd()`
+ * @param {MeadowEntryStorageGitRunner} [runGit] - the Git runner, defaults to
+ *   real `git` execution in `repositoryRoot` (tests inject a mock)
  * @returns {Promise<void>} a Promise that resolves on success or rejects on any validation failure
  */
 export async function verifyMeadowEntryArtStorage(
-	repositoryRoot: string = process.cwd()
+	repositoryRoot: string = process.cwd(),
+	runGit: MeadowEntryStorageGitRunner = runGitIn(repositoryRoot)
 ): Promise<void> {
 	validateMeadowEntryStorageContract(MEADOW_ENTRY_ART_STORAGE);
 	validateMeadowEntryPaintedV2StorageContract(MEADOW_ENTRY_PAINTED_V2_ART_STORAGE);
 
-	const runGit = runGitIn(repositoryRoot);
 	const lfsVersion = runGit('lfs', 'version').trim();
 	verifyMeadowEntryLfsAttributeCoverage(runGit);
 
+	// Tracking is probed through an actually tracked runtime file; the pattern
+	// probe path above is a .gitattributes pattern probe and not a repo path.
+	const runtimeProbePath = runGit(
+		'ls-files',
+		'--',
+		`:(glob)${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern}`
+	)
+		.split('\n')
+		.map((line) => line.trim())
+		.filter((line) => line.length > 0)
+		.sort()[0];
+	assert(
+		runtimeProbePath !== undefined,
+		`Git does not track any runtime file under ${MEADOW_ENTRY_PAINTED_V2_ART_STORAGE.runtimePattern}`
+	);
+
 	const lfsFiles = runGit('lfs', 'ls-files');
-	for (const canaryPath of [historicalCanaryPath, paintedV2CanaryPath]) {
-		assert(
-			lfsFiles.split('\n').some((line) => line.trimEnd().endsWith(canaryPath)),
-			`Git LFS does not track ${canaryPath}`
-		);
-	}
+	assert(
+		lfsFiles.split('\n').some((line) => line.trimEnd().endsWith(runtimeProbePath)),
+		`Git LFS does not track ${runtimeProbePath}`
+	);
 	runGit('lfs', 'fsck');
 
-	for (const canaryPath of [historicalCanaryPath, paintedV2CanaryPath]) {
-		const indexBytes = runGit('show', `:${canaryPath}`);
-		assert(
-			indexBytes.startsWith('version https://git-lfs.github.com/spec/v1\n'),
-			`${canaryPath} is not stored as an LFS pointer in the Git index`
-		);
+	const indexBytes = runGit('show', `:${runtimeProbePath}`);
+	assert(
+		indexBytes.startsWith(lfsPointerVersionLine),
+		`${runtimeProbePath} is not stored as an LFS pointer in the Git index`
+	);
 
-		const workingTreeBytes = readFileSync(join(repositoryRoot, canaryPath));
-		assert(
-			expectedPngSignature.every((byte, index) => workingTreeBytes[index] === byte),
-			`${canaryPath} is not materialized as a PNG in the working tree`
-		);
-
-		const metadata = await sharp(workingTreeBytes).metadata();
-		const rgbaPixel = await sharp(workingTreeBytes).ensureAlpha().raw().toBuffer();
-		assertTransparentOnePixelCanary(metadata, rgbaPixel, canaryPath);
-	}
+	const workingTreeBytes = readFileSync(join(repositoryRoot, runtimeProbePath));
+	assert(
+		expectedPngSignature.every((byte, index) => workingTreeBytes[index] === byte),
+		`${runtimeProbePath} is not materialized as a PNG in the working tree`
+	);
 
 	console.log(`git-lfs=${lfsVersion}`);
-	console.log(`asset-attributes=git-lfs`);
-	console.log(`proof-attributes=git-lfs`);
-	console.log(`painted-v2-source-attributes=git-lfs`);
-	console.log(`painted-v2-runtime-attributes=git-lfs`);
-	console.log(`lfs-canary=${historicalCanaryPath}`);
-	console.log(`lfs-canary=${paintedV2CanaryPath}`);
+	console.log('painted-v2-runtime-attributes=git-lfs');
+	console.log(`lfs-runtime-probe=${runtimeProbePath}`);
 	console.log('lfs-fsck=ok');
-	console.log('index=git-lfs-pointer (historical, painted-v2)');
-	console.log('working-tree=png-signature (historical, painted-v2)');
-	console.log('sharp=1x1 (historical, painted-v2)');
-	console.log('alpha=zero (historical, painted-v2)');
+	console.log('index=git-lfs-pointer (painted-v2 runtime)');
+	console.log('working-tree=png-signature (painted-v2 runtime)');
 }
 
 if (import.meta.main) {
