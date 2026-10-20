@@ -18664,7 +18664,9 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'blacksmith-oren');
 	if (!oren) throw new Error('Blacksmith Oren fixture is missing');
 	const orenApproachPoint = layout.npcApproaches.oren.approach;
-	const orenInteractionStagingPoint = { x: 384, y: 416 };
+	// (384, 416) sits inside the service-counter prop-zone clearance (nav-blocked
+	// x >= 268, y >= 412); stage on the open row at y = 400 like the all-eight journey.
+	const orenInteractionStagingPoint = { x: 384, y: 400 };
 	await moveRoute(page, [
 		blacksmith.spawn,
 		{ x: 448, y: 640 },
@@ -18855,7 +18857,9 @@ test('Blacksmith painted interior preserves baked composition and collision', as
 		orenApproachPoint
 	]);
 	await assertInteriorCheckpoint(page, blacksmith, orenApproachPoint);
-	const orenInteractionStagingPoint = { x: 384, y: 416 };
+	// (384, 416) sits inside the service-counter prop-zone clearance (nav-blocked
+	// x >= 268, y >= 412); stage on the open row at y = 400 like the all-eight journey.
+	const orenInteractionStagingPoint = { x: 384, y: 400 };
 	await moveRoute(page, [
 		currentPoint,
 		{ x: 240, y: 480 },
