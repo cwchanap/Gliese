@@ -21,16 +21,32 @@ const lfsAssetTestFiles = [
 ];
 const skipLfsAssetTests = process.env.CI_SKIP_LFS_ASSET_TESTS === '1';
 
-// These three read generation source material under artifacts/, which is
+// These read generation source material under artifacts/, which is
 // local-only now (untracked to keep the LFS payload at the shipped public/
-// assets). They run wherever the artifacts tree exists — dev machines — and
-// skip everywhere else, including the Asset Integrity workflow.
-const artifactsAssetTestFiles = [
-	'src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts'
+// assets). Partial local leftovers (provenance JSON without the PNG/proof
+// bytes) still exist, so each suite is gated on the exact subtree it reads.
+// They run wherever their data exists — dev machines — and skip everywhere
+// else, including the Asset Integrity workflow.
+const artifactsAssetTestFilesByDataDir = [
+	{
+		dataDir: 'artifacts/meadow-entry/painted-v2/proofs',
+		testFiles: ['src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts']
+	},
+	{
+		dataDir: 'artifacts/meadow-entry/painted-v2/source-panels',
+		testFiles: [
+			'src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot.test.ts',
+			'src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts'
+		]
+	},
+	{
+		dataDir: 'artifacts/meadow-entry/hpa-399',
+		testFiles: ['src/lib/game/content/backgrounds/meadow-entry-art-package-validator.test.ts']
+	}
 ];
-const skipArtifactsAssetTests = !existsSync('artifacts/meadow-entry');
+const skipArtifactsAssetTestFiles = artifactsAssetTestFilesByDataDir
+	.filter(({ dataDir }) => !existsSync(dataDir))
+	.flatMap(({ testFiles }) => testFiles);
 
 export default defineConfig({
 	plugins: [tailwindcss(), svelte()],
@@ -79,7 +95,7 @@ export default defineConfig({
 					exclude: [
 						'src/**/*.svelte.{test,spec}.{js,ts}',
 						...(skipLfsAssetTests ? lfsAssetTestFiles : []),
-						...(skipArtifactsAssetTests ? artifactsAssetTestFiles : [])
+						...skipArtifactsAssetTestFiles
 					]
 				}
 			}
