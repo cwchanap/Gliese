@@ -12,11 +12,12 @@ const retiredV1RegionalBackgroundProofs =
 // regressions. `bun run test:e2e` (no --project) still runs both, matching
 // prior local behavior.
 //
-// 'Blacksmith Oren equipment shop' flaked the same way in the gate (hero
-// blocked at the service-counter corridor, axis x); the painted-interior
-// asset proof for the same map stays gated.
+// 'Blacksmith Oren equipment shop' lived here too (hero blocked at the
+// service-counter corridor); fcb824d re-staged the Oren approach on the open
+// row (y = 400) and it now passes repeatedly, so it returned to the gate. The
+// painted-interior asset proof for the same map stays gated.
 const flakyRouteWalkTests =
-	/(Crossroads gameplay loop|traverses every map in fallback mode|Hero House painted interior preserves runtime|complete world layout journey renders approved Meadow art|Blacksmith Oren equipment shop)/;
+	/(Crossroads gameplay loop|traverses every map in fallback mode|Hero House painted interior preserves runtime|complete world layout journey renders approved Meadow art)/;
 
 const exhaustivePaintedInteriorTests =
 	/^(?!.*Blacksmith painted interior).*painted (?:village )?interiors?/i;
