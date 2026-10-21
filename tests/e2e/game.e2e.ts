@@ -60,6 +60,7 @@ type HudStateSnapshot = {
 	dialogue?: unknown;
 	battle?: unknown;
 	nearbyShop?: { shopId?: string; merchantName?: string } | null;
+	wallet?: { coins?: number };
 	inventory?: {
 		consumables?: Array<{ itemId?: string; quantity?: number }>;
 		keyItems?: Array<{ itemId?: string; quantity?: number }>;
@@ -383,7 +384,10 @@ type LooseSaveState = {
 	flags: Record<string, unknown>;
 	quests: { completedObjectives?: Record<string, string[]> };
 	shops: { stock: Record<string, Record<string, number>> };
-	inventory: { equipment: unknown[] };
+	inventory: {
+		equipment: unknown[];
+		stacks?: Array<{ itemId?: string; quantity?: number }>;
+	};
 };
 
 function readManualSlotState(page: Page): Promise<LooseSaveState> {
@@ -1835,12 +1839,16 @@ async function moveRoute(
 type InteriorGrayboxInteraction = {
 	speaker: string;
 	shopName?: string;
+	/** Deterministic buy executed inside the open shop before it closes. */
+	purchase?: { label: string; itemId: string; quantityAfter: number; coinsAfter: number };
 };
 
 type InteriorGrayboxStep = {
 	label: string;
 	point: Point;
 	interaction?: InteriorGrayboxInteraction;
+	/** Per-step override of the coarse reach settling tolerance for handoff legs. */
+	reachTolerance?: number;
 };
 
 type InteriorGrayboxCase = {
@@ -1866,6 +1874,22 @@ const villagerHouse2ExteriorArrival = villagerHouse2ExteriorTransition?.arrival;
 if (!villagerHouse2ExteriorArrival) {
 	throw new Error('Villager House 2 exterior transition fixture is missing its arrival');
 }
+
+// Coarse 18px reach settling leaves up to 18px of residue on the approach axis.
+// Legs whose settled residue feeds a strict downstream handoff must converge
+// tighter, so they opt in per step via `reachTolerance`: interior spawn-return
+// legs exit through clearance-eroded door lanes (Hero House and Item Shop are
+// only two 16px cells wide) right after the route, the Guild Hall
+// quartermaster doorway handoff must settle below the expanded counter before
+// the horizontal crossing, Villager House 2's bedroom-entry leg must land east
+// of the bedroom-divider wall column (x < 784 is nav-blocked below the doorway
+// row) before the authored vertical descent to the bedroom, and the Shrine
+// archive aisles (safe columns 232/792) sit one 16px cell from nav-blocked
+// columns, so their descent legs must start inside the safe column.
+// The Shrine east staging/aisle checkpoints also sit a fixed 4-5px design gap
+// from their routes' transit-column endpoints, so an 18px accepted residue plus
+// that gap can exceed the 18px checkpoint assert; those legs converge at reach 6.
+const TIGHT_HANDOFF_REACH_TOLERANCE = 6;
 
 const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 	{
@@ -1947,7 +1971,11 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 			{ label: 'study-door', point: { x: 352, y: 160 } },
 			{ label: 'study', point: { x: 472, y: 160 } },
 			{ label: 'study-hall-door', point: { x: 352, y: 160 } },
-			{ label: 'spawn-return', point: { x: 352, y: 480 } }
+			{
+				label: 'spawn-return',
+				point: { x: 352, y: 480 },
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+			}
 		]
 	},
 	{
@@ -1965,7 +1993,16 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 			{
 				label: 'mira-approach',
 				point: { x: 416, y: 360 },
-				interaction: { speaker: 'Mira', shopName: "Mira's Item Shop" }
+				interaction: {
+					speaker: 'Mira',
+					shopName: "Mira's Item Shop",
+					purchase: {
+						label: 'Field Potion',
+						itemId: 'field-potion',
+						quantityAfter: 2,
+						coinsAfter: 20
+					}
+				}
 			},
 			{ label: 'east-aisle-crossing', point: { x: 416, y: 448 } },
 			{ label: 'east-aisle', point: { x: 592, y: 448 } },
@@ -1980,7 +2017,11 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 			{ label: 'service-return-west', point: { x: 448, y: 300 } },
 			{ label: 'service-return-south', point: { x: 640, y: 300 } },
 			{ label: 'spawn-return-corridor', point: { x: 640, y: 544 } },
-			{ label: 'spawn-return', point: { x: 416, y: 544 } }
+			{
+				label: 'spawn-return',
+				point: { x: 416, y: 544 },
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+			}
 		]
 	},
 	{
@@ -1996,7 +2037,11 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 			{ label: 'west-door-staging', point: { x: 336, y: 640 } },
 			{ label: 'west-door-lateral', point: { x: 336, y: 496 } },
 			{ label: 'west-room-opening', point: { x: 288, y: 496 } },
-			{ label: 'west-room-aisle', point: { x: 220, y: 496 } },
+			{
+				label: 'west-room-aisle',
+				point: { x: 220, y: 496 },
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+			},
 			{ label: 'west-preparation', point: { x: 96, y: 624 } },
 			{ label: 'west-preparation-return-aisle', point: { x: 248, y: 624 } },
 			{ label: 'west-room-aisle-return', point: { x: 224, y: 496 } },
@@ -2004,16 +2049,44 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 			{ label: 'west-door-lateral-return', point: { x: 352, y: 496 } },
 			{ label: 'west-door-staging-return', point: { x: 336, y: 640 } },
 			{ label: 'nave-west-return', point: { x: 512, y: 624 } },
-			{ label: 'east-door-staging', point: { x: 688, y: 640 } },
-			{ label: 'east-door-lateral', point: { x: 688, y: 496 } },
+			{
+				label: 'east-door-staging',
+				point: { x: 688, y: 640 },
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+			},
+			{
+				label: 'east-door-lateral',
+				point: { x: 688, y: 496 },
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+			},
 			{ label: 'east-room-opening', point: { x: 736, y: 496 } },
-			{ label: 'east-room-aisle', point: { x: 804, y: 496 } },
+			{
+				label: 'east-room-aisle',
+				point: { x: 804, y: 496 },
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+			},
 			{ label: 'east-archive', point: { x: 928, y: 624 } },
-			{ label: 'east-archive-return-aisle', point: { x: 776, y: 624 } },
-			{ label: 'east-room-aisle-return', point: { x: 788, y: 496 } },
+			{
+				label: 'east-archive-return-aisle',
+				point: { x: 776, y: 624 },
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+			},
+			{
+				label: 'east-room-aisle-return',
+				point: { x: 788, y: 496 },
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+			},
 			{ label: 'east-room-opening-return', point: { x: 736, y: 496 } },
-			{ label: 'east-door-lateral-return', point: { x: 672, y: 496 } },
-			{ label: 'east-door-staging-return', point: { x: 688, y: 640 } },
+			{
+				label: 'east-door-lateral-return',
+				point: { x: 672, y: 496 },
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+			},
+			{
+				label: 'east-door-staging-return',
+				point: { x: 688, y: 640 },
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+			},
 			{ label: 'nave-east-return', point: { x: 512, y: 624 } },
 			{ label: 'sanctum-opening', point: { x: 512, y: 304 } },
 			{ label: 'sanctum-focal-approach', point: { x: 512, y: 224 } },
@@ -2022,7 +2095,11 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 			{ label: 'sanctum-focal-return', point: { x: 512, y: 224 } },
 			{ label: 'sanctum-opening-return', point: { x: 512, y: 304 } },
 			{ label: 'procession-return', point: { x: 512, y: 624 } },
-			{ label: 'spawn-return', point: VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'].spawn }
+			{
+				label: 'spawn-return',
+				point: VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'].spawn,
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+			}
 		]
 	},
 	{
@@ -2170,7 +2247,11 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.livingKitchen.y + 32
 				}
 			},
-			{ label: 'spawn-return', point: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].spawn }
+			{
+				label: 'spawn-return',
+				point: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].spawn,
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+			}
 		]
 	},
 	{
@@ -2266,6 +2347,7 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 			},
 			{
 				label: 'bedroom-entry',
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE,
 				point: {
 					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].rooms.bedroom.x + 32,
 					y:
@@ -2319,7 +2401,11 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 				point:
 					VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].ambientActivity!['villager-house-2-neighbor']
 			},
-			{ label: 'spawn-return', point: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].spawn }
+			{
+				label: 'spawn-return',
+				point: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].spawn,
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+			}
 		]
 	},
 	{
@@ -2381,6 +2467,7 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 			},
 			{
 				label: 'bedroom-entry',
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE,
 				point: {
 					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.bedroomStorage.x + 32,
 					y:
@@ -2447,7 +2534,11 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 					].y
 				}
 			},
-			{ label: 'spawn-return', point: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].spawn }
+			{
+				label: 'spawn-return',
+				point: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].spawn,
+				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+			}
 		]
 	}
 ];
@@ -2458,6 +2549,12 @@ const blacksmithInteriorTransition = blacksmithInteriorMap.transitions.find(
 if (!blacksmithInteriorTransition?.arrival) {
 	throw new Error('Blacksmith interior return transition fixture is missing its arrival');
 }
+
+// The staging row between the showroom-divider clearance (y < 400) and the
+// service-counter prop-zone clearance (y >= 412): the authored (384, 416)
+// sits inside that nav-blocked counter zone, so every Oren route stages on
+// the open row at y = 400.
+const blacksmithOrenInteractionStagingPoint = { x: 384, y: 400 };
 
 const BLACKSMITH_ALL_EIGHT_CASE: InteriorGrayboxCase = {
 	mapId: 'blacksmith-interior',
@@ -2737,33 +2834,6 @@ const INTERIOR_NPC_APPROACH_BINDINGS = {
 
 const NPC_APPROACH_SETTLE_TOLERANCE = 4;
 const INTERIOR_ROUTE_SETTLE_TOLERANCE = 4;
-// Coarse 18px reach settling leaves up to 18px of residue on the approach axis.
-// Legs whose settled residue feeds a strict downstream handoff must converge
-// tighter: interior spawn-return legs exit through clearance-eroded door lanes
-// (Hero House and Item Shop are only two 16px cells wide) right after the route,
-// the Guild Hall quartermaster doorway handoff must settle below the expanded
-// counter before the horizontal crossing, Villager House 2's bedroom-entry leg
-// must land east of the bedroom-divider wall column (x < 784 is nav-blocked
-// below the doorway row) before the authored vertical descent to the bedroom,
-// and the Shrine archive aisles (safe columns 232/792) sit one 16px cell from
-// nav-blocked columns, so their descent legs must start inside the safe column.
-// The Shrine east staging/aisle checkpoints also sit a fixed 4-5px design gap
-// from their routes' transit-column endpoints, so an 18px accepted residue plus
-// that gap can exceed the 18px checkpoint assert; those legs converge at reach 6.
-const TIGHT_HANDOFF_REACH_TOLERANCE = 6;
-const TIGHT_HANDOFF_STEP_LABELS = new Set([
-	'fallback-spawn-return',
-	'spawn-return',
-	'bedroom-entry',
-	'west-room-aisle',
-	'east-room-aisle',
-	'east-archive-return-aisle',
-	'east-room-aisle-return',
-	'east-door-staging',
-	'east-door-staging-return',
-	'east-door-lateral',
-	'east-door-lateral-return'
-]);
 
 function villagerHouse1LynnStagingPoint(): Point {
 	const { approach } = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].npcApproaches.lynn;
@@ -9143,6 +9213,15 @@ async function interactWithInteriorNpc(page: Page, interaction: InteriorGrayboxI
 		await dialogue.getByRole('button', { name: 'Shop' }).click();
 		const shopDialog = page.getByRole('dialog', { name: interaction.shopName });
 		await expect(shopDialog).toBeVisible();
+		if (interaction.purchase) {
+			await shopDialog
+				.getByTestId('shop-buy-grid')
+				.getByLabel(interaction.purchase.label, { exact: true })
+				.dblclick();
+			await expect(
+				shopDialog.getByLabel(`Coins: ${interaction.purchase.coinsAfter}`)
+			).toBeVisible();
+		}
 		await shopDialog.getByRole('button', { name: 'Close' }).click();
 		await expect(shopDialog).toHaveCount(0);
 		await expect(dialogue).toHaveCount(0);
@@ -10084,7 +10163,7 @@ async function traverseInteriorForJourney(
 					routeSettleTolerance,
 					undefined,
 					(result) => onRoute?.(`${interior.mapId}:${step.label}`, result),
-					TIGHT_HANDOFF_STEP_LABELS.has(step.label) ? TIGHT_HANDOFF_REACH_TOLERANCE : undefined
+					step.reachTolerance
 				);
 			}
 			if (isGuildHallGuildMasterSpineStep(interior, step)) {
@@ -12968,6 +13047,34 @@ async function runAllEightExistingInteriorPhase(
 			afterStep: async (step, point) => {
 				if (step.label !== interior.persistAfterStep) return point;
 				const resumed = await saveInteriorCheckpointAndReload(page, interior.mapId, point);
+				const purchase = step.interaction?.purchase;
+				if (purchase) {
+					// The checkpoint must carry the step's own state delta: a
+					// position-only save check would miss a transaction lost on
+					// slot save/reload (the post-approval shop+save risk).
+					const persisted = await readManualSlotState(page);
+					expect(persisted.wallet?.coins).toBe(purchase.coinsAfter);
+					expect(persisted.inventory?.stacks).toEqual(
+						expect.arrayContaining([
+							expect.objectContaining({
+								itemId: purchase.itemId,
+								quantity: purchase.quantityAfter
+							})
+						])
+					);
+					const hud = await page.evaluate(
+						() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+					);
+					expect(hud?.wallet?.coins).toBe(purchase.coinsAfter);
+					expect(hud?.inventory?.consumables).toEqual(
+						expect.arrayContaining([
+							expect.objectContaining({
+								itemId: purchase.itemId,
+								quantity: purchase.quantityAfter
+							})
+						])
+					);
+				}
 				await assertAllEightPresentation(page, interior, mode);
 				return resumed;
 			}
@@ -13003,7 +13110,14 @@ async function runAllEightFallbackCriticalPhase(page: Page, interior: InteriorGr
 		page,
 		{
 			...interior,
-			steps: [criticalStep, { label: 'fallback-spawn-return', point: interior.spawn }],
+			steps: [
+				criticalStep,
+				{
+					label: 'fallback-spawn-return',
+					point: interior.spawn,
+					reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
+				}
+			],
 			persistAfterStep: undefined
 		},
 		{
@@ -13056,10 +13170,6 @@ async function runAllEightBlacksmithPhase(
 	const armoryPoint = { x: 800, y: 304 };
 	const showroomPoint = { x: 800, y: 624 };
 	const orenApproachPoint = layout.npcApproaches.oren.approach;
-	// The staging row between the showroom-divider clearance (y < 400) and the
-	// service-counter prop-zone clearance (y >= 412): the authored (384, 416)
-	// sits inside that nav-blocked counter zone, so no route can converge there.
-	const orenInteractionStagingPoint = { x: 384, y: 400 };
 
 	await enterInteriorWithTrustedKeyboard(page, interior);
 	await assertAllEightPresentation(page, interior, mode, 0, `${mode}-camera-640x360.png`);
@@ -13130,7 +13240,7 @@ async function runAllEightBlacksmithPhase(
 	await assertInteriorCheckpoint(page, interior, orenApproachPoint);
 	await moveRoute(
 		page,
-		[currentPoint, { x: 240, y: 480 }, { x: 240, y: 400 }, orenInteractionStagingPoint],
+		[currentPoint, { x: 240, y: 480 }, { x: 240, y: 400 }, blacksmithOrenInteractionStagingPoint],
 		INTERIOR_ROUTE_SETTLE_TOLERANCE,
 		undefined,
 		undefined,
@@ -13139,7 +13249,7 @@ async function runAllEightBlacksmithPhase(
 	await approachNpcWithTrustedKeyboard(page, {
 		mapId: interior.mapId,
 		speaker: 'Blacksmith Oren',
-		stagingPoint: orenInteractionStagingPoint,
+		stagingPoint: blacksmithOrenInteractionStagingPoint,
 		npc: { x: oren.x, y: oren.y },
 		propCollision: layout.propCollisions.serviceCounter
 	});
@@ -18664,9 +18774,6 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'blacksmith-oren');
 	if (!oren) throw new Error('Blacksmith Oren fixture is missing');
 	const orenApproachPoint = layout.npcApproaches.oren.approach;
-	// (384, 416) sits inside the service-counter prop-zone clearance (nav-blocked
-	// x >= 268, y >= 412); stage on the open row at y = 400 like the all-eight journey.
-	const orenInteractionStagingPoint = { x: 384, y: 400 };
 	await moveRoute(page, [
 		blacksmith.spawn,
 		{ x: 448, y: 640 },
@@ -18675,16 +18782,23 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 		{ x: 240, y: 480 },
 		orenApproachPoint
 	]);
-	await moveRoute(page, [
-		orenApproachPoint,
-		{ x: 240, y: 480 },
-		{ x: 240, y: 400 },
-		orenInteractionStagingPoint
-	]);
+	await moveRoute(
+		page,
+		[
+			orenApproachPoint,
+			{ x: 240, y: 480 },
+			{ x: 240, y: 400 },
+			blacksmithOrenInteractionStagingPoint
+		],
+		INTERIOR_ROUTE_SETTLE_TOLERANCE,
+		undefined,
+		undefined,
+		TIGHT_HANDOFF_REACH_TOLERANCE
+	);
 	await approachNpcWithTrustedKeyboard(page, {
 		mapId: blacksmith.mapId,
 		speaker: 'Blacksmith Oren',
-		stagingPoint: orenInteractionStagingPoint,
+		stagingPoint: blacksmithOrenInteractionStagingPoint,
 		npc: { x: oren.x, y: oren.y },
 		propCollision: layout.propCollisions.serviceCounter
 	});
@@ -18857,19 +18971,18 @@ test('Blacksmith painted interior preserves baked composition and collision', as
 		orenApproachPoint
 	]);
 	await assertInteriorCheckpoint(page, blacksmith, orenApproachPoint);
-	// (384, 416) sits inside the service-counter prop-zone clearance (nav-blocked
-	// x >= 268, y >= 412); stage on the open row at y = 400 like the all-eight journey.
-	const orenInteractionStagingPoint = { x: 384, y: 400 };
-	await moveRoute(page, [
-		currentPoint,
-		{ x: 240, y: 480 },
-		{ x: 240, y: 400 },
-		orenInteractionStagingPoint
-	]);
+	await moveRoute(
+		page,
+		[currentPoint, { x: 240, y: 480 }, { x: 240, y: 400 }, blacksmithOrenInteractionStagingPoint],
+		INTERIOR_ROUTE_SETTLE_TOLERANCE,
+		undefined,
+		undefined,
+		TIGHT_HANDOFF_REACH_TOLERANCE
+	);
 	await approachNpcWithTrustedKeyboard(page, {
 		mapId: blacksmith.mapId,
 		speaker: 'Blacksmith Oren',
-		stagingPoint: orenInteractionStagingPoint,
+		stagingPoint: blacksmithOrenInteractionStagingPoint,
 		npc: { x: oren.x, y: oren.y },
 		propCollision: layout.propCollisions.serviceCounter
 	});
