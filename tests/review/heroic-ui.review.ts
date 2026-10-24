@@ -268,7 +268,7 @@ test('Field HUD capture through a real New Run', async ({ page }) => {
 	// and the wallet pill.
 	const heroCard = page.getByTestId('hud-party-panel');
 	await expect(heroCard).toBeVisible();
-	await expect(heroCard).toContainText('Liam');
+	await expect(heroCard).toContainText('Grik');
 	await expect(heroCard).toContainText('HP');
 	await expect(heroCard).toContainText('XP');
 	const minimap = page.getByTestId('hud-minimap');
@@ -670,7 +670,7 @@ test('Battle HUD capture through a real encounter', async ({ page }) => {
 	await expect(page.getByTestId('battle-plate')).toHaveCount(2);
 	await expect(page.getByTestId('battle-plate').first()).toContainText('Slime Scout');
 	await expect(page.getByTestId('battle-hero-plate')).toBeVisible();
-	await expect(page.getByTestId('battle-hero-plate')).toContainText('Liam');
+	await expect(page.getByTestId('battle-hero-plate')).toContainText('Grik');
 	await expect(page.getByTestId('battle-tiles')).toBeVisible();
 	for (const tile of ['heal', 'item', 'flee']) {
 		await expect(page.getByTestId(`battle-tile-${tile}`)).toBeVisible();

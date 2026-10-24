@@ -612,7 +612,7 @@ describe('GameShell battle summary', () => {
 						],
 						feed: [
 							{ id: 1, kind: 'hit', amount: 4, subject: 'Slime Scout' },
-							{ id: 2, kind: 'hurt', amount: 2, subject: 'Liam' }
+							{ id: 2, kind: 'hurt', amount: 2, subject: 'Grik' }
 						],
 						heals: 1,
 						items: 3,
@@ -686,8 +686,8 @@ describe('GameShell battle summary', () => {
 						],
 						feed: [
 							{ id: 1, kind: 'hit', amount: 4, subject: 'Slime Scout' },
-							{ id: 2, kind: 'hurt', amount: 2, subject: 'Liam' },
-							{ id: 3, kind: 'heal', amount: 6, subject: 'Liam' },
+							{ id: 2, kind: 'hurt', amount: 2, subject: 'Grik' },
+							{ id: 3, kind: 'heal', amount: 6, subject: 'Grik' },
 							{ id: 4, kind: 'defeat', amount: 0, subject: 'Slime Scout' }
 						],
 						heals: 1,

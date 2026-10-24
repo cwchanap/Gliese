@@ -784,7 +784,7 @@ describe('DialoguePanel.svelte', () => {
 		);
 
 		await expect.element(page.getByTestId('hud-minimap')).toHaveTextContent('Sundrop Meadows');
-		await expect.element(page.getByTestId('hud-party-panel')).toHaveTextContent('Liam');
+		await expect.element(page.getByTestId('hud-party-panel')).toHaveTextContent('Grik');
 		await expect.element(page.getByTestId('hud-side-panel')).toHaveTextContent('30G');
 		await expect
 			.element(page.getByTestId('hud-side-panel'))
