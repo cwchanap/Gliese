@@ -1,6 +1,6 @@
 # Guild Master
 
-Guild Master Arlen briefs Liam on the ruins and offers Guild work.
+Guild Master Arlen briefs Grik on the ruins and offers Guild work.
 
 ::: story
 id: prologue.guild-master

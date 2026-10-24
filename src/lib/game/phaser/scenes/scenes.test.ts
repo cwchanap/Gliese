@@ -3038,7 +3038,7 @@ describe('BattleScene', () => {
 			scene.update(120, 16);
 			expect(state.feed).toEqual([
 				{ id: 1, kind: 'hit', amount: 4, subject: 'Slime Scout' },
-				{ id: 2, kind: 'hurt', amount: 2, subject: 'Liam' }
+				{ id: 2, kind: 'hurt', amount: 2, subject: 'Grik' }
 			]);
 
 			hud.dispatch({ type: 'heal' });
