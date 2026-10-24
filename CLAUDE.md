@@ -255,8 +255,10 @@ When writing or editing beats, use the `gliese-story-writer` skill (`.claude/ski
   - `2026-04-27-phaser-jrpg-vertical-slice.md` — the base game
   - `2026-05-29-rust-story-pipeline.md` — the story pipeline described above
 - `docs/superpowers/{plans,specs}/` — superpowers workflow artifacts.
-- High-level story plan (world, peoples, cast, story arc) lives on Notion, not in the repo:
-  https://app.notion.com/p/403586265aa9813c9adbdd7f93a4df56
+- High-level story plan (world, peoples, cast, story arc) lives on Notion, not in the repo, under
+  the Gliese — Game Wiki (https://app.notion.com/p/403586265aa981339355e26a3593de2f). Plan page:
+  https://app.notion.com/p/403586265aa9813c9adbdd7f93a4df56. Story planning is written in
+  Traditional Chinese.
 - `docs/stories/prologue.md` — scene-by-scene goblin prologue, how it reuses the current slice, engine gaps, and follow-up tasks.
 
 ### Hooks
