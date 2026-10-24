@@ -1,190 +1,128 @@
-# Prologue — "The Last Quiet Day"
+# 序章——「最後的寧靜之日」
 
-> Scene-level outline for the goblin prologue. The world, cast and story arc live in the
-> [high-level story plan on Notion](https://app.notion.com/p/403586265aa9813c9adbdd7f93a4df56).
-> Names marked _(working)_ there are placeholders here too.
+> 哥布林序章的逐場景大綱。世界觀、角色與故事大綱請見 Notion 上的
+> [故事總體企劃](https://app.notion.com/p/403586265aa9813c9adbdd7f93a4df56)。
+> 企劃中標註 _（暫定）_ 的名稱，在這裡同樣只是佔位。名稱的中英對照見企劃附錄。
 
-## Goal
+## 目標
 
-Over two in-game days the player should come to love Sundrop and then lose it. Day 1 is
-a full, playable slice of ordinary goblin life: a hunt, a homecoming and a family meal.
-Day 2 takes all of it away in one morning. The prologue ends the moment Grik decides on
-revenge.
+在遊戲內的兩天裡，讓玩家先愛上晴滴，再失去它。第一天是一段完整可玩的哥布林日常：一次狩獵、一次歸家、一頓家庭晚餐。第二天在一個早上就把這一切全部奪走。序章在格里克決定復仇的那一刻結束。
 
-The prologue also teaches the game: moving, talking, quests, field and turn-based combat,
-items and saving, all before the raid.
+序章同時也是教學：移動、對話、任務、野外與回合制戰鬥、道具和存檔，全部在襲擊之前教完。
 
-## Scene list
+## 場景列表
 
-### Day 1
+### 第一天
 
-**P1. Morning in Sundrop** (map `hero-house`, then the village)
+**P1. 晴滴的早晨**（地圖 `hero-house`，之後是村子）
 
-- Grik wakes late. Tikka scolds him because today is his proving hunt, the one that
-  decides whether he becomes a full hunter, and Father is already at the Lodge. Drogg is
-  gone too.
-- Old Mott, by the fire, gives him a charm "for luck, from the old days."
-- Grik walks through the village. Neighbours wish him luck, and the smith and the herb
-  hut offer starting gear.
-- Teaches: movement, talking, shops, the bag.
+- 格里克睡過頭了。蒂卡數落他，因為今天是決定他能否成為正式獵人的試煉狩獵，而父親已經在會所等著。德洛格也早就出門了。
+- 爐火邊的老莫特給了他一個護符：「保佑你，從古時候傳下來的。」
+- 格里克走過村子。鄰居們祝他好運，鐵匠鋪和採藥小屋提供起始裝備。
+- 教學：移動、對話、商店、背包。
 
-**P2. The Hunt Lodge** (map `guild-hall`)
+**P2. 狩獵會所**（地圖 `guild-hall`）
 
-- Borak, the Hunt Chief, gives Grik his first hunt: bring down the thornback boars
-  _(working)_ that have been tearing through the village snares in the Wildwood.
-- Drogg teases him that he'll come back with a rabbit.
-- Quest starts: **"Grik's First Hunt"** _(working)_, with a talk-to objective for Borak,
-  a defeat objective for the boars, and a return to Borak.
-- Teaches: quests and the journal.
+- 狩獵首領波拉克交給格里克第一次狩獵的任務：獵殺在野林裡破壞村子陷阱的棘背野豬 _（暫定）_。
+- 德洛格取笑他，說他大概只會帶隻兔子回來。
+- 任務開始：**「格里克的第一次狩獵」** _（暫定）_，目標包括與波拉克對話、擊倒野豬，然後回報波拉克。
+- 教學：任務與日誌。
 
-**P3. The Wildwood** (Wildwood region, the forest edge of the hub)
+**P3. 野林**（野林區域，主地圖邊緣的森林）
 
-- Lirra is waiting at the treeline because she "happened" to be gathering herbs there.
-  She tracks better than Grik and enjoys pointing it out.
-- Field and turn-based battles against Wildwood animals, ending with a bigger alpha boar
-  _(working)_ as the prologue's first tough fight.
-- **Foreshadowing.** Lirra finds a snapped arrow with iron fletching and a small sun
-  stamp, which no goblin would make. Grik shrugs it off ("orc traders, probably"). Lirra
-  pockets it.
-- Teaches: combat, loot, healing.
+- 莉拉在林邊等著，說她「剛好」在那裡採藥。她追蹤的本事比格里克好，也很樂意指出這一點。
+- 與野林動物的野外戰和回合制戰鬥，最後是一頭更大的野豬王 _（暫定）_，作為序章第一場硬仗。
+- **伏筆。** 莉拉找到一支折斷的箭，箭羽是鐵製的，上面還有一個小小的太陽印記，哥布林不會做這種箭。格里克不以為意（「大概是獸人商隊的吧」），莉拉把它收了起來。
+- 教學：戰鬥、戰利品、回復。
 
-**P4. Homecoming and the family evening** (maps `guild-hall`, then `hero-house`)
+**P4. 歸家與家人的夜晚**（地圖 `guild-hall`，之後是 `hero-house`）
 
-- Back at the Lodge, Borak looks at the kill for a long moment and then names Grik a
-  hunter of Sundrop. He hands Grik his first hunter's knife (key item or starter
-  weapon). Drogg, quietly, is proud.
-- Dinner at home is the emotional anchor of the prologue. Talk to each family member at
-  the table: Tikka bossing everyone about, Drogg's teasing turning into real advice, and
-  Borak saying little but meaning it.
-- Old Mott tells the story of the Long Peace, when goblins were the largest people on
-  the island and lived alongside elves, orcs and demons. Then he tells of the Hero who
-  came across the sea, the demons who fell, and the hunts that followed. Borak cuts him
-  off ("not tonight") because he doesn't want to frighten Tikka.
-- Grik walks Lirra home. It is a quiet moment where they promise something small for
-  tomorrow, such as a river spot she wants to show him.
-- Grik sleeps, and the screen fades to Day 2. Save prompt.
+- 回到會所，波拉克盯著獵物看了很久，然後正式宣布格里克成為晴滴的獵人。他把第一把獵刀交給格里克（關鍵道具或起始武器）。德洛格雖然不說，但心裡很驕傲。
+- 家中的晚餐是序章的情感核心。玩家可以和餐桌旁的每個家人對話：蒂卡指揮大家做這做那，德洛格的玩笑話變成真正的建議，波拉克話不多但字字真心。
+- 老莫特講起長久和平時代的故事：那時哥布林是島上最龐大的種族，與精靈、獸人和魔族共同生活。接著他講到渡海而來的勇者、覆滅的魔族，以及隨之而來的大狩獵。波拉克打斷了他（「今晚別說這個」），因為不想嚇到蒂卡。
+- 格里克送莉拉回家。這是一段安靜的時刻，兩人約好明天的一件小事，例如她想帶他去看河邊的一個地方。
+- 格里克入睡，畫面淡出進入第二天。提示存檔。
 
-### Day 2
+### 第二天
 
-**P5. The raid** (a raided variant of Sundrop)
+**P5. 襲擊**（被襲擊後的晴滴地圖）
 
-- Grik wakes to war horns and smoke. The village is burning, and human soldiers are
-  everywhere.
-- He fights through one or two soldier battles. These are winnable: he can hurt them,
-  but they are bigger and better armoured.
-- Story beats as he moves through the village, cutting away rather than showing the
-  violence:
-  - Borak holds the village gate with the hunters and falls.
-  - Drogg breaks toward the house to reach Tikka and falls.
-  - Grik reaches the square to find Tikka and Lirra bound, and the **Sun-Crest Captain**
-    overseeing the captives.
-- **Forced loss.** Grik attacks the Captain and loses. The Captain looks down at him and
-  says something dismissive along the lines of "Leave it. The small ones don't last out
-  here anyway." That line comes back in the vow.
+- 格里克被戰號聲和濃煙驚醒。村子正在燃燒，到處都是人類士兵。
+- 他要打過一到兩場與士兵的戰鬥。這些戰鬥打得贏：他傷得了對方，但對方更高大，盔甲也更好。
+- 他穿過村子時發生的劇情，以鏡頭切開代替直接呈現暴力：
+  - 波拉克與獵人們死守村門，倒下了。
+  - 德洛格衝向家裡想救蒂卡，倒下了。
+  - 格里克來到廣場，看到蒂卡和莉拉被綁著，**日徽隊長**正在看管這些俘虜。
+- **注定落敗的戰鬥。** 格里克衝向隊長，然後落敗。隊長低頭看著他，說了句輕蔑的話，大意是「不用管他，小的在這裡反正也活不久」。這句話會在誓言中再次出現。
 
-**P6. The escape** (maps `shrine-of-aurora-interior`, then `ruins-threshold` and
-`ruins-core`)
+**P6. 逃亡**（地圖 `shrine-of-aurora-interior`，之後是 `ruins-threshold` 和 `ruins-core`）
 
-- Old Mott drags the half-conscious Grik into the shrine and opens the old goblin
-  tunnels from the Long Peace beneath it.
-- Mott stays behind to seal the way: "Live. Remember us. That is the hunt now." The
-  tunnel collapses behind Grik.
-- A short, dark crawl through the ancestral ruins. There is optional exploration, and
-  carvings of goblins, orcs, elves and demons together reinforce the lost peace. There is
-  at most one encounter.
+- 老莫特把半昏迷的格里克拖進神社，打開神社底下長久和平時代留下的哥布林古老隧道。
+- 老莫特留下來封住通道：「活下去。記住我們。現在，這就是你的狩獵。」隧道在格里克身後崩塌。
+- 一段短暫而黑暗的祖先遺跡爬行。可以選擇探索，牆上刻著哥布林、獸人、精靈與魔族共處的浮雕，強調那段失落的和平。最多只有一場遭遇戰。
 
-**P7. The vow** (ridge exit, or the Wildwood edge at dawn)
+**P7. 誓言**（山脊出口，或黎明時的野林邊緣）
 
-- Grik comes out on a ridge above Sundrop. Smoke is rising, and a column of soldiers is
-  marching south with the captives. He can just make out Tikka's and Lirra's shapes.
-- Lirra's sun-stamped arrow is on the ground where she dropped it, or he finds it in his
-  bag.
-- Grik makes his vow: "They hunted us like animals. Now I hunt them."
-- Title card: **Chapter 1**.
+- 格里克來到晴滴上方的山脊。濃煙升起，一列士兵押著俘虜往南行進。他勉強能認出蒂卡和莉拉的身影。
+- 莉拉那支有太陽印記的箭掉在她留下的地方，或者他在自己的背包裡找到它。
+- 格里克立下誓言：「他們像獵野獸一樣獵殺我們。現在，換我來獵殺他們。」
+- 標題卡：**第一章**。
 
-## Reusing the current vertical slice
+## 沿用現有的 vertical slice
 
-The existing Sundrop slice maps onto the prologue almost one to one, so the prologue is
-mostly a re-skin plus new scripting, not new world building.
+現有的晴滴 slice 幾乎可以一對一套用到序章上，所以序章主要是換皮加上新的劇情腳本，不需要新建世界。
 
-| Today                                        | In the prologue                                                         |
-| -------------------------------------------- | ----------------------------------------------------------------------- |
-| `meadow-entry` hub (Sundrop Meadows)         | Sundrop, the goblin village, and its surroundings                       |
-| `hero-house`                                 | Grik's family home (P1 and P4)                                          |
-| `guild-hall`: Guild Master Arlen             | Hunt Lodge: Hunt Chief Borak                                            |
-| `guild-hall`: Quartermaster Vale             | Lodge stores keeper (hunting gear shop)                                 |
-| `item-shop`: Mira                            | Herb hut keeper, Lirra's mentor                                         |
-| `blacksmith-interior`: Oren                  | Sundrop's bone-and-iron smith                                           |
-| `villager-house-1/2/3`: Lynn, Toma, Io       | Neighbours. One house becomes Lirra's family home                      |
-| Wildwood region                              | The hunting grounds (P3)                                                |
-| `slime-scout` enemy                          | Replaced in the prologue by Wildwood animals                            |
-| `shrine-of-aurora-interior`                  | Sundrop's shrine, Old Mott's post, and the tunnel entrance (P6)         |
-| `ruins-threshold` and `ruins-core`           | The old goblin tunnels, the escape route (P6)                           |
-| `ruins-warden` boss                          | Not needed in the prologue. Keep it for later or retire it              |
-| Main quest `investigate-the-ruins`           | Replaced by "Grik's First Hunt" and the prologue progression            |
+| 現在                                     | 在序章中                                         |
+| ---------------------------------------- | ------------------------------------------------ |
+| `meadow-entry` 主地圖（晴滴草原）        | 哥布林村莊晴滴及其周邊                           |
+| `hero-house`                             | 格里克的家（P1 和 P4）                           |
+| `guild-hall`：公會會長阿倫               | 狩獵會所：狩獵首領波拉克                         |
+| `guild-hall`：補給官維爾                 | 會所倉管（狩獵裝備商店）                         |
+| `item-shop`：米拉                        | 採藥小屋主人，莉拉的師父                         |
+| `blacksmith-interior`：歐倫              | 晴滴的骨鐵鐵匠                                   |
+| `villager-house-1/2/3`：琳恩、托馬、伊歐 | 鄰居。其中一間成為莉拉的家                       |
+| 野林區域                                 | 狩獵場（P3）                                     |
+| `slime-scout` 敵人                       | 序章中改為野林動物                               |
+| `shrine-of-aurora-interior`              | 晴滴的神社、老莫特的崗位、隧道入口（P6）         |
+| `ruins-threshold` 和 `ruins-core`        | 哥布林古老隧道，逃亡路線（P6）                   |
+| `ruins-warden` 頭目                      | 序章不需要。留到之後使用，或直接移除             |
+| 主線任務 `investigate-the-ruins`         | 改為「格里克的第一次狩獵」與序章流程             |
 
-The village keeps the name Sundrop, so map ids, region ids and most content stay as they
-are.
+村子沿用晴滴這個名稱，所以地圖 ID、區域 ID 和大部分內容都不用改。
 
-## Engine gaps
+## 引擎缺口
 
-These are things the prologue needs that the game can't do today. Each one is solved in
-its own follow-up task. None of them is solved by this document.
+以下是序章需要、但遊戲目前做不到的功能。每一項都在各自的後續任務中處理，本文件不解決任何一項。
 
-1. **Story progression.** Dialogue branches only know five quest and guild conditions
-   (see `story/schema/directives.md`). The prologue needs to know which step the story
-   is at (morning, hunting, hunt done, evening, raid, escape). The simplest approach is
-   probably one prologue step value in the save, plus branch conditions keyed on it.
-2. **Scripted scenes.** There is no cutscene support: camera and actor scripting is an
-   `unsupported-hook` today. Fades, a chain of system dialogue and moving the player
-   between maps are enough for the prologue. Choreographed actors are not needed.
-3. **Raided village.** P5 needs Sundrop in a different state, with fires, soldiers and
-   empty houses. The simplest approach is a separate map that reuses the village layout
-   with its own background, NPCs and enemies.
-4. **Forced-loss battle.** Today a defeated hero simply stays down. The Captain fight has
-   to end in a scripted loss that moves the story on to P6.
-5. **New enemies.** Wildwood animals (boars and an alpha), human soldiers, and the
-   Sun-Crest Captain.
-6. **Audio.** The game has no audio playback yet, so SFX can't be added until it does.
+1. **劇情進度。** 對話分支目前只認得五種任務與公會條件（見 `story/schema/directives.md`）。序章需要知道劇情進行到哪一步（早晨、狩獵中、狩獵完成、夜晚、襲擊、逃亡）。最簡單的做法大概是在存檔中加一個序章步驟值，再加上以它為依據的分支條件。
+2. **劇情演出。** 目前不支援過場動畫：鏡頭和角色腳本現在都屬於 `unsupported-hook`。序章只需要淡入淡出、一連串系統對話，以及在地圖之間移動玩家，不需要編排角色動作。
+3. **被襲擊的村子。** P5 需要晴滴呈現另一種狀態：火焰、士兵、空無一人的房屋。最簡單的做法是另做一張地圖，沿用村子的佈局，配上自己的背景、NPC 和敵人。
+4. **注定落敗的戰鬥。** 目前主角被擊倒後就只是倒地不起。與隊長的戰鬥必須以劇本安排的落敗結束，並把劇情推進到 P6。
+5. **新敵人。** 野林動物（野豬和野豬王）、人類士兵，以及日徽隊長。
+6. **音效。** 遊戲目前還沒有音訊播放功能，所以在那之前無法加入音效。
 
-## Follow-up tasks
+## 後續任務
 
-Each task below is one PR. Following the repo's "structure before art" rule, the code
-tasks use the current art as stand-ins, and the art tasks replace those stand-ins
-afterwards.
+以下每個任務都是一個 PR。依照 repo 的「先結構後美術」規則，程式任務先用現有美術當替身，美術任務之後再替換。
 
-### Code and story
+### 程式與劇情
 
-1. **Goblin re-skin of Sundrop.** Rename and recast the current NPCs and beats per the
-   table above, covering the beat prose, speaker names, i18n names (Guild Hall becomes
-   the Hunt Lodge, and so on) and test fixtures.
-2. **Prologue Day 1.** Add the "Grik's First Hunt" quest, the Wildwood animal enemies
-   (with stand-in sprites), the arrow foreshadowing pickup, and the hunter's knife
-   reward.
-3. **Prologue progression and the family evening.** Add the prologue step state, the new
-   branch conditions in the Rust story pipeline and the TS runtime, the dinner scene, and
-   the sleep transition to Day 2.
-4. **The raid.** Add the raided Sundrop map, the soldier and Captain enemies, the scripted
-   beats, and the forced-loss battle.
-5. **Escape and vow.** Add the shrine-to-tunnels sequence, the tunnel collapse, the ridge
-   vow scene, and the Chapter 1 title card.
-6. **Audio playback.** Add a minimal SFX and ambience player. This has to land before
-   the SFX task below.
+1. **晴滴的哥布林換皮。** 依照上表重新命名與重新設定現有 NPC 和劇情片段，包括劇情文字、說話者名稱、i18n 名稱（例如公會大廳改為狩獵會所）以及測試資料。
+2. **序章第一天。** 加入「格里克的第一次狩獵」任務、野林動物敵人（使用替身圖）、箭的伏筆拾取物，以及獵刀獎勵。
+3. **序章流程與家人的夜晚。** 加入序章步驟狀態、Rust 劇情管線和 TS runtime 中的新分支條件、晚餐場景，以及入睡後進入第二天的轉場。
+4. **襲擊。** 加入被襲擊的晴滴地圖、士兵與隊長敵人、劇情演出，以及注定落敗的戰鬥。
+5. **逃亡與誓言。** 加入從神社到隧道的流程、隧道崩塌、山脊上的誓言場景，以及第一章標題卡。
+6. **音訊播放。** 加入最基本的音效與環境音播放器。必須在下方的音效任務之前完成。
 
-### Art (generated with Codex)
+### 美術（以 Codex 生成）
 
-1. **Grik.** Field sprite sheet (idle, walk, attack, dead), HUD portrait, dialogue bust
-   and bag paper doll. This replaces the `liam-*` heroic-UI assets.
-2. **Goblin cast.** Field sprites and busts for Borak, Drogg, Old Mott, Tikka and Lirra,
-   plus the re-skinned village NPCs.
-3. **Wildwood animals.** Thornback boar and the alpha boar, as field and battle sprites.
-4. **Humans.** A soldier, and the Sun-Crest Captain with a bust.
-5. **Goblin Sundrop.** A repaint of the village exterior and interiors in a goblin style.
-   This is the biggest art task, and it can be split further when it is scheduled.
-6. **Raided Sundrop.** A burning and aftermath variant of the village background.
+1. **格里克。** 野外角色圖（待機、行走、攻擊、倒下）、HUD 頭像、對話半身像和背包紙娃娃。取代 `liam-*` 的 heroic-UI 素材。
+2. **哥布林角色群。** 波拉克、德洛格、老莫特、蒂卡和莉拉的野外角色圖與半身像，以及換皮後的村民 NPC。
+3. **野林動物。** 棘背野豬和野豬王的野外圖與戰鬥圖。
+4. **人類。** 一名士兵，以及附半身像的日徽隊長。
+5. **哥布林風格的晴滴。** 以哥布林風格重繪村子的外景與室內。這是最大的美術任務，排程時可以再拆分。
+6. **被襲擊的晴滴。** 村子背景的燃燒與災後版本。
 
-### SFX (generated with ElevenLabs)
+### 音效（以 ElevenLabs 生成）
 
-1. **Prologue SFX pack.** Village ambience, hunt sounds (boar, bow, brush), raid sounds
-   (war horn, fire, clashes), the tunnel collapse, and a short sting for the vow. This
-   depends on the audio playback task above.
+1. **序章音效包。** 村莊環境音、狩獵音效（野豬、弓、草叢）、襲擊音效（戰號、火焰、兵器交擊）、隧道崩塌，以及誓言時的一段短配樂。依賴上方的音訊播放任務。
