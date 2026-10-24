@@ -10,8 +10,6 @@ pub struct StoryManifest {
     pub entry_beat: String,
     pub default_locale: String,
     pub chapters: Vec<StoryManifestChapter>,
-    #[serde(default)]
-    pub required_content: RequiredContent,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -28,21 +26,6 @@ pub struct StoryManifestChapter {
 pub struct StoryManifestBeat {
     pub id: String,
     pub file: String,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct RequiredContent {
-    #[serde(default)]
-    pub maps: Vec<String>,
-    #[serde(default)]
-    pub npcs: Vec<String>,
-    #[serde(default)]
-    pub quests: Vec<String>,
-    #[serde(default)]
-    pub shops: Vec<String>,
-    #[serde(default)]
-    pub enemies: Vec<String>,
 }
 
 pub fn parse_manifest(source: &str) -> Result<StoryManifest, serde_yaml::Error> {
@@ -100,10 +83,6 @@ chapters:
     beats:
       - id: prologue.guild-master
         file: beats/prologue/guild-master.md
-requiredContent:
-  maps: [guild-hall]
-  npcs: [guild-master]
-  quests: [investigate-the-ruins]
 "#,
         )
         .expect("manifest should parse");
@@ -135,7 +114,6 @@ chapters:
     beats:
       - id: prologue.villager
         file: beats/prologue/villager.md
-requiredContent: {}
 "#,
         )
         .expect("yaml parses");
@@ -162,7 +140,6 @@ chapters:
         file: beats/prologue/guild-master.md
       - id: prologue.guild-master
         file: beats/prologue/duplicate.md
-requiredContent: {}
 "#,
         )
         .expect("yaml parses");
@@ -188,7 +165,6 @@ chapters:
     beats:
       - id: prologue.guild-master
         file: beats/prologue/guild-master.md
-requiredContent: {}
 "#,
         )
         .is_err());
@@ -205,8 +181,9 @@ chapters:
     beats:
       - id: prologue.guild-master
         file: beats/prologue/guild-master.md
-requiredContent:
-  npc: [guild-master]
+      - id: prologue.other
+        file: beats/prologue/other.md
+        extra: value
 "#,
         )
         .is_err());
@@ -226,7 +203,6 @@ chapters:
     beats:
       - id: prologue.guild-master
         file: beats/prologue/guild-master.md
-requiredContent: {}
 "#,
         )
         .expect("yaml parses");
@@ -251,7 +227,6 @@ chapters:
     beats:
       - id: prologue.villager
         file: beats/prologue/villager.md
-requiredContent: {}
 "#,
         )
         .expect("yaml parses");

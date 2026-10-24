@@ -1,15 +1,19 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashSet};
 use std::error::Error;
 use std::fmt;
 use std::fs;
 use std::path::Path;
 
 use super::beat::{parse_beat_markdown, StoryBeat, UnsupportedHook};
-use super::codegen::generate_story_catalog_source;
-use super::compiler::compile_catalog;
+use super::codegen::{generate_browser_catalog_json, generate_story_catalog_source};
+use super::compiler::{compile_catalog, parse_branch_condition};
 use super::manifest::{parse_manifest, validate_manifest, StoryManifest};
-use super::reference::{ENEMY_IDS, MAP_IDS, NPC_IDS, NPC_PLACEMENTS, QUEST_IDS, SHOP_IDS};
-use super::types::StoryCatalog;
+use super::reference;
+use super::types::{StoryBranchCondition, StoryCatalog};
+
+const GENERATED_RUST_PATH: &str = "src-tauri/src/story/generated.rs";
+const GENERATED_BROWSER_PATH: &str = "src/lib/game/story/browser-catalog.generated.json";
+const REPORT_PATH: &str = "story/reports/story-integration-report.md";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CheckMode {
@@ -31,6 +35,30 @@ pub struct StoryCheckArgs {
     pub check_generated: bool,
 }
 
+/// Game content ids the story may reference, exported from TypeScript into `reference.rs`.
+#[derive(Debug, Clone, Copy)]
+pub struct ContentReferences {
+    pub quest_ids: &'static [&'static str],
+    pub objective_ids: &'static [&'static str],
+    pub shop_ids: &'static [&'static str],
+    /// `(mapId, dialogueId)` for every NPC placed in the world.
+    pub npc_placements: &'static [(&'static str, &'static str)],
+    /// Scene ids that quest content plays; each must be defined by a beat.
+    pub scene_ids: &'static [&'static str],
+}
+
+impl ContentReferences {
+    pub fn generated() -> Self {
+        Self {
+            quest_ids: reference::QUEST_IDS,
+            objective_ids: reference::OBJECTIVE_IDS,
+            shop_ids: reference::SHOP_IDS,
+            npc_placements: reference::NPC_PLACEMENTS,
+            scene_ids: reference::SCENE_IDS,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StoryCheckError {
     message: String,
@@ -43,6 +71,14 @@ impl fmt::Display for StoryCheckError {
 }
 
 impl Error for StoryCheckError {}
+
+impl StoryCheckError {
+    fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
 
 pub fn parse_story_check_args<I, S>(args: I) -> Result<StoryCheckArgs, StoryCheckError>
 where
@@ -101,50 +137,37 @@ pub fn run_story_check(
     let root = std::env::current_dir().map_err(|error| {
         StoryCheckError::new(format!("failed to determine current directory: {error}"))
     })?;
-    let result = check_story_package(mode, &root)?;
+    let result = check_story_package(mode, &root, ContentReferences::generated())?;
 
     if write_report {
-        let report_path = root.join("story/reports/story-integration-report.md");
-        if let Some(parent) = report_path.parent() {
-            fs::create_dir_all(parent).map_err(|error| {
-                StoryCheckError::new(format!(
-                    "failed to create report directory {}: {error}",
-                    parent.display()
-                ))
-            })?;
+        write_file(&root.join(REPORT_PATH), &result.integration_report)?;
+    }
+
+    let generated = [
+        (
+            GENERATED_RUST_PATH,
+            generate_story_catalog_source(&result.catalog),
+        ),
+        (
+            GENERATED_BROWSER_PATH,
+            generate_browser_catalog_json(&result.catalog),
+        ),
+    ];
+    for (relative_path, contents) in &generated {
+        let path = root.join(relative_path);
+        if write_generated {
+            write_file(&path, contents)?;
         }
-        fs::write(&report_path, &result.integration_report).map_err(|error| {
-            StoryCheckError::new(format!(
-                "failed to write report {}: {error}",
-                report_path.display()
-            ))
-        })?;
-    }
-
-    let generated_source = generate_story_catalog_source(&result.catalog);
-    let generated_path = root.join("src-tauri/src/story/generated.rs");
-
-    if write_generated {
-        fs::write(&generated_path, &generated_source).map_err(|error| {
-            StoryCheckError::new(format!(
-                "failed to write generated catalog {}: {error}",
-                generated_path.display()
-            ))
-        })?;
-    }
-
-    if check_generated {
-        let current_source = fs::read_to_string(&generated_path).map_err(|error| {
-            StoryCheckError::new(format!(
-                "failed to read generated catalog {}: {error}",
-                generated_path.display()
-            ))
-        })?;
-        if current_source != generated_source {
-            return Err(StoryCheckError::new(format!(
-                "{} is out of date; run bun run story:check",
-                generated_path.display()
-            )));
+        if check_generated {
+            let current = fs::read_to_string(&path).map_err(|error| {
+                StoryCheckError::new(format!("failed to read {}: {error}", path.display()))
+            })?;
+            if &current != contents {
+                return Err(StoryCheckError::new(format!(
+                    "{} is out of date; run bun run story:check",
+                    path.display()
+                )));
+            }
         }
     }
 
@@ -152,7 +175,25 @@ pub fn run_story_check(
     Ok(result)
 }
 
-fn check_story_package(mode: CheckMode, root: &Path) -> Result<StoryCheckResult, StoryCheckError> {
+fn write_file(path: &Path, contents: &str) -> Result<(), StoryCheckError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| {
+            StoryCheckError::new(format!(
+                "failed to create directory {}: {error}",
+                parent.display()
+            ))
+        })?;
+    }
+    fs::write(path, contents).map_err(|error| {
+        StoryCheckError::new(format!("failed to write {}: {error}", path.display()))
+    })
+}
+
+fn check_story_package(
+    mode: CheckMode,
+    root: &Path,
+    references: ContentReferences,
+) -> Result<StoryCheckResult, StoryCheckError> {
     let story_root = root.join("story");
     let manifest_path = story_root.join("manifest.yaml");
     let manifest_source = fs::read_to_string(&manifest_path).map_err(|error| {
@@ -181,29 +222,21 @@ fn check_story_package(mode: CheckMode, root: &Path) -> Result<StoryCheckResult,
         beat_sources.push((manifest_beat.file.clone(), manifest_beat.id.clone(), source));
     }
 
-    check_story_package_sources(mode, manifest_source, beat_sources)
+    check_story_package_sources(mode, &manifest_source, beat_sources, references)
 }
 
 fn check_story_package_sources(
     mode: CheckMode,
-    manifest_source: String,
+    manifest_source: &str,
     beat_sources: Vec<(String, String, String)>,
+    references: ContentReferences,
 ) -> Result<StoryCheckResult, StoryCheckError> {
-    let mut errors = Vec::new();
-    let manifest = match parse_manifest(&manifest_source) {
-        Ok(manifest) => manifest,
-        Err(error) => {
-            return Err(StoryCheckError::new(format!(
-                "failed to parse story manifest: {error}"
-            )))
-        }
-    };
+    let manifest = parse_manifest(manifest_source).map_err(|error| {
+        StoryCheckError::new(format!("failed to parse story manifest: {error}"))
+    })?;
 
-    errors.extend(validate_manifest(&manifest));
-    errors.extend(validate_required_content(&manifest));
-
+    let mut errors = validate_manifest(&manifest);
     let mut beats = Vec::new();
-    let mut beat_source_paths = HashMap::new();
     for (path, expected_id, source) in beat_sources {
         match parse_beat_markdown(&source) {
             Ok(beat) => {
@@ -213,15 +246,17 @@ fn check_story_package_sources(
                         path, beat.id, expected_id
                     ));
                 }
-                beat_source_paths.insert(beat.id.clone(), path);
+                errors.extend(
+                    validate_beat_references(&beat, &references)
+                        .into_iter()
+                        .map(|error| format!("{}: {}", path, error)),
+                );
                 beats.push(beat);
             }
             Err(error) => errors.push(format!("{}: {}", path, error)),
         }
     }
-
     errors.extend(validate_manifest_beat_references(&manifest, &beats));
-    errors.extend(validate_beat_content_references(&beats, &beat_source_paths));
 
     if !errors.is_empty() {
         return Err(StoryCheckError::new(format_errors(
@@ -251,50 +286,107 @@ fn check_story_package_sources(
         compile_catalog(&manifest.id, &manifest.default_locale, &beats).map_err(|error| {
             StoryCheckError::new(format!("failed to compile story catalog: {error}"))
         })?;
-    let integration_report = build_integration_report(&manifest, &beats, &unsupported_hooks);
 
+    let catalog_errors = validate_catalog_coverage(&catalog, &references);
+    if !catalog_errors.is_empty() {
+        return Err(StoryCheckError::new(format_errors(
+            "story check failed",
+            &catalog_errors,
+        )));
+    }
+
+    let integration_report = build_integration_report(&manifest, &catalog, &unsupported_hooks);
     Ok(StoryCheckResult {
         integration_report,
         catalog,
     })
 }
 
-fn validate_required_content(manifest: &StoryManifest) -> Vec<String> {
+fn validate_beat_references(beat: &StoryBeat, references: &ContentReferences) -> Vec<String> {
+    let placements = references
+        .npc_placements
+        .iter()
+        .copied()
+        .collect::<HashSet<_>>();
     let mut errors = Vec::new();
-    errors.extend(validate_known_ids(
-        "requiredContent.maps",
-        &manifest.required_content.maps,
-        MAP_IDS,
-    ));
-    errors.extend(validate_known_ids(
-        "requiredContent.npcs",
-        &manifest.required_content.npcs,
-        NPC_IDS,
-    ));
-    errors.extend(validate_known_ids(
-        "requiredContent.quests",
-        &manifest.required_content.quests,
-        QUEST_IDS,
-    ));
-    errors.extend(validate_known_ids(
-        "requiredContent.shops",
-        &manifest.required_content.shops,
-        SHOP_IDS,
-    ));
-    errors.extend(validate_known_ids(
-        "requiredContent.enemies",
-        &manifest.required_content.enemies,
-        ENEMY_IDS,
-    ));
+
+    for dialogue in &beat.dialogues {
+        if !placements.contains(&(dialogue.map_id.as_str(), dialogue.npc_id.as_str())) {
+            errors.push(format!(
+                "beat {} dialogue npc {} is not placed on map {}",
+                beat.id, dialogue.npc_id, dialogue.map_id
+            ));
+        }
+        if let Some(shop_id) = &dialogue.shop {
+            if !references.shop_ids.contains(&shop_id.as_str()) {
+                errors.push(format!(
+                    "beat {} dialogue npc {} references unknown shop {}",
+                    beat.id, dialogue.npc_id, shop_id
+                ));
+            }
+        }
+        match parse_branch_condition(&dialogue.branch) {
+            Ok(StoryBranchCondition::Quest(id)) if !references.quest_ids.contains(&id.as_str()) => {
+                errors.push(format!(
+                    "beat {} dialogue npc {} branch references unknown quest {}",
+                    beat.id, dialogue.npc_id, id
+                ));
+            }
+            Ok(StoryBranchCondition::Objective(id))
+                if !references.objective_ids.contains(&id.as_str()) =>
+            {
+                errors.push(format!(
+                    "beat {} dialogue npc {} branch references unknown objective {}",
+                    beat.id, dialogue.npc_id, id
+                ));
+            }
+            // Malformed conditions are reported by the compiler.
+            _ => {}
+        }
+    }
+
     errors
 }
 
-fn validate_known_ids(field: &str, ids: &[String], known_ids: &[&str]) -> Vec<String> {
-    let known = known_ids.iter().copied().collect::<HashSet<_>>();
-    ids.iter()
-        .filter(|id| !known.contains(id.as_str()))
-        .map(|id| format!("unknown {} id {}", field, id))
-        .collect()
+/// Every placed NPC must be talkable at any point of the story, and every scene the
+/// quest content plays must exist.
+fn validate_catalog_coverage(
+    catalog: &StoryCatalog,
+    references: &ContentReferences,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+
+    for (map_id, npc_id) in references.npc_placements {
+        let has_fallback = catalog.npc_dialogues.iter().any(|dialogue| {
+            dialogue.npc_id == *npc_id
+                && dialogue
+                    .branches
+                    .iter()
+                    .any(|branch| branch.condition == StoryBranchCondition::Always)
+        });
+        if !has_fallback {
+            errors.push(format!(
+                "npc {} placed on map {} has no always dialogue branch",
+                npc_id, map_id
+            ));
+        }
+    }
+
+    let scene_ids = catalog
+        .scenes
+        .iter()
+        .map(|scene| scene.id.as_str())
+        .collect::<HashSet<_>>();
+    for scene_id in references.scene_ids {
+        if !scene_ids.contains(scene_id) {
+            errors.push(format!(
+                "scene {} is played by game content but no beat defines it",
+                scene_id
+            ));
+        }
+    }
+
+    errors
 }
 
 fn validate_manifest_beat_references(manifest: &StoryManifest, beats: &[StoryBeat]) -> Vec<String> {
@@ -332,71 +424,6 @@ fn validate_manifest_beat_references(manifest: &StoryManifest, beats: &[StoryBea
     errors
 }
 
-fn validate_beat_content_references(
-    beats: &[StoryBeat],
-    source_paths: &HashMap<String, String>,
-) -> Vec<String> {
-    let maps = MAP_IDS.iter().copied().collect::<HashSet<_>>();
-    let npcs = NPC_IDS.iter().copied().collect::<HashSet<_>>();
-    let placements = NPC_PLACEMENTS.iter().copied().collect::<HashSet<_>>();
-    let mut errors = Vec::new();
-
-    for beat in beats {
-        let map_known = maps.contains(beat.map_id.as_str());
-        let primary_npc_known = npcs.contains(beat.primary_npc_id.as_str());
-
-        if !map_known {
-            errors.push(format!(
-                "beat {} references unknown map {}",
-                beat.id, beat.map_id
-            ));
-        }
-        if !primary_npc_known {
-            errors.push(format!(
-                "beat {} references unknown primaryNpc {}",
-                beat.id, beat.primary_npc_id
-            ));
-        }
-        if map_known
-            && primary_npc_known
-            && !placements.contains(&(beat.map_id.as_str(), beat.primary_npc_id.as_str()))
-        {
-            let source_prefix = source_paths
-                .get(&beat.id)
-                .map(|path| format!("{}: ", path))
-                .unwrap_or_default();
-            errors.push(format!(
-                "{}beat {} primaryNpc {} is not placed on map {}",
-                source_prefix, beat.id, beat.primary_npc_id, beat.map_id
-            ));
-        }
-        for dialogue in &beat.dialogues {
-            let dialogue_npc_known = npcs.contains(dialogue.npc_id.as_str());
-            if !dialogue_npc_known {
-                errors.push(format!(
-                    "beat {} dialogue references unknown npc {}",
-                    beat.id, dialogue.npc_id
-                ));
-            }
-            if map_known
-                && dialogue_npc_known
-                && !placements.contains(&(beat.map_id.as_str(), dialogue.npc_id.as_str()))
-            {
-                let source_prefix = source_paths
-                    .get(&beat.id)
-                    .map(|path| format!("{}: ", path))
-                    .unwrap_or_default();
-                errors.push(format!(
-                    "{}beat {} dialogue npc {} is not placed on map {}",
-                    source_prefix, beat.id, dialogue.npc_id, beat.map_id
-                ));
-            }
-        }
-    }
-
-    errors
-}
-
 #[derive(Debug)]
 struct UnsupportedHookReport<'a> {
     beat_id: &'a str,
@@ -404,24 +431,35 @@ struct UnsupportedHookReport<'a> {
 }
 
 fn collect_unsupported_hooks(beats: &[StoryBeat]) -> Vec<UnsupportedHookReport<'_>> {
-    let mut hooks = Vec::new();
-    for beat in beats {
-        for hook in &beat.unsupported_hooks {
-            hooks.push(UnsupportedHookReport {
-                beat_id: &beat.id,
-                hook,
-            });
-        }
-    }
-    hooks
+    beats
+        .iter()
+        .flat_map(|beat| {
+            beat.unsupported_hooks
+                .iter()
+                .map(|hook| UnsupportedHookReport {
+                    beat_id: &beat.id,
+                    hook,
+                })
+        })
+        .collect()
 }
 
 fn build_integration_report(
     manifest: &StoryManifest,
-    beats: &[StoryBeat],
+    catalog: &StoryCatalog,
     unsupported_hooks: &[UnsupportedHookReport<'_>],
 ) -> String {
-    let dialogue_count = beats.iter().map(|beat| beat.dialogues.len()).sum::<usize>();
+    let branches = catalog
+        .npc_dialogues
+        .iter()
+        .flat_map(|dialogue| dialogue.branches.iter())
+        .collect::<Vec<_>>();
+    let line_count = branches
+        .iter()
+        .map(|branch| branch.lines.len())
+        .chain(catalog.scenes.iter().map(|scene| scene.lines.len()))
+        .sum::<usize>();
+
     let mut report = String::new();
     report.push_str("# Story Integration Report\n\n");
     report.push_str("<!-- DO NOT EDIT — @generated by story:check -->\n\n");
@@ -430,11 +468,17 @@ fn build_integration_report(
         "- Default locale: `{}`\n",
         manifest.default_locale
     ));
-    report.push_str(&format!("- Beats checked: {}\n", beats.len()));
     report.push_str(&format!(
-        "- Dialogue blocks compiled: {}\n\n",
-        dialogue_count
+        "- Beats checked: {}\n",
+        manifest_beats(manifest).len()
     ));
+    report.push_str(&format!(
+        "- NPCs with dialogue: {}\n",
+        catalog.npc_dialogues.len()
+    ));
+    report.push_str(&format!("- Dialogue branches: {}\n", branches.len()));
+    report.push_str(&format!("- Scenes: {}\n", catalog.scenes.len()));
+    report.push_str(&format!("- Lines: {}\n\n", line_count));
     report.push_str("## Unsupported hooks\n\n");
 
     if unsupported_hooks.is_empty() {
@@ -470,261 +514,157 @@ fn manifest_beats(manifest: &StoryManifest) -> Vec<&super::manifest::StoryManife
         .collect()
 }
 
-impl StoryCheckError {
-    fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-        }
-    }
-}
-
-#[cfg(test)]
-fn check_story_package_for_test(
-    mode: CheckMode,
-    include_unsupported_hook: bool,
-) -> Result<StoryCheckResult, StoryCheckError> {
-    let hook = if include_unsupported_hook {
-        r#"
-::: unsupported-hook
-id: cutscene.guild-master-points
-kind: camera-pan
-reason: Needs camera support.
-:::
-"#
-    } else {
-        ""
-    };
-    let manifest_source = r#"
-id: sundrop-ruins
-title: Sundrop Ruins
-entryBeat: prologue.guild-master
-defaultLocale: en
-chapters:
-  - id: prologue
-    title: Prologue
-    beats:
-      - id: prologue.guild-master
-        file: beats/prologue/guild-master.md
-requiredContent:
-  maps: [guild-hall]
-  npcs: [guild-master]
-  quests: [investigate-the-ruins]
-  shops: []
-  enemies: []
-"#
-    .to_string();
-    let beat_source = format!(
-        r#"# Guild Master
-
-::: story
-id: prologue.guild-master
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
-
-::: dialogue
-npc: guild-master
-branch: always
-speaker: Guild Master Arlen
-choices: quest
-:::
-
-Take this work.
-{hook}
-"#
-    );
-
-    check_story_package_sources(
-        mode,
-        manifest_source,
-        vec![(
-            "beats/prologue/guild-master.md".to_string(),
-            "prologue.guild-master".to_string(),
-            beat_source,
-        )],
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn draft_allows_unsupported_hooks_but_reports_them() {
-        let result = check_story_package_for_test(CheckMode::Draft, true);
-        assert!(result.is_ok());
-        let report = result.unwrap().integration_report;
-        assert!(report.contains("Unsupported hooks"));
+    const REFERENCES: ContentReferences = ContentReferences {
+        quest_ids: &["prologue-morning"],
+        objective_ids: &["talk-to-borak"],
+        shop_ids: &["herb-hut"],
+        npc_placements: &[("hero-house", "borak"), ("item-shop", "mira")],
+        scene_ids: &["prologue.opening"],
+    };
+
+    const MANIFEST: &str = r#"
+id: gliese
+title: Gliese
+entryBeat: prologue.morning
+defaultLocale: en
+chapters:
+  - id: prologue
+    title: Prologue
+    beats:
+      - id: prologue.morning
+        file: beats/prologue/morning.md
+"#;
+
+    const VALID_BEAT: &str = r#"::: story
+id: prologue.morning
+chapter: prologue
+map: hero-house
+:::
+
+::: scene
+id: prologue.opening
+:::
+
+Dawn over Sundrop.
+
+::: dialogue
+npc: borak
+branch: objective:talk-to-borak
+speaker: Borak
+:::
+
+Sit down, Grik.
+
+::: dialogue
+npc: borak
+branch: always
+speaker: Borak
+:::
+
+Rest.
+
+::: dialogue
+npc: mira
+map: item-shop
+branch: always
+speaker: Mira
+choices: shop, close
+shop: herb-hut
+:::
+
+Herbs?
+"#;
+
+    fn check(mode: CheckMode, beat: &str) -> Result<StoryCheckResult, StoryCheckError> {
+        check_story_package_sources(
+            mode,
+            MANIFEST,
+            vec![(
+                "beats/prologue/morning.md".to_string(),
+                "prologue.morning".to_string(),
+                beat.to_string(),
+            )],
+            REFERENCES,
+        )
+    }
+
+    fn check_error(beat: &str) -> String {
+        check(CheckMode::Draft, beat).unwrap_err().to_string()
     }
 
     #[test]
-    fn strict_rejects_unsupported_hooks() {
-        let result = check_story_package_for_test(CheckMode::Strict, true);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("unsupported hook"));
+    fn compiles_a_valid_package_and_reports_counts() {
+        let result = check(CheckMode::Strict, VALID_BEAT).expect("valid package");
+
+        assert_eq!(result.catalog.npc_dialogues.len(), 2);
+        assert_eq!(result.catalog.scenes.len(), 1);
+        assert!(result.integration_report.contains("- Dialogue branches: 3"));
+        assert!(result.integration_report.contains("- Lines: 4"));
+    }
+
+    #[test]
+    fn draft_reports_unsupported_hooks_and_strict_rejects_them() {
+        let beat = format!(
+            "{VALID_BEAT}\n::: unsupported-hook\nid: camera.pan\nkind: camera-pan\nreason: Needs camera support.\n:::\n"
+        );
+
+        let draft = check(CheckMode::Draft, &beat).expect("draft allows hooks");
+        assert!(draft.integration_report.contains("`camera.pan`"));
+
+        let strict = check(CheckMode::Strict, &beat).unwrap_err().to_string();
+        assert!(strict.contains("unsupported hook camera.pan"));
     }
 
     #[test]
     fn rejects_beat_id_that_does_not_match_manifest_entry() {
-        let manifest_source = r#"
-id: sundrop-ruins
-title: Sundrop Ruins
-entryBeat: prologue.guild-master
-defaultLocale: en
-chapters:
-  - id: prologue
-    title: Prologue
-    beats:
-      - id: prologue.guild-master
-        file: beats/prologue/guild-master.md
-requiredContent: {}
-"#
-        .to_string();
-        let beat_source = r#"# Guild Master
+        let error = check_error(&VALID_BEAT.replace("id: prologue.morning", "id: prologue.other"));
 
-::: story
-id: prologue.other
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
-"#
-        .to_string();
-
-        let error = check_story_package_sources(
-            CheckMode::Draft,
-            manifest_source,
-            vec![(
-                "beats/prologue/guild-master.md".to_string(),
-                "prologue.guild-master".to_string(),
-                beat_source,
-            )],
-        )
-        .unwrap_err();
-
-        assert!(error.to_string().contains("does not match manifest id"));
+        assert!(error.contains("does not match manifest id"));
     }
 
     #[test]
-    fn rejects_primary_npc_not_placed_on_declared_map() {
-        let manifest_source = r#"
-id: sundrop-ruins
-title: Sundrop Ruins
-entryBeat: prologue.guild-master
-defaultLocale: en
-chapters:
-  - id: prologue
-    title: Prologue
-    beats:
-      - id: prologue.guild-master
-        file: beats/prologue/guild-master.md
-requiredContent:
-  maps: [item-shop]
-  npcs: [guild-master]
-"#
-        .to_string();
-        let beat_source = r#"# Guild Master
+    fn rejects_dialogue_npc_not_placed_on_its_map() {
+        let error = check_error(&VALID_BEAT.replace("map: item-shop\n", ""));
 
-::: story
-id: prologue.guild-master
-chapter: prologue
-map: item-shop
-primaryNpc: guild-master
-:::
-
-::: dialogue
-npc: guild-master
-branch: always
-speaker: Guild Master Arlen
-choices: quest
-:::
-
-Take this work.
-"#
-        .to_string();
-
-        let error = check_story_package_sources(
-            CheckMode::Draft,
-            manifest_source,
-            vec![(
-                "beats/prologue/guild-master.md".to_string(),
-                "prologue.guild-master".to_string(),
-                beat_source,
-            )],
-        )
-        .unwrap_err()
-        .to_string();
-
-        assert!(error.contains("beats/prologue/guild-master.md"));
-        assert!(error.contains("beat prologue.guild-master"));
-        assert!(error.contains("primaryNpc guild-master"));
-        assert!(error.contains("not placed on map item-shop"));
+        assert!(error.contains("beats/prologue/morning.md"));
+        assert!(error.contains("dialogue npc mira is not placed on map hero-house"));
     }
 
     #[test]
-    fn rejects_secondary_dialogue_npc_not_placed_on_beat_map() {
-        let manifest_source = r#"
-id: sundrop-ruins
-title: Sundrop Ruins
-entryBeat: prologue.guild-master
-defaultLocale: en
-chapters:
-  - id: prologue
-    title: Prologue
-    beats:
-      - id: prologue.guild-master
-        file: beats/prologue/guild-master.md
-requiredContent:
-  maps: [guild-hall, item-shop]
-  npcs: [guild-master, shopkeeper-mira]
-"#
-        .to_string();
-        let beat_source = r#"# Guild Master
-
-::: story
-id: prologue.guild-master
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
-
-::: dialogue
-npc: guild-master
-branch: always
-speaker: Guild Master Arlen
-choices: quest
-:::
-
-Take this work.
-
-::: dialogue
-npc: shopkeeper-mira
-branch: always
-speaker: Mira
-choices: close
-:::
-
-I stopped by.
-"#
-        .to_string();
-
-        let error = check_story_package_sources(
-            CheckMode::Draft,
-            manifest_source,
-            vec![(
-                "beats/prologue/guild-master.md".to_string(),
-                "prologue.guild-master".to_string(),
-                beat_source,
-            )],
+    fn rejects_unknown_shop_quest_and_objective_ids() {
+        assert!(
+            check_error(&VALID_BEAT.replace("shop: herb-hut", "shop: forge"))
+                .contains("references unknown shop forge")
+        );
+        assert!(check_error(
+            &VALID_BEAT.replace("objective:talk-to-borak", "objective:talk-to-drogg")
         )
-        .unwrap_err()
-        .to_string();
+        .contains("branch references unknown objective talk-to-drogg"));
+        assert!(
+            check_error(&VALID_BEAT.replace("objective:talk-to-borak", "quest:prologue-raid"))
+                .contains("branch references unknown quest prologue-raid")
+        );
+    }
 
-        assert!(error.contains("beats/prologue/guild-master.md"));
-        assert!(error.contains("beat prologue.guild-master"));
-        assert!(error.contains("dialogue npc shopkeeper-mira"));
-        assert!(error.contains("not placed on map guild-hall"));
+    #[test]
+    fn requires_an_always_branch_for_every_placed_npc() {
+        let error = check_error(&VALID_BEAT.replace(
+            "branch: always\nspeaker: Borak",
+            "branch: quest:prologue-morning\nspeaker: Borak",
+        ));
+
+        assert!(error.contains("npc borak placed on map hero-house has no always dialogue branch"));
+    }
+
+    #[test]
+    fn requires_every_referenced_scene_to_be_defined() {
+        let error = check_error(&VALID_BEAT.replace("id: prologue.opening", "id: prologue.dusk"));
+
+        assert!(error.contains("scene prologue.opening is played by game content"));
     }
 
     #[test]

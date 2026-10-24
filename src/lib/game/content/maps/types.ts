@@ -15,12 +15,27 @@ import type {
 	villageDressingAsset,
 	VillageDressingFrameName
 } from '$lib/game/content/assets';
-import type { NpcDialogueId } from '$lib/game/content/dialogue';
+import type { QuestId } from '$lib/game/content/quests';
 import type { MapDefinition } from '$lib/game/core/types';
 import type { NavigationGrid } from '$lib/game/core/navigation';
 import type { MessageKey } from '$lib/game/i18n/translate';
 
-export interface MapTransition {
+/** A span of the main story: any listed quest, or any listed objective. */
+export interface StoryWindow {
+	quests?: readonly QuestId[];
+	objectives?: readonly string[];
+}
+
+/**
+ * Story gating for map entries. An entry with `activeDuring` exists only inside
+ * that window; one with `hiddenDuring` disappears inside it. See `core/story-gates.ts`.
+ */
+export interface StoryGated {
+	activeDuring?: StoryWindow;
+	hiddenDuring?: StoryWindow;
+}
+
+export interface MapTransition extends StoryGated {
 	id: string;
 	x: number;
 	y: number;
@@ -28,10 +43,6 @@ export interface MapTransition {
 	requiresClear?: boolean;
 	showMarker?: boolean;
 	marker?: MapTransitionMarker;
-	questRequirement?: {
-		questId: string;
-		objectiveId: string;
-	};
 	arrival?: {
 		x: number;
 		y: number;
@@ -39,15 +50,16 @@ export interface MapTransition {
 	};
 }
 
-export interface MapEncounter {
+export interface MapEncounter extends StoryGated {
 	id: string;
 	x: number;
 	y: number;
 	enemyId: string;
-	completion?: 'victory';
+	/** Enemies in the battle. Bosses always fight alone; unset rolls a random pack. */
+	count?: number;
 }
 
-export interface MapPickup {
+export interface MapPickup extends StoryGated {
 	id: string;
 	x: number;
 	y: number;
@@ -58,13 +70,14 @@ export interface MapPickup {
 
 export type MapNpcRole = 'guild' | 'shopkeeper' | 'villager' | 'home';
 
-export interface MapNpc {
+export interface MapNpc extends StoryGated {
 	id: string;
 	x: number;
 	y: number;
 	nameKey: MessageKey;
 	name: string;
-	dialogueId: NpcDialogueId;
+	/** Story dialogue id; each one is placed on exactly one map. */
+	dialogueId: string;
 	role: MapNpcRole;
 	frameName: NpcFrameName;
 	shopId?: string;
@@ -124,7 +137,7 @@ export type MapVisualOwnership =
 
 export type MapVisualSourceType = 'blocker' | 'decor' | 'fence' | 'ground-patch' | 'interior-prop';
 
-export interface MapBlocker extends MapRect {
+export interface MapBlocker extends MapRect, StoryGated {
 	kind: MapBlockerKind;
 	label?: string;
 	visual?: MapVisualOwnership;
@@ -142,7 +155,7 @@ export interface MapFenceSegment extends MapRect {
 
 export type MapDecorDepth = 'floor' | 'furniture' | 'foreground';
 
-interface MapDecorBase extends MapRect {
+interface MapDecorBase extends MapRect, StoryGated {
 	depth?: MapDecorDepth;
 	mode?: 'image' | 'tile';
 	collision?: MapRect;
@@ -194,7 +207,7 @@ export interface MapInteriorProp extends MapRect {
 
 export type MapAmbientNpcRole = 'guild-member' | 'shopper' | 'family' | 'neighbor';
 
-export interface MapAmbientNpc {
+export interface MapAmbientNpc extends StoryGated {
 	id: string;
 	x: number;
 	y: number;
@@ -204,14 +217,16 @@ export interface MapAmbientNpc {
 	role?: MapAmbientNpcRole;
 }
 
-export interface MapDiscovery {
+export interface MapDiscovery extends StoryGated {
 	id: string;
 	x: number;
 	y: number;
 	/** Interact proximity in px (player center to discovery). Defaults to a WorldScene constant. */
 	radius?: number;
 	labelKey: MessageKey;
-	descriptionKey: MessageKey;
+	/** Short examine text. Story discoveries play `sceneId` from `story/` instead. */
+	descriptionKey?: MessageKey;
+	sceneId?: string;
 	/** When true, becomes an area-map pin after it has been examined. */
 	revealMarker?: boolean;
 }
