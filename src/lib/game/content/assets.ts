@@ -100,14 +100,29 @@ export function getBattleBackgroundAsset(mapId: string) {
 	return battleBackgroundAssets[getBattleEnvironmentId(mapId)];
 }
 
-/** Circular plate art for the Heroic battle HUD enemy plates. */
-const heroicEnemyPlateAssets: Record<string, string> = {
-	'slime-scout': '/game/assets/heroic-ui/enemies/slime-scout.png',
-	'ruins-warden': '/game/assets/heroic-ui/enemies/ruins-warden.png'
+/**
+ * Prologue enemies borrow the two existing actors until their own art lands:
+ * beasts wear the slime, humans and bosses wear the warden.
+ */
+const enemyStandInActor: Record<string, 'slime' | 'warden'> = {
+	'forest-wolf': 'slime',
+	'thornback-boar': 'slime',
+	'mist-toad': 'slime',
+	'tunnel-crawler': 'slime',
+	'boar-king': 'warden',
+	'human-soldier': 'warden',
+	'sun-crest-captain': 'warden'
 };
 
+function isWardenStandIn(enemyId: string): boolean {
+	return enemyStandInActor[enemyId] === 'warden';
+}
+
+/** Circular plate art for the Heroic battle HUD enemy plates. */
 export function getEnemyPlateArtPath(enemyId: string): string {
-	return heroicEnemyPlateAssets[enemyId] ?? '';
+	return isWardenStandIn(enemyId)
+		? '/game/assets/heroic-ui/enemies/ruins-warden.png'
+		: '/game/assets/heroic-ui/enemies/slime-scout.png';
 }
 
 export const villageBuildingAsset = {
@@ -387,11 +402,7 @@ export function isNpcPackFrameName(frameName: NpcFrameName): frameName is NpcPac
 }
 
 export function getEnemyFrameName(enemyId: string): StarterPackFrameName {
-	if (enemyId === 'ruins-warden') {
-		return 'ruinsWarden';
-	}
-
-	return 'slimeScout';
+	return isWardenStandIn(enemyId) ? 'ruinsWarden' : 'slimeScout';
 }
 
 export function getGroundFrameName(mapId: string): TerrainTileFrameName {
@@ -528,11 +539,7 @@ export const actorAnimationAssets: Record<ActorAnimationId, ActorAnimationAsset>
 };
 
 export function getEnemyActorId(enemyId: string): ActorAnimationId {
-	if (enemyId === 'ruins-warden') {
-		return 'ruinsWarden';
-	}
-
-	return 'slimeScout';
+	return isWardenStandIn(enemyId) ? 'ruinsWarden' : 'slimeScout';
 }
 
 export function getActorAnimationAsset(actorId: ActorAnimationId): ActorAnimationAsset {

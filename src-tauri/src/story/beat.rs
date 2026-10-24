@@ -4,21 +4,35 @@ use std::collections::HashMap;
 pub struct StoryBeat {
     pub id: String,
     pub chapter: String,
-    pub map_id: String,
-    pub primary_npc_id: String,
     pub dialogues: Vec<BeatDialogue>,
+    pub scenes: Vec<BeatScene>,
     pub unsupported_hooks: Vec<UnsupportedHook>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BeatDialogue {
     pub npc_id: String,
+    /// Resolved from the dialogue's own `map` field or the story directive's default.
+    pub map_id: String,
     pub branch: String,
     pub speaker: String,
     pub choices: Vec<String>,
     pub shop: Option<String>,
-    pub completion_intent: Option<String>,
-    pub lines: Vec<String>,
+    pub lines: Vec<BeatLine>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BeatScene {
+    pub id: String,
+    pub speaker: Option<String>,
+    pub lines: Vec<BeatLine>,
+}
+
+/// A paragraph of prose. A leading `[Name] ` overrides the block's speaker.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BeatLine {
+    pub speaker: Option<String>,
+    pub text: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,12 +42,20 @@ pub struct UnsupportedHook {
     pub reason: String,
 }
 
+#[derive(Debug, Clone, Copy)]
+enum ActiveBlock {
+    None,
+    Dialogue(usize),
+    Scene(usize),
+}
+
 pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
     let lines: Vec<&str> = source.lines().collect();
     let mut story: Option<StoryFields> = None;
     let mut dialogues = Vec::new();
+    let mut scenes = Vec::new();
     let mut unsupported_hooks = Vec::new();
-    let mut active_dialogue: Option<usize> = None;
+    let mut active = ActiveBlock::None;
     let mut paragraph_parts: Vec<String> = Vec::new();
     let mut line_index = 0;
 
@@ -41,7 +63,7 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
         let trimmed = lines[line_index].trim();
 
         if let Some(directive) = trimmed.strip_prefix(":::") {
-            flush_dialogue_paragraph(&mut dialogues, active_dialogue, &mut paragraph_parts);
+            flush_paragraph(&mut dialogues, &mut scenes, active, &mut paragraph_parts);
 
             let directive = directive.trim();
             if directive.is_empty() {
@@ -57,43 +79,57 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
                     if story.is_some() {
                         return Err("duplicate story directive".to_string());
                     }
-                    validate_directive_fields(
-                        &fields,
-                        &["id", "chapter", "map", "primaryNpc"],
-                        "story",
-                    )?;
+                    validate_directive_fields(&fields, &["id", "chapter", "map"], "story")?;
                     story = Some(StoryFields {
                         id: required_field(&fields, "id", "story")?,
                         chapter: required_field(&fields, "chapter", "story")?,
-                        map_id: required_field(&fields, "map", "story")?,
-                        primary_npc_id: required_field(&fields, "primaryNpc", "story")?,
+                        map_id: fields.get("map").cloned(),
                     });
-                    active_dialogue = None;
+                    active = ActiveBlock::None;
                 }
                 "dialogue" => {
                     validate_directive_fields(
                         &fields,
-                        &[
-                            "choices",
-                            "npc",
-                            "branch",
-                            "speaker",
-                            "shop",
-                            "completionIntent",
-                        ],
+                        &["npc", "branch", "speaker", "map", "choices", "shop"],
                         "dialogue",
                     )?;
-                    let choices = parse_choices(&required_field(&fields, "choices", "dialogue")?)?;
+                    let story = story
+                        .as_ref()
+                        .ok_or_else(|| "dialogue directive before story directive".to_string())?;
+                    let npc_id = required_field(&fields, "npc", "dialogue")?;
+                    let map_id = fields
+                        .get("map")
+                        .or(story.map_id.as_ref())
+                        .cloned()
+                        .ok_or_else(|| {
+                            format!(
+                                "dialogue for npc {} has no map; set map on the dialogue or story directive",
+                                npc_id
+                            )
+                        })?;
+                    let choices = match fields.get("choices") {
+                        Some(source) => parse_choices(source)?,
+                        None => Vec::new(),
+                    };
                     dialogues.push(BeatDialogue {
-                        npc_id: required_field(&fields, "npc", "dialogue")?,
+                        npc_id,
+                        map_id,
                         branch: required_field(&fields, "branch", "dialogue")?,
                         speaker: required_field(&fields, "speaker", "dialogue")?,
                         choices,
                         shop: fields.get("shop").cloned(),
-                        completion_intent: fields.get("completionIntent").cloned(),
                         lines: Vec::new(),
                     });
-                    active_dialogue = Some(dialogues.len() - 1);
+                    active = ActiveBlock::Dialogue(dialogues.len() - 1);
+                }
+                "scene" => {
+                    validate_directive_fields(&fields, &["id", "speaker"], "scene")?;
+                    scenes.push(BeatScene {
+                        id: required_field(&fields, "id", "scene")?,
+                        speaker: fields.get("speaker").cloned(),
+                        lines: Vec::new(),
+                    });
+                    active = ActiveBlock::Scene(scenes.len() - 1);
                 }
                 "unsupported-hook" => {
                     validate_directive_fields(
@@ -106,7 +142,7 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
                         kind: required_field(&fields, "kind", "unsupported-hook")?,
                         reason: required_field(&fields, "reason", "unsupported-hook")?,
                     });
-                    active_dialogue = None;
+                    active = ActiveBlock::None;
                 }
                 _ => {
                     return Err(format!("unknown directive {}", directive));
@@ -114,26 +150,25 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
             }
         } else {
             if trimmed.is_empty() {
-                flush_dialogue_paragraph(&mut dialogues, active_dialogue, &mut paragraph_parts);
+                flush_paragraph(&mut dialogues, &mut scenes, active, &mut paragraph_parts);
             } else if trimmed.starts_with('#') {
-                flush_dialogue_paragraph(&mut dialogues, active_dialogue, &mut paragraph_parts);
-                active_dialogue = None;
-            } else if active_dialogue.is_some() {
+                flush_paragraph(&mut dialogues, &mut scenes, active, &mut paragraph_parts);
+                active = ActiveBlock::None;
+            } else if !matches!(active, ActiveBlock::None) {
                 paragraph_parts.push(trimmed.to_string());
             }
             line_index += 1;
         }
     }
 
-    flush_dialogue_paragraph(&mut dialogues, active_dialogue, &mut paragraph_parts);
+    flush_paragraph(&mut dialogues, &mut scenes, active, &mut paragraph_parts);
 
     let story = story.ok_or_else(|| "missing story directive".to_string())?;
     Ok(StoryBeat {
         id: story.id,
         chapter: story.chapter,
-        map_id: story.map_id,
-        primary_npc_id: story.primary_npc_id,
         dialogues,
+        scenes,
         unsupported_hooks,
     })
 }
@@ -142,8 +177,7 @@ pub fn parse_beat_markdown(source: &str) -> Result<StoryBeat, String> {
 struct StoryFields {
     id: String,
     chapter: String,
-    map_id: String,
-    primary_npc_id: String,
+    map_id: Option<String>,
 }
 
 fn parse_directive_fields(
@@ -242,78 +276,186 @@ fn parse_choices(source: &str) -> Result<Vec<String>, String> {
     Ok(choices)
 }
 
-fn flush_dialogue_paragraph(
+fn flush_paragraph(
     dialogues: &mut [BeatDialogue],
-    active_dialogue: Option<usize>,
+    scenes: &mut [BeatScene],
+    active: ActiveBlock,
     paragraph_parts: &mut Vec<String>,
 ) {
     if paragraph_parts.is_empty() {
         return;
     }
 
-    if let Some(dialogue_index) = active_dialogue {
-        dialogues[dialogue_index]
-            .lines
-            .push(paragraph_parts.join(" "));
+    let line = parse_line(&paragraph_parts.join(" "));
+    match active {
+        ActiveBlock::Dialogue(index) => dialogues[index].lines.push(line),
+        ActiveBlock::Scene(index) => scenes[index].lines.push(line),
+        ActiveBlock::None => {}
     }
 
     paragraph_parts.clear();
+}
+
+fn parse_line(paragraph: &str) -> BeatLine {
+    if let Some(rest) = paragraph.strip_prefix('[') {
+        if let Some((speaker, text)) = rest.split_once("] ") {
+            let speaker = speaker.trim();
+            if !speaker.is_empty() && !speaker.contains('[') {
+                return BeatLine {
+                    speaker: Some(speaker.to_string()),
+                    text: text.trim().to_string(),
+                };
+            }
+        }
+    }
+
+    BeatLine {
+        speaker: None,
+        text: paragraph.to_string(),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn line(text: &str) -> BeatLine {
+        BeatLine {
+            speaker: None,
+            text: text.to_string(),
+        }
+    }
+
     #[test]
-    fn parses_dialogue_blocks_from_markdown() {
+    fn parses_dialogue_blocks_with_the_story_map_as_default() {
         let beat = parse_beat_markdown(
-            r#"# Guild Master
+            r#"# Borak
 
 ::: story
-id: prologue.guild-master
+id: prologue.morning
 chapter: prologue
 map: guild-hall
-primaryNpc: guild-master
 :::
 
 ::: dialogue
-npc: guild-master
-branch: mainQuestNeedsGuildBriefing
-speaker: Guild Master Arlen
-choices: quest
-completionIntent: recordNpcTalk:guild-master
+npc: borak
+branch: objective:meet-borak
+speaker: Borak
 :::
 
 You made it.
 
-Go to the ruins.
+Go to the forest.
 "#,
         )
         .expect("beat should parse");
 
-        assert_eq!(beat.id, "prologue.guild-master");
+        assert_eq!(beat.id, "prologue.morning");
         assert_eq!(beat.dialogues.len(), 1);
-        assert_eq!(beat.dialogues[0].npc_id, "guild-master");
+        assert_eq!(beat.dialogues[0].npc_id, "borak");
+        assert_eq!(beat.dialogues[0].map_id, "guild-hall");
+        assert_eq!(beat.dialogues[0].branch, "objective:meet-borak");
+        assert!(beat.dialogues[0].choices.is_empty());
         assert_eq!(
             beat.dialogues[0].lines,
-            vec!["You made it.", "Go to the ruins."]
+            vec![line("You made it."), line("Go to the forest.")]
+        );
+    }
+
+    #[test]
+    fn dialogue_map_overrides_the_story_map() {
+        let beat = parse_beat_markdown(
+            r#"::: story
+id: prologue.trial
+chapter: prologue
+map: guild-hall
+:::
+
+::: dialogue
+npc: lirra-forest-edge
+branch: always
+speaker: Lirra
+map: meadow-entry
+:::
+
+Took you long enough.
+"#,
+        )
+        .expect("beat should parse");
+
+        assert_eq!(beat.dialogues[0].map_id, "meadow-entry");
+    }
+
+    #[test]
+    fn rejects_dialogue_without_any_map() {
+        let error = parse_beat_markdown(
+            r#"::: story
+id: prologue.trial
+chapter: prologue
+:::
+
+::: dialogue
+npc: lirra
+branch: always
+speaker: Lirra
+:::
+
+Hi.
+"#,
+        )
+        .expect_err("dialogue needs a map");
+
+        assert!(error.contains("dialogue for npc lirra has no map"));
+    }
+
+    #[test]
+    fn parses_scenes_and_per_line_speakers() {
+        let beat = parse_beat_markdown(
+            r#"::: story
+id: prologue.evening
+chapter: prologue
+:::
+
+::: scene
+id: scene.dinner
+speaker: Old Mott
+:::
+
+Long ago, we shared this island.
+
+[Borak] Not tonight, Father.
+
+[Narration without a closing bracket keeps the text.
+"#,
+        )
+        .expect("beat should parse");
+
+        assert_eq!(beat.scenes.len(), 1);
+        assert_eq!(beat.scenes[0].id, "scene.dinner");
+        assert_eq!(beat.scenes[0].speaker.as_deref(), Some("Old Mott"));
+        assert_eq!(
+            beat.scenes[0].lines,
+            vec![
+                line("Long ago, we shared this island."),
+                BeatLine {
+                    speaker: Some("Borak".to_string()),
+                    text: "Not tonight, Father.".to_string(),
+                },
+                line("[Narration without a closing bracket keeps the text."),
+            ]
         );
     }
 
     #[test]
     fn parses_unsupported_hooks() {
         let beat = parse_beat_markdown(
-            r#"# Hook
-
-::: story
+            r#"::: story
 id: prologue.hook
 chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
 :::
 
 ::: unsupported-hook
-id: cutscene.guild-master-points-to-map
+id: cutscene.borak-points-to-map
 kind: camera-pan
 reason: Need a short camera movement.
 :::
@@ -321,41 +463,27 @@ reason: Need a short camera movement.
         )
         .expect("beat should parse");
 
-        assert_eq!(
-            beat.unsupported_hooks[0].id,
-            "cutscene.guild-master-points-to-map"
-        );
+        assert_eq!(beat.unsupported_hooks[0].id, "cutscene.borak-points-to-map");
     }
 
     #[test]
-    fn parses_multiple_dialogue_blocks() {
+    fn parses_choices_and_ignores_prose_after_a_heading() {
         let beat = parse_beat_markdown(
-            r#"# Scene
-
-::: story
+            r#"::: story
 id: prologue.scene
 chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
+map: item-shop
 :::
 
 ::: dialogue
-npc: guild-master
-branch: briefing
-speaker: Guild Master Arlen
-choices: quest
+npc: mira
+branch: always
+speaker: Mira
+choices: shop, close
+shop: herb-hut
 :::
 
 First line.
-
-::: dialogue
-npc: shopkeeper-mira
-branch: greeting
-speaker: Mira
-choices: shop, leave
-:::
-
-Second line.
 
 # Next Heading
 
@@ -364,274 +492,100 @@ This should be ignored.
         )
         .expect("beat should parse");
 
-        assert_eq!(beat.dialogues.len(), 2);
-        assert_eq!(beat.dialogues[0].lines, vec!["First line."]);
-        assert_eq!(beat.dialogues[1].choices, vec!["shop", "leave"]);
-        assert_eq!(beat.dialogues[1].lines, vec!["Second line."]);
+        assert_eq!(beat.dialogues[0].choices, vec!["shop", "close"]);
+        assert_eq!(beat.dialogues[0].shop.as_deref(), Some("herb-hut"));
+        assert_eq!(beat.dialogues[0].lines, vec![line("First line.")]);
     }
 
     #[test]
-    fn joins_wrapped_markdown_paragraphs_into_dialogue_lines() {
+    fn joins_wrapped_markdown_paragraphs_into_lines() {
         let beat = parse_beat_markdown(
-            r#"# Wrapped
-
-::: story
+            r#"::: story
 id: prologue.wrapped
 chapter: prologue
 map: guild-hall
-primaryNpc: guild-master
 :::
 
 ::: dialogue
-npc: guild-master
-branch: briefing
-speaker: Guild Master Arlen
-choices: quest
+npc: borak
+branch: always
+speaker: Borak
 :::
 
-This sentence wraps
-onto the next source line.
-
-This is a second paragraph.
+The forest is quiet
+today.
 "#,
         )
         .expect("beat should parse");
 
         assert_eq!(
             beat.dialogues[0].lines,
-            vec![
-                "This sentence wraps onto the next source line.",
-                "This is a second paragraph."
-            ]
+            vec![line("The forest is quiet today.")]
         );
     }
 
     #[test]
     fn rejects_missing_terminator_before_another_directive() {
         let error = parse_beat_markdown(
-            r#"# Missing Terminator
-
-::: story
-id: prologue.missing-terminator
+            r#"::: story
+id: prologue.broken
 chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
 
 ::: dialogue
-npc: guild-master
-branch: briefing
-speaker: Guild Master Arlen
-choices: quest
+npc: borak
 :::
 "#,
         )
-        .expect_err("unterminated story directive should fail");
+        .expect_err("nested directive should fail");
 
         assert!(error.contains("unterminated"));
     }
 
     #[test]
-    fn rejects_empty_choices() {
-        let error = parse_beat_markdown(
-            r#"# Empty Choices
+    fn rejects_empty_and_sparse_choices() {
+        for choices in ["", " , close", "close,"] {
+            let error = parse_beat_markdown(&format!(
+                "::: story\nid: a\nchapter: prologue\nmap: guild-hall\n:::\n\n::: dialogue\nnpc: borak\nbranch: always\nspeaker: Borak\nchoices: {choices}\n:::\n\nHi.\n"
+            ))
+            .expect_err("bad choices should fail");
 
-::: story
-id: prologue.empty-choices
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
-
-::: dialogue
-npc: guild-master
-branch: briefing
-speaker: Guild Master Arlen
-choices: ,
-:::
-"#,
-        )
-        .expect_err("empty choices should fail");
-
-        assert!(error.contains("choices"));
+            assert!(error.contains("choices"), "{choices:?} -> {error}");
+        }
     }
 
     #[test]
-    fn rejects_sparse_choices() {
-        let error = parse_beat_markdown(
-            r#"# Sparse Choices
+    fn rejects_duplicate_fields_and_unknown_directives() {
+        let duplicate =
+            parse_beat_markdown("::: story\nid: a\nid: b\nchapter: prologue\n:::\n").unwrap_err();
+        assert!(duplicate.contains("duplicate field id"));
 
-::: story
-id: prologue.sparse-choices
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
-
-::: dialogue
-npc: guild-master
-branch: briefing
-speaker: Guild Master Arlen
-choices: quest, , shop
-:::
-"#,
+        let unknown = parse_beat_markdown(
+            "::: story\nid: a\nchapter: prologue\n:::\n\n::: camera\nid: pan\n:::\n",
         )
-        .expect_err("sparse choices should fail");
-
-        assert!(error.contains("choices"));
+        .unwrap_err();
+        assert!(unknown.contains("unknown directive camera"));
     }
 
     #[test]
-    fn rejects_trailing_choice_separator() {
-        let error = parse_beat_markdown(
-            r#"# Trailing Choice Separator
+    fn rejects_missing_required_and_unknown_fields() {
+        let missing = parse_beat_markdown("::: story\nid: a\n:::\n").unwrap_err();
+        assert!(missing.contains("missing chapter field"));
 
-::: story
-id: prologue.trailing-choice-separator
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
+        let unknown_story =
+            parse_beat_markdown("::: story\nid: a\nchapter: prologue\ntypoField: x\n:::\n")
+                .unwrap_err();
+        assert!(unknown_story.contains("unknown field 'typoField' in story directive"));
 
-::: dialogue
-npc: guild-master
-branch: briefing
-speaker: Guild Master Arlen
-choices: quest,
-:::
-"#,
+        let unknown_dialogue = parse_beat_markdown(
+            "::: story\nid: a\nchapter: prologue\nmap: guild-hall\n:::\n\n::: dialogue\nnpc: borak\nbranch: always\nspeaker: Borak\ncompletionIntent: x\n:::\n",
         )
-        .expect_err("trailing choice separator should fail");
+        .unwrap_err();
+        assert!(unknown_dialogue.contains("unknown field 'completionIntent' in dialogue directive"));
 
-        assert!(error.contains("choices"));
-    }
-
-    #[test]
-    fn rejects_duplicate_fields() {
-        let error = parse_beat_markdown(
-            r#"# Duplicate Field
-
-::: story
-id: prologue.duplicate-field
-id: prologue.overwritten
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
-"#,
+        let unknown_scene = parse_beat_markdown(
+            "::: story\nid: a\nchapter: prologue\n:::\n\n::: scene\nid: s\nnpc: x\n:::\n",
         )
-        .expect_err("duplicate fields should fail");
-
-        assert!(error.contains("duplicate field id"));
-    }
-
-    #[test]
-    fn rejects_unknown_directive() {
-        let error = parse_beat_markdown(
-            r#"# Unknown
-
-::: story
-id: prologue.unknown
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
-
-::: camera
-id: camera.pan
-:::
-"#,
-        )
-        .expect_err("unknown directive should fail");
-
-        assert!(error.contains("unknown directive camera"));
-    }
-
-    #[test]
-    fn rejects_missing_required_fields() {
-        let error = parse_beat_markdown(
-            r#"# Missing Field
-
-::: story
-id: prologue.missing-field
-chapter: prologue
-map: guild-hall
-:::
-"#,
-        )
-        .expect_err("missing primaryNpc should fail");
-
-        assert!(error.contains("missing primaryNpc field"));
-    }
-
-    #[test]
-    fn rejects_unknown_field_in_story_directive() {
-        let error = parse_beat_markdown(
-            r#"# Unknown Story Field
-
-::: story
-id: prologue.typo
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-typoField: oops
-:::
-"#,
-        )
-        .expect_err("unknown field should fail");
-
-        assert!(error.contains("unknown field 'typoField' in story directive"));
-    }
-
-    #[test]
-    fn rejects_unknown_field_in_dialogue_directive() {
-        let error = parse_beat_markdown(
-            r#"# Unknown Dialogue Field
-
-::: story
-id: prologue.dialogue-typo
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
-
-::: dialogue
-npc: guild-master
-branch: briefing
-speaker: Guild Master Arlen
-choices: quest
-completionintent: recordNpcTalk:guild-master
-:::
-
-Some text.
-"#,
-        )
-        .expect_err("unknown field should fail");
-
-        assert!(error.contains("unknown field 'completionintent' in dialogue directive"));
-    }
-
-    #[test]
-    fn rejects_unknown_field_in_unsupported_hook_directive() {
-        let error = parse_beat_markdown(
-            r#"# Unknown Hook Field
-
-::: story
-id: prologue.hook-typo
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
-
-::: unsupported-hook
-id: cutscene.pan
-kind: camera-pan
-reason: Need a camera movement
-extraField: oops
-:::
-"#,
-        )
-        .expect_err("unknown field should fail");
-
-        assert!(error.contains("unknown field 'extraField' in unsupported-hook directive"));
+        .unwrap_err();
+        assert!(unknown_scene.contains("unknown field 'npc' in scene directive"));
     }
 }
