@@ -1,8 +1,8 @@
 # Prologue — "The Last Quiet Day"
 
-> Scene-level outline for the goblin prologue. The world and cast are in
-> [`high_level_plan.md`](./high_level_plan.md). Names marked _(working)_ there are
-> placeholders here too.
+> Scene-level outline for the goblin prologue. The world, cast and story arc live in the
+> [high-level story plan on Notion](https://app.notion.com/p/403586265aa9813c9adbdd7f93a4df56).
+> Names marked _(working)_ there are placeholders here too.
 
 ## Goal
 
