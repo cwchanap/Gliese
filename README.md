@@ -6,7 +6,8 @@ desktop app for macOS and Windows.
 
 You play Grik, a young goblin hunter. The humans who came to his island raid his village,
 kill his family and carry off his sister and the girl he loves, and he swears revenge.
-See `docs/stories/` for the story direction.
+See the [high-level story plan](https://app.notion.com/p/403586265aa9813c9adbdd7f93a4df56) on Notion
+and `docs/stories/prologue.md`.
 
 The game world — a village hub, its interiors, a layered overworld, and a two-stage
 ruins dungeon — is authored as data under `src/lib/game/content/`. Story prose lives
@@ -77,4 +78,5 @@ catalog matches the source.
   pipeline, and content model. The most detailed map of the codebase.
 - `docs/plans/` — implementation plans, including the original vertical slice and the
   Rust story pipeline.
-- `docs/stories/` — story direction and the scene-by-scene prologue outline.
+- `docs/stories/prologue.md` — the scene-by-scene prologue outline. The high-level story
+  plan lives on Notion.

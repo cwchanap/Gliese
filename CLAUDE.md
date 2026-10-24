@@ -10,8 +10,8 @@ imported. Saves are written to a JSON file in the OS app-data directory
 via Tauri's `fs` plugin.
 
 The story follows Grik, a goblin hunter whose village is raided by humans (see
-`docs/stories/`). The current Sundrop slice is the stand-in for his village, and the
-NPCs and beats have not been re-skinned yet.
+`docs/stories/prologue.md` and the high-level story plan on Notion). The current Sundrop
+slice is the stand-in for his village, and the NPCs and beats have not been re-skinned yet.
 
 - **Language**: TypeScript (Svelte 5 runes mode enforced project-wide via `svelte.config.js`)
 - **Package Manager**: bun
@@ -255,7 +255,8 @@ When writing or editing beats, use the `gliese-story-writer` skill (`.claude/ski
   - `2026-04-27-phaser-jrpg-vertical-slice.md` — the base game
   - `2026-05-29-rust-story-pipeline.md` — the story pipeline described above
 - `docs/superpowers/{plans,specs}/` — superpowers workflow artifacts.
-- `docs/stories/high_level_plan.md` — narrative direction: world, peoples, cast, story arc.
+- High-level story plan (world, peoples, cast, story arc) lives on Notion, not in the repo:
+  https://app.notion.com/p/403586265aa9813c9adbdd7f93a4df56
 - `docs/stories/prologue.md` — scene-by-scene goblin prologue, how it reuses the current slice, engine gaps, and follow-up tasks.
 
 ### Hooks
