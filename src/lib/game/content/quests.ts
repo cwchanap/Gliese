@@ -1,4 +1,5 @@
 import type { ItemDefinition } from '$lib/game/content/items';
+import { homeBedside } from '$lib/game/content/player';
 import type { Direction } from '$lib/game/core/types';
 import { t, type MessageKey } from '$lib/game/i18n/translate';
 
@@ -14,6 +15,29 @@ export const mainQuestIds = [
 ] as const;
 
 export type QuestId = (typeof mainQuestIds)[number];
+
+/** Story windows that map placements gate on (see `StoryGated` in maps/types.ts). */
+export const storyWindows = {
+	/** The proving day, from waking up to going to sleep. */
+	dayOne: {
+		quests: [
+			'prologue-proving-morning',
+			'prologue-trial-tracks',
+			'prologue-trial-mistfen',
+			'prologue-trial-boar-king',
+			'prologue-hunters-name'
+		]
+	},
+	/** The family dinner and the night after it. */
+	evening: {
+		objectives: ['share-the-dinner', 'hear-motts-tale', 'walk-lirra-home', 'go-to-sleep']
+	},
+	/** The raid and the escape that follows: the village is burning. */
+	afterRaid: { quests: ['prologue-raid', 'prologue-escape'] }
+} as const satisfies Record<
+	string,
+	{ quests?: readonly QuestId[]; objectives?: readonly string[] }
+>;
 
 export type QuestReward = {
 	xp?: number;
@@ -184,7 +208,8 @@ const questDefinitions: Record<QuestId, QuestDefinitionSource> = {
 				mapIds: ['meadow-entry'],
 				onComplete: [
 					scene('prologue.boar-king-felled'),
-					{ type: 'move-player', mapId: 'guild-hall', x: 448, y: 480, facing: 'up' }
+					// Drogg carries the boar home: fade to Borak's desk in the lodge.
+					{ type: 'move-player', mapId: 'guild-hall', x: 800, y: 200, facing: 'up' }
 				]
 			}
 		],
@@ -215,10 +240,7 @@ const questDefinitions: Record<QuestId, QuestDefinitionSource> = {
 				id: 'go-to-sleep',
 				kind: 'inspect',
 				discoveryIds: ['grik-bed'],
-				onComplete: [
-					scene('prologue.nightfall'),
-					{ type: 'move-player', mapId: 'hero-house', x: 288, y: 288, facing: 'down' }
-				]
+				onComplete: [scene('prologue.nightfall'), { type: 'move-player', ...homeBedside }]
 			}
 		],
 		reward: {}
@@ -255,7 +277,8 @@ const questDefinitions: Record<QuestId, QuestDefinitionSource> = {
 				npcIds: ['mott-shrine'],
 				onComplete: [
 					scene('prologue.tunnel-seals'),
-					{ type: 'move-player', mapId: 'ruins-core', x: 5_504, y: 3_200, facing: 'left' }
+					// The tunnel collapses behind Grik: he comes to at its far end.
+					{ type: 'move-player', mapId: 'ruins-core', x: 5_376, y: 3_200, facing: 'left' }
 				]
 			},
 			{
@@ -282,9 +305,14 @@ export function isQuestId(questId: string): questId is QuestId {
 }
 
 /** Every scene id quest content plays; story_check requires each to exist. */
-export function collectQuestSceneIds(definitions: readonly QuestDefinition[] = questList): string[] {
+export function collectQuestSceneIds(
+	definitions: readonly QuestDefinition[] = questList
+): string[] {
 	return definitions.flatMap((quest) =>
-		[...(quest.onStart ?? []), ...quest.objectives.flatMap((objective) => objective.onComplete ?? [])]
+		[
+			...(quest.onStart ?? []),
+			...quest.objectives.flatMap((objective) => objective.onComplete ?? [])
+		]
 			.filter((effect) => effect.type === 'play-scene')
 			.map((effect) => effect.sceneId)
 	);

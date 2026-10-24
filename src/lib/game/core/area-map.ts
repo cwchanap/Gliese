@@ -166,8 +166,7 @@ function getObjectiveTargets(
 		case 'inspect':
 			return (map.discoveries ?? []).filter(
 				(discovery) =>
-					objective.discoveryIds.includes(discovery.id) &&
-					!counted.has(`discovery:${discovery.id}`)
+					objective.discoveryIds.includes(discovery.id) && !counted.has(`discovery:${discovery.id}`)
 			);
 		case 'collect-item':
 			return (map.pickups ?? []).filter(

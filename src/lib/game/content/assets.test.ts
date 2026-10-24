@@ -395,14 +395,14 @@ describe('animation pack metadata', () => {
 	});
 
 	it('maps enemies to their actor animation definitions', () => {
-		expect(getEnemyActorId('slime-scout')).toBe('slimeScout');
-		expect(getEnemyActorId('ruins-warden')).toBe('ruinsWarden');
+		expect(getEnemyActorId('forest-wolf')).toBe('slimeScout');
+		expect(getEnemyActorId('boar-king')).toBe('ruinsWarden');
 		expect(getActorAnimationAsset('hero')).toBe(actorAnimationAssets.hero);
 	});
 
 	it('maps enemies to their starter pack frame names', () => {
-		expect(getEnemyFrameName('ruins-warden')).toBe('ruinsWarden');
-		expect(getEnemyFrameName('slime-scout')).toBe('slimeScout');
+		expect(getEnemyFrameName('human-soldier')).toBe('ruinsWarden');
+		expect(getEnemyFrameName('mist-toad')).toBe('slimeScout');
 		expect(getEnemyFrameName('unknown-enemy')).toBe('slimeScout');
 	});
 

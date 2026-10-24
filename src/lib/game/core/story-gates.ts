@@ -48,7 +48,7 @@ export function applyStoryGates(
 	for (const field of gatedFields) {
 		const entries = map[field] as GatedEntry[] | undefined;
 		if (entries) {
-			(gated as Record<string, unknown>)[field] = entries.filter((entry) =>
+			(gated as unknown as Record<string, unknown>)[field] = entries.filter((entry) =>
 				isActiveInStory(entry, progress)
 			);
 		}
@@ -62,7 +62,9 @@ export function storyGateSignature(map: WorldMapDefinition, progress: StoryProgr
 	return gatedFields
 		.flatMap((field) =>
 			((map[field] as GatedEntry[] | undefined) ?? [])
-				.filter((entry) => (entry.activeDuring || entry.hiddenDuring) && isActiveInStory(entry, progress))
+				.filter(
+					(entry) => (entry.activeDuring || entry.hiddenDuring) && isActiveInStory(entry, progress)
+				)
 				.map((entry) => `${field}:${entry.id}`)
 		)
 		.join('|');

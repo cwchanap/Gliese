@@ -19,7 +19,6 @@ vi.mock('$lib/game/ui-bridge/events', async () => {
 });
 
 import {
-	requestAcceptQuest,
 	requestBuyShopItem,
 	requestCloseShop,
 	requestDialogueAdvance,
@@ -104,14 +103,6 @@ describe('ui-bridge store request helpers', () => {
 		expect(mockedEmit).toHaveBeenCalledWith({
 			type: 'sell-inventory-item',
 			itemId: 'field-potion'
-		});
-	});
-
-	it('requestAcceptQuest emits an accept-quest command with the quest id', () => {
-		requestAcceptQuest('thin-village-slimes');
-		expect(mockedEmit).toHaveBeenCalledWith({
-			type: 'accept-quest',
-			questId: 'thin-village-slimes'
 		});
 	});
 

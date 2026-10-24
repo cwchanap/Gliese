@@ -52,7 +52,8 @@ const defaultFragmentOwners = {
 	silverpine: 'silverpine',
 	wildwood: 'wildwood',
 	'river-system': 'outer-boundary',
-	'outer-boundary': 'outer-boundary'
+	'outer-boundary': 'outer-boundary',
+	prologue: 'outer-boundary'
 } as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
 
 function sha256(value: string): string {
@@ -190,7 +191,7 @@ describe('meadow-entry authoring layout', () => {
 			.join('');
 
 		expect(MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256).toBe(
-			'50362deec5a856596a04e97a9b12db0210b72a05de472f0172532aa1c19f30a8'
+			'5c3640babe3aa232550da8884993a178856ad3ff20b923d74992befd08b42d78'
 		);
 		expect(sha256(canonicalOwners)).toBe(MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256);
 	});

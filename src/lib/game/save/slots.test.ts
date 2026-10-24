@@ -109,7 +109,7 @@ describe('save slots', () => {
 		expect(loaded?.state).toEqual(expected);
 	});
 
-	it('upgrades older-format saves stored inside a slot', () => {
+	it('drops a slot holding a save from an older schema version', () => {
 		const v8Save = {
 			...createNewSaveState(),
 			version: 8,
@@ -140,9 +140,7 @@ describe('save slots', () => {
 		});
 		setSaveStorage(storage);
 
-		const loaded = loadSaveSlots(storage).slots[0];
-		expect(loaded?.state.version).toBe(9);
-		expect(loaded?.state.shops.stock['sundrop-forge']).toBeDefined();
+		expect(loadSaveSlots(storage).slots[0]).toBeNull();
 	});
 
 	it('migrates a pre-slots bare SaveState stored under the slots key into slot 0', () => {
@@ -369,7 +367,7 @@ describe('save slots', () => {
 		expect(loadSaveSlots(storage)).toEqual(createEmptySaveSlots());
 		expect(saveSlotsUnreadable(storage)).toBe(true);
 		// The bare payload survives for a later retry.
-		expect(JSON.parse(storage.getItem(SAVE_SLOTS_STORAGE_KEY) ?? 'null').version).toBe(9);
+		expect(JSON.parse(storage.getItem(SAVE_SLOTS_STORAGE_KEY) ?? 'null').version).toBe(10);
 		expect(() => writeSaveSlot(1, record('2026-09-04T12:00:00.000Z'), storage)).toThrow();
 	});
 

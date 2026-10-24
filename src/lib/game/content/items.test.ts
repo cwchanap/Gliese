@@ -24,8 +24,8 @@ function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
 describe('item content', () => {
 	it('defines the first-pass roster counts', () => {
 		expect(itemList.filter((item) => item.type === 'consumable')).toHaveLength(5);
-		expect(itemList.filter((item) => item.type === 'equipment')).toHaveLength(8);
-		expect(itemList.filter((item) => item.type === 'key')).toHaveLength(3);
+		expect(itemList.filter((item) => item.type === 'equipment')).toHaveLength(11);
+		expect(itemList.filter((item) => item.type === 'key')).toHaveLength(5);
 	});
 
 	it('uses stable unique ids', () => {
@@ -69,7 +69,10 @@ describe('item content', () => {
 			'traveler-vest': 45,
 			'stone-mail': 90,
 			'grip-wraps': 35,
-			'meadow-charm': 30
+			'meadow-charm': 30,
+			'practice-spear': 30,
+			'hunters-knife': 120,
+			'ancestral-amulet': 40
 		};
 
 		for (const item of itemList) {

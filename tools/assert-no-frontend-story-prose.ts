@@ -2,20 +2,19 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const distDir = join(process.cwd(), 'dist');
-// At least one distinctive phrase from each beat file in story/beats/prologue/.
-// Ensures every migrated story file has regression coverage.
+// Every compiled story line long enough to be distinctive. The catalog is the
+// browser fixture's data, written by `bun run story:check`.
+const catalogPath = join(process.cwd(), 'src/lib/game/story/browser-catalog.generated.json');
+const catalog = JSON.parse(readFileSync(catalogPath, 'utf8')) as {
+	npcDialogues: Array<{ branches: Array<{ lines: Array<{ text: string }> }> }>;
+	scenes: Array<{ lines: Array<{ text: string }> }>;
+};
 const blockedPhrases = [
-	// guild-master.md
-	'The eastern ruins are stirring again',
-	'The Guild board is yours to work through',
-	'Good work out there',
-	'The Guild keeps watch over the old road',
-	// guild-quartermaster.md
-	'If you are bound for the ruins',
-	'Need field gear before the ruins',
-	// shopkeeper-mira.md
-	'Back from the Guild? Take a tonic',
-	'Fresh tonics are on the shelf'
+	...new Set(
+		[...catalog.npcDialogues.flatMap((dialogue) => dialogue.branches), ...catalog.scenes]
+			.flatMap(({ lines }) => lines.map((line) => line.text))
+			.filter((text) => text.length >= 24)
+	)
 ];
 
 if (!existsSync(distDir)) {

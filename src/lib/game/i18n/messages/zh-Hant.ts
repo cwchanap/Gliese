@@ -114,7 +114,6 @@ export const zhHant = {
 		close: '關閉',
 		next: '下一步',
 		mainQuest: '主線任務',
-		sideActive: '{{count}} 個支線進行中',
 		fieldPack: '野外包',
 		bagCategories: {
 			potions: '藥水',
@@ -134,8 +133,7 @@ export const zhHant = {
 		fieldJournal: '野外手冊',
 		questLog: '任務日誌',
 		main: '主線',
-		side: '支線',
-		questOffered: '可承接',
+		questDone: '已完成',
 		questRewards: '獎勵',
 		questTurnedInBy: '回報對象',
 		questChapterProgress: '章節進度',
@@ -143,7 +141,6 @@ export const zhHant = {
 		questJournalEmpty: '日誌中尚無任務。',
 		rewardCoins: '金幣',
 		rewardItem: '道具',
-		noSideQuestsActive: '目前沒有進行中的支線任務。',
 		coins: '金幣：{{coins}}',
 		buy: '購買',
 		sell: '出售',
@@ -214,7 +211,6 @@ export const zhHant = {
 		recoveredHp: '生命值回復',
 		strikeLanded: '命中',
 		enemyDefeated: '敵人擊敗',
-		victoryRuinsCleared: '勝利：廢墟已清除',
 		itemCannotBeEquipped: '物品無法裝備',
 		equippedItem: '已裝備物品',
 		unequippedItem: '已卸下物品',
@@ -223,13 +219,8 @@ export const zhHant = {
 		shopClosed: '商店已關閉',
 		boughtItem: '已購買 {{itemName}}',
 		soldItem: '已出售 {{itemName}}',
-		noGuildQuestAvailable: '目前沒有公會任務可接',
-		questAccepted: '任務已接受',
 		questComplete: '任務完成：{{questTitle}}',
-		questAlreadyActive: '任務已在進行中',
-		questAlreadyComplete: '任務已完成',
-		questNotAvailable: '任務不可用',
-		questCannotBeAccepted: '無法接受任務',
+		questStarted: '新任務：{{questTitle}}',
 		notEnoughCoins: '金幣不足',
 		itemOutOfStock: '物品缺貨',
 		itemCannotBeBought: '此物品無法購買',
@@ -238,7 +229,6 @@ export const zhHant = {
 		itemCannotBeSold: '此物品無法出售',
 		noDialogueOpen: '沒有開啟對話',
 		noOneNearby: '附近沒有任何人',
-		ruinsRouteUnlocked: '廢墟路線已解鎖',
 		dialogueClosed: '對話已關閉',
 		dialogueUpdated: '對話已更新',
 		saved: '已存檔',
@@ -247,7 +237,6 @@ export const zhHant = {
 		saveResumed: '已讀取存檔',
 		enteredArea: '已進入區域',
 		newRun: '新旅程',
-		reportToGuildMasterFirst: '請先向公會會長報告',
 		shopOutOfReach: '商店距離過遠',
 		bossEnraged: '首領暴怒',
 		heroDown: '角色倒下',
@@ -257,11 +246,26 @@ export const zhHant = {
 	},
 	content: {
 		enemies: {
-			'slime-scout': {
-				name: '史萊姆'
+			'forest-wolf': {
+				name: '林狼'
 			},
-			'ruins-warden': {
-				name: '遺跡守衛'
+			'thornback-boar': {
+				name: '棘背野豬'
+			},
+			'mist-toad': {
+				name: '霧沼蟾蜍'
+			},
+			'boar-king': {
+				name: '野豬王'
+			},
+			'human-soldier': {
+				name: '人類士兵'
+			},
+			'sun-crest-captain': {
+				name: '日徽隊長'
+			},
+			'tunnel-crawler': {
+				name: '隧道生物'
 			}
 		},
 		items: {
@@ -328,102 +332,226 @@ export const zhHant = {
 			'warden-sigil': {
 				name: '看守者印記',
 				description: '證明廢墟看守者已倒下。'
+			},
+			'practice-spear': {
+				name: '練習用短矛',
+				description: '第一次狩獵用的輕短矛。'
+			},
+			'hunters-knife': {
+				name: '獵刀',
+				description: '波拉克送給晴滴新獵人的禮物。'
+			},
+			'ancestral-amulet': {
+				name: '祖傳護符',
+				description: '從古時候傳下來的，保佑你。'
+			},
+			moonmoss: {
+				name: '月光苔',
+				description: '霧沼深處的淡色苔蘚，冬季存糧用。'
+			},
+			'sun-stamped-arrow': {
+				name: '太陽印記的箭',
+				description: '折斷的鐵箭，箭羽上有太陽印記。哥布林不會做這種箭。'
 			}
 		},
 		shops: {
 			'miras-item-shop': {
-				name: '米拉的道具店',
+				name: '米拉的採藥小屋',
 				merchantName: '米拉',
-				description: '供東方道路使用的可靠野外補給。'
+				description: '狩獵用的藥草和藥品。'
 			},
 			'guild-quartermaster': {
-				name: '公會補給官',
-				merchantName: '補給官維爾',
-				description: '供新進廢墟委託使用的公會認證裝備。'
+				name: '會所倉庫',
+				merchantName: '會所倉管',
+				description: '會所倉庫裡的狩獵裝備。'
 			},
 			'sundrop-forge': {
-				name: '晴滴鍛造坊',
-				merchantName: '鐵匠歐倫',
-				description: '為踏出晴滴村的旅人鍛造的實用裝備。'
+				name: '晴滴鐵匠鋪',
+				merchantName: '歐倫',
+				description: '晴滴打造的骨鐵裝備。'
 			}
 		},
 		quests: {
-			'investigate-the-ruins': {
-				title: '調查廢墟',
-				description: '先向公會會長報告，再擊敗廢墟看守者。',
+			'prologue-proving-morning': {
+				title: '試煉之晨',
+				description: '今天是格里克的試煉狩獵。領齊裝備，到狩獵會所報到。',
 				objectives: {
-					'talk-to-guild-master': {
-						description: '在公會大廳與公會會長交談。',
-						progressLabel: '已與公會會長交談'
+					'talk-to-mott': {
+						description: '和爐火邊的老莫特說話。',
+						progressLabel: '已和老莫特說話'
 					},
-					'defeat-ruins-warden': {
-						description: '在廢墟核心擊敗看守者。',
-						progressLabel: '已擊敗廢墟看守者'
+					'collect-practice-spear': {
+						description: '到鐵匠鋪向歐倫領短矛。',
+						progressLabel: '已領短矛'
+					},
+					'collect-herb-pouch': {
+						description: '到採藥小屋向米拉領藥草袋。',
+						progressLabel: '已領藥草袋'
+					},
+					'report-to-borak': {
+						description: '到狩獵會所向波拉克報到。',
+						progressLabel: '已向波拉克報到'
 					}
 				}
 			},
-			'thin-village-slimes': {
-				title: '清剿村路史萊姆',
-				description: '清除聚集在村道上的史萊姆。',
+			'prologue-trial-tracks': {
+				title: '第一試：足跡',
+				description: '讀懂土地。和莉拉一起在野林追蹤野豬。',
 				objectives: {
-					'defeat-village-slimes': {
-						description: '擊敗村莊附近的史萊姆。',
-						progressLabel: '已擊敗村路史萊姆'
+					'meet-lirra-forest': {
+						description: '到野林入口與莉拉會合。',
+						progressLabel: '已與莉拉會合'
+					},
+					'read-boar-signs': {
+						description: '調查野豬留下的痕跡。',
+						progressLabel: '已調查痕跡'
+					},
+					'defeat-thornback-boar': {
+						description: '擊倒棘背野豬。',
+						progressLabel: '已擊倒棘背野豬'
+					},
+					'report-first-trial': {
+						description: '到狩獵會所向波拉克報到。',
+						progressLabel: '已向波拉克報到'
 					}
 				}
 			},
-			'thin-ruins-slimes': {
-				title: '清剿廢墟史萊姆',
-				description: '減少廢墟入口內的史萊姆數量。',
+			'prologue-trial-mistfen': {
+				title: '第二試：霧沼',
+				description: '餵養村子。為米拉的冬季存糧到霧沼深處採月光苔。',
 				objectives: {
-					'defeat-ruins-slimes': {
-						description: '擊敗廢墟中的史萊姆。',
-						progressLabel: '已擊敗廢墟史萊姆'
+					'ask-mira-about-stores': {
+						description: '和米拉談冬季存糧。',
+						progressLabel: '已和米拉談過'
+					},
+					'meet-lirra-mistfen': {
+						description: '在霧沼橋與莉拉會合。',
+						progressLabel: '已與莉拉會合'
+					},
+					'gather-moonmoss': {
+						description: '採集月光苔。',
+						progressLabel: '已採集月光苔'
+					},
+					'rest-at-the-pond': {
+						description: '在沼中水塘休息。',
+						progressLabel: '已在水塘休息'
+					},
+					'deliver-moonmoss': {
+						description: '把月光苔交給米拉。',
+						progressLabel: '已交給米拉'
 					}
 				}
 			},
-			'recover-ruins-relics': {
-				title: '回收廢墟遺物',
-				description: '把舊廢墟裡有用的道具帶回來。',
+			'prologue-trial-boar-king': {
+				title: '第三試：野豬王',
+				description: '面對野獸之王。和德洛格一起到銀松林獵殺野豬王。',
 				objectives: {
-					'collect-ruins-items': {
-						description: '收集入口與核心中的廢墟道具。',
-						progressLabel: '已回收廢墟道具'
+					'meet-drogg-crossroads': {
+						description: '在十字路道標與德洛格會合。',
+						progressLabel: '已與德洛格會合'
+					},
+					'track-the-boar-king': {
+						description: '找到野豬王往銀松林的足跡。',
+						progressLabel: '已找到足跡'
+					},
+					'talk-to-drogg-falls': {
+						description: '在銀松瀑布與德洛格談話。',
+						progressLabel: '已和德洛格談話'
+					},
+					'defeat-boar-king': {
+						description: '在銀松林高台擊倒野豬王。',
+						progressLabel: '已擊倒野豬王'
+					}
+				}
+			},
+			'prologue-hunters-name': {
+				title: '獵人之名',
+				description: '格里克通過了三試。今晚，晴滴為他慶祝。',
+				objectives: {
+					'report-boar-king': {
+						description: '到狩獵會所向波拉克報到。',
+						progressLabel: '已向波拉克報到'
+					},
+					'share-the-dinner': {
+						description: '回家吃晚餐，和餐桌旁的家人說話。',
+						progressLabel: '已和家人說話'
+					},
+					'hear-motts-tale': {
+						description: '聽老莫特說故事。',
+						progressLabel: '已聽完故事'
+					},
+					'walk-lirra-home': {
+						description: '送莉拉回採藥小屋。',
+						progressLabel: '已送莉拉回家'
+					},
+					'go-to-sleep': {
+						description: '回家睡覺。',
+						progressLabel: '已入睡'
+					}
+				}
+			},
+			'prologue-raid': {
+				title: '烈火之晨',
+				description: '晴滴燒起來了。找到你的家人。',
+				objectives: {
+					'heed-mott': {
+						description: '和老莫特說話。',
+						progressLabel: '已和老莫特說話'
+					},
+					'repel-the-soldiers': {
+						description: '擊退闖進村子的士兵。',
+						progressLabel: '已擊退士兵'
+					},
+					'reach-the-gate': {
+						description: '趕到村門找父親。',
+						progressLabel: '已趕到村門'
+					},
+					'find-drogg': {
+						description: '在晴滴之井找到德洛格。',
+						progressLabel: '已找到德洛格'
+					},
+					'charge-the-captain': {
+						description: '衝進廣場。',
+						progressLabel: '已衝進廣場'
+					}
+				}
+			},
+			'prologue-escape': {
+				title: '古老隧道',
+				description: '從神社底下的隧道逃走。活下去。',
+				objectives: {
+					'wake-in-the-shrine': {
+						description: '在神社和老莫特說話。',
+						progressLabel: '已和老莫特說話'
+					},
+					'climb-to-the-ridge': {
+						description: '走出隧道，登上洞口的山脊。',
+						progressLabel: '已登上山脊'
 					}
 				}
 			}
 		},
 		dialogue: {
 			actions: {
-				quest: '任務',
 				shop: '商店',
-				accept: '接受',
-				back: '返回',
 				close: '關閉'
 			},
 			speakers: {
-				traveler: '旅人',
-				guildNotice: '公會公告'
+				traveler: '旅人'
 			},
 			system: {
 				noDialogueAvailable: '目前沒有可用對話。',
 				optionNotAvailable: '該選項目前不可用。',
-				chooseGuildWork: '選擇你要查看的公會委託。',
-				noNewGuildWork: '目前沒有新的公會委託。',
-				guildWorkUnavailable: '該公會委託已不再可用。',
 				noDialogueOpen: '目前沒有開啟對話。',
 				noOneNearby: '附近沒有人。',
-				noGuildQuestAvailableHere: '這裡沒有可接的公會任務。',
-				shopOutOfReach: '商店距離過遠。',
-				questDetailNotice: '{{questTitle}}：{{objectiveDescription}} 獎勵：{{rewardSummary}}。',
-				questCompleteNotice: '任務完成：{{questTitle}}。獎勵：{{rewardSummary}}。'
+				shopOutOfReach: '商店距離過遠。'
 			}
 		},
 		maps: {
 			landmarks: {
-				'hero-house-exterior': { label: '英雄之家' },
-				'guild-hall-exterior': { label: '公會' },
-				'item-shop-exterior': { label: '道具店' },
+				'hero-house-exterior': { label: '格里克的家' },
+				'guild-hall-exterior': { label: '狩獵會所' },
+				'item-shop-exterior': { label: '採藥小屋' },
 				'villager-house-1-exterior': { label: '村民住家' },
 				'villager-house-2-exterior': { label: '村民住家' },
 				'villager-house-3-exterior': { label: '村民住家' },
@@ -465,29 +593,48 @@ export const zhHant = {
 				'wildwood-cave-danger': {
 					label: '洞穴警告',
 					description: '樹皮上有爪痕。棲息於低語洞穴中的某物並未沉眠。'
+				},
+				'boar-sign-hoofprints': { label: '蹄印' },
+				'boar-sign-sapling': { label: '斷掉的樹苗' },
+				'boar-sign-tusk-scrape': { label: '獠牙刮痕' },
+				'mistfen-pond-rest': { label: '沼中水塘' },
+				'boar-king-trail': { label: '巨大的足跡' },
+				'ridge-overlook': { label: '山脊' },
+				'grik-bed': { label: '格里克的床' },
+				'threshold-relief': {
+					label: '牆上的浮雕',
+					description: '哥布林、獸人、精靈與魔族同坐一張長桌，刻下它們的手認得每一個族群。'
+				},
+				'core-relief': {
+					label: '磨損的浮雕',
+					description: '一個哥布林和一個魔族共同舉著一支火把。周圍的石頭有燒焦的痕跡。'
 				}
 			},
 			npcs: {
-				'guild-master': { name: '公會會長阿倫' },
-				'guild-quartermaster': { name: '補給官維爾' },
-				'blacksmith-oren': { name: '鐵匠歐倫' },
-				'shopkeeper-mira': { name: '米拉' },
+				borak: { name: '波拉克' },
+				'lodge-keeper': { name: '會所倉管' },
+				mira: { name: '米拉' },
+				oren: { name: '歐倫' },
+				mott: { name: '老莫特' },
+				tikka: { name: '蒂卡' },
+				drogg: { name: '德洛格' },
+				lirra: { name: '莉拉' },
 				'villager-lynn': { name: '琳恩' },
 				'villager-toma': { name: '托馬' },
 				'villager-io': { name: '伊歐' }
 			},
 			areas: {
 				'meadow-entry': '晴滴草原',
-				'hero-house': '英雄之家',
-				'guild-hall': '公會大廳',
-				'item-shop': '道具店',
+				'hero-house': '格里克的家',
+				'guild-hall': '狩獵會所',
+				'item-shop': '採藥小屋',
 				'blacksmith-interior': '晴滴鍛造坊',
 				'villager-house-1': '村民家',
 				'villager-house-2': '村民家',
 				'villager-house-3': '村民家',
 				'shrine-of-aurora-interior': '極光神社',
-				'ruins-threshold': '廢墟入口',
-				'ruins-core': '廢墟核心'
+				'ruins-threshold': '古老隧道',
+				'ruins-core': '古老隧道深處'
 			}
 		},
 		rewards: {

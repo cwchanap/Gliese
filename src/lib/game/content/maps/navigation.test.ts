@@ -86,9 +86,9 @@ const map: WorldMapDefinition = {
 			id: 'pack-npc',
 			x: 64,
 			y: 256,
-			nameKey: 'content.maps.npcs.guild-master.name',
+			nameKey: 'content.maps.npcs.borak.name',
 			name: 'Guild Master',
-			dialogueId: 'guild-master',
+			dialogueId: 'borak',
 			role: 'guild',
 			frameName: 'guildMasterNpc'
 		},
@@ -96,9 +96,9 @@ const map: WorldMapDefinition = {
 			id: 'starter-npc',
 			x: 128,
 			y: 256,
-			nameKey: 'content.maps.npcs.guild-master.name',
+			nameKey: 'content.maps.npcs.borak.name',
 			name: 'Traveler',
-			dialogueId: 'guild-master',
+			dialogueId: 'borak',
 			role: 'villager',
 			frameName: 'hero'
 		}

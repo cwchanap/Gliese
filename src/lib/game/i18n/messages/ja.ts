@@ -114,7 +114,6 @@ export const ja = {
 		close: '閉じる',
 		next: '次へ',
 		mainQuest: 'メインクエスト',
-		sideActive: 'サブ依頼{{count}}件',
 		fieldPack: '携行品',
 		bagCategories: {
 			potions: 'ポーション',
@@ -134,8 +133,7 @@ export const ja = {
 		fieldJournal: 'フィールド手帳',
 		questLog: '依頼手帳',
 		main: 'メイン',
-		side: 'サブ',
-		questOffered: '受注可能',
+		questDone: '完了',
 		questRewards: '報酬',
 		questTurnedInBy: '報告先',
 		questChapterProgress: '章の進行状況',
@@ -143,7 +141,6 @@ export const ja = {
 		questJournalEmpty: 'まだ依頼はありません。',
 		rewardCoins: 'コイン',
 		rewardItem: 'アイテム',
-		noSideQuestsActive: '進行中のサブ依頼はありません。',
 		coins: 'コイン: {{coins}}',
 		buy: '買う',
 		sell: '売る',
@@ -214,7 +211,6 @@ export const ja = {
 		recoveredHp: 'HPを回復した',
 		strikeLanded: '攻撃が命中',
 		enemyDefeated: '敵を倒した',
-		victoryRuinsCleared: '勝利: 遺跡を制圧',
 		itemCannotBeEquipped: '装備できません',
 		equippedItem: '装備した',
 		unequippedItem: '外した',
@@ -223,13 +219,8 @@ export const ja = {
 		shopClosed: '店を閉じた',
 		boughtItem: '{{itemName}}を購入した',
 		soldItem: '{{itemName}}を売却した',
-		noGuildQuestAvailable: '受けられるギルド依頼がありません',
-		questAccepted: '依頼を受けた',
 		questComplete: '依頼達成: {{questTitle}}',
-		questAlreadyActive: 'すでに依頼中です',
-		questAlreadyComplete: 'すでに達成済みです',
-		questNotAvailable: 'その依頼は受けられません',
-		questCannotBeAccepted: 'その依頼は受けられません',
+		questStarted: '新しい依頼: {{questTitle}}',
 		notEnoughCoins: 'コインが足りません',
 		itemOutOfStock: '在庫切れです',
 		itemCannotBeBought: '購入できません',
@@ -238,7 +229,6 @@ export const ja = {
 		itemCannotBeSold: '売れません',
 		noDialogueOpen: '会話が開いていません',
 		noOneNearby: '近くに誰もいません',
-		ruinsRouteUnlocked: '遺跡への道が開いた',
 		dialogueClosed: '会話を閉じた',
 		dialogueUpdated: '会話を更新した',
 		saved: 'セーブした',
@@ -247,7 +237,6 @@ export const ja = {
 		saveResumed: 'セーブを再開した',
 		enteredArea: 'エリアに入った',
 		newRun: '新しい冒険',
-		reportToGuildMasterFirst: '先にギルドマスターへ報告してください',
 		shopOutOfReach: '店に届きません',
 		bossEnraged: 'ボスが激怒',
 		heroDown: '主人公が倒れた',
@@ -257,11 +246,26 @@ export const ja = {
 	},
 	content: {
 		enemies: {
-			'slime-scout': {
-				name: 'スライム'
+			'forest-wolf': {
+				name: '森オオカミ'
 			},
-			'ruins-warden': {
-				name: '遺跡の守護者'
+			'thornback-boar': {
+				name: 'トゲセイノシシ'
+			},
+			'mist-toad': {
+				name: '霧沼ガマ'
+			},
+			'boar-king': {
+				name: 'イノシシ王'
+			},
+			'human-soldier': {
+				name: '人間の兵士'
+			},
+			'sun-crest-captain': {
+				name: '日章の隊長'
+			},
+			'tunnel-crawler': {
+				name: 'トンネル這い'
 			}
 		},
 		items: {
@@ -328,102 +332,226 @@ export const ja = {
 			'warden-sigil': {
 				name: '守護者の紋章',
 				description: '遺跡の守護者を倒した証。'
+			},
+			'practice-spear': {
+				name: '練習用の短槍',
+				description: '初めての狩りのための軽い短槍。'
+			},
+			'hunters-knife': {
+				name: '狩人のナイフ',
+				description: 'サンドロップの新しい狩人へ、ボラクからの贈り物。'
+			},
+			'ancestral-amulet': {
+				name: '祖先の護符',
+				description: '古くから受け継がれてきた。身を守ってくれる。'
+			},
+			moonmoss: {
+				name: '月光苔',
+				description: '霧沼の奥に生える淡い苔。冬の蓄え用。'
+			},
+			'sun-stamped-arrow': {
+				name: '太陽の刻印の矢',
+				description: '矢羽に太陽の印がある折れた鉄の矢。ゴブリンの矢ではない。'
 			}
 		},
 		shops: {
 			'miras-item-shop': {
-				name: 'ミラの道具屋',
+				name: 'ミラの薬草小屋',
 				merchantName: 'ミラ',
-				description: '東の道へ出る旅人に、頼れる補給品を。'
+				description: '狩りのための薬草と薬。'
 			},
 			'guild-quartermaster': {
-				name: 'ギルド補給係',
-				merchantName: '補給係ヴェイル',
-				description: '新しい遺跡任務向けの、ギルド公認装備。'
+				name: '集会所の倉庫',
+				merchantName: '集会所の倉番',
+				description: '集会所の倉庫にある狩りの装備。'
 			},
 			'sundrop-forge': {
 				name: 'サンドロップ鍛冶場',
-				merchantName: '鍛冶師オレン',
-				description: 'サンドロップの外へ向かう旅人のための、村で鍛えた装備。'
+				merchantName: 'オレン',
+				description: 'サンドロップで鍛えた骨鉄の装備。'
 			}
 		},
 		quests: {
-			'investigate-the-ruins': {
-				title: '遺跡を調査せよ',
-				description: 'ギルドマスターに報告し、その後で遺跡の守護者を倒す。',
+			'prologue-proving-morning': {
+				title: '試練の朝',
+				description: '今日はグリクの試練の狩り。装備を揃えて、狩人の集会所へ向かう。',
 				objectives: {
-					'talk-to-guild-master': {
-						description: 'ギルドホールでギルドマスターと話す。',
-						progressLabel: 'ギルドマスターに話した'
+					'talk-to-mott': {
+						description: '炉端のモット爺と話す。',
+						progressLabel: 'モット爺と話した'
 					},
-					'defeat-ruins-warden': {
-						description: '遺跡の中心部で守護者を倒す。',
-						progressLabel: '遺跡の守護者を倒した'
+					'collect-practice-spear': {
+						description: '鍛冶場でオレンから短槍を受け取る。',
+						progressLabel: '短槍を受け取った'
+					},
+					'collect-herb-pouch': {
+						description: '薬草小屋でミラから薬草袋を受け取る。',
+						progressLabel: '薬草袋を受け取った'
+					},
+					'report-to-borak': {
+						description: '集会所でボラクに報告する。',
+						progressLabel: 'ボラクに報告した'
 					}
 				}
 			},
-			'thin-village-slimes': {
-				title: '村道のスライム掃討',
-				description: '村へ続く道に集まったスライムを一掃する。',
+			'prologue-trial-tracks': {
+				title: '第一の試練：足跡',
+				description: '大地を読む。リラと共に野林でイノシシを追う。',
 				objectives: {
-					'defeat-village-slimes': {
-						description: '村の近くでスライムを倒す。',
-						progressLabel: '村のスライムを倒した'
+					'meet-lirra-forest': {
+						description: '野林の入口でリラと合流する。',
+						progressLabel: 'リラと合流した'
+					},
+					'read-boar-signs': {
+						description: '野林でイノシシの痕跡を調べる。',
+						progressLabel: '調べた痕跡'
+					},
+					'defeat-thornback-boar': {
+						description: 'トゲセイノシシを仕留める。',
+						progressLabel: 'トゲセイノシシを倒した'
+					},
+					'report-first-trial': {
+						description: '集会所でボラクに報告する。',
+						progressLabel: 'ボラクに報告した'
 					}
 				}
 			},
-			'thin-ruins-slimes': {
-				title: '遺跡のスライム掃討',
-				description: '遺跡の境界内にいるスライムを減らす。',
+			'prologue-trial-mistfen': {
+				title: '第二の試練：霧沼',
+				description: '村を養う。ミラの冬の蓄えのため、霧沼の奥で月光苔を集める。',
 				objectives: {
-					'defeat-ruins-slimes': {
-						description: '遺跡でスライムを倒す。',
-						progressLabel: '遺跡のスライムを倒した'
+					'ask-mira-about-stores': {
+						description: 'ミラに冬の蓄えのことを聞く。',
+						progressLabel: 'ミラと話した'
+					},
+					'meet-lirra-mistfen': {
+						description: '霧沼の橋でリラと合流する。',
+						progressLabel: 'リラと合流した'
+					},
+					'gather-moonmoss': {
+						description: '霧沼で月光苔を集める。',
+						progressLabel: '集めた月光苔'
+					},
+					'rest-at-the-pond': {
+						description: '霧沼の奥の池で休む。',
+						progressLabel: '池で休んだ'
+					},
+					'deliver-moonmoss': {
+						description: '月光苔をミラに届ける。',
+						progressLabel: '月光苔を届けた'
 					}
 				}
 			},
-			'recover-ruins-relics': {
-				title: '遺跡の遺物回収',
-				description: '古い遺跡から役立つ品を持ち帰る。',
+			'prologue-trial-boar-king': {
+				title: '第三の試練：イノシシ王',
+				description: '獣の王に挑む。ドロッグと共に銀松林でイノシシ王を狩る。',
 				objectives: {
-					'collect-ruins-items': {
-						description: '遺跡の境界と中心部で遺跡の品を集める。',
-						progressLabel: '遺跡の品を回収した'
+					'meet-drogg-crossroads': {
+						description: '辻の道標でドロッグと合流する。',
+						progressLabel: 'ドロッグと合流した'
+					},
+					'track-the-boar-king': {
+						description: '銀松林へ続くイノシシ王の足跡を探す。',
+						progressLabel: '足跡を見つけた'
+					},
+					'talk-to-drogg-falls': {
+						description: '銀松の滝でドロッグと話す。',
+						progressLabel: 'ドロッグと話した'
+					},
+					'defeat-boar-king': {
+						description: '銀松林の高台でイノシシ王を倒す。',
+						progressLabel: 'イノシシ王を倒した'
+					}
+				}
+			},
+			'prologue-hunters-name': {
+				title: '狩人の名',
+				description: 'グリクは三つの試練を越えた。今夜、サンドロップは祝う。',
+				objectives: {
+					'report-boar-king': {
+						description: '集会所でボラクに報告する。',
+						progressLabel: 'ボラクに報告した'
+					},
+					'share-the-dinner': {
+						description: '家に帰り、食卓の家族と話す。',
+						progressLabel: '話した家族'
+					},
+					'hear-motts-tale': {
+						description: 'モット爺の昔話を聞く。',
+						progressLabel: '昔話を聞いた'
+					},
+					'walk-lirra-home': {
+						description: 'リラを薬草小屋まで送る。',
+						progressLabel: 'リラを送った'
+					},
+					'go-to-sleep': {
+						description: '家に帰って眠る。',
+						progressLabel: '眠った'
+					}
+				}
+			},
+			'prologue-raid': {
+				title: '炎の朝',
+				description: 'サンドロップが燃えている。家族を探せ。',
+				objectives: {
+					'heed-mott': {
+						description: 'モット爺と話す。',
+						progressLabel: 'モット爺と話した'
+					},
+					'repel-the-soldiers': {
+						description: '村に入り込んだ兵士を撃退する。',
+						progressLabel: '倒した兵士'
+					},
+					'reach-the-gate': {
+						description: '村の門にいる父のもとへ急ぐ。',
+						progressLabel: '門にたどり着いた'
+					},
+					'find-drogg': {
+						description: 'サンドロップの井戸でドロッグを見つける。',
+						progressLabel: 'ドロッグを見つけた'
+					},
+					'charge-the-captain': {
+						description: '広場へ突入する。',
+						progressLabel: '広場へ突入した'
+					}
+				}
+			},
+			'prologue-escape': {
+				title: '古いトンネル',
+				description: '社の下のトンネルから逃げる。生き延びろ。',
+				objectives: {
+					'wake-in-the-shrine': {
+						description: '社でモット爺と話す。',
+						progressLabel: 'モット爺と話した'
+					},
+					'climb-to-the-ridge': {
+						description: 'トンネルを抜け、洞窟の上の尾根へ登る。',
+						progressLabel: '尾根に着いた'
 					}
 				}
 			}
 		},
 		dialogue: {
 			actions: {
-				quest: '依頼',
 				shop: '店',
-				accept: '受ける',
-				back: '戻る',
 				close: '閉じる'
 			},
 			speakers: {
-				traveler: '旅人',
-				guildNotice: 'ギルド掲示'
+				traveler: '旅人'
 			},
 			system: {
 				noDialogueAvailable: '会話はありません。',
 				optionNotAvailable: 'その選択肢はありません。',
-				chooseGuildWork: '確認したいギルド仕事を選んでください。',
-				noNewGuildWork: '今は新しいギルド仕事がありません。',
-				guildWorkUnavailable: 'そのギルド仕事はもう受けられません。',
 				noDialogueOpen: '会話は開いていません。',
 				noOneNearby: '近くに誰もいません。',
-				noGuildQuestAvailableHere: 'ここで受けられるギルド依頼はありません。',
-				shopOutOfReach: '店に届きません。',
-				questDetailNotice: '{{questTitle}}: {{objectiveDescription}} 報酬: {{rewardSummary}}。',
-				questCompleteNotice: '依頼達成: {{questTitle}}。報酬: {{rewardSummary}}。'
+				shopOutOfReach: '店に届きません。'
 			}
 		},
 		maps: {
 			landmarks: {
-				'hero-house-exterior': { label: '主人公の家' },
-				'guild-hall-exterior': { label: 'ギルド' },
-				'item-shop-exterior': { label: '道具屋' },
+				'hero-house-exterior': { label: 'グリクの家' },
+				'guild-hall-exterior': { label: '狩人の集会所' },
+				'item-shop-exterior': { label: '薬草小屋' },
 				'villager-house-1-exterior': { label: '民家' },
 				'villager-house-2-exterior': { label: '民家' },
 				'villager-house-3-exterior': { label: '民家' },
@@ -465,29 +593,49 @@ export const ja = {
 				'wildwood-cave-danger': {
 					label: '洞窟への警告',
 					description: '爪で引き裂かれた樹皮。ささやきの洞窟に棲む何かは眠っていない。'
+				},
+				'boar-sign-hoofprints': { label: '蹄の跡' },
+				'boar-sign-sapling': { label: '折れた若木' },
+				'boar-sign-tusk-scrape': { label: '牙の傷跡' },
+				'mistfen-pond-rest': { label: '静かな池' },
+				'boar-king-trail': { label: '巨大な足跡' },
+				'ridge-overlook': { label: '尾根の見晴らし' },
+				'grik-bed': { label: 'グリクのベッド' },
+				'threshold-relief': {
+					label: '壁の浮き彫り',
+					description:
+						'ゴブリン、オーク、エルフ、魔族が一つの長い食卓を囲む。皆を知る手が刻んだものだ。'
+				},
+				'core-relief': {
+					label: 'すり減った浮き彫り',
+					description: 'ゴブリンと魔族が一本の松明を共に掲げている。周りの石は焼け焦げている。'
 				}
 			},
 			npcs: {
-				'guild-master': { name: 'ギルドマスター・アーレン' },
-				'guild-quartermaster': { name: '補給係ヴェイル' },
-				'blacksmith-oren': { name: '鍛冶師オレン' },
-				'shopkeeper-mira': { name: 'ミラ' },
+				borak: { name: 'ボラク' },
+				'lodge-keeper': { name: '集会所の倉番' },
+				mira: { name: 'ミラ' },
+				oren: { name: 'オレン' },
+				mott: { name: 'モット爺' },
+				tikka: { name: 'ティカ' },
+				drogg: { name: 'ドロッグ' },
+				lirra: { name: 'リラ' },
 				'villager-lynn': { name: 'リン' },
 				'villager-toma': { name: 'トマ' },
 				'villager-io': { name: 'イオ' }
 			},
 			areas: {
 				'meadow-entry': 'サンドロップ草原',
-				'hero-house': '主人公の家',
-				'guild-hall': 'ギルドホール',
-				'item-shop': '道具屋',
+				'hero-house': 'グリクの家',
+				'guild-hall': '狩人の集会所',
+				'item-shop': '薬草小屋',
 				'blacksmith-interior': 'サンドロップ鍛冶場',
 				'villager-house-1': '民家',
 				'villager-house-2': '民家',
 				'villager-house-3': '民家',
 				'shrine-of-aurora-interior': 'オーロラの社',
-				'ruins-threshold': '遺跡の境界',
-				'ruins-core': '遺跡の中心'
+				'ruins-threshold': '古いトンネル',
+				'ruins-core': '古いトンネルの奥'
 			}
 		},
 		rewards: {

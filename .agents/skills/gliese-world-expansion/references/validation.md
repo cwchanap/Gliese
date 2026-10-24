@@ -18,12 +18,11 @@ bun run test:unit -- --run src/lib/game/content/maps.test.ts
 
 `maps.test.ts` covers map integration only. When a content registry is changed, also
 run that registry's focused test — it owns invariants `maps.test.ts` does not, such as
-shop stock and localization, dialogue action references, and quest objectives and
-rewards. Run each one that matches the touched registry:
+shop stock and localization, and quest objectives and rewards. Run each one that
+matches the touched registry:
 
 ```sh
 bun run test:unit -- --run src/lib/game/content/shops.test.ts
-bun run test:unit -- --run src/lib/game/content/dialogue.test.ts
 bun run test:unit -- --run src/lib/game/content/quests.test.ts
 ```
 

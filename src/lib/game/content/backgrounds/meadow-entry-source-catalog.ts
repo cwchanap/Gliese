@@ -4,6 +4,7 @@ import { coastRegion } from '$lib/game/content/maps/regions/coast';
 import { crossroadsRegion } from '$lib/game/content/maps/regions/crossroads';
 import { mistfenRegion } from '$lib/game/content/maps/regions/mistfen';
 import { pathsRegion } from '$lib/game/content/maps/regions/paths';
+import { prologueRegion } from '$lib/game/content/maps/regions/prologue';
 import { riverSystemRegion } from '$lib/game/content/maps/regions/river-system';
 import { silverpineRegion } from '$lib/game/content/maps/regions/silverpine';
 import type { RegionFragment } from '$lib/game/content/maps/regions/types';
@@ -40,7 +41,8 @@ type MeadowEntrySourceFragmentId =
 	| 'crossroads'
 	| 'paths'
 	| 'river-system'
-	| 'outer-boundary';
+	| 'outer-boundary'
+	| 'prologue';
 
 export interface MeadowEntrySourceRecord {
 	ref: MeadowEntrySourceRef;
@@ -173,7 +175,8 @@ const meadowEntryFragments: readonly {
 	{ fragmentId: 'crossroads', fragment: crossroadsRegion },
 	{ fragmentId: 'paths', fragment: pathsRegion },
 	{ fragmentId: 'river-system', fragment: riverSystemRegion },
-	{ fragmentId: 'outer-boundary', fragment: meadowBoundsRegion }
+	{ fragmentId: 'outer-boundary', fragment: meadowBoundsRegion },
+	{ fragmentId: 'prologue', fragment: prologueRegion }
 ];
 
 export function meadowEntrySourceKey(ref: MeadowEntrySourceRef): string {

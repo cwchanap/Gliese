@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { applyExperienceGain, getBaseMaxHp, getXpForLevel } from '$lib/game/core/progression';
+import {
+	applyExperienceGain,
+	getBaseMaxHp,
+	getXpForLevel,
+	MAX_LEVEL
+} from '$lib/game/core/progression';
 
 describe('progression rules', () => {
 	it('keeps the hero at level 1 below threshold', () => {
@@ -20,14 +25,23 @@ describe('progression rules', () => {
 		});
 	});
 
-	it('rejects non-level-1 input because only the first level-up is implemented', () => {
-		expect(() => applyExperienceGain({ level: 2, xp: 9, hp: 24, attack: 4 }, 1)).toThrow(
-			'applyExperienceGain only supports level 1 progression'
+	it('applies every level-up a large gain crosses', () => {
+		expect(applyExperienceGain({ level: 2, xp: 9, hp: 24, attack: 4 }, 21)).toEqual({
+			level: 4,
+			xp: 30,
+			hp: 32,
+			attack: 6
+		});
+	});
+
+	it('stops levelling at the level cap', () => {
+		expect(applyExperienceGain({ level: 1, xp: 0, hp: 20, attack: 3 }, 10_000).level).toBe(
+			MAX_LEVEL
 		);
 	});
 
 	it('returns deterministic thresholds', () => {
-		expect(getXpForLevel(2)).toBe(5);
+		expect([2, 3, 4, 5].map(getXpForLevel)).toEqual([5, 15, 30, 50]);
 	});
 
 	it('computes base max HP from level', () => {

@@ -209,12 +209,12 @@ const itemDefinitions = {
 		type: 'key',
 		stackable: true
 	},
-	// Prologue items. Icons reuse existing art until the Codex art task replaces them.
+	// Prologue items. Their icons are copies of existing art until the Codex art task replaces them.
 	'practice-spear': {
 		id: 'practice-spear',
 		nameKey: 'content.items.practice-spear.name',
 		descriptionKey: 'content.items.practice-spear.description',
-		iconPath: '/game/assets/items/training-sword.png',
+		iconPath: '/game/assets/items/practice-spear.png',
 		type: 'equipment',
 		stackable: false,
 		basePrice: 30,
@@ -225,7 +225,7 @@ const itemDefinitions = {
 		id: 'hunters-knife',
 		nameKey: 'content.items.hunters-knife.name',
 		descriptionKey: 'content.items.hunters-knife.description',
-		iconPath: '/game/assets/items/ruin-blade.png',
+		iconPath: '/game/assets/items/hunters-knife.png',
 		type: 'equipment',
 		stackable: false,
 		basePrice: 120,
@@ -236,7 +236,7 @@ const itemDefinitions = {
 		id: 'ancestral-amulet',
 		nameKey: 'content.items.ancestral-amulet.name',
 		descriptionKey: 'content.items.ancestral-amulet.description',
-		iconPath: '/game/assets/items/meadow-charm.png',
+		iconPath: '/game/assets/items/ancestral-amulet.png',
 		type: 'equipment',
 		stackable: false,
 		basePrice: 40,
@@ -247,7 +247,7 @@ const itemDefinitions = {
 		id: 'moonmoss',
 		nameKey: 'content.items.moonmoss.name',
 		descriptionKey: 'content.items.moonmoss.description',
-		iconPath: '/game/assets/items/meadow-token.png',
+		iconPath: '/game/assets/items/moonmoss.png',
 		type: 'key',
 		stackable: true
 	},
@@ -255,7 +255,7 @@ const itemDefinitions = {
 		id: 'sun-stamped-arrow',
 		nameKey: 'content.items.sun-stamped-arrow.name',
 		descriptionKey: 'content.items.sun-stamped-arrow.description',
-		iconPath: '/game/assets/items/threshold-rune.png',
+		iconPath: '/game/assets/items/sun-stamped-arrow.png',
 		type: 'key',
 		stackable: true
 	},

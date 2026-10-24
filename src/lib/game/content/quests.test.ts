@@ -1,128 +1,132 @@
 import { describe, expect, it } from 'vitest';
 
+import { enemies } from '$lib/game/content/enemies';
 import { getItem } from '$lib/game/content/items';
 import { maps } from '$lib/game/content/maps';
 import {
-	getQuest,
-	mainQuestId,
+	collectQuestSceneIds,
+	mainQuestIds,
 	questList,
-	sideQuestIds,
-	type QuestDefinition
+	type QuestObjective,
+	type QuestReward
 } from '$lib/game/content/quests';
+import { applyStoryGates } from '$lib/game/core/story-gates';
+import { browserStoryCatalog } from '$lib/game/story/browser-fixture';
 import { t } from '$lib/game/i18n/translate';
 
-function expectEnglishMessage(key: Parameters<typeof t>[1]): string {
+function expectEnglishMessage(key: Parameters<typeof t>[1]) {
 	const value = t('en', key);
-	expect(value).not.toMatch(/^\[/);
+	expect(value, key).not.toMatch(/^\[/);
 	expect(value.trim()).not.toHaveLength(0);
-	return value;
+}
+
+function expectKnownRewardItems(reward: QuestReward | undefined) {
+	for (const item of reward?.items ?? []) {
+		expect(getItem(item.itemId), item.itemId).toBeDefined();
+		expect(item.quantity).toBeGreaterThan(0);
+	}
+}
+
+/** Every map as the world shows it while `objective` is the current main objective. */
+function worldDuring(questId: (typeof mainQuestIds)[number], objective: QuestObjective) {
+	return Object.values(maps).map((map) =>
+		applyStoryGates(map, { questId, objectiveId: objective.id })
+	);
 }
 
 describe('quest content', () => {
-	it('declares one main quest and three Guild side quests with stable ids', () => {
-		expect(mainQuestId).toBe('investigate-the-ruins');
-		expect(sideQuestIds).toEqual([
-			'thin-village-slimes',
-			'thin-ruins-slimes',
-			'recover-ruins-relics'
-		]);
-		expect(new Set(questList.map((quest) => quest.id)).size).toBe(questList.length);
-		expect(getQuest('investigate-the-ruins')?.type).toBe('main');
-		expect(questList.filter((quest) => quest.type === 'side')).toHaveLength(3);
+	it('chains the seven prologue quests with globally unique objective ids', () => {
+		expect(questList.map((quest) => quest.id)).toEqual([...mainQuestIds]);
+		const objectiveIds = questList.flatMap((quest) => quest.objectives.map(({ id }) => id));
+		expect(new Set(objectiveIds).size).toBe(objectiveIds.length);
 	});
 
-	it('defines valid objectives and Guild side quest givers', () => {
+	it('has text and known reward items for every quest and objective', () => {
 		for (const quest of questList) {
 			expectEnglishMessage(quest.titleKey);
 			expectEnglishMessage(quest.descriptionKey);
+			expectKnownRewardItems(quest.reward);
 			expect(quest.objectives).not.toHaveLength(0);
-			expect(new Set(quest.objectives.map((objective) => objective.id)).size).toBe(
-				quest.objectives.length
-			);
 
 			for (const objective of quest.objectives) {
 				expectEnglishMessage(objective.descriptionKey);
 				expectEnglishMessage(objective.progressLabelKey);
-			}
-
-			if (quest.type === 'side') {
-				expect(quest.giverNpcId).toBe('guild-master');
-				expect(quest.availableAfterQuestId).toBe(mainQuestId);
-				expect(quest.availableAfterObjectiveId).toBe('talk-to-guild-master');
+				expectKnownRewardItems(objective.reward);
+				expect(objective.target).toBeGreaterThan(0);
 			}
 		}
 	});
 
-	it('uses known enemies, maps, pickups, configured NPCs, and reward items', () => {
+	// A target missing from the world while its objective is current would softlock the chain.
+	it('places every objective target in the world while that objective is current', () => {
 		for (const quest of questList) {
 			for (const objective of quest.objectives) {
-				if (objective.kind === 'talk-to-npc') {
-					expect(objective.npcId).toBe('guild-master');
-					expect(objective.target).toBe(1);
-				}
+				const world = worldDuring(quest.id, objective);
+				const label = `${quest.id}/${objective.id}`;
 
-				if (objective.kind === 'defeat-enemy') {
-					for (const mapId of objective.mapIds) {
-						expect(maps[mapId]).toBeDefined();
-						expect(
-							(maps[mapId].encounters ?? []).some(
-								(encounter) => encounter.enemyId === objective.enemyId
-							)
-						).toBe(true);
+				switch (objective.kind) {
+					case 'talk-to-npc':
+						for (const npcId of objective.npcIds) {
+							expect(
+								world.some((map) => map.npcs?.some((npc) => npc.dialogueId === npcId)),
+								`${label}: ${npcId}`
+							).toBe(true);
+						}
+						break;
+					case 'inspect':
+						for (const discoveryId of objective.discoveryIds) {
+							expect(
+								world.some((map) => map.discoveries?.some(({ id }) => id === discoveryId)),
+								`${label}: ${discoveryId}`
+							).toBe(true);
+						}
+						break;
+					case 'collect-item':
+						for (const source of objective.sources) {
+							const map = world.find(({ id }) => id === source.mapId);
+							expect(
+								map?.pickups?.some(
+									(pickup) => pickup.id === source.pickupId && pickup.itemId === source.itemId
+								),
+								`${label}: ${source.pickupId}`
+							).toBe(true);
+						}
+						break;
+					case 'defeat-enemy': {
+						expect(enemies[objective.enemyId], label).toBeDefined();
+						const units = world
+							.filter((map) => objective.mapIds.includes(map.id))
+							.flatMap((map) => map.encounters ?? [])
+							.filter((encounter) => encounter.enemyId === objective.enemyId)
+							.reduce((sum, encounter) => sum + (encounter.count ?? 1), 0);
+						expect(units, label).toBeGreaterThanOrEqual(objective.target);
+						break;
 					}
-					expect(objective.target).toBeGreaterThan(0);
-				}
-
-				if (objective.kind === 'collect-item') {
-					for (const source of objective.sources) {
-						expect(maps[source.mapId]).toBeDefined();
-						expect(getItem(source.itemId)).toBeDefined();
+					case 'lose-battle':
 						expect(
-							(maps[source.mapId].pickups ?? []).some((pickup) => pickup.id === source.pickupId)
+							world.some((map) =>
+								map.encounters?.some((encounter) => encounter.enemyId === objective.enemyId)
+							),
+							label
 						).toBe(true);
-					}
-					expect(objective.target).toBeGreaterThan(0);
+						break;
 				}
-			}
-
-			for (const rewardItem of quest.reward.items ?? []) {
-				expect(getItem(rewardItem.itemId)).toBeDefined();
-				expect(rewardItem.quantity).toBeGreaterThan(0);
 			}
 		}
 	});
 
-	it('sets concrete first-pass rewards', () => {
-		const rewards = Object.fromEntries(
-			questList.map((quest) => [
-				quest.id,
-				{
-					xp: quest.reward.xp ?? 0,
-					coins: quest.reward.coins ?? 0,
-					items: quest.reward.items ?? []
-				}
-			])
-		) as Record<QuestDefinition['id'], { xp: number; coins: number; items: unknown[] }>;
+	it('moves the hero only onto known maps and plays only compiled scenes', () => {
+		const effects = questList.flatMap((quest) => [
+			...(quest.onStart ?? []),
+			...quest.objectives.flatMap((objective) => objective.onComplete ?? [])
+		]);
+		for (const effect of effects) {
+			if (effect.type === 'move-player') expect(maps[effect.mapId], effect.mapId).toBeDefined();
+		}
 
-		expect(rewards['investigate-the-ruins']).toEqual({
-			xp: 15,
-			coins: 35,
-			items: [{ itemId: 'greater-field-potion', quantity: 1 }]
-		});
-		expect(rewards['thin-village-slimes']).toEqual({
-			xp: 6,
-			coins: 12,
-			items: [{ itemId: 'field-potion', quantity: 1 }]
-		});
-		expect(rewards['thin-ruins-slimes']).toEqual({
-			xp: 8,
-			coins: 16,
-			items: [{ itemId: 'sunleaf-salve', quantity: 1 }]
-		});
-		expect(rewards['recover-ruins-relics']).toEqual({
-			xp: 8,
-			coins: 18,
-			items: [{ itemId: 'ruin-draught', quantity: 1 }]
-		});
+		const compiledSceneIds = new Set(browserStoryCatalog.scenes.map((scene) => scene.id));
+		for (const sceneId of collectQuestSceneIds()) {
+			expect(compiledSceneIds.has(sceneId), sceneId).toBe(true);
+		}
 	});
 });

@@ -120,9 +120,7 @@ function createReadyHudState(overrides: Partial<HudState> = {}): HudState {
 		},
 		quests: {
 			main: null,
-			side: [],
-			completed: [],
-			guildOffer: null
+			completed: []
 		},
 		inventory: {
 			consumables: [],
@@ -253,7 +251,7 @@ describe('DialoguePanel.svelte', () => {
 		// Earlier focus/click steps can leave the window scrolled; the dialog is
 		// absolutely positioned in the document, so measurements need origin.
 		window.scrollTo(0, 0);
-		renderDialogue({ npcId: 'shopkeeper-mira', speaker: 'Mira' });
+		renderDialogue({ npcId: 'mira', speaker: 'Mira' });
 
 		const dialogPanel = page.getByRole('dialog', { name: 'Mira' }).element();
 		const bust = dialogPanel.querySelector('.jrpg-dialogue-bust');
@@ -279,7 +277,7 @@ describe('DialoguePanel.svelte', () => {
 	});
 
 	it('renders the neutral bust for the session npc id', async () => {
-		renderDialogue({ npcId: 'shopkeeper-mira', speaker: 'Mira' });
+		renderDialogue({ npcId: 'mira', speaker: 'Mira' });
 
 		const bustImage = page.getByRole('img', { name: 'Mira, dialogue portrait' });
 		await expect.element(bustImage).toBeVisible();
@@ -766,19 +764,16 @@ describe('DialoguePanel.svelte', () => {
 			createReadyHudState({
 				quests: {
 					main: {
-						questId: 'investigate-the-ruins',
-						title: 'Investigate the Ruins',
-						type: 'main',
+						questId: 'prologue-proving-morning',
+						title: 'The Proving Morning',
 						status: 'active',
-						description: 'Report to the Guild Master, then defeat the ruins warden.',
-						objective: 'Talk to the Guild Master.',
-						objectiveId: 'talk-to-guild-master',
-						progress: { label: 'Guild Master spoken to', current: 0, target: 1 },
-						rewardSummary: '8 XP / 20 coins'
+						description: 'Gather your gear and report to Borak.',
+						objective: 'Talk to Old Mott by the hearth.',
+						objectiveId: 'talk-to-mott',
+						progress: { label: 'Spoke with Old Mott', current: 0, target: 1 },
+						rewardSummary: '10 coins'
 					},
-					side: [],
-					completed: [],
-					guildOffer: null
+					completed: []
 				}
 			})
 		);
@@ -788,7 +783,7 @@ describe('DialoguePanel.svelte', () => {
 		await expect.element(page.getByTestId('hud-side-panel')).toHaveTextContent('30G');
 		await expect
 			.element(page.getByTestId('hud-side-panel'))
-			.toHaveTextContent('Investigate the Ruins');
+			.toHaveTextContent('The Proving Morning');
 	});
 
 	it('toggles the area map with the M key', async () => {
@@ -1083,19 +1078,16 @@ describe('DialoguePanel.svelte', () => {
 			createReadyHudState({
 				quests: {
 					main: {
-						questId: 'investigate-the-ruins',
-						title: 'Investigate the Ruins',
-						type: 'main',
+						questId: 'prologue-proving-morning',
+						title: 'The Proving Morning',
 						status: 'active',
-						description: 'Report to the Guild Master, then defeat the ruins warden.',
-						objective: 'Talk to the Guild Master.',
-						objectiveId: 'talk-to-guild-master',
-						progress: { label: 'Guild Master spoken to', current: 0, target: 1 },
-						rewardSummary: '8 XP / 20 coins'
+						description: 'Gather your gear and report to Borak.',
+						objective: 'Talk to Old Mott by the hearth.',
+						objectiveId: 'talk-to-mott',
+						progress: { label: 'Spoke with Old Mott', current: 0, target: 1 },
+						rewardSummary: '10 coins'
 					},
-					side: [],
-					completed: [],
-					guildOffer: null
+					completed: []
 				}
 			})
 		);

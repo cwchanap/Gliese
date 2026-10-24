@@ -648,7 +648,6 @@ export class BattleScene extends Phaser.Scene {
 			sourceMapId: this.payload.sourceMapId,
 			sourceEncounterId: this.payload.sourceEncounterId,
 			sourceEnemyId: this.payload.sourceEnemyId,
-			completion: this.payload.completion,
 			returnPosition: this.payload.returnPosition,
 			finalHeroHp: this.hero.hp,
 			inventory: this.inventory,
@@ -1138,11 +1137,7 @@ export class BattleScene extends Phaser.Scene {
 						summary: null,
 						active: this.buildHudBattleActive()
 					},
-			quests: buildHudQuestState({
-				state: questState,
-				nearbyQuestGiverId: null,
-				locale
-			}),
+			quests: buildHudQuestState({ state: questState, locale }),
 			inventory: this.buildHudInventory(appliedSaveState)
 		});
 	}

@@ -249,6 +249,10 @@ function expectedProtectedBounds(input: MeadowEntryControlInputs): readonly Test
 			const npc = meadowEntryMap.ambientNpcs?.find(({ id }) => id === entry.ref.sourceId);
 			if (!npc) throw new Error(`Missing test ambient NPC ${entry.ref.sourceId}`);
 			sourceBounds = boundsAround(npc.x, npc.y, npc.width ?? 96, npc.height ?? 87);
+		} else if (entry.ref.sourceType === 'npc') {
+			const npc = meadowEntryMap.npcs?.find(({ id }) => id === entry.ref.sourceId);
+			if (!npc) throw new Error(`Missing test NPC ${entry.ref.sourceId}`);
+			sourceBounds = boundsAround(npc.x, npc.y, 96, 87);
 		} else if (entry.ref.sourceType === 'pickup') {
 			const pickup = meadowEntryMap.pickups?.find(({ id }) => id === entry.ref.sourceId);
 			if (!pickup) throw new Error(`Missing test pickup ${entry.ref.sourceId}`);

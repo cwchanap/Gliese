@@ -7,6 +7,9 @@ export const startingPlayer: PlayerDefinition = {
 	moveSpeed: 240
 };
 
+/** Where a new game opens, and where Grik wakes after each night: beside his bed. */
+export const homeBedside = { mapId: 'hero-house', x: 160, y: 224, facing: 'down' } as const;
+
 export const players: DefinitionRegistry<PlayerDefinition> = {
 	[startingPlayer.id]: startingPlayer
 };
