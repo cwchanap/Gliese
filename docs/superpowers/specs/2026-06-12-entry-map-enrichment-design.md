@@ -21,7 +21,8 @@ reads as empty and undirected.
 **Goal:** Redesign `meadow-entry` into a richer, denser JRPG overworld divided
 into six themed regions. Each new region is **scenic + ambient** and visibly
 **gated** ("coming later"), foreshadowing a future story chapter from
-`docs/stories/high_level_plan.md`. No new playable interiors, dungeons, or
+`docs/stories/high_level_plan.md` (since removed; the story plan now lives on
+[Notion](https://app.notion.com/p/403586265aa9813c9adbdd7f93a4df56)). No new playable interiors, dungeons, or
 combat are added — the new regions tease future chapters without building them.
 
 ## 2. Decisions (locked during brainstorming)
