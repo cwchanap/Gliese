@@ -4,6 +4,10 @@ A JRPG vertical slice: a [Phaser 4](https://phaser.io/) game embedded in a
 [Svelte 5](https://svelte.dev/) UI, shipped as a [Tauri v2](https://tauri.app/)
 desktop app for macOS and Windows.
 
+You play Grik, a young goblin hunter. The humans who came to his island raid his village,
+kill his family and carry off his sister and the girl he loves, and he swears revenge.
+See `docs/stories/` for the story direction.
+
 The game world — a village hub, its interiors, a layered overworld, and a two-stage
 ruins dungeon — is authored as data under `src/lib/game/content/`. Story prose lives
 separately in `story/` and is compiled by Rust, so it never ships inside the frontend
@@ -73,3 +77,4 @@ catalog matches the source.
   pipeline, and content model. The most detailed map of the codebase.
 - `docs/plans/` — implementation plans, including the original vertical slice and the
   Rust story pipeline.
+- `docs/stories/` — story direction and the scene-by-scene prologue outline.
