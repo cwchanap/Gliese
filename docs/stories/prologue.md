@@ -20,8 +20,9 @@ items and saving, all before the raid.
 
 **P1. Morning in Sundrop** (map `hero-house`, then the village)
 
-- Grik wakes late. Tikka scolds him because today is his first hunt as a full hunter and
-  Father is already at the Lodge. Drogg is gone too.
+- Grik wakes late. Tikka scolds him because today is his proving hunt, the one that
+  decides whether he becomes a full hunter, and Father is already at the Lodge. Drogg is
+  gone too.
 - Old Mott, by the fire, gives him a charm "for luck, from the old days."
 - Grik walks through the village. Neighbours wish him luck, and the smith and the herb
   hut offer starting gear.
