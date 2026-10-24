@@ -1,7 +1,7 @@
 import { equipmentSlots, getItem } from '$lib/game/content/items';
-import { heroHouseMap, maps } from '$lib/game/content/maps';
+import { maps } from '$lib/game/content/maps';
 import type { MapLandmark, MapTransition, WorldMapDefinition } from '$lib/game/content/maps/types';
-import { startingPlayer } from '$lib/game/content/player';
+import { homeBedside, startingPlayer } from '$lib/game/content/player';
 import { getShop } from '$lib/game/content/shops';
 import { createEmptyEquipment, type EquipmentState } from '$lib/game/core/equipment';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
@@ -93,15 +93,15 @@ export const NORMALIZE_TRANSITION_RADIUS = 18;
 export function createNewSaveState(): SaveState {
 	return {
 		version: 10,
-		mapId: heroHouseMap.id,
+		mapId: homeBedside.mapId,
 		player: {
 			level: 1,
 			xp: getXpForLevel(1),
 			hp: startingPlayer.baseHp,
 			attack: startingPlayer.baseAttack,
-			x: heroHouseMap.spawn.x,
-			y: heroHouseMap.spawn.y,
-			facing: heroHouseMap.spawnDirection
+			x: homeBedside.x,
+			y: homeBedside.y,
+			facing: homeBedside.facing
 		},
 		flags: {
 			clearedEncounters: [],

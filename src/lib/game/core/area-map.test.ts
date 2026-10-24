@@ -6,14 +6,20 @@ import {
 	maps,
 	shrineOfAuroraInteriorMap
 } from '$lib/game/content/maps';
-import { mainQuestId } from '$lib/game/content/quests';
 import {
 	buildAreaMapState,
 	buildInitialAreaMapState,
 	type HudAreaMapState
 } from '$lib/game/core/area-map';
 import { revealCellsAroundPoint } from '$lib/game/core/map-exploration';
-import { createInitialQuestState } from '$lib/game/core/quests';
+import {
+	applyQuestEvent,
+	createInitialQuestState,
+	getStoryProgress,
+	type QuestState
+} from '$lib/game/core/quests';
+import { questStateAt } from '$lib/game/core/quests.fixtures';
+import { applyStoryGates } from '$lib/game/core/story-gates';
 
 describe('area map payload', () => {
 	it('builds the initial area map from meadow entry content', () => {
@@ -116,7 +122,7 @@ describe('area map payload', () => {
 			expect.objectContaining({
 				kind: 'building',
 				id: 'guild-hall-exterior',
-				label: 'ギルド'
+				label: '狩人の集会所'
 			})
 		);
 		expect(areaMap.markers).not.toContainEqual(
@@ -128,95 +134,69 @@ describe('area map payload', () => {
 		);
 	});
 
-	it('adds active quest markers only when the destination is on this map and revealed', () => {
-		const quests = createInitialQuestState();
+	it('pins current-objective targets on this map once their cell is revealed', () => {
+		const quests = questStateAt('meet-lirra-forest');
+		const map = applyStoryGates(meadowEntryMap, getStoryProgress(quests));
+		const build = (revealedCells: string[]) =>
+			buildAreaMapState({ map, player: { x: 700, y: 5_600 }, revealedCells, quests, locale: 'en' })
+				.markers;
+
+		expect(build(['38,31'])).toContainEqual(
+			expect.objectContaining({
+				kind: 'quest',
+				id: 'prologue-trial-tracks:meet-lirra-forest:lirra-forest',
+				x: 4_950,
+				y: 4_000
+			})
+		);
+		expect(build([]).some((marker) => marker.kind === 'quest')).toBe(false);
+
+		const elsewhere = buildAreaMapState({
+			map: maps['guild-hall']!,
+			player: { x: 512, y: 512 },
+			revealedCells: Array.from({ length: 16 }, (_, column) =>
+				Array.from({ length: 16 }, (_, row) => `${column},${row}`)
+			).flat(),
+			quests,
+			locale: 'en'
+		});
+		expect(elsewhere.markers.some((marker) => marker.kind === 'quest')).toBe(false);
+	});
+
+	it('drops targets that already counted toward the objective', () => {
+		const quests = questStateAt('read-boar-signs');
+		const map = applyStoryGates(meadowEntryMap, getStoryProgress(quests));
+		const after = applyQuestEvent({
+			state: quests,
+			event: { type: 'inspect', discoveryId: 'boar-sign-hoofprints' }
+		}).state;
+		const revealedCells = map.discoveries!.flatMap((discovery) =>
+			revealCellsAroundPoint({
+				x: discovery.x,
+				y: discovery.y,
+				mapWidth: map.width * 32,
+				mapHeight: map.height * 32
+			})
+		);
+		const questTargets = (state: QuestState) =>
+			buildAreaMapState({ map, player: { x: 0, y: 0 }, revealedCells, quests: state, locale: 'en' })
+				.markers.filter((marker) => marker.kind === 'quest')
+				.map((marker) => marker.id.split(':').at(-1));
+
+		expect(questTargets(quests).sort()).toEqual([
+			'boar-sign-hoofprints',
+			'boar-sign-sapling',
+			'boar-sign-tusk-scrape'
+		]);
+		expect(questTargets(after).sort()).toEqual(['boar-sign-sapling', 'boar-sign-tusk-scrape']);
+	});
+
+	it('returns no quest marker once the prologue is complete', () => {
 		const areaMap = buildAreaMapState({
 			map: meadowEntryMap,
 			player: { x: 700, y: 5_600 },
-			revealedCells: ['17,33'],
-			quests,
-			locale: 'en'
-		});
-
-		expect(areaMap.markers).toContainEqual(
-			expect.objectContaining({
-				kind: 'quest',
-				id: `${mainQuestId}:talk-to-guild-master:meadow-entry`
-			})
-		);
-
-		const hiddenAreaMap = buildAreaMapState({
-			map: maps['ruins-core']!,
-			player: { x: 512, y: 3_200 },
-			revealedCells: [],
-			quests,
-			locale: 'en'
-		});
-		expect(hiddenAreaMap.markers.some((marker) => marker.kind === 'quest')).toBe(false);
-	});
-
-	it('marks the top-right cave exit for the defeat objective once that area is revealed', () => {
-		const quests = createInitialQuestState();
-		quests.entries[mainQuestId] = {
-			...quests.entries[mainQuestId]!,
-			currentObjectiveId: 'defeat-ruins-warden'
-		};
-
-		const areaMap = buildAreaMapState({
-			map: meadowEntryMap,
-			player: { x: 700, y: 5_600 },
-			revealedCells: ['46,14'],
-			quests,
-			locale: 'en'
-		});
-
-		expect(areaMap.markers).toContainEqual(
-			expect.objectContaining({
-				kind: 'quest',
-				id: `${mainQuestId}:defeat-ruins-warden:meadow-entry`,
-				x: 5_960,
-				y: 1_868
-			})
-		);
-	});
-
-	it('shows the threshold-to-core transition for the defeat objective on ruins-threshold', () => {
-		const quests = createInitialQuestState();
-		quests.entries[mainQuestId] = {
-			...quests.entries[mainQuestId]!,
-			currentObjectiveId: 'defeat-ruins-warden'
-		};
-
-		const areaMap = buildAreaMapState({
-			map: maps['ruins-threshold']!,
-			player: { x: 512, y: 3_200 },
-			revealedCells: ['46,25'],
-			quests,
-			locale: 'en'
-		});
-
-		expect(areaMap.markers).toContainEqual(
-			expect.objectContaining({
-				kind: 'quest',
-				id: `${mainQuestId}:defeat-ruins-warden:ruins-threshold`,
-				x: 5_888,
-				y: 3_200
-			})
-		);
-	});
-
-	it('returns no quest marker for an unknown main quest objective', () => {
-		const quests = createInitialQuestState();
-		quests.entries[mainQuestId] = {
-			...quests.entries[mainQuestId]!,
-			currentObjectiveId: 'unknown-objective'
-		};
-
-		const areaMap = buildAreaMapState({
-			map: meadowEntryMap,
-			player: { x: 700, y: 5_600 },
-			revealedCells: ['46,14'],
-			quests,
+			revealedCells: ['38,31'],
+			quests: questStateAt(null),
 			locale: 'en'
 		});
 

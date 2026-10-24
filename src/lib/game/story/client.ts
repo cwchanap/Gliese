@@ -101,12 +101,15 @@ function localizeActionLabel(actionId: string, fallback: string, locale: Locale)
 }
 
 async function resolveStoryRuntime(): Promise<StoryRuntime> {
+	// Keep the explicit else: the bundler drops the fixture import (and its
+	// prose) from the tauri build only when it is a dead branch.
 	if (import.meta.env.VITE_STORY_RUNTIME === 'tauri') {
 		const { invoke } = await import('@tauri-apps/api/core');
 		return { mode: 'tauri', invoke };
+	} else {
+		const fixture = await import('$lib/game/story/browser-fixture');
+		return { mode: 'browser', fixture };
 	}
-	const fixture = await import('$lib/game/story/browser-fixture');
-	return { mode: 'browser', fixture };
 }
 
 export async function getNpcStoryDialogue(request: {

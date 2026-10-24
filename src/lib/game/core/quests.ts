@@ -88,7 +88,10 @@ export type HudQuestState = {
 };
 
 export function createInitialQuestState(): QuestState {
-	return activateQuest({ entries: {}, completedObjectives: {}, pendingEffects: [] }, mainQuestIds[0]);
+	return activateQuest(
+		{ entries: {}, completedObjectives: {}, pendingEffects: [] },
+		mainQuestIds[0]
+	);
 }
 
 export function cloneQuestState(state: QuestState): QuestState {
@@ -172,17 +175,18 @@ export function applyQuestEvent({
 		countedSourceIds: [...entry.countedSourceIds, sourceId]
 	};
 
+	const progressUpdate: QuestProgressUpdate = {
+		questId: quest.id,
+		title: quest.title,
+		objectiveId: objective.id,
+		progressLabel: objective.progressLabel,
+		previousProgress,
+		currentProgress: progress,
+		target: objective.target
+	};
 	if (progress < objective.target) {
 		result.state = nextState;
-		result.progressUpdates.push({
-			questId: quest.id,
-			title: quest.title,
-			objectiveId: objective.id,
-			progressLabel: objective.progressLabel,
-			previousProgress,
-			currentProgress: progress,
-			target: objective.target
-		});
+		result.progressUpdates.push(progressUpdate);
 		return result;
 	}
 
@@ -197,8 +201,10 @@ export function applyQuestEvent({
 
 	const nextObjective = quest.objectives[quest.objectives.indexOf(objective) + 1];
 	if (nextObjective) {
+		// The quest goes on: report the finished objective at its full count.
 		nextState.entries[quest.id] = startObjective(nextObjective);
 		result.state = nextState;
+		result.progressUpdates.push(progressUpdate);
 		return result;
 	}
 

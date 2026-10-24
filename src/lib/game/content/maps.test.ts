@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { enemies } from '$lib/game/content/enemies';
-import { getDialogue } from '$lib/game/content/dialogue';
+import { browserStoryCatalog } from '$lib/game/story/browser-fixture';
 import { mergeRegions } from '$lib/game/content/maps/meadow-entry';
+import { prologueRegion } from '$lib/game/content/maps/regions/prologue';
 import { STEPS } from '$lib/game/content/maps/layered/geometry';
 import { VILLAGE_INTERIOR_EXTERIORS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
 import { rectContains, toMapRect } from '$lib/game/content/maps/layouts/layout-rects';
@@ -24,6 +25,7 @@ import {
 import { MEADOW_ENTRY_V2_RIVER_SEGMENTS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
 import { getItem } from '$lib/game/content/items';
 import { getShop } from '$lib/game/content/shops';
+import { storyWindows } from '$lib/game/content/quests';
 import {
 	buildVillageInteriorNavigationSource,
 	VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES
@@ -253,7 +255,13 @@ function expectRouteClear(
 	waypoints: readonly { x: number; y: number }[],
 	label: string
 ) {
-	const routeCollisionRects = [...collectStrictCollisionRects(map), ...collectLandmarkRects(map)];
+	// Story-gated blockers close routes on purpose (the raid's burning bridge); every
+	// other entry counts regardless of its story window, so routes stay clear throughout.
+	const openMap = { ...map, blockers: map.blockers?.filter((blocker) => !blocker.activeDuring) };
+	const routeCollisionRects = [
+		...collectStrictCollisionRects(openMap),
+		...collectLandmarkRects(openMap)
+	];
 	for (let index = 1; index < waypoints.length; index += 1) {
 		const from = waypoints[index - 1]!;
 		const to = waypoints[index]!;
@@ -384,11 +392,10 @@ describe('opening map content', () => {
 		expect(meadowEntryMap.height).toBe(200);
 		expect(meadowEntryMap.spawnDirection).toBe('up');
 		expect(meadowEntryMap.spawn).toEqual({ x: 704, y: 5_920 });
-		expect(meadowEntryMap.combatBounds?.map((bounds) => bounds.id)).toEqual([
-			'wildwood-north-combat-pocket',
-			'wildwood-crossing-combat-pocket',
-			'whispering-cave-combat-pocket'
-		]);
+		// Every story pack fights inside its own pocket.
+		expect(meadowEntryMap.combatBounds?.map((bounds) => bounds.encounterIds)).toEqual(
+			meadowEntryMap.encounters?.map((encounter) => [encounter.id])
+		);
 		expect(meadowEntryMap.transitions).toEqual(
 			expect.arrayContaining([
 				{
@@ -462,20 +469,13 @@ describe('opening map content', () => {
 					toMapId: 'ruins-threshold',
 					requiresClear: true,
 					marker: 'stair',
-					questRequirement: {
-						questId: 'investigate-the-ruins',
-						objectiveId: 'talk-to-guild-master'
-					},
+					activeDuring: { quests: ['prologue-escape'] },
 					arrival: { x: 512, y: 3_200, facing: 'right' }
 				}
 			])
 		);
 		expect(meadowEntryMap.transitions).toHaveLength(9);
-		expect(meadowEntryMap.encounters).toEqual([
-			{ id: 'meadow-slime-west', x: 4_928, y: 960, enemyId: 'slime-scout' },
-			{ id: 'meadow-slime-center', x: 5_360, y: 1_280, enemyId: 'slime-scout' },
-			{ id: 'meadow-slime-east', x: 5_920, y: 1_600, enemyId: 'slime-scout' }
-		]);
+		expect(meadowEntryMap.encounters).toEqual(prologueRegion.encounters);
 		expect(
 			meadowEntryMap.transitions.find((transition) =>
 				transition.id.includes('whispering-cave-ruins-threshold')
@@ -483,10 +483,7 @@ describe('opening map content', () => {
 		).toMatchObject({
 			toMapId: 'ruins-threshold',
 			requiresClear: true,
-			questRequirement: {
-				questId: 'investigate-the-ruins',
-				objectiveId: 'talk-to-guild-master'
-			}
+			activeDuring: { quests: ['prologue-escape'] }
 		});
 		expect(
 			meadowEntryMap.transitions
@@ -897,11 +894,9 @@ describe('opening map content', () => {
 
 	it('proves the authored Threshold and Core routes with composed collision', () => {
 		const thresholdWestEncounter = ruinsThresholdMap.encounters!.find(
-			(encounter) => encounter.id === 'threshold-slime-west'
+			(encounter) => encounter.id === 'threshold-crawlers'
 		)!;
-		const thresholdEastEncounter = ruinsThresholdMap.encounters!.find(
-			(encounter) => encounter.id === 'threshold-slime-east'
-		)!;
+		const thresholdEastEncounter = thresholdWestEncounter;
 		const thresholdNorthPickup = ruinsThresholdMap.pickups!.find(
 			(pickup) => pickup.id === 'ruins-threshold-cap'
 		)!;
@@ -922,8 +917,7 @@ describe('opening map content', () => {
 			'ruins-threshold-salve'
 		]);
 		expect(ruinsThresholdMap.encounters?.map((encounter) => encounter.id)).toEqual([
-			'threshold-slime-west',
-			'threshold-slime-east'
+			'threshold-crawlers'
 		]);
 
 		expectRouteClear(
@@ -980,7 +974,8 @@ describe('opening map content', () => {
 		const coreSouthPickup = ruinsCoreMap.pickups!.find(
 			(pickup) => pickup.id === 'ruins-core-draught'
 		)!;
-		const coreBoss = ruinsCoreMap.encounters!.find((encounter) => encounter.id === 'ruins-warden')!;
+		// The escape drops Grik at the far east end of the core; he walks west to the stair.
+		const coreBoss = { x: 5_376, y: 3_200 };
 		const coreThresholdStair = ruinsCoreMap.transitions.find(
 			(transition) => transition.id === 'core-to-threshold'
 		)!;
@@ -990,7 +985,7 @@ describe('opening map content', () => {
 			'ruins-core-mail',
 			'ruins-core-draught'
 		]);
-		expect(ruinsCoreMap.encounters?.map((encounter) => encounter.id)).toEqual(['ruins-warden']);
+		expect(ruinsCoreMap.encounters?.map((encounter) => encounter.id)).toEqual(['core-crawlers']);
 		expectRouteClear(
 			ruinsCoreMap,
 			[
@@ -1113,8 +1108,8 @@ describe('opening map content', () => {
 		);
 		expectRouteClear(guildHallMap, [spawn, { x: 512, y: 816 }], 'guild-spawn-to-exit');
 
-		const guildMaster = guildHallMap.npcs!.find((npc) => npc.id === 'guild-master')!;
-		const quartermaster = guildHallMap.npcs!.find((npc) => npc.id === 'guild-quartermaster')!;
+		const guildMaster = guildHallMap.npcs!.find((npc) => npc.id === 'borak')!;
+		const quartermaster = guildHallMap.npcs!.find((npc) => npc.id === 'lodge-keeper')!;
 
 		for (const [npc, approach] of [
 			[guildMaster, guildMasterApproach],
@@ -1277,17 +1272,17 @@ describe('opening map content', () => {
 		expect(guildHallMap.npcs).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
-					id: 'guild-master',
+					id: 'borak',
 					x: 800,
 					y: 144,
-					dialogueId: 'guild-master',
+					dialogueId: 'borak',
 					role: 'guild'
 				}),
 				expect.objectContaining({
-					id: 'guild-quartermaster',
+					id: 'lodge-keeper',
 					x: 816,
 					y: 528,
-					dialogueId: 'guild-quartermaster',
+					dialogueId: 'lodge-keeper',
 					role: 'shopkeeper',
 					shopId: 'guild-quartermaster'
 				})
@@ -1389,7 +1384,7 @@ describe('opening map content', () => {
 			'hero-spawn-to-exit'
 		);
 
-		const mira = itemShopMap.npcs!.find((npc) => npc.id === 'shopkeeper-mira')!;
+		const mira = itemShopMap.npcs!.find((npc) => npc.id === 'mira')!;
 		const miraApproach = { x: 416, y: 360 };
 		expectRouteClear(itemShopMap, [itemShopMap.spawn, miraApproach], 'shop-spawn-to-mira');
 		expectRouteClear(
@@ -1543,7 +1538,7 @@ describe('opening map content', () => {
 				collision: undefined
 			}
 		]);
-		expect(shrineOfAuroraInteriorMap.npcs ?? []).toEqual([]);
+		expect(shrineOfAuroraInteriorMap.npcs?.map((npc) => npc.id)).toEqual(['mott-shrine']);
 		expect(shrineOfAuroraInteriorMap.ambientNpcs ?? []).toEqual([]);
 
 		expect(Object.keys(house1Layout.propCollisions)).toEqual([
@@ -1600,7 +1595,8 @@ describe('opening map content', () => {
 				x: house1Layout.ambientActivity!['villager-house-1-family'].x,
 				y: house1Layout.ambientActivity!['villager-house-1-family'].y,
 				frameName: 'miraItemShopNpc',
-				role: 'family'
+				role: 'family',
+				hiddenDuring: storyWindows.afterRaid
 			}
 		]);
 
@@ -1655,7 +1651,8 @@ describe('opening map content', () => {
 				x: house2Layout.ambientActivity!['villager-house-2-neighbor'].x,
 				y: house2Layout.ambientActivity!['villager-house-2-neighbor'].y,
 				frameName: 'guildMasterNpc',
-				role: 'neighbor'
+				role: 'neighbor',
+				hiddenDuring: storyWindows.afterRaid
 			}
 		]);
 		expect(villagerHouse2Map.navigationGrid).toBeDefined();
@@ -1736,7 +1733,8 @@ describe('opening map content', () => {
 				x: 768,
 				y: 544,
 				frameName: 'quartermasterNpc',
-				role: 'neighbor'
+				role: 'neighbor',
+				hiddenDuring: storyWindows.afterRaid
 			}
 		]);
 
@@ -1896,7 +1894,7 @@ describe('opening map content', () => {
 		expect(shrineOfAuroraInteriorMap.navigationGridOwnedSources).toEqual(
 			VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES
 		);
-		expect(shrineOfAuroraInteriorMap.npcs ?? []).toEqual([]);
+		expect(shrineOfAuroraInteriorMap.npcs?.map((npc) => npc.id)).toEqual(['mott-shrine']);
 		expect(shrineOfAuroraInteriorMap.ambientNpcs ?? []).toEqual([]);
 		expect(shrineOfAuroraInteriorMap.width).toBe(32);
 		expect(shrineOfAuroraInteriorMap.height).toBe(28);
@@ -1973,12 +1971,12 @@ describe('opening map content', () => {
 	});
 
 	it('keeps Mira, counter clearance, and minimal interior props exact', () => {
-		const mira = itemShopMap.npcs!.find((npc) => npc.id === 'shopkeeper-mira');
+		const mira = itemShopMap.npcs!.find((npc) => npc.id === 'mira');
 		expect(mira).toMatchObject({
-			id: 'shopkeeper-mira',
+			id: 'mira',
 			x: 416,
 			y: 320,
-			dialogueId: 'shopkeeper-mira',
+			dialogueId: 'mira',
 			role: 'shopkeeper',
 			frameName: 'miraItemShopNpc',
 			shopId: 'miras-item-shop'
@@ -1998,7 +1996,14 @@ describe('opening map content', () => {
 			itemShopMap.interiorProps?.find((prop) => prop.id === 'item-shop-counter')?.collision
 		).toEqual({ id: 'item-shop-counter-collision', x: 416, y: 340, width: 384, height: 8 });
 		expect(itemShopMap.ambientNpcs).toEqual([
-			{ id: 'item-shop-customer', x: 256, y: 512, frameName: 'guildMasterNpc', role: 'shopper' }
+			{
+				id: 'item-shop-customer',
+				x: 256,
+				y: 512,
+				frameName: 'guildMasterNpc',
+				role: 'shopper',
+				hiddenDuring: storyWindows.afterRaid
+			}
 		]);
 		expect(heroHouseMap.interiorProps?.map((prop) => prop.id)).toEqual([
 			'hero-house-bed',
@@ -2179,39 +2184,48 @@ describe('opening map content', () => {
 		const npcs = Object.values(maps).flatMap((map) => map.npcs ?? []);
 		const roles = ['guild', 'shopkeeper', 'villager', 'home'];
 
-		expect(heroHouseMap.npcs ?? []).toEqual([]);
+		// Grik's family appears at home only in its story windows.
+		expect(heroHouseMap.npcs?.map((npc) => npc.id)).toEqual([
+			'mott-hearth',
+			'tikka-home',
+			'borak-home',
+			'drogg-home'
+		]);
+		expect(shrineOfAuroraInteriorMap.npcs?.map((npc) => npc.id)).toEqual(['mott-shrine']);
 		expect(guildHallMap.npcs).toMatchObject([
 			{
-				id: 'guild-master',
+				id: 'borak',
 				x: 800,
 				y: 144,
-				nameKey: 'content.maps.npcs.guild-master.name',
-				dialogueId: 'guild-master',
+				nameKey: 'content.maps.npcs.borak.name',
+				dialogueId: 'borak',
 				role: 'guild',
 				frameName: 'guildMasterNpc'
 			},
 			{
-				id: 'guild-quartermaster',
+				id: 'lodge-keeper',
 				x: 816,
 				y: 528,
-				nameKey: 'content.maps.npcs.guild-quartermaster.name',
-				dialogueId: 'guild-quartermaster',
+				nameKey: 'content.maps.npcs.lodge-keeper.name',
+				dialogueId: 'lodge-keeper',
 				role: 'shopkeeper',
 				frameName: 'quartermasterNpc',
 				shopId: 'guild-quartermaster'
-			}
+			},
+			{ id: 'drogg-lodge', dialogueId: 'drogg-lodge', role: 'home' }
 		]);
 		expect(itemShopMap.npcs).toMatchObject([
 			{
-				id: 'shopkeeper-mira',
+				id: 'mira',
 				x: 416,
 				y: 320,
-				nameKey: 'content.maps.npcs.shopkeeper-mira.name',
-				dialogueId: 'shopkeeper-mira',
+				nameKey: 'content.maps.npcs.mira.name',
+				dialogueId: 'mira',
 				role: 'shopkeeper',
 				frameName: 'miraItemShopNpc',
 				shopId: 'miras-item-shop'
-			}
+			},
+			{ id: 'lirra-herb-hut', dialogueId: 'lirra-herb-hut', role: 'home' }
 		]);
 		expect(villagerHouse1Map.npcs).toMatchObject([
 			{
@@ -2251,7 +2265,10 @@ describe('opening map content', () => {
 		for (const map of Object.values(maps)) {
 			for (const npc of map.npcs ?? []) {
 				expect(npc.name).toBe(expectEnglishMessage(npc.nameKey));
-				expect(getDialogue(npc.dialogueId)).toBeDefined();
+				expect(
+					browserStoryCatalog.npcDialogues.find(({ npcId }) => npcId === npc.dialogueId)?.mapId,
+					npc.dialogueId
+				).toBe(map.id);
 				expect(roles).toContain(npc.role);
 				expect(npc.x).toBeGreaterThanOrEqual(0);
 				expect(npc.y).toBeGreaterThanOrEqual(0);
@@ -2386,7 +2403,7 @@ describe('opening map content', () => {
 		).toBe(true);
 	});
 
-	it('keeps the V2 village cluster in its approved bounds and the slime forest in the top-right corner', () => {
+	it('keeps the V2 village cluster in its approved bounds and the cave in the top-right corner', () => {
 		const villageLandmarks = (meadowEntryMap.landmarks ?? []).filter((landmark) =>
 			VILLAGE_LANDMARK_IDS.has(landmark.id)
 		);
@@ -2398,11 +2415,6 @@ describe('opening map content', () => {
 
 		const cave = meadowEntryMap.landmarks?.find((landmark) => landmark.id === 'whispering-cave');
 		expect(cave).toMatchObject({ x: 5_960, y: 1_800 });
-
-		for (const combatBounds of meadowEntryMap.combatBounds ?? []) {
-			expect(combatBounds.x - combatBounds.width / 2).toBeGreaterThanOrEqual(4_784);
-			expect(combatBounds.y + combatBounds.height / 2).toBeLessThanOrEqual(1_792);
-		}
 
 		const canopyDecor = (meadowEntryMap.mapDecor ?? []).filter((decor) =>
 			CANOPY_DECOR_IDS.has(decor.id)
@@ -2423,12 +2435,12 @@ describe('opening map content', () => {
 		).toBe(true);
 	});
 
-	it('keeps meadow combat in the top-right forest pockets instead of a separate forest arena', () => {
-		expect(meadowEntryMap.encounters).toEqual([
-			{ id: 'meadow-slime-west', x: 4_928, y: 960, enemyId: 'slime-scout' },
-			{ id: 'meadow-slime-center', x: 5_360, y: 1_280, enemyId: 'slime-scout' },
-			{ id: 'meadow-slime-east', x: 5_920, y: 1_600, enemyId: 'slime-scout' }
-		]);
+	it('keeps every story pack a fixed-size fight inside its own pocket', () => {
+		for (const encounter of meadowEntryMap.encounters ?? []) {
+			expect(enemies[encounter.enemyId], encounter.id).toBeDefined();
+			expect(encounter.count, encounter.id).toBeGreaterThanOrEqual(1);
+			expect(encounter.activeDuring, `${encounter.id} is story-gated`).toBeDefined();
+		}
 
 		const encountersById = new Map(
 			(meadowEntryMap.encounters ?? []).map((encounter) => [encounter.id, encounter])
@@ -2642,11 +2654,10 @@ describe('opening map content', () => {
 		const encounters = Object.values(maps).flatMap((map) => map.encounters ?? []);
 
 		expect(maps['ruins-threshold'].encounters).toEqual([
-			{ id: 'threshold-slime-west', x: 2_304, y: 3_200, enemyId: 'slime-scout' },
-			{ id: 'threshold-slime-east', x: 4_096, y: 3_008, enemyId: 'slime-scout' }
+			{ id: 'threshold-crawlers', x: 3_200, y: 3_200, enemyId: 'tunnel-crawler', count: 3 }
 		]);
 		expect(maps['ruins-core'].encounters).toEqual([
-			{ id: 'ruins-warden', x: 4_992, y: 3_200, enemyId: 'ruins-warden', completion: 'victory' }
+			{ id: 'core-crawlers', x: 2_880, y: 3_200, enemyId: 'tunnel-crawler', count: 3 }
 		]);
 		expect(new Set(encounters.map((encounter) => encounter.id)).size).toBe(encounters.length);
 
@@ -2802,17 +2813,17 @@ describe('Guild Hall Gates 1/2 coordinate and navigation contracts', () => {
 		expect(guildHallMap.npcs).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
-					id: 'guild-master',
+					id: 'borak',
 					x: layout.npcApproaches.guildMaster.npc.x,
 					y: layout.npcApproaches.guildMaster.npc.y,
-					dialogueId: 'guild-master',
+					dialogueId: 'borak',
 					role: 'guild'
 				}),
 				expect.objectContaining({
-					id: 'guild-quartermaster',
+					id: 'lodge-keeper',
 					x: layout.npcApproaches.quartermaster.npc.x,
 					y: layout.npcApproaches.quartermaster.npc.y,
-					dialogueId: 'guild-quartermaster',
+					dialogueId: 'lodge-keeper',
 					role: 'shopkeeper',
 					shopId: 'guild-quartermaster'
 				})
@@ -3058,13 +3069,14 @@ describe('Item Shop Gates 1/2 coordinate and navigation contracts', () => {
 
 		expect(itemShopMap.npcs).toEqual([
 			expect.objectContaining({
-				id: 'shopkeeper-mira',
+				id: 'mira',
 				x: layout.npcApproaches.mira.npc.x,
 				y: layout.npcApproaches.mira.npc.y,
-				dialogueId: 'shopkeeper-mira',
+				dialogueId: 'mira',
 				role: 'shopkeeper',
 				shopId: 'miras-item-shop'
-			})
+			}),
+			expect.objectContaining({ id: 'lirra-herb-hut', role: 'home' })
 		]);
 		expect(getShop('miras-item-shop')).toBeDefined();
 		expect(
@@ -3134,7 +3146,7 @@ describe('Item Shop Gates 1/2 coordinate and navigation contracts', () => {
 			}
 		}
 
-		const mira = itemShopMap.npcs!.find((npc) => npc.id === 'shopkeeper-mira')!;
+		const mira = itemShopMap.npcs!.find((npc) => npc.id === 'mira')!;
 		expectPointClearOfInteriorPropCollisions(itemShopMap, mira, 'mira');
 		expectPointClearOfInteriorPropCollisions(
 			itemShopMap,
@@ -3548,7 +3560,8 @@ describe('meadow-entry region integrity', () => {
 				'silverpine-offering-cache',
 				'coast-salve',
 				'coast-jetty-catch',
-				'crossroads-cache'
+				'crossroads-cache',
+				...(prologueRegion.pickups ?? []).map(({ id }) => id)
 			],
 			discoveries: [
 				'wildwood-cave-danger',
@@ -3557,9 +3570,10 @@ describe('meadow-entry region integrity', () => {
 				'ferry-shrine-lore',
 				'coast-jetty-foreshadow',
 				'crossroads-waystone-sign',
-				'castle-gate-warning'
+				'castle-gate-warning',
+				...(prologueRegion.discoveries ?? []).map(({ id }) => id)
 			],
-			encounters: ['meadow-slime-west', 'meadow-slime-center', 'meadow-slime-east'],
+			encounters: (prologueRegion.encounters ?? []).map(({ id }) => id),
 			landmarkApproaches: [
 				'villager-house-1-exterior',
 				'villager-house-2-exterior',
@@ -3659,10 +3673,10 @@ describe('meadow-entry region integrity', () => {
 
 	it('surfaces composed region interactive NPCs onto the map (no silent drop)', () => {
 		// Guard against the mergeRegions -> meadowEntryMap wiring gap: every
-		// other merged field is spread onto the map literal, so `npcs` must be
-		// too. Today no region contributes interactive NPCs, but the field must
-		// still be present so a future region author's NPCs are rendered.
-		expect(meadowEntryMap.npcs).toEqual([]);
+		// other merged field is spread onto the map literal, so `npcs` must be too.
+		expect(meadowEntryMap.npcs?.map(({ id }) => id)).toEqual(
+			(prologueRegion.npcs ?? []).map(({ id }) => id)
+		);
 	});
 
 	it('uses the live V2 graybox instead of the V1 semantic package', () => {
@@ -4215,10 +4229,16 @@ describe('route: crossroads → wildwood cave', () => {
 		);
 	});
 
-	it('preserves the slime encounters and the ruins transition', () => {
+	it('keeps the Wildwood trial packs and the ruins transition', () => {
 		const encounterIds = (meadowEntryMap.encounters ?? []).map((e) => e.id);
 		expect(encounterIds).toEqual(
-			expect.arrayContaining(['meadow-slime-west', 'meadow-slime-center', 'meadow-slime-east'])
+			expect.arrayContaining([
+				'wildwood-wolves-mouth',
+				'wildwood-wolves-climb',
+				'wildwood-wolves-crossing',
+				'wildwood-wolves-cave',
+				'thornback-boar'
+			])
 		);
 		expect(meadowEntryMap.transitions.some((t) => t.toMapId === 'ruins-threshold')).toBe(true);
 	});
@@ -4309,7 +4329,14 @@ describe('discovery content', () => {
 
 	it.each(discoveries)('discovery $id is valid and localized in all locales', (discovery) => {
 		expectRectInsideMap({ x: discovery.x, y: discovery.y, width: 2, height: 2 });
-		for (const key of [discovery.labelKey, discovery.descriptionKey]) {
+		// Story discoveries play a compiled scene instead of a short examine text.
+		if (discovery.sceneId) {
+			expect(
+				browserStoryCatalog.scenes.some((scene) => scene.id === discovery.sceneId),
+				discovery.sceneId
+			).toBe(true);
+		}
+		for (const key of [discovery.labelKey, discovery.descriptionKey ?? discovery.labelKey]) {
 			expectEnglishMessage(key);
 			expect(localeHasPath(en, key), `en missing ${key}`).toBe(true);
 			expect(localeHasPath(ja, key), `ja missing ${key}`).toBe(true);

@@ -40,13 +40,13 @@ describe('translation lookup', () => {
 	it('resolves Traditional Chinese UI and content messages', () => {
 		expect(t('zh-Hant', 'ui.menu')).toBe('選單');
 		expect(t('zh-Hant', 'content.items.field-potion.name')).toBe('野外藥水');
-		expect(t('zh-Hant', 'content.quests.investigate-the-ruins.title')).toBe('調查廢墟');
+		expect(t('zh-Hant', 'content.quests.prologue-proving-morning.title')).toBe('試煉之晨');
 	});
 
 	it('resolves Japanese UI and content messages', () => {
 		expect(t('ja', 'ui.menu')).toBe('メニュー');
 		expect(t('ja', 'content.items.field-potion.name')).toBe('フィールドポーション');
-		expect(t('ja', 'content.quests.investigate-the-ruins.title')).toBe('遺跡を調査せよ');
+		expect(t('ja', 'content.quests.prologue-proving-morning.title')).toBe('試練の朝');
 	});
 
 	it('interpolates localized messages', () => {
@@ -73,18 +73,6 @@ describe('translation lookup', () => {
 		expect(t('en', 'ui.loadGameShellError')).toBe('Unable to start the game shell.');
 		expect(t('en', 'ui.priceBadge', { price: 10 })).toBe('10c');
 		expect(t('en', 'ui.itemKinds.consumable')).toBe('consumable');
-	});
-
-	it('includes the Guild quest-detail dialogue template', () => {
-		expect(
-			t('en', 'content.dialogue.system.questDetailNotice', {
-				questTitle: 'Thin Village Slimes',
-				objectiveDescription: 'Defeat slimes near the village.',
-				rewardSummary: '6 XP / 12 coins / 1 item'
-			})
-		).toBe(
-			'Thin Village Slimes: Defeat slimes near the village. Reward: 6 XP / 12 coins / 1 item.'
-		);
 	});
 
 	it('returns a missing marker for unknown source keys', () => {

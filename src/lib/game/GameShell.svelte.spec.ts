@@ -19,7 +19,7 @@ import { setLastInputModality } from '$lib/game/core/gamepad';
 import { PREFERENCES_STORAGE_KEY } from '$lib/game/i18n/preferences';
 import { updatePreferences } from '$lib/game/i18n/store';
 import type { ConsumableDefinition, EquipmentDefinition } from '$lib/game/content/items';
-import type { HudQuestEntry, HudQuestOffer } from '$lib/game/core/quests';
+import type { HudQuestEntry } from '$lib/game/core/quests';
 import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
 
 vi.mock('$lib/game/phaser/createGame', () => ({
@@ -69,7 +69,7 @@ function baseHudState(overrides: Partial<HudState> = {}): HudState {
 		shop: null,
 		dialogue: null,
 		battle: { phase: 'none', summary: null, active: null },
-		quests: { main: null, side: [], completed: [], guildOffer: null },
+		quests: { main: null, completed: [] },
 		inventory: {
 			consumables: [],
 			equipment: [],
@@ -201,44 +201,26 @@ function withCommands(fn: (commands: unknown[]) => Promise<void> | void): Promis
 
 function mockMainQuest(overrides: Partial<HudQuestEntry> = {}): HudQuestEntry {
 	return {
-		questId: 'investigate-the-ruins',
-		title: 'Investigate the Ruins',
-		type: 'main',
+		questId: 'prologue-proving-morning',
+		title: 'The Proving Morning',
 		status: 'active',
-		description: 'Find out what is lurking in the ruins.',
-		objective: 'Enter the ruins and investigate.',
-		objectiveId: 'talk-to-guild-master',
-		progress: { current: 1, target: 3, label: 'Clues found' },
-		rewardSummary: '24 XP / 30 coins',
+		description: 'Gather your gear and report to Borak.',
+		objective: 'Talk to Old Mott by the hearth.',
+		objectiveId: 'talk-to-mott',
+		progress: { current: 0, target: 1, label: 'Spoke with Old Mott' },
+		rewardSummary: '10 coins',
 		...overrides
 	};
 }
 
-function mockSideQuest(overrides: Partial<HudQuestEntry> = {}): HudQuestEntry {
-	return {
-		questId: 'thin-village-slimes',
-		title: 'Thin Village Slimes',
-		type: 'side',
-		status: 'active',
-		description: 'Clear the slimes gathering on the village road.',
-		objective: 'Defeat slimes near the village.',
-		objectiveId: 'defeat-village-slimes',
-		progress: { current: 2, target: 3, label: 'Village slimes defeated' },
-		rewardSummary: '6 XP / 12 coins / 1 item',
+function mockCompletedQuest(overrides: Partial<HudQuestEntry> = {}): HudQuestEntry {
+	return mockMainQuest({
+		status: 'completed',
+		objective: 'Report to Borak at the lodge.',
+		objectiveId: 'report-to-borak',
+		progress: { current: 1, target: 1, label: 'Reported to Borak' },
 		...overrides
-	};
-}
-
-function mockGuildOffer(overrides: Partial<HudQuestOffer> = {}): HudQuestOffer {
-	return {
-		questId: 'thin-ruins-slimes',
-		title: 'Thin Ruins Slimes',
-		description: 'Reduce the slime presence inside the ruin threshold.',
-		objective: 'Defeat slimes in the ruins.',
-		objectiveId: 'defeat-ruins-slimes',
-		rewardSummary: '8 XP / 16 coins / 1 item',
-		...overrides
-	};
+	});
 }
 
 async function openQuestLog() {
@@ -260,14 +242,14 @@ describe('GameShell motion flourishes', () => {
 
 	it('measures the XP bar against the real level threshold, not a hardcoded one', async () => {
 		// Progression thresholds come from getXpForLevel — level 1 levels at
-		// 5 XP, level 2 at 10; the HUD previously displayed 12/24.
+		// 5 XP, level 2 at 15; the HUD previously displayed 12/24.
 		render(GameShell);
 		emitHudState(baseHudState({ level: 1, xp: 3 }));
 		const party = page.getByTestId('hud-party-panel');
 		await expect.element(party.getByText('3/5')).toBeVisible();
 
 		emitHudState(baseHudState({ level: 2, xp: 7 }));
-		await expect.element(party.getByText('7/10')).toBeVisible();
+		await expect.element(party.getByText('7/15')).toBeVisible();
 	});
 
 	it('treats exactly 25% HP as critically low', async () => {
@@ -1334,9 +1316,7 @@ describe('GameShell quest log', () => {
 			baseHudState({
 				quests: {
 					main: mockMainQuest(),
-					side: [],
-					completed: [],
-					guildOffer: null
+					completed: []
 				}
 			})
 		);
@@ -1345,26 +1325,17 @@ describe('GameShell quest log', () => {
 		await page.getByRole('button', { name: 'Quest', exact: true }).click();
 
 		await expect.element(page.getByText(/Field Journal/)).toBeVisible();
-		await expect.element(page.getByText(/Clues found/)).toBeVisible();
+		await expect.element(page.getByText(/Spoke with Old Mott/)).toBeVisible();
 	});
 
-	it('shows empty state when no side quests are active', async () => {
+	it('shows the empty hint when the journal has no quests', async () => {
 		render(GameShell);
-		emitHudState(
-			baseHudState({
-				quests: {
-					main: mockMainQuest(),
-					side: [],
-					completed: [],
-					guildOffer: null
-				}
-			})
-		);
+		emitHudState(baseHudState());
 
 		await page.getByRole('button', { name: /menu/i }).click();
 		await page.getByRole('button', { name: 'Quest', exact: true }).click();
 
-		await expect.element(page.getByText(/no side quests active/i)).toBeVisible();
+		await expect.element(page.getByText(/no quests in the journal yet/i)).toBeVisible();
 	});
 
 	it('restores field focus after closing the quest journal', async () => {
@@ -1373,9 +1344,7 @@ describe('GameShell quest log', () => {
 			baseHudState({
 				quests: {
 					main: mockMainQuest(),
-					side: [],
-					completed: [],
-					guildOffer: null
+					completed: []
 				}
 			})
 		);
@@ -1398,9 +1367,7 @@ describe('GameShell quest log', () => {
 			baseHudState({
 				quests: {
 					main: mockMainQuest(),
-					side: [],
-					completed: [],
-					guildOffer: null
+					completed: []
 				}
 			})
 		);
@@ -1426,9 +1393,7 @@ describe('GameShell quest log', () => {
 			baseHudState({
 				quests: {
 					main: mockMainQuest(),
-					side: [],
-					completed: [],
-					guildOffer: null
+					completed: []
 				}
 			})
 		);
@@ -1449,42 +1414,36 @@ describe('GameShell quest log', () => {
 });
 
 describe('GameShell heroic quest journal', () => {
-	it('differentiates main, side, and offered quests in the roster', async () => {
+	it('lists the current chapter above finished ones in the roster', async () => {
 		render(GameShell);
 		emitHudState(
 			baseHudState({
 				quests: {
-					main: mockMainQuest(),
-					side: [mockSideQuest()],
-					completed: [],
-					guildOffer: {
-						giverNpcId: 'guild-master',
-						giverName: 'Guild Master',
-						quests: [mockGuildOffer()]
-					}
+					main: mockMainQuest({
+						questId: 'prologue-trial-tracks',
+						title: 'Trial of Tracks',
+						objectiveId: 'meet-lirra-forest'
+					}),
+					completed: [mockCompletedQuest()]
 				}
 			})
 		);
 
 		const questDialog = await openQuestLog();
 		const main = questDialog.getByTestId('quest-entry-main');
-		const side = questDialog.getByTestId('quest-entry-side');
-		const offer = questDialog.getByTestId('quest-entry-offer');
+		const completed = questDialog.getByTestId('quest-entry-completed');
 
 		await expect.element(main).toBeVisible();
-		await expect.element(side).toBeVisible();
-		await expect.element(offer).toBeVisible();
+		await expect.element(completed).toBeVisible();
+		await expect.element(completed.getByText('Done')).toBeVisible();
 
-		// Main quest is selected by default (cream-gold treatment); the offer
-		// row carries the dimmed offered treatment.
+		// The current chapter is selected by default.
 		await expect.element(main).toHaveClass(/quest-entry-selected/);
-		await expect.element(side).not.toHaveClass(/quest-entry-selected/);
-		await expect.element(offer).toHaveClass(/quest-entry-offered/);
-		await expect.element(offer.getByText('Offered')).toBeVisible();
+		await expect.element(completed).not.toHaveClass(/quest-entry-selected/);
 
 		// Selecting another entry moves the selection.
-		await side.click();
-		await expect.element(side).toHaveClass(/quest-entry-selected/);
+		await completed.click();
+		await expect.element(completed).toHaveClass(/quest-entry-selected/);
 		await expect.element(main).not.toHaveClass(/quest-entry-selected/);
 	});
 
@@ -1494,9 +1453,7 @@ describe('GameShell heroic quest journal', () => {
 			baseHudState({
 				quests: {
 					main: mockMainQuest(),
-					side: [],
-					completed: [],
-					guildOffer: null
+					completed: []
 				}
 			})
 		);
@@ -1505,34 +1462,33 @@ describe('GameShell heroic quest journal', () => {
 		const detail = questDialog.getByTestId('quest-detail');
 		await expect.element(detail).toBeVisible();
 
-		// Objective chain: one node per main-quest objective, current first.
+		// Objective chain: one node per quest objective, the current one marked.
 		const chainNodes = questDialog.getByTestId('quest-chain-node').elements();
-		expect(chainNodes).toHaveLength(2);
-		await expect.element(detail.getByText('Ruins Warden', { exact: true })).toBeVisible();
+		expect(chainNodes).toHaveLength(4);
+		await expect.element(detail.getByText('Oren', { exact: true })).toBeVisible();
 		expect(
 			chainNodes.filter((node) => node.classList.contains('quest-chain-node-current'))
 		).toHaveLength(1);
 
 		// Reward cards render structured values from the quest definition.
-		await expect.element(detail.getByTestId('quest-reward-xp')).toHaveTextContent('15');
-		await expect.element(detail.getByTestId('quest-reward-coins')).toHaveTextContent('35');
-		await expect.element(detail.getByTestId('quest-reward-item')).toHaveTextContent('x1');
+		await expect.element(detail.getByTestId('quest-reward-coins')).toHaveTextContent('10');
+		expect(detail.getByTestId('quest-reward-xp').elements()).toHaveLength(0);
 
-		// Giver comes from the static quest content, with the map location line
+		// The giver is the first talk objective's NPC, with the map location line
 		// under the name; the map-context card pins the same location. The name
 		// also appears in the objective chain, so match the giver-name element.
-		await expect
-			.element(detail.getByTestId('quest-giver-name'))
-			.toHaveTextContent('Guild Master Arlen');
+		await expect.element(detail.getByTestId('quest-giver-name')).toHaveTextContent('Old Mott');
 		await expect
 			.element(questDialog.getByTestId('quest-giver-location'))
-			.toHaveTextContent('Guild Hall');
-		await expect.element(questDialog.getByTestId('quest-map-pin')).toHaveTextContent('Guild Hall');
+			.toHaveTextContent("Grik's House");
+		await expect
+			.element(questDialog.getByTestId('quest-map-pin'))
+			.toHaveTextContent("Grik's House");
 
 		// Live objective progress from the HUD payload.
-		await expect.element(detail.getByText(/Clues found: 1 \/ 3/)).toBeVisible();
+		await expect.element(detail.getByText(/Spoke with Old Mott: 0 \/ 1/)).toBeVisible();
 		// The live objective sentence renders in the detail panel.
-		await expect.element(detail.getByText('Enter the ruins and investigate.')).toBeVisible();
+		await expect.element(detail.getByText('Talk to Old Mott by the hearth.')).toBeVisible();
 	});
 
 	it('keeps chapter progress and localized chain labels after a locale switch', async () => {
@@ -1544,12 +1500,10 @@ describe('GameShell heroic quest journal', () => {
 			baseHudState({
 				quests: {
 					main: mockMainQuest({
-						objectiveId: 'defeat-ruins-warden',
-						objective: 'Defeat the Ruins Warden.'
+						objectiveId: 'collect-herb-pouch',
+						objective: 'Collect the herb pouch from Mira.'
 					}),
-					side: [],
-					completed: [],
-					guildOffer: null
+					completed: []
 				}
 			})
 		);
@@ -1568,11 +1522,13 @@ describe('GameShell heroic quest journal', () => {
 			const rows = jaPanel.getByTestId('quest-progress-row').elements();
 			expect(rows.map((row) => row.classList.contains('quest-chapter-row-current'))).toEqual([
 				false,
-				true
+				false,
+				true,
+				false
 			]);
 			// Chain labels localize with the active locale, not raw content ids.
-			await expect.element(jaPanel.getByText('ギルドマスター・アーレン')).toBeVisible();
-			await expect.element(jaPanel.getByText('遺跡の守護者')).toBeVisible();
+			await expect.element(jaPanel.getByText('モット爺')).toBeVisible();
+			await expect.element(jaPanel.getByText('ミラ')).toBeVisible();
 		} finally {
 			updatePreferences({ locale: 'en' });
 		}
@@ -1583,10 +1539,10 @@ describe('GameShell heroic quest journal', () => {
 		emitHudState(
 			baseHudState({
 				quests: {
-					main: mockMainQuest(),
-					side: [],
-					completed: [],
-					guildOffer: null
+					main: mockMainQuest({
+						progress: { current: 0, target: 1, label: 'Spoke with Old Mott' }
+					}),
+					completed: []
 				}
 			})
 		);
@@ -1595,21 +1551,20 @@ describe('GameShell heroic quest journal', () => {
 		const panel = questDialog.getByTestId('quest-chapter-progress');
 		await expect.element(panel).toBeVisible();
 
-		// Percentage = completed / total main-quest objectives (the mock's
-		// objective falls back to the first chain node → 0 of 2 done).
+		// Percentage = completed / total objectives (first objective → 0 of 4 done).
 		await expect.element(panel.getByText('0%')).toBeVisible();
 
-		// One row per main-quest objective; exactly one current row.
+		// One row per objective; exactly one current row.
 		const rows = questDialog.getByTestId('quest-progress-row').elements();
-		expect(rows).toHaveLength(2);
+		expect(rows).toHaveLength(4);
 		expect(rows.filter((row) => row.classList.contains('quest-chapter-row-current'))).toHaveLength(
 			1
 		);
-		await expect.element(panel.getByText('Guild Master')).toBeVisible();
-		await expect.element(panel.getByText('Ruins Warden')).toBeVisible();
+		await expect.element(panel.getByText('Old Mott')).toBeVisible();
+		await expect.element(panel.getByText('Borak')).toBeVisible();
 
 		// The current row's count is the real live HUD progress.
-		await expect.element(panel.getByText('1 / 3')).toBeVisible();
+		await expect.element(panel.getByText('0 / 1')).toBeVisible();
 	});
 });
 
@@ -2004,7 +1959,7 @@ describe('GameShell save screen', () => {
 				emitHudState(baseHudState({ status: 'Saved.' }));
 
 				// The slot list must reflect the new record immediately.
-				await expect.element(saveDialog.getByText('Sundrop Meadows')).toBeVisible();
+				await expect.element(saveDialog.getByText("Grik's House")).toBeVisible();
 
 				// Clicking the same occupied slot again must ask before overwriting.
 				await saveDialog.getByTestId('save-slot-1').click();
@@ -2612,41 +2567,6 @@ describe('GameShell keyboard shortcuts', () => {
 	});
 });
 
-describe('GameShell quest log guild offers', () => {
-	it('shows guild offer quests as available in the quest log', async () => {
-		render(GameShell);
-		emitHudState(
-			baseHudState({
-				quests: {
-					main: mockMainQuest(),
-					side: [],
-					completed: [],
-					guildOffer: {
-						giverNpcId: 'guild-master',
-						giverName: 'Guild Master',
-						quests: [
-							{
-								questId: 'thin-village-slimes',
-								title: 'Thin the Village Slimes',
-								description: 'Reduce the slime population.',
-								objective: 'Defeat 3 slimes.',
-								objectiveId: 'defeat-village-slimes',
-								rewardSummary: '6 XP / 12 coins'
-							}
-						]
-					}
-				}
-			})
-		);
-
-		await page.getByRole('button', { name: /menu/i }).click();
-		await page.getByRole('button', { name: 'Quest', exact: true }).click();
-
-		await expect.element(page.getByText(/Thin the Village Slimes/)).toBeVisible();
-		await expect.element(page.getByTestId('quest-entry-offer').getByText('Offered')).toBeVisible();
-	});
-});
-
 describe('GameShell error handling', () => {
 	it('shows error banner when game fails to load', async () => {
 		const { createGame } = await import('$lib/game/phaser/createGame');
@@ -2724,7 +2644,7 @@ describe('GameShell title mode', () => {
 			await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
 			// The slot was written with an English locationLabel; the active
 			// locale is ja, so the label must come from the map id.
-			await expect.element(page.getByText(/サンドロップ草原/)).toBeVisible();
+			await expect.element(page.getByText(/グリクの家/)).toBeVisible();
 		} finally {
 			updatePreferences({ locale: 'en' });
 		}

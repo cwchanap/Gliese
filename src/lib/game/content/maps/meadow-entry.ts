@@ -9,6 +9,7 @@ import { coastRegion } from '$lib/game/content/maps/regions/coast';
 import { crossroadsRegion } from '$lib/game/content/maps/regions/crossroads';
 import { pathsRegion } from '$lib/game/content/maps/regions/paths';
 import { riverSystemRegion } from '$lib/game/content/maps/regions/river-system';
+import { prologueRegion } from '$lib/game/content/maps/regions/prologue';
 
 export const openingMapId = 'meadow-entry';
 
@@ -134,6 +135,7 @@ const merged = mergeRegions([
 	crossroadsRegion,
 	pathsRegion,
 	riverSystemRegion,
+	prologueRegion,
 	meadowBoundsRegion
 ]);
 

@@ -7,7 +7,7 @@
 	import { maps } from '$lib/game/content/maps';
 	import { VILLAGE_INTERIOR_PACKAGES } from '$lib/game/content/backgrounds/village-interior-packages';
 	import { getItem } from '$lib/game/content/items';
-	import type { HudQuestEntry, HudQuestOffer, HudQuestState } from '$lib/game/core/quests';
+	import type { HudQuestEntry, HudQuestState } from '$lib/game/core/quests';
 
 	interface Props {
 		open: boolean;
@@ -27,32 +27,41 @@
 		onkeydown
 	}: Props = $props();
 
-	type QuestRowKind = 'main' | 'side' | 'offer';
+	type QuestRowKind = 'main' | 'completed';
 
 	type QuestRow = {
 		key: string;
 		kind: QuestRowKind;
 		testid: `quest-entry-${QuestRowKind}`;
-		entry: HudQuestEntry | HudQuestOffer;
-		progress: { current: number; target: number } | null;
+		entry: HudQuestEntry;
+		progress: { current: number; target: number };
 	};
 
 	type ChainNode = { id: string; label: string; kind: QuestObjective['kind'] };
 
-	function hasQuestProgress(quest: HudQuestEntry | HudQuestOffer): quest is HudQuestEntry {
-		return 'progress' in quest;
+	function discoveryLabel(locale: Locale, discoveryId: string): string | null {
+		for (const map of Object.values(maps)) {
+			const discovery = (map.discoveries ?? []).find((candidate) => candidate.id === discoveryId);
+			if (discovery) return t(locale, discovery.labelKey);
+		}
+		return null;
 	}
 
 	/** Objective-chain node labels: localized content names — never raw ids. */
 	function objectiveChainLabel(locale: Locale, objective: QuestObjective): string {
-		if (objective.kind === 'talk-to-npc') {
-			return getNpcText(locale, objective.npcId)?.name ?? objective.description;
+		switch (objective.kind) {
+			case 'talk-to-npc':
+				return getNpcText(locale, objective.npcIds[0] ?? '')?.name ?? objective.description;
+			case 'defeat-enemy':
+			case 'lose-battle':
+				return getEnemyText(locale, objective.enemyId)?.name ?? objective.description;
+			case 'inspect':
+				return discoveryLabel(locale, objective.discoveryIds[0] ?? '') ?? objective.description;
+			case 'collect-item': {
+				const itemId = objective.sources[0]?.itemId;
+				return (itemId ? getItemText(locale, itemId)?.name : null) ?? objective.description;
+			}
 		}
-		if (objective.kind === 'defeat-enemy') {
-			return getEnemyText(locale, objective.enemyId)?.name ?? objective.description;
-		}
-		const itemId = objective.sources[0]?.itemId;
-		return (itemId ? getItemText(locale, itemId)?.name : null) ?? objective.description;
 	}
 
 	function questGiverLocation(locale: Locale, npcId: string): string | null {
@@ -75,22 +84,14 @@
 				progress: quests.main.progress
 			});
 		}
-		for (const entry of quests.side) {
+		// Finished chapters, newest first, under the current one.
+		for (const entry of [...quests.completed].reverse()) {
 			result.push({
-				key: `side:${entry.questId}`,
-				kind: 'side',
-				testid: 'quest-entry-side',
+				key: `completed:${entry.questId}`,
+				kind: 'completed',
+				testid: 'quest-entry-completed',
 				entry,
 				progress: entry.progress
-			});
-		}
-		for (const entry of quests.guildOffer?.quests ?? []) {
-			result.push({
-				key: `offer:${entry.questId}`,
-				kind: 'offer',
-				testid: 'quest-entry-offer',
-				entry,
-				progress: null
 			});
 		}
 		return result;
@@ -102,7 +103,7 @@
 		if (!open) selectedKey = null;
 	});
 
-	// Main quest is preselected; falls through to the first side/offer row.
+	// Main quest is preselected; falls through to the latest completed row.
 	const selectedRow = $derived(rows.find((row) => row.key === selectedKey) ?? rows[0] ?? null);
 
 	const detail = $derived.by(() => {
@@ -116,10 +117,8 @@
 		const currentMatch = objectives.findIndex(
 			(objective) => objective.id === row.entry.objectiveId
 		);
-		const giverNpcId =
-			definition?.giverNpcId ??
-			objectives.find((objective) => objective.kind === 'talk-to-npc')?.npcId ??
-			null;
+		const firstTalk = objectives.find((objective) => objective.kind === 'talk-to-npc');
+		const giverNpcId = firstTalk?.npcIds[0] ?? null;
 
 		const giverMap = Object.values(maps).find((map) =>
 			map.npcs?.some((npc) => npc.id === giverNpcId)
@@ -180,16 +179,7 @@
 	});
 
 	function rowKindLabel(kind: QuestRowKind): string {
-		if (kind === 'main') return t($locale, 'ui.main');
-		if (kind === 'side') return t($locale, 'ui.side');
-		return t($locale, 'ui.questOffered');
-	}
-
-	/** Side-quest row icon: the relic token when the first objective is a
-	 *  collect, otherwise the slime glyph (default for defeat/talk steps). */
-	function getSideIconKind(questId: string): 'slime' | 'relic' {
-		const objective = getQuest(questId)?.objectives[0];
-		return objective?.kind === 'collect-item' ? 'relic' : 'slime';
+		return t($locale, kind === 'main' ? 'ui.main' : 'ui.questDone');
 	}
 </script>
 
@@ -215,15 +205,17 @@
 			<div class="quest-rail-entries">
 				{#each rows as row, index (row.key)}
 					{@const selected = selectedRow?.key === row.key}
+					{@const fraction =
+						row.progress.target > 0
+							? Math.min(100, (row.progress.current / row.progress.target) * 100)
+							: 0}
 					<button
 						type="button"
 						data-testid={row.testid}
 						data-focus-id={`quest-row-${row.key}`}
 						data-focus-row={index}
 						data-focus-column={0}
-						class="quest-entry quest-entry-{row.kind} {row.kind === 'offer'
-							? 'quest-entry-offered'
-							: ''}"
+						class="quest-entry quest-entry-{row.kind}"
 						class:quest-entry-selected={selected}
 						aria-pressed={selected}
 						onclick={() => (selectedKey = row.key)}
@@ -235,63 +227,34 @@
 										d="M8 1.8 9.6 5.8 13.8 6.2 10.6 9 11.6 13.2 8 10.9 4.4 13.2 5.4 9 2.2 6.2 6.4 5.8 Z"
 									/>
 								</svg>
-							{:else if row.kind === 'side'}
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="1.5"
-									stroke-linejoin="round"
-								>
-									{#if getSideIconKind(row.entry.questId) === 'slime'}
-										<path
-											d="M12 6c4 0 7 3.6 7 7.5A2.5 2.5 0 0 1 16.5 16h-9A2.5 2.5 0 0 1 5 13.5C5 9.6 8 6 12 6z"
-										/>
-									{:else}
-										<path d="M15 4a5 5 0 1 0-3.5 8.5L4 20h4v-3h3v-3l.5-.5A5 5 0 0 0 15 4z" />
-									{/if}
-								</svg>
 							{:else}
 								<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-									<rect x="3.4" y="2.2" width="9.2" height="11.6" rx="1.2" />
-									<path d="M6 5.4h4M6 8h4M6 10.6h2.4" />
+									<path d="M3.2 8.4 6.6 11.6 12.8 4.4" />
 								</svg>
 							{/if}
 						</span>
 						<span class="quest-entry-copy">
 							<span class="quest-entry-name">{row.entry.title}</span>
 							<span class="quest-entry-meta font-display">
-								{#if row.kind === 'offer'}
-									<span class="quest-entry-badge">{t($locale, 'ui.questOffered')}</span>
-								{:else if row.progress}
-									{rowKindLabel(row.kind)} · {row.progress.current} / {row.progress.target}
-								{/if}
+								{rowKindLabel(row.kind)} · {row.progress.current} / {row.progress.target}
 							</span>
 						</span>
 						<svg class="quest-ring" viewBox="0 0 24 24" aria-hidden="true">
 							<circle class="quest-ring-track" cx="12" cy="12" r="9" pathLength="100" />
-							{#if row.progress}
-								{@const fraction =
-									row.progress.target > 0
-										? Math.min(100, (row.progress.current / row.progress.target) * 100)
-										: 0}
-								<circle
-									class="quest-ring-value"
-									cx="12"
-									cy="12"
-									r="9"
-									pathLength="100"
-									stroke-dasharray="{fraction} 100"
-								/>
-							{/if}
+							<circle
+								class="quest-ring-value"
+								cx="12"
+								cy="12"
+								r="9"
+								pathLength="100"
+								stroke-dasharray="{fraction} 100"
+							/>
 						</svg>
 					</button>
 				{/each}
 
 				{#if rows.length === 0}
 					<p class="quest-rail-hint font-display">{t($locale, 'ui.questJournalEmpty')}</p>
-				{:else if quests.side.length === 0 && !quests.guildOffer}
-					<p class="quest-rail-hint font-display">{t($locale, 'ui.noSideQuestsActive')}</p>
 				{/if}
 			</div>
 
@@ -357,11 +320,9 @@
 						</div>
 					</header>
 
-					{#if hasQuestProgress(detail.row.entry)}
-						<p class="quest-detail-progress font-display">
-							{`${detail.row.entry.progress.label}: ${detail.row.entry.progress.current} / ${detail.row.entry.progress.target}`}
-						</p>
-					{/if}
+					<p class="quest-detail-progress font-display">
+						{`${detail.row.entry.progress.label}: ${detail.row.entry.progress.current} / ${detail.row.entry.progress.target}`}
+					</p>
 
 					{#if detail.chain.length > 0}
 						<ol class="quest-chain">
@@ -572,8 +533,8 @@
 		box-shadow: 0 0 26px color-mix(in srgb, var(--color-gold) 35%, transparent);
 	}
 
-	/* Offered quests: dimmed row, badge carries the state. */
-	.quest-entry-offered:not(.quest-entry-selected) {
+	/* Completed chapters: dimmed row, emerald check. */
+	.quest-entry-completed:not(.quest-entry-selected) {
 		color: var(--color-muted);
 		background: color-mix(in srgb, var(--color-ink) 40%, var(--color-panel-deep));
 	}
@@ -589,11 +550,8 @@
 		background: color-mix(in srgb, var(--color-panel-deep) 45%, transparent);
 		color: var(--color-gold);
 	}
-	.quest-entry-side .quest-entry-icon {
+	.quest-entry-completed .quest-entry-icon {
 		color: var(--color-emerald);
-	}
-	.quest-entry-offered:not(.quest-entry-selected) .quest-entry-icon {
-		color: var(--color-muted);
 	}
 	.quest-entry-icon svg {
 		width: 1.2rem;
@@ -632,20 +590,8 @@
 	.quest-entry-selected .quest-entry-meta {
 		color: #3a2c07;
 	}
-	.quest-entry-side:not(.quest-entry-selected) .quest-entry-meta {
+	.quest-entry-completed:not(.quest-entry-selected) .quest-entry-meta {
 		color: var(--color-emerald);
-	}
-
-	.quest-entry-badge {
-		display: inline-flex;
-		border: 1px solid color-mix(in srgb, var(--color-gold) 45%, transparent);
-		border-radius: 999px;
-		padding: 0.1rem 0.55rem;
-		color: var(--color-gold);
-		font-size: 0.6rem;
-		font-weight: 900;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
 	}
 
 	.quest-ring {
@@ -665,11 +611,8 @@
 		stroke-width: 3.4;
 		stroke-linecap: round;
 	}
-	.quest-entry-side .quest-ring-value {
+	.quest-entry-completed .quest-ring-value {
 		stroke: var(--color-emerald);
-	}
-	.quest-entry-offered .quest-ring-value {
-		stroke: var(--color-muted);
 	}
 	.quest-entry-selected .quest-ring-value,
 	.quest-entry-selected .quest-ring-track {

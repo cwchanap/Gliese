@@ -208,13 +208,10 @@
 					<p class="quest-banner-objective">
 						<span class="quest-dot quest-dot-current" aria-hidden="true"></span>
 						{hudState.quests.main.objective}
+						{#if hudState.quests.main.progress.target > 1}
+							({hudState.quests.main.progress.current}/{hudState.quests.main.progress.target})
+						{/if}
 					</p>
-					{#if hudState.quests.side.length > 0}
-						<p class="quest-banner-side">
-							<span class="quest-dot" aria-hidden="true"></span>
-							{t($locale, 'ui.sideActive', { count: hudState.quests.side.length })}
-						</p>
-					{/if}
 				</aside>
 			{/if}
 
@@ -587,8 +584,7 @@
 		color: var(--color-parchment);
 	}
 
-	.quest-banner-objective,
-	.quest-banner-side {
+	.quest-banner-objective {
 		display: flex;
 		align-items: center;
 		gap: 0.45rem;
@@ -597,14 +593,6 @@
 		font-size: 0.72rem;
 		font-weight: 800;
 		line-height: 1.3;
-	}
-
-	.quest-banner-side {
-		color: var(--color-emerald);
-		font-family: var(--font-display);
-		font-size: 0.64rem;
-		font-weight: 900;
-		text-transform: uppercase;
 	}
 
 	.quest-dot {
