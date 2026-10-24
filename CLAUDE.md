@@ -10,8 +10,8 @@ imported. Saves are written to a JSON file in the OS app-data directory
 via Tauri's `fs` plugin.
 
 The story follows Grik, a goblin hunter whose village is raided by humans (see
-`docs/stories/prologue.md` and the high-level story plan on Notion). Sundrop is his
-village, and the playable slice is the prologue main quest (stand-in art for now).
+`docs/stories/prologue.md` and the high-level story plan on Notion). The current Sundrop
+slice is the stand-in for his village, and the NPCs and beats have not been re-skinned yet.
 
 - **Language**: TypeScript (Svelte 5 runes mode enforced project-wide via `svelte.config.js`)
 - **Package Manager**: bun
@@ -166,11 +166,11 @@ Phaser and Svelte communicate exclusively through custom `window` events (define
 
 - `WorldScene` calls `emitHudState(...)` after every meaningful state change
 - The Svelte HUD reads `$hudState` (a readable store backed by `onHudState`)
-- The Svelte HUD dispatches commands via `emitHudCommand(...)`, which `WorldScene` receives via `onHudCommand`. The `HudCommand` union currently covers: `heal`, `save-slot`, `pause-game`, `resume-game`, `use-item`, `equip-item`, `unequip-slot`, `open-shop`, `close-shop`, `buy-shop-item`, `sell-inventory-item`, `dialogue-advance`, `dialogue-close`, `dialogue-choose`, `battle-cycle-target`, `battle-select-target`, `battle-flee`, `dismiss-battle-summary`. When adding a new command, update the union in `ui-bridge/events.ts` and handle it in both `WorldScene` and the HUD (`battle-cycle-target` / `battle-select-target` / `battle-flee` / `dismiss-battle-summary` are battle-scoped: `BattleScene` handles them and `WorldScene` ignores them).
+- The Svelte HUD dispatches commands via `emitHudCommand(...)`, which `WorldScene` receives via `onHudCommand`. The `HudCommand` union currently covers: `heal`, `save-slot`, `pause-game`, `resume-game`, `use-item`, `equip-item`, `unequip-slot`, `open-shop`, `close-shop`, `buy-shop-item`, `sell-inventory-item`, `accept-quest`, `dialogue-advance`, `dialogue-close`, `dialogue-choose`, `battle-cycle-target`, `battle-select-target`, `battle-flee`, `dismiss-battle-summary`. When adding a new command, update the union in `ui-bridge/events.ts` and handle it in both `WorldScene` and the HUD (`battle-cycle-target` / `battle-select-target` / `battle-flee` / `dismiss-battle-summary` are battle-scoped: `BattleScene` handles them and `WorldScene` ignores them).
 
 ### Content / Data Model
 
-- **Maps**: `meadow-entry` is the hub, with interior maps (`hero-house`, `guild-hall`, `item-shop`, `villager-house-1/2/3`, `shrine-of-aurora-interior`) and the old tunnel `ruins-threshold` → `ruins-core` (the prologue's escape route). Interiors and ruins are direct `WorldMapDefinition` literals in `src/lib/game/content/maps.ts`. Most Meadow Entry destinations and connectors are hand-authored `RegionFragment` modules under `content/maps/regions/` and become active only when imported and included in `mergeRegions(...)` in `content/maps/meadow-entry.ts`. Sundrop Village is the one layered exception: `village-layered.ts` owns terrain, path, collision, neutral region-label, and tile-decor grids; `village.ts` composes those with pixel-positioned landmarks, transitions, pickups, ambient NPCs, and eventual background planes from shared coordinate constants. Do not force pixel-positioned objects through the layered compiler's tile-centre object contract.
+- **Maps**: `meadow-entry` is the hub, with interior maps (`hero-house`, `guild-hall`, `item-shop`, `villager-house-1/2/3`, `shrine-of-aurora-interior`) and the dungeon chain `ruins-threshold` → `ruins-core`. Interiors and ruins are direct `WorldMapDefinition` literals in `src/lib/game/content/maps.ts`. Most Meadow Entry destinations and connectors are hand-authored `RegionFragment` modules under `content/maps/regions/` and become active only when imported and included in `mergeRegions(...)` in `content/maps/meadow-entry.ts`. Sundrop Village is the one layered exception: `village-layered.ts` owns terrain, path, collision, neutral region-label, and tile-decor grids; `village.ts` composes those with pixel-positioned landmarks, transitions, pickups, ambient NPCs, and eventual background planes from shared coordinate constants. Do not force pixel-positioned objects through the layered compiler's tile-centre object contract.
 
 ## Sundrop Village Ownership
 
@@ -187,11 +187,10 @@ rooms, corridors, walls, doors, routes, transition approaches, and NPC approache
 before generating final art or placing decorative content. Prove the geometry with
 a walkable graybox first.
 
-- **Story gates**: map NPCs, encounters, pickups, discoveries, blockers, and transitions can carry `activeDuring` / `hiddenDuring` (quest ids, objective ids, or the shared `storyWindows` in `content/quests.ts`). `core/story-gates.ts` filters a map by the current story progress, so one Meadow Entry plays the proving day, the raid, and the escape. The prologue's story placements live in `content/maps/regions/prologue.ts`.
-- **Enemies**: prologue beasts `forest-wolf`, `mist-toad`, `thornback-boar`, `tunnel-crawler`; humans `human-soldier`, `sun-crest-captain`; boss `boar-king` (phase-2 enrage at ≤50% HP). Until their art lands, beasts borrow the slime actor and humans and bosses the warden (`content/assets.ts`).
+- **Enemies**: `slime-scout` (normal), `ruins-warden` (boss with a phase-2 enrage at ≤50% HP)
 - **Items / shops**: Items are defined in `content/items.ts` (consumables, equipment with `StatModifiers`, key items). Shops in `content/shops.ts` reference item IDs with per-shop stock and pricing. Wallet/coin state lives in `core/shop.ts`.
-- **Dialogue**: NPC **prose and choices live in `story/`, not in TypeScript** (see Story Pipeline). Scripted scenes (`::: scene`) are played by quest effects and discoveries. Runtime traversal/state lives in `core/dialogue.ts` and is surfaced to the HUD as `HudState.dialogue` (modes: `conversation`, `choice`, `system`). The HUD drives it with the `dialogue-advance` / `dialogue-close` / `dialogue-choose` commands.
-- **Quests**: The prologue is one chain of main quests (`mainQuestIds` in `content/quests.ts`); each quest is an ordered list of objectives (`talk-to-npc`, `defeat-enemy`, `collect-item`, `inspect`, `lose-battle`). Finishing the last objective completes the quest and starts the next one; there is no accept step. Objectives and quests can queue presentation effects (`play-scene`, `move-player`) that `WorldScene` plays in order. Runtime state machine in `core/quests.ts`; `QuestState` is part of `SaveState`, and the HUD surfaces it as `HudState.quests` (`main` plus `completed`).
+- **Dialogue**: NPC **prose lives in `story/`, not in TypeScript** (see Story Pipeline). `content/dialogue.ts` holds only the per-NPC action/intent definitions and their localized labels. Runtime traversal/state lives in `core/dialogue.ts` and is surfaced to the HUD as `HudState.dialogue` (modes: `conversation`, `choice`, `system`). The HUD drives it with the `dialogue-advance` / `dialogue-close` / `dialogue-choose` commands.
+- **Quests**: Definitions in `content/quests.ts` (including `mainQuestId`); runtime state machine in `core/quests.ts`. `QuestState` is part of `SaveState`; HUD surfaces it as `HudState.quests` and accepts via `accept-quest`.
 - **i18n**: Locales are `en` (default), `ja`, `zh-Hant`. `initializePreferences()` resolves preference order: persisted preference (key `gliese.preferences.v1` via `SaveStorage`) → first supported `navigator.languages` match → `defaultLocale`. Use `translate(...)` for UI strings and `content(...)` for content-derived text; new UI strings must be added to every locale file under `i18n/messages/`.
 - **Sprites**: Single sprite sheet at `public/game/assets/starter-pack.png`; frame coordinates are declared in `content/assets.ts` and registered at runtime in `WorldScene.registerStarterPackFrames()`
 - **Save**: Slots persist through the active `SaveStorage` adapter as one envelope under
@@ -208,7 +207,7 @@ a walkable graybox first.
   builds) migrates into the autosave slot. Manual saves additionally await the Tauri disk
   flush and report `status.saveFailed` when the file write fails.
   Each slot's `state` payload is a `SaveState` whose `version` field
-  (currently `10`) tracks the schema; bump it and update `isSaveState` in
+  (currently `9`) tracks the schema; bump it and update `isSaveState` in
   `save/save-state.ts` whenever `SaveState` changes shape.
 
 ### Story Pipeline (Rust-owned)
@@ -236,7 +235,7 @@ src/lib/game/story/client.ts       Frontend boundary; browser-fixture.ts is the 
 **Runtime split** is driven by `VITE_STORY_RUNTIME` (set to `tauri` in `.env.tauri`, applied
 by `vite build --mode tauri`):
 
-- `tauri` → `client.ts` invokes the Rust `get_npc_dialogue` and `get_story_scene` commands; no prose in the bundle.
+- `tauri` → `client.ts` invokes the Rust `get_npc_dialogue` command; no prose in the bundle.
 - unset (plain `bun run dev` / `bun run build`) → falls back to `story/browser-fixture.ts`,
   which **does** inline prose. That's fine for dev, but it means `bun run build` output is
   not shippable — `build:tauri` runs `tools/assert-no-frontend-story-prose.ts` against

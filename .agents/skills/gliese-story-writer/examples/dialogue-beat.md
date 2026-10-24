@@ -1,49 +1,38 @@
 # Dialogue Beat Example
 
-A compact example of the supported directive subset.
+A compact example of the supported dialogue directive subset.
 
 ::: story
 id: prologue.example
 chapter: prologue
 map: guild-hall
+primaryNpc: guild-master
 :::
 
 ::: dialogue
-npc: borak
-branch: objective:report-to-borak
-speaker: Borak
+npc: guild-master
+branch: mainQuestNeedsGuildBriefing
+speaker: Guild Master Arlen
+choices: quest
+completionIntent: recordNpcTalk:guild-master
 :::
 
-This branch plays while the current objective is report-to-borak.
+This is one dialogue paragraph.
 
-[Grik] A line with its own speaker.
+This is a second dialogue paragraph in the same branch.
 
 ::: dialogue
-npc: borak
+npc: guild-quartermaster
 branch: always
-speaker: Borak
-:::
-
-The fallback when no quest or objective branch matches.
-
-::: dialogue
-npc: lodge-keeper
-branch: always
-speaker: Lodge Keeper
-choices: shop, close
+speaker: Quartermaster Vale
+choices: shop
 shop: guild-quartermaster
 :::
 
-This branch shows the shop and Close actions.
-
-::: scene
-id: prologue.example-scene
-:::
-
-Narration has no speaker unless a line sets one.
+This branch would show shop choices.
 
 ::: unsupported-hook
 id: example-camera-pan
 kind: camera
-reason: Camera scripting is not supported by the parser.
+reason: Camera scripting is not supported by the first parser.
 :::
