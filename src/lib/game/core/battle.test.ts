@@ -11,6 +11,7 @@ import {
 	buildBattleEnemyUnits,
 	buildBattleUnitSourceId,
 	groupBattleDrops,
+	hitBattleEnemy,
 	rollBattleEnemyCount,
 	type BattleResult
 } from './battle';
@@ -68,6 +69,23 @@ describe('battle contracts', () => {
 				count: 25
 			})
 		).toHaveLength(10);
+	});
+
+	it('never drops the unbeatable captain below 1 HP', () => {
+		const [captain] = buildBattleEnemyUnits({
+			encounterId: 'sun-crest-captain',
+			enemy: enemies['sun-crest-captain']!,
+			count: 1
+		});
+		const [wolf] = buildBattleEnemyUnits({
+			encounterId: 'wildwood-wolves-mouth',
+			enemy: enemies['forest-wolf']!,
+			count: 1
+		});
+
+		expect(hitBattleEnemy(captain!, 10_000)).toBe(1);
+		expect(hitBattleEnemy(captain!, 5)).toBe(captain!.hp - 5);
+		expect(hitBattleEnemy(wolf!, 10_000)).toBe(0);
 	});
 
 	it('groups repeated item drops for summary display', () => {

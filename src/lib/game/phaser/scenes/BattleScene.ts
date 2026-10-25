@@ -19,6 +19,7 @@ import {
 	applyBattleResultToSaveState,
 	buildBattleEnemyUnits,
 	getBattleEnemyDefinition,
+	hitBattleEnemy,
 	type BattleDefeatedUnit,
 	type BattleEnemyUnit,
 	type BattleOutcome,
@@ -482,7 +483,7 @@ export class BattleScene extends Phaser.Scene {
 		this.setHeroAnimation('attack', false);
 		this.playHeroAttackPresentation(target, time);
 		const hpBefore = target.hp;
-		target.hp = resolveHit({ hp: target.hp, defense: 0 }, { power: this.hero.attack }).hp;
+		target.hp = hitBattleEnemy(target, this.hero.attack);
 		target.invulnerableUntil = time + BattleScene.enemyInvulnerabilityMs;
 		this.updateEnemyHealthBar(target);
 		this.appendFeedEvent('hit', hpBefore - target.hp, this.getEnemyName(target));
