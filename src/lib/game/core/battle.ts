@@ -1,5 +1,6 @@
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
 import { shrineOfAuroraInteriorMap } from '$lib/game/content/maps';
+import { resolveHit } from '$lib/game/core/combat';
 import { addItem } from '$lib/game/core/inventory';
 import type { ItemDrop } from '$lib/game/core/loot';
 import { applyExperienceGain } from '$lib/game/core/progression';
@@ -371,6 +372,12 @@ function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleAp
 			questProgress: []
 		}
 	};
+}
+
+/** The enemy's HP after a hero hit. An unbeatable enemy never drops below 1 HP. */
+export function hitBattleEnemy(unit: BattleEnemyUnit, power: number): number {
+	const hp = resolveHit({ hp: unit.hp, defense: 0 }, { power }).hp;
+	return enemies[unit.enemyId]?.unbeatable ? Math.max(1, hp) : hp;
 }
 
 export function getBattleEnemyDefinition(enemyId: string): EnemyCombatDefinition {

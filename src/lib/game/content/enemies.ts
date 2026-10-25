@@ -8,6 +8,8 @@ export interface EnemyCombatDefinition extends EnemyDefinition {
 	boss?: {
 		phaseTwoColor: number;
 	};
+	/** A scripted loss: hero hits never take it below 1 HP, so the fight ends in defeat. */
+	unbeatable?: true;
 }
 
 // Prologue enemies, tuned so the hero ends the trials near level 6 and the
@@ -72,7 +74,8 @@ export const sunCrestCaptain: EnemyCombatDefinition = {
 	moveSpeed: 120,
 	xpReward: 0,
 	coinReward: 0,
-	boss: { phaseTwoColor: 0xffd24d }
+	boss: { phaseTwoColor: 0xffd24d },
+	unbeatable: true
 };
 
 export const tunnelCrawler: EnemyCombatDefinition = {
