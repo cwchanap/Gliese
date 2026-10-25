@@ -593,10 +593,10 @@ const phaserState = vi.hoisted(() => {
 		}
 
 		if (
-			frame === 'slimeScout' ||
-			frame === 'ruinsWarden' ||
-			frame?.startsWith('slimeScout') ||
-			frame?.startsWith('ruinsWarden')
+			frame !== undefined &&
+			/^(forestWolf|mistToad|thornbackBoar|boarKing|tunnelCrawler|humanSoldier|sunCrestCaptain)/.test(
+				frame
+			)
 		) {
 			const marker = enemyMarkers.length === 0 ? enemyMarker : createAnimatedMarker();
 			marker.x = x;
@@ -2195,7 +2195,7 @@ describe('BattleScene', () => {
 		const callCountAfterStrike = phaserState.enemyMarker.play.mock.calls.length;
 		scene.update(136, 16);
 
-		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('slimeScout-attack', false);
+		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('forestWolf-attack', false);
 		expect(phaserState.enemyMarker.play).toHaveBeenCalledTimes(callCountAfterStrike);
 	});
 
@@ -2254,9 +2254,9 @@ describe('BattleScene', () => {
 
 		scene.update(0, 16);
 
-		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('slimeScout-dead', false);
+		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('forestWolf-dead', false);
 		expect(phaserState.enemyMarker.once).toHaveBeenCalledWith(
-			'animationcomplete-slimeScout-dead',
+			'animationcomplete-forestWolf-dead',
 			expect.any(Function)
 		);
 		expect(phaserState.enemyMarker.setVisible).not.toHaveBeenCalledWith(false);
@@ -4051,7 +4051,7 @@ describe('WorldScene', () => {
 				y: itemShopMap.spawn.y,
 				frame: 'heroIdle0'
 			});
-			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(88, 90);
+			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(90, 90);
 			expect(phaserState.imageMarkers).toEqual(
 				expect.arrayContaining([
 					expect.objectContaining({
@@ -4200,7 +4200,7 @@ describe('WorldScene', () => {
 				y: blacksmithInteriorMap.spawn.y,
 				frame: 'heroIdle0'
 			});
-			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(88, 90);
+			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(90, 90);
 			expect(oren).toBeDefined();
 			if (!oren) return;
 			expect(phaserState.imageMarkers).toEqual(
@@ -4390,7 +4390,7 @@ describe('WorldScene', () => {
 				y: villagerHouse1Map.spawn.y,
 				frame: 'heroIdle0'
 			});
-			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(88, 90);
+			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(90, 90);
 			expect(lynn).toBeDefined();
 			expect(family).toBeDefined();
 			if (!lynn || !family) return;
@@ -4548,7 +4548,7 @@ describe('WorldScene', () => {
 				y: villagerHouse2Map.spawn.y,
 				frame: 'heroIdle0'
 			});
-			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(88, 90);
+			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(90, 90);
 			expect(toma).toBeDefined();
 			expect(neighbor).toBeDefined();
 			if (!toma || !neighbor) return;
@@ -4760,7 +4760,7 @@ describe('WorldScene', () => {
 				y: villagerHouse3Map.spawn.y,
 				frame: 'heroIdle0'
 			});
-			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(88, 90);
+			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(90, 90);
 			expect(io).toBeDefined();
 			expect(neighbor).toBeDefined();
 			if (!io || !neighbor) return;
@@ -4957,7 +4957,7 @@ describe('WorldScene', () => {
 				y: shrineOfAuroraInteriorMap.spawn.y,
 				frame: 'heroIdle0'
 			});
-			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(88, 90);
+			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(90, 90);
 			expect(phaserState.imageMarkers).toEqual(
 				expect.arrayContaining([
 					expect.objectContaining({
@@ -5125,7 +5125,7 @@ describe('WorldScene', () => {
 			firstPack.x,
 			firstPack.y,
 			'animation-pack',
-			'slimeScoutIdle0'
+			'forestWolfIdle0'
 		);
 		expect(phaserState.enemyMarkers).toHaveLength(openingEncounters.length);
 		// The cave stair stays hidden until the escape opens it.
@@ -7023,7 +7023,7 @@ describe('WorldScene', () => {
 			firstPack.x,
 			firstPack.y,
 			'animation-pack',
-			'slimeScoutIdle0'
+			'forestWolfIdle0'
 		);
 		expect(phaserState.enemyMarkers).toHaveLength(
 			openingView(meadowEntryMap).encounters?.length ?? 0
@@ -7040,10 +7040,10 @@ describe('WorldScene', () => {
 			expect.objectContaining({ key: 'hero-idle', frameRate: 3, repeat: -1 })
 		);
 		expect(scene.anims.create).toHaveBeenCalledWith(
-			expect.objectContaining({ key: 'slimeScout-idle', frameRate: 3, repeat: -1 })
+			expect.objectContaining({ key: 'forestWolf-idle', frameRate: 3, repeat: -1 })
 		);
 		expect(phaserState.playerMarker.play).toHaveBeenCalledWith('hero-idle', true);
-		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('slimeScout-idle', true);
+		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('forestWolf-idle', true);
 	});
 
 	it('renders ruins tilemap data with stone borders and floor interior', async () => {
@@ -8670,14 +8670,14 @@ describe('WorldScene', () => {
 
 		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'starter-pack', 'titleBadge');
 		expect(scene.add.image).not.toHaveBeenCalledWith(256, 144, 'npc-pack', 'miraItemShopNpc');
-		expect(scene.add.image).toHaveBeenCalledWith(800, 144, 'npc-pack', 'guildMasterNpc');
+		expect(scene.add.image).toHaveBeenCalledWith(800, 144, 'npc-pack', 'borakNpc');
 		expect(scene.add.image).toHaveBeenCalledWith(816, 528, 'npc-pack', 'quartermasterNpc');
 		const npcMarkers = phaserState.imageMarkers.filter(
 			(marker) => marker.x === 256 && marker.y === 144 && marker.frame === 'miraItemShopNpc'
 		);
 		expect(npcMarkers).toHaveLength(0);
 		const guildMasterMarkers = phaserState.imageMarkers.filter(
-			(marker) => marker.x === 800 && marker.y === 144 && marker.frame === 'guildMasterNpc'
+			(marker) => marker.x === 800 && marker.y === 144 && marker.frame === 'borakNpc'
 		);
 		expect(guildMasterMarkers).toHaveLength(1);
 		expect(guildMasterMarkers[0]!.setDisplaySize).toHaveBeenCalledWith(96, 87);
@@ -8903,7 +8903,7 @@ describe('WorldScene', () => {
 					name: 'JP Mira Shop',
 					merchantName: 'JP Mira',
 					description: 'JP reliable field supplies.',
-					bustPath: '/game/assets/heroic-ui/busts/mira.png'
+					bustPath: '/game/assets/heroic-ui/busts/shopkeeper.png'
 				}
 			})
 		);
@@ -9726,7 +9726,7 @@ describe('WorldScene', () => {
 				name: "Mira's Herb Hut",
 				merchantName: 'Mira',
 				description: 'Herbs and remedies for the hunt.',
-				bustPath: '/game/assets/heroic-ui/busts/mira.png'
+				bustPath: '/game/assets/heroic-ui/busts/shopkeeper.png'
 			}
 		},
 		{
@@ -9737,7 +9737,7 @@ describe('WorldScene', () => {
 				name: 'Lodge Stores',
 				merchantName: 'Lodge Keeper',
 				description: "Hunting gear from the lodge's stores.",
-				bustPath: '/game/assets/heroic-ui/busts/quartermaster-vale.png'
+				bustPath: '/game/assets/heroic-ui/busts/quartermaster.png'
 			}
 		}
 	])(
@@ -10116,7 +10116,7 @@ describe('WorldScene', () => {
 		expect(applyExperienceGainSpy).not.toHaveBeenCalled();
 		expect(sceneState.enemies[0]!.hp).toBe(3);
 		expect(sceneState.playerProgress).toMatchObject({ level: 1, xp: 0 });
-		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('slimeScout-dead', false);
+		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('forestWolf-dead', false);
 	});
 
 	it('plays enemy walk while chasing and starts battle at contact', async () => {
@@ -10133,7 +10133,7 @@ describe('WorldScene', () => {
 
 		scene.update(0, 1000);
 
-		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('slimeScout-walk', true);
+		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('tunnelCrawler-walk', true);
 
 		phaserState.enemyMarker.play.mockClear();
 		Object.assign(phaserState.playerMarker, {
@@ -10150,7 +10150,7 @@ describe('WorldScene', () => {
 				sourceEnemyId: 'tunnel-crawler'
 			})
 		);
-		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('slimeScout-attack', false);
+		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('tunnelCrawler-attack', false);
 	});
 
 	it('starts battle before enemy contact hit impact is resolved', async () => {
@@ -10200,7 +10200,7 @@ describe('WorldScene', () => {
 			})
 		);
 		expect(sceneState.playerProgress.hp).toBe(20);
-		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('slimeScout-attack', false);
+		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('forestWolf-attack', false);
 	});
 
 	it('moves enemies toward a readable melee distance before battle engagement', async () => {

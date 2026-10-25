@@ -28,7 +28,7 @@ type ShopDefinitionSource = Omit<ShopDefinition, 'name' | 'merchantName' | 'desc
 const shopDefinitions = {
 	'miras-item-shop': {
 		id: 'miras-item-shop',
-		bustPath: '/game/assets/heroic-ui/busts/mira.png',
+		bustPath: '/game/assets/heroic-ui/busts/shopkeeper.png',
 		nameKey: 'content.shops.miras-item-shop.name',
 		merchantNameKey: 'content.shops.miras-item-shop.merchantName',
 		descriptionKey: 'content.shops.miras-item-shop.description',
@@ -44,7 +44,7 @@ const shopDefinitions = {
 	},
 	'guild-quartermaster': {
 		id: 'guild-quartermaster',
-		bustPath: '/game/assets/heroic-ui/busts/quartermaster-vale.png',
+		bustPath: '/game/assets/heroic-ui/busts/quartermaster.png',
 		nameKey: 'content.shops.guild-quartermaster.name',
 		merchantNameKey: 'content.shops.guild-quartermaster.merchantName',
 		descriptionKey: 'content.shops.guild-quartermaster.description',
@@ -60,7 +60,7 @@ const shopDefinitions = {
 	},
 	'sundrop-forge': {
 		id: 'sundrop-forge',
-		bustPath: '/game/assets/heroic-ui/busts/blacksmith-oren.png',
+		bustPath: '/game/assets/heroic-ui/busts/smith.png',
 		nameKey: 'content.shops.sundrop-forge.name',
 		merchantNameKey: 'content.shops.sundrop-forge.merchantName',
 		descriptionKey: 'content.shops.sundrop-forge.description',

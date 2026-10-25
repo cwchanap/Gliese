@@ -14,7 +14,7 @@ Post-processing (background keying, slicing, packing, resizing) happens afterwar
   (big head, ~2.5 heads tall), dark 1px outline, soft drop shadow under the feet. Match the
   existing `public/game/assets/animation-pack.png` and `npc-pack.png`.
 - **Busts / portraits / plates:** painterly anime JRPG illustration, warm soft lighting,
-  clean edges. Match `public/game/assets/heroic-ui/busts/mira.png`.
+  clean edges. Match the earlier human bust art (`heroic-ui/busts/mira.png` before this PR).
 - **Every image:** a single flat pure magenta (#FF00FF) background, no gradient, no
   ground plane, no text, no frame, no checkerboard. Subject never touches the image edge.
 - **Goblins:** green to olive skin, long pointed ears, yellow-amber eyes, small sharp teeth,

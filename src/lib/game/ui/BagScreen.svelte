@@ -379,7 +379,7 @@
 					<div class="bag-worn-doll">
 						<img
 							data-testid="inventory-paper-doll"
-							src="/game/assets/heroic-ui/liam-paper-doll.png"
+							src="/game/assets/heroic-ui/grik-paper-doll.png"
 							alt={t($locale, 'ui.bagPaperDollAlt')}
 							draggable="false"
 						/>

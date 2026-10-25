@@ -2200,7 +2200,7 @@ describe('opening map content', () => {
 				nameKey: 'content.maps.npcs.borak.name',
 				dialogueId: 'borak',
 				role: 'guild',
-				frameName: 'guildMasterNpc'
+				frameName: 'borakNpc'
 			},
 			{
 				id: 'lodge-keeper',

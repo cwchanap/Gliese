@@ -93,7 +93,7 @@
 	>
 		<div class="hero-portrait">
 			<img
-				src="/game/assets/heroic-ui/liam-portrait.png"
+				src="/game/assets/heroic-ui/grik-portrait.png"
 				alt=""
 				aria-hidden="true"
 				draggable="false"
