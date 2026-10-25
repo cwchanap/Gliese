@@ -63,7 +63,10 @@ idle pose, same scale and style as the field sprites. File: `npc-<id>.png`.
 ### C. Dialogue busts
 
 Waist-up, 3/4 view, neutral friendly expression, portrait orientation (about 8:9).
-grik, borak, drogg, mott, tikka, lirra, sun-crest-captain. File: `bust-<id>.png`.
+borak, drogg, mott, tikka, lirra, plus three goblin merchants: shopkeeper (villager-a,
+the item-shop woman with apron), quartermaster (villager-b, hunting-lodge quartermaster
+with ledger), smith (burly goblin blacksmith with leather apron and hammer).
+File: `bust-<id>.png`.
 
 ### D. Grik HUD art
 
