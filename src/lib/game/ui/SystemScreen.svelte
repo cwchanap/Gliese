@@ -29,6 +29,7 @@
 	};
 
 	let promptsRow = $state<HTMLDivElement>();
+	let soundRow = $state<HTMLDivElement>();
 	let rail = $state<HTMLDivElement>();
 
 	// The rail flips from a vertical side column to a 3-column row across the
@@ -51,9 +52,12 @@
 		promptsRow?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
 	}
 
+	function focusSoundRow(): void {
+		soundRow?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
+	}
+
 	/** Rail roving (BagScreen category-rail pattern): the keys parallel to the
-	 *  rendered axis move focus among enabled tabs, skipping the disabled
-	 *  Audio tab; swallows the event so the shell's lattice doesn't also move
+	 *  rendered axis move focus among enabled tabs; swallows the event so the shell's lattice doesn't also move
 	 *  focus. Cross-axis keys fall through to the lattice. */
 	function handleRailKeydown(event: KeyboardEvent): void {
 		const forwardKey = horizontalRail.current ? 'ArrowRight' : 'ArrowDown';
@@ -121,12 +125,11 @@
 					role="tab"
 					class="heroic-rail-card"
 					aria-selected="false"
-					disabled
+					tabindex="-1"
 					data-focus-id="system-rail-audio"
 					data-focus-row={railRow(1)}
 					data-focus-column={railColumn(1)}
-					aria-describedby="system-audio-unavailable"
-					title={t($locale, 'ui.audioUnavailable')}
+					onclick={focusSoundRow}
 				>
 					<svg
 						viewBox="0 0 16 16"
@@ -140,9 +143,6 @@
 					</svg>
 					<span>{t($locale, 'ui.railAudio')}</span>
 				</button>
-				<span id="system-audio-unavailable" class="sr-only">
-					{t($locale, 'ui.audioUnavailable')}
-				</span>
 				<button
 					type="button"
 					role="tab"
@@ -398,6 +398,44 @@
 								onclick={() => updatePreferences({ promptMode: 'keys' })}
 							>
 								{t($locale, 'ui.promptKeys')}
+							</button>
+						</div>
+					</div>
+					<div class="heroic-row" bind:this={soundRow} data-testid="system-sound-row">
+						<span class="heroic-row-icon" aria-hidden="true">
+							<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+								<path d="M2.5 6.2v3.6h2.4L8.8 12.6V3.4L4.9 6.2H2.5z" />
+								<path d="M11 5.6a3.6 3.6 0 0 1 0 4.8" />
+							</svg>
+						</span>
+						<div class="heroic-row-copy">
+							<p class="heroic-row-title">{t($locale, 'ui.sound')}</p>
+							<p class="heroic-row-subtitle">{t($locale, 'ui.soundHint')}</p>
+						</div>
+						<div class="heroic-segments" role="group" aria-label={t($locale, 'ui.sound')}>
+							<button
+								type="button"
+								class="heroic-segment"
+								class:heroic-segment-selected={$preferences.sound === 'on'}
+								data-focus-id="system-sound-on"
+								data-focus-row={5}
+								data-focus-column={1}
+								aria-pressed={$preferences.sound === 'on'}
+								onclick={() => updatePreferences({ sound: 'on' })}
+							>
+								{t($locale, 'ui.soundOn')}
+							</button>
+							<button
+								type="button"
+								class="heroic-segment"
+								class:heroic-segment-selected={$preferences.sound === 'off'}
+								data-focus-id="system-sound-off"
+								data-focus-row={5}
+								data-focus-column={2}
+								aria-pressed={$preferences.sound === 'off'}
+								onclick={() => updatePreferences({ sound: 'off' })}
+							>
+								{t($locale, 'ui.soundOff')}
 							</button>
 						</div>
 					</div>

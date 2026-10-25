@@ -77,12 +77,16 @@ describe('SystemScreen', () => {
 			.toHaveAttribute('aria-describedby', 'system-density-full-unavailable');
 	});
 
-	it('disables the Audio rail with the unavailable explanation', async () => {
+	it('the Audio rail jumps to the Sound row, and Off persists', async () => {
 		render(SystemScreen, { props: { open: true, onClose: vi.fn(), onkeydown: vi.fn() } });
 
-		const audio = page.getByRole('tab', { name: 'Audio' });
-		await expect.element(audio).toBeDisabled();
-		await expect.element(audio).toHaveAttribute('aria-describedby', 'system-audio-unavailable');
+		await page.getByRole('tab', { name: 'Audio' }).click();
+		const on = page.getByRole('button', { name: 'On', exact: true }).nth(1);
+		await expect.element(on).toHaveFocus();
+
+		await page.getByRole('button', { name: 'Off', exact: true }).click();
+		expect(getActivePreferences().sound).toBe('off');
+		expect(JSON.parse(storage.getItem(PREFERENCES_STORAGE_KEY)!).sound).toBe('off');
 	});
 
 	it('exposes the Display rail as a focusable selected tab with roving arrows', async () => {
@@ -92,19 +96,22 @@ describe('SystemScreen', () => {
 		await expect.element(display).toHaveAttribute('aria-selected', 'true');
 		await expect.element(display).toHaveAttribute('tabindex', '0');
 
-		// Roving: arrows move focus among enabled tabs (Audio is disabled), and
-		// the Input shortcut never claims selection — there is no input panel.
+		// Roving: arrows move focus among the tabs, and the Audio and Input
+		// shortcuts never claim selection — they only jump to their rows.
 		await display.element().focus();
 		const input = page.getByRole('tab', { name: 'Input' });
 		await input.element().focus();
 		await expect.element(input).toHaveAttribute('tabindex', '-1');
 		await expect.element(input).toHaveAttribute('aria-selected', 'false');
 
+		const audio = page.getByRole('tab', { name: 'Audio' });
 		await display.element().focus();
+		await userEvent.keyboard('{ArrowDown}');
+		await expect.element(audio).toHaveFocus();
 		await userEvent.keyboard('{ArrowDown}');
 		await expect.element(input).toHaveFocus();
 		await userEvent.keyboard('{ArrowUp}');
-		await expect.element(display).toHaveFocus();
+		await expect.element(audio).toHaveFocus();
 	});
 
 	it('selecting a language updates preferences and persists the JSON record', async () => {
@@ -117,7 +124,8 @@ describe('SystemScreen', () => {
 			locale: 'ja',
 			textSpeed: 'normal',
 			motion: 'on',
-			promptMode: 'auto'
+			promptMode: 'auto',
+			sound: 'on'
 		});
 	});
 
@@ -156,10 +164,10 @@ describe('SystemScreen', () => {
 				.toHaveAttribute('aria-orientation', 'horizontal');
 
 			const display = page.getByRole('tab', { name: 'Display' });
-			const input = page.getByRole('tab', { name: 'Input' });
+			const audio = page.getByRole('tab', { name: 'Audio' });
 			await display.element().focus();
 			await userEvent.keyboard('{ArrowRight}');
-			await expect.element(input).toHaveFocus();
+			await expect.element(audio).toHaveFocus();
 			await userEvent.keyboard('{ArrowLeft}');
 			await expect.element(display).toHaveFocus();
 		} finally {

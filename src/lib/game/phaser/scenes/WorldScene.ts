@@ -1,5 +1,7 @@
 import * as Phaser from 'phaser';
 
+import { ambienceFor, sceneSfx } from '$lib/game/content/audio';
+import { playSfx, setAmbience } from '$lib/game/phaser/audio';
 import {
 	actorAnimationAssets,
 	actorAnimationKeys,
@@ -685,6 +687,11 @@ export class WorldScene extends Phaser.Scene {
 			this.unsubscribePreferences = null;
 		});
 
+		setAmbience(this, ambienceFor(map.id, getStoryProgress(this.quests)));
+		if (reason === 'transition') {
+			playSfx(this, 'door');
+		}
+
 		this.revealCurrentMapArea();
 		// Explicit durable points write the autosave slot: new-run readiness,
 		// map transitions, and applied battle results. Resume and fog reveal do not.
@@ -935,6 +942,7 @@ export class WorldScene extends Phaser.Scene {
 			...this.playerProgress,
 			hp: Math.min(maxHp, this.playerProgress.hp + item.effect.amount)
 		};
+		playSfx(this, 'heal');
 		this.publishHudState(this.status('status.recoveredHp'));
 	}
 
@@ -1042,6 +1050,7 @@ export class WorldScene extends Phaser.Scene {
 		this.wallet = result.wallet;
 		this.inventory = result.inventory;
 		this.shopStockState = result.stockState;
+		playSfx(this, 'coins');
 		this.publishHudState(this.status('status.boughtItem', { itemName: this.getItemName(itemId) }));
 	}
 
@@ -1065,6 +1074,7 @@ export class WorldScene extends Phaser.Scene {
 
 		this.wallet = result.wallet;
 		this.inventory = result.inventory;
+		playSfx(this, 'coins');
 		this.publishHudState(this.status('status.soldItem', { itemName: this.getItemName(itemId) }));
 	}
 
@@ -1077,6 +1087,9 @@ export class WorldScene extends Phaser.Scene {
 		const completedGrant = result.rewards.find((grant) =>
 			result.completedQuestIds.includes(grant.questId)
 		);
+		if (completedGrant) {
+			playSfx(this, 'quest-complete');
+		}
 		this.publishHudState(
 			completedGrant
 				? this.status('status.questComplete', {
@@ -1207,6 +1220,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		this.dialogueSession = advanceDialogue(session);
+		playSfx(this, 'ui-select');
 		this.publishHudState(this.status('status.dialogueUpdated'));
 	}
 
@@ -2799,6 +2813,7 @@ export class WorldScene extends Phaser.Scene {
 				if (!(await flushSaveStorage())) {
 					throw new Error('The save was not confirmed on disk.');
 				}
+				playSfx(this, 'save');
 				this.publishHudState(
 					this.status(result.thumbnailDropped ? 'status.savedWithoutThumbnail' : 'status.saved')
 				);
@@ -3148,6 +3163,8 @@ export class WorldScene extends Phaser.Scene {
 			const session = await getStoryScene({ sceneId, locale: this.getLocale() });
 			if (this.storyDialogueSeq !== requestSeq) return false;
 			this.dialogueSession = session;
+			const cue = sceneSfx[sceneId];
+			if (cue) playSfx(this, cue);
 			this.publishHudState(this.status('status.dialogueUpdated'));
 			return true;
 		} catch (error) {
@@ -3276,6 +3293,7 @@ export class WorldScene extends Phaser.Scene {
 
 			this.inventory = addItem(this.inventory, pickup.itemId, pickup.quantity);
 			this.collectedPickupIds.add(pickup.id);
+			playSfx(this, 'pickup');
 			this.pickupMarkers.get(pickup.id)?.setVisible(false);
 			this.applyQuestProgress(
 				{

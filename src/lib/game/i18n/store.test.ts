@@ -43,7 +43,8 @@ describe('preferences store', () => {
 			locale: 'ja',
 			textSpeed: 'instant',
 			motion: 'reduced',
-			promptMode: 'keys'
+			promptMode: 'keys',
+			sound: 'off'
 		};
 		storage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(record));
 

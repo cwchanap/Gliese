@@ -22,6 +22,9 @@ export async function createGame(target: HTMLElement, start: GameStartRequest) {
 	const { BootScene } = await import('$lib/game/phaser/scenes/BootScene');
 	const { WorldScene } = await import('$lib/game/phaser/scenes/WorldScene');
 	const { BattleScene } = await import('$lib/game/phaser/scenes/BattleScene');
+	const { preferences } = await import('$lib/game/i18n/store');
+	const { resetAmbience } = await import('$lib/game/phaser/audio');
+	let unsubscribeSound = () => {};
 	const game = new Phaser.Game({
 		type: Phaser.AUTO,
 		parent: target,
@@ -41,13 +44,22 @@ export async function createGame(target: HTMLElement, start: GameStartRequest) {
 		callbacks: {
 			preBoot: (bootedGame) => {
 				bootedGame.registry.set('startRequest', start);
+			},
+			postBoot: (bootedGame) => {
+				unsubscribeSound = preferences.subscribe(({ sound }) => {
+					bootedGame.sound.mute = sound === 'off';
+				});
 			}
 		},
 		scene: [BootScene, WorldScene, BattleScene]
 	});
 
 	return {
-		destroy: () => game.destroy(true)
+		destroy: () => {
+			unsubscribeSound();
+			resetAmbience();
+			game.destroy(true);
+		}
 	};
 }
 
