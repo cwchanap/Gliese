@@ -37,9 +37,10 @@ export const sceneSfx: Partial<Record<string, SfxKey>> = {
 };
 
 /**
- * The loop for a map at this point of the story: the burning village once the
- * raid starts, the tunnel underground, and a calm day outdoors; quiet indoors
- * and on the evening of the proving day.
+ * The loop for a map at this point of the story: the tunnel underground, the
+ * burning village everywhere else once the raid starts (Grik wakes to it
+ * indoors), and a calm day outdoors; quiet indoors before the raid and on the
+ * evening of the proving day.
  */
 export function ambienceFor(mapId: string, progress: StoryProgress): AmbienceKey | null {
 	if (mapId.startsWith('ruins-')) return 'amb-tunnel';
