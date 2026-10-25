@@ -7621,6 +7621,41 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('writes Slot 0 once a queued story scene is shown, so a reload does not replay it', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as { dialogueSession: unknown };
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({
+				saveState: {
+					...createNewSaveState(),
+					mapId: 'meadow-entry',
+					quests: {
+						...questStateAt('report-boar-king'),
+						pendingEffects: [{ type: 'play-scene', sceneId: 'prologue.boar-king-felled' }]
+					}
+				}
+			});
+			memoryStorage.setItem.mockClear();
+
+			scene.update(0, 16);
+			await vi.waitFor(() => expect(memoryStorage.setItem).toHaveBeenCalledTimes(1));
+
+			expect(sceneState.dialogueSession).toBeTruthy();
+			const autosave = slots.loadSaveSlots(memoryStorage).slots[0];
+			expect(autosave?.state.quests.pendingEffects).toEqual([]);
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
 	it('moves the player marker using WASD input state', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const { meadowEntryMap } = await import('$lib/game/content/maps');

@@ -3100,9 +3100,15 @@ export class WorldScene extends Phaser.Scene {
 		this.storyEffectRunning = true;
 
 		if (effect.type === 'play-scene') {
-			void this.playStoryScene(effect.sceneId, ++this.storyDialogueSeq).finally(() => {
-				this.storyEffectRunning = false;
-			});
+			void this.playStoryScene(effect.sceneId, ++this.storyDialogueSeq)
+				.then((shown) => {
+					// The scene is on screen: persist its consumption so a reload
+					// doesn't replay it. A scene that failed to load stays queued on disk.
+					if (shown) this.writeAutosave(this.buildSaveState());
+				})
+				.finally(() => {
+					this.storyEffectRunning = false;
+				});
 			return;
 		}
 
@@ -3132,15 +3138,17 @@ export class WorldScene extends Phaser.Scene {
 		camera.fadeOut(WorldScene.storyFadeMs, 0, 0, 0);
 	}
 
-	/** Shows a story scene as a system dialogue once its prose arrives. */
-	private async playStoryScene(sceneId: string, requestSeq: number) {
+	/** Shows a story scene as a system dialogue once its prose arrives; true once shown. */
+	private async playStoryScene(sceneId: string, requestSeq: number): Promise<boolean> {
 		try {
 			const session = await getStoryScene({ sceneId, locale: this.getLocale() });
-			if (this.storyDialogueSeq !== requestSeq) return;
+			if (this.storyDialogueSeq !== requestSeq) return false;
 			this.dialogueSession = session;
 			this.publishHudState(this.status('status.dialogueUpdated'));
+			return true;
 		} catch (error) {
 			console.error('[story] story scene failed for scene=%s:', sceneId, error);
+			return false;
 		}
 	}
 
