@@ -7264,8 +7264,9 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('writes Slot 0 when a new run becomes ready', async () => {
+	it('writes Slot 0 when a new run becomes ready, with Grik at his bedside', async () => {
 		const slots = await import('$lib/game/save/slots');
+		const { homeBedside } = await import('$lib/game/content/player');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const memoryStorage = createSlotCaptureStorage();
@@ -7284,7 +7285,8 @@ describe('WorldScene', () => {
 			);
 			const autosave = slots.loadSaveSlots(memoryStorage).slots[0];
 			expect(autosave?.kind).toBe('autosave');
-			expect(autosave?.state.mapId).toBe('meadow-entry');
+			expect(autosave?.state.mapId).toBe(homeBedside.mapId);
+			expect(autosave?.state.player).toMatchObject({ x: homeBedside.x, y: homeBedside.y });
 		} finally {
 			storage.setSaveStorage(undefined);
 		}

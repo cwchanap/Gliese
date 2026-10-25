@@ -505,7 +505,11 @@ export class WorldScene extends Phaser.Scene {
 			data.battleResult && data.saveState
 				? applyBattleResultToSaveState(data.saveState, data.battleResult)
 				: null;
-		const activeSave = battleApplication?.saveState ?? data.saveState;
+		const activeSave =
+			battleApplication?.saveState ??
+			data.saveState ??
+			// A new run starts from the fresh save, so Grik wakes at his bedside.
+			(data.reason === 'new' ? createNewSaveState() : undefined);
 		// Story gates read the quest state, so it must be in place before the map resolves.
 		this.quests = cloneQuestState(activeSave?.quests ?? createInitialQuestState());
 		const requestedPackageSelection = data.mapBackgroundPackageSelection;
