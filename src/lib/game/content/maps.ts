@@ -637,7 +637,7 @@ export const heroHouseMap: WorldMapDefinition = addEnglishMapText({
 			nameKey: 'content.maps.npcs.mott.name',
 			dialogueId: 'mott-hearth',
 			role: 'home',
-			frameName: 'pilgrimNpc',
+			frameName: 'mottNpc',
 			activeDuring: { ...storyWindows.dayOne, objectives: ['heed-mott'] }
 		},
 		{
@@ -646,7 +646,7 @@ export const heroHouseMap: WorldMapDefinition = addEnglishMapText({
 			nameKey: 'content.maps.npcs.tikka.name',
 			dialogueId: 'tikka-home',
 			role: 'home',
-			frameName: 'crierNpc',
+			frameName: 'tikkaNpc',
 			...dayOne
 		},
 		{
@@ -655,7 +655,7 @@ export const heroHouseMap: WorldMapDefinition = addEnglishMapText({
 			nameKey: 'content.maps.npcs.borak.name',
 			dialogueId: 'borak-home',
 			role: 'home',
-			frameName: 'guildMasterNpc',
+			frameName: 'borakNpc',
 			activeDuring: storyWindows.evening
 		},
 		{
@@ -664,7 +664,7 @@ export const heroHouseMap: WorldMapDefinition = addEnglishMapText({
 			nameKey: 'content.maps.npcs.drogg.name',
 			dialogueId: 'drogg-home',
 			role: 'home',
-			frameName: 'fisherNpc',
+			frameName: 'droggNpc',
 			activeDuring: storyWindows.evening
 		}
 	],
@@ -705,7 +705,7 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 			nameKey: 'content.maps.npcs.borak.name',
 			dialogueId: 'borak',
 			role: 'guild',
-			frameName: 'guildMasterNpc',
+			frameName: 'borakNpc',
 			...dayOne,
 			hiddenDuring: storyWindows.evening
 		},
@@ -726,7 +726,7 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 			nameKey: 'content.maps.npcs.drogg.name',
 			dialogueId: 'drogg-lodge',
 			role: 'home',
-			frameName: 'fisherNpc',
+			frameName: 'droggNpc',
 			activeDuring: {
 				quests: ['prologue-proving-morning', 'prologue-trial-tracks', 'prologue-trial-mistfen']
 			}
@@ -846,7 +846,7 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 			nameKey: 'content.maps.npcs.lirra.name',
 			dialogueId: 'lirra-herb-hut',
 			role: 'home',
-			frameName: 'travelerNpc',
+			frameName: 'lirraNpc',
 			activeDuring: { objectives: ['walk-lirra-home'] }
 		}
 	],
@@ -1291,7 +1291,7 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = addEnglishMapText({
 			nameKey: 'content.maps.npcs.mott.name',
 			dialogueId: 'mott-shrine',
 			role: 'home',
-			frameName: 'pilgrimNpc',
+			frameName: 'mottNpc',
 			activeDuring: { quests: ['prologue-escape'] }
 		}
 	]

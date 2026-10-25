@@ -179,7 +179,7 @@
 	<!-- Hero plate -->
 	<div class="battle-hero" data-testid="battle-hero-plate">
 		<span class="battle-hero-bust">
-			<img src="/game/assets/heroic-ui/liam-portrait.png" alt="" aria-hidden="true" />
+			<img src="/game/assets/heroic-ui/grik-portrait.png" alt="" aria-hidden="true" />
 		</span>
 		<span class="battle-hero-gauge" aria-hidden="true">
 			<svg viewBox="0 0 44 44">

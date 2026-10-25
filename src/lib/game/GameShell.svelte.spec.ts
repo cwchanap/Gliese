@@ -585,7 +585,7 @@ describe('GameShell battle summary', () => {
 								hp: 5,
 								maxHp: 8,
 								defeated: false,
-								artPath: '/game/assets/heroic-ui/enemies/slime-scout.png'
+								artPath: '/game/assets/heroic-ui/enemies/forest-wolf.png'
 							}
 						],
 						ribbon: [
@@ -651,7 +651,7 @@ describe('GameShell battle summary', () => {
 				hp: 5,
 				maxHp: 8,
 				defeated: false,
-				artPath: '/game/assets/heroic-ui/enemies/slime-scout.png'
+				artPath: '/game/assets/heroic-ui/enemies/forest-wolf.png'
 			}));
 			const base = activeBattle();
 			return {
@@ -2205,7 +2205,7 @@ describe('GameShell heroic shop', () => {
 				name: 'Guild Quartermaster',
 				merchantName: 'Quartermaster Vale',
 				description: 'Guild-approved gear for new ruins assignments.',
-				bustPath: '/game/assets/heroic-ui/busts/quartermaster-vale.png',
+				bustPath: '/game/assets/heroic-ui/busts/quartermaster.png',
 				buy: [mockVestBuyEntry()],
 				sell: []
 			}
@@ -2897,7 +2897,7 @@ describe('GameShell pad layer', () => {
 									hp: 5,
 									maxHp: 8,
 									defeated: false,
-									artPath: '/game/assets/heroic-ui/enemies/slime-scout.png'
+									artPath: '/game/assets/heroic-ui/enemies/forest-wolf.png'
 								}
 							],
 							ribbon: [
@@ -3241,7 +3241,7 @@ describe('GameShell pad layer', () => {
 									hp: 5,
 									maxHp: 8,
 									defeated: false,
-									artPath: '/game/assets/heroic-ui/enemies/slime-scout.png'
+									artPath: '/game/assets/heroic-ui/enemies/forest-wolf.png'
 								}
 							],
 							ribbon: [
@@ -3680,7 +3680,7 @@ describe('GameShell prompt glyph honesty', () => {
 								hp: 5,
 								maxHp: 8,
 								defeated: false,
-								artPath: '/game/assets/heroic-ui/enemies/slime-scout.png'
+								artPath: '/game/assets/heroic-ui/enemies/forest-wolf.png'
 							}
 						],
 						ribbon: [

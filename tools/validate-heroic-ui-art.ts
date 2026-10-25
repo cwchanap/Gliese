@@ -15,14 +15,22 @@ export const HEROIC_UI_ASSET_ROOT = 'public/game/assets/heroic-ui';
 export const HEROIC_UI_RUNTIME_ROOT = 'docs/visual-references/heroic-ui/runtime';
 
 const TITLE_KEY_ART = { file: 'title-key-art.png', width: 1440, height: 900 };
-const LIAM_PORTRAIT = { file: 'liam-portrait.png', width: 1024, height: 1024 };
-const LIAM_PAPER_DOLL = { file: 'liam-paper-doll.png', width: 700, height: 1200 };
+const GRIK_PORTRAIT = { file: 'grik-portrait.png', width: 1024, height: 1024 };
+const GRIK_PAPER_DOLL = { file: 'grik-paper-doll.png', width: 700, height: 1200 };
 const BATTLE_BACKDROP = { file: 'battle-backdrop.png', width: 1440, height: 900 };
 
-const BUSTS = ['blacksmith-oren', 'guild-master-arlen', 'liam', 'mira', 'quartermaster-vale'];
+const BUSTS = ['borak', 'drogg', 'mott', 'tikka', 'lirra', 'shopkeeper', 'quartermaster', 'smith'];
 const BUST_WIDTH = 512;
 const BUST_HEIGHT = 576;
-const ENEMY_PLATES = ['slime-scout', 'ruins-warden'];
+const ENEMY_PLATES = [
+	'forest-wolf',
+	'mist-toad',
+	'thornback-boar',
+	'boar-king',
+	'tunnel-crawler',
+	'human-soldier',
+	'sun-crest-captain'
+];
 const COMMAND_ICONS = ['bag', 'gear', 'map', 'quest', 'rest', 'save', 'skill', 'system'];
 const CAPTURE_WIDTH = 1440;
 const CAPTURE_HEIGHT = 900;
@@ -91,7 +99,7 @@ export async function validateHeroicUiArt(repositoryRoot = process.cwd()): Promi
 	const assetRoot = join(repositoryRoot, HEROIC_UI_ASSET_ROOT);
 
 	// Key art, portrait, paper doll, and battle backdrop at their authored sizes.
-	for (const art of [TITLE_KEY_ART, LIAM_PORTRAIT, LIAM_PAPER_DOLL, BATTLE_BACKDROP]) {
+	for (const art of [TITLE_KEY_ART, GRIK_PORTRAIT, GRIK_PAPER_DOLL, BATTLE_BACKDROP]) {
 		await assertDimensions(join(assetRoot, art.file), art.width, art.height, art.file);
 	}
 

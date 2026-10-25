@@ -100,29 +100,9 @@ export function getBattleBackgroundAsset(mapId: string) {
 	return battleBackgroundAssets[getBattleEnvironmentId(mapId)];
 }
 
-/**
- * Prologue enemies borrow the two existing actors until their own art lands:
- * beasts wear the slime, humans and bosses wear the warden.
- */
-const enemyStandInActor: Record<string, 'slime' | 'warden'> = {
-	'forest-wolf': 'slime',
-	'thornback-boar': 'slime',
-	'mist-toad': 'slime',
-	'tunnel-crawler': 'slime',
-	'boar-king': 'warden',
-	'human-soldier': 'warden',
-	'sun-crest-captain': 'warden'
-};
-
-function isWardenStandIn(enemyId: string): boolean {
-	return enemyStandInActor[enemyId] === 'warden';
-}
-
-/** Circular plate art for the Heroic battle HUD enemy plates. */
+/** Circular plate art for the Heroic battle HUD enemy plates, one per enemy id. */
 export function getEnemyPlateArtPath(enemyId: string): string {
-	return isWardenStandIn(enemyId)
-		? '/game/assets/heroic-ui/enemies/ruins-warden.png'
-		: '/game/assets/heroic-ui/enemies/slime-scout.png';
+	return `/game/assets/heroic-ui/enemies/${enemyId}.png`;
 }
 
 export const villageBuildingAsset = {
@@ -380,17 +360,23 @@ export const npcPackAsset = {
 	path: '/game/assets/npc-pack.png',
 	cellWidth: 96,
 	cellHeight: 96,
-	columns: 8,
+	columns: 13,
 	rows: 1,
 	frames: {
-		miraItemShopNpc: { x: 0, y: 0, w: 96, h: 96 },
-		quartermasterNpc: { x: 96, y: 0, w: 96, h: 96 },
-		guildMasterNpc: { x: 192, y: 0, w: 96, h: 96 },
-		fisherNpc: { x: 288, y: 0, w: 96, h: 96 },
-		travelerNpc: { x: 384, y: 0, w: 96, h: 96 },
-		pilgrimNpc: { x: 480, y: 0, w: 96, h: 96 },
-		woodcutterNpc: { x: 576, y: 0, w: 96, h: 96 },
-		crierNpc: { x: 672, y: 0, w: 96, h: 96 }
+		// Grik's family, then the generic Sundrop goblin villagers.
+		borakNpc: { x: 0, y: 0, w: 96, h: 96 },
+		droggNpc: { x: 96, y: 0, w: 96, h: 96 },
+		mottNpc: { x: 192, y: 0, w: 96, h: 96 },
+		tikkaNpc: { x: 288, y: 0, w: 96, h: 96 },
+		lirraNpc: { x: 384, y: 0, w: 96, h: 96 },
+		miraItemShopNpc: { x: 480, y: 0, w: 96, h: 96 },
+		quartermasterNpc: { x: 576, y: 0, w: 96, h: 96 },
+		guildMasterNpc: { x: 672, y: 0, w: 96, h: 96 },
+		fisherNpc: { x: 768, y: 0, w: 96, h: 96 },
+		travelerNpc: { x: 864, y: 0, w: 96, h: 96 },
+		pilgrimNpc: { x: 960, y: 0, w: 96, h: 96 },
+		woodcutterNpc: { x: 1_056, y: 0, w: 96, h: 96 },
+		crierNpc: { x: 1_152, y: 0, w: 96, h: 96 }
 	}
 } as const;
 
@@ -399,10 +385,6 @@ export type NpcFrameName = StarterPackFrameName | NpcPackFrameName;
 
 export function isNpcPackFrameName(frameName: NpcFrameName): frameName is NpcPackFrameName {
 	return frameName in npcPackAsset.frames;
-}
-
-export function getEnemyFrameName(enemyId: string): StarterPackFrameName {
-	return isWardenStandIn(enemyId) ? 'ruinsWarden' : 'slimeScout';
 }
 
 export function getGroundFrameName(mapId: string): TerrainTileFrameName {
@@ -416,7 +398,16 @@ export function getGroundFrameName(mapId: string): TerrainTileFrameName {
 export const actorAnimationKeys = ['idle', 'walk', 'attack', 'dead'] as const;
 export type ActorAnimationKey = (typeof actorAnimationKeys)[number];
 
-export const actorAnimationIds = ['hero', 'slimeScout', 'ruinsWarden'] as const;
+export const actorAnimationIds = [
+	'hero',
+	'forestWolf',
+	'mistToad',
+	'thornbackBoar',
+	'boarKing',
+	'tunnelCrawler',
+	'humanSoldier',
+	'sunCrestCaptain'
+] as const;
 export type ActorAnimationId = (typeof actorAnimationIds)[number];
 
 type AnimationFrameName = `${ActorAnimationId}${Capitalize<ActorAnimationKey>}${number}`;
@@ -443,20 +434,9 @@ type ActorAnimationAsset = {
 
 const animationCellSize = 192;
 const animationFrameCount = 4;
-const animationRows: Array<{ actorId: ActorAnimationId; clip: ActorAnimationKey }> = [
-	{ actorId: 'hero', clip: 'idle' },
-	{ actorId: 'hero', clip: 'walk' },
-	{ actorId: 'hero', clip: 'attack' },
-	{ actorId: 'hero', clip: 'dead' },
-	{ actorId: 'slimeScout', clip: 'idle' },
-	{ actorId: 'slimeScout', clip: 'walk' },
-	{ actorId: 'slimeScout', clip: 'attack' },
-	{ actorId: 'slimeScout', clip: 'dead' },
-	{ actorId: 'ruinsWarden', clip: 'idle' },
-	{ actorId: 'ruinsWarden', clip: 'walk' },
-	{ actorId: 'ruinsWarden', clip: 'attack' },
-	{ actorId: 'ruinsWarden', clip: 'dead' }
-];
+/** Each actor owns a 4x4 block (rows: idle, walk, attack, dead); blocks tile 4 per row. */
+const animationBlockColumns = 4;
+const animationBlockSize = animationCellSize * animationFrameCount;
 
 function capitalizeAnimationKey(key: ActorAnimationKey): Capitalize<ActorAnimationKey> {
 	return `${key[0]!.toUpperCase()}${key.slice(1)}` as Capitalize<ActorAnimationKey>;
@@ -464,25 +444,25 @@ function capitalizeAnimationKey(key: ActorAnimationKey): Capitalize<ActorAnimati
 
 function buildAnimationFrames(): Record<AnimationFrameName, AnimationFrame> {
 	return Object.fromEntries(
-		animationRows.flatMap(({ actorId, clip }, row) =>
-			Array.from({ length: animationFrameCount }, (_, column) => [
-				`${actorId}${capitalizeAnimationKey(clip)}${column}`,
-				{
-					x: column * animationCellSize,
-					y: row * animationCellSize,
-					w: animationCellSize,
-					h: animationCellSize
-				}
-			])
+		actorAnimationIds.flatMap((actorId, block) =>
+			actorAnimationKeys.flatMap((clip, row) =>
+				Array.from({ length: animationFrameCount }, (_, column) => [
+					`${actorId}${capitalizeAnimationKey(clip)}${column}`,
+					{
+						x: (block % animationBlockColumns) * animationBlockSize + column * animationCellSize,
+						y:
+							Math.floor(block / animationBlockColumns) * animationBlockSize +
+							row * animationCellSize,
+						w: animationCellSize,
+						h: animationCellSize
+					}
+				])
+			)
 		)
 	) as Record<AnimationFrameName, AnimationFrame>;
 }
 
-function buildClip(
-	actorId: ActorAnimationId,
-	clip: ActorAnimationKey,
-	sourceClip: ActorAnimationKey = clip
-): ActorAnimationClip {
+function buildClip(actorId: ActorAnimationId, clip: ActorAnimationKey): ActorAnimationClip {
 	const frameRateByClip: Record<ActorAnimationKey, number> = {
 		idle: 3,
 		walk: 6,
@@ -500,7 +480,7 @@ function buildClip(
 		key: `${actorId}-${clip}`,
 		frames: Array.from(
 			{ length: animationFrameCount },
-			(_, index) => `${actorId}${capitalizeAnimationKey(sourceClip)}${index}` as AnimationFrameName
+			(_, index) => `${actorId}${capitalizeAnimationKey(clip)}${index}` as AnimationFrameName
 		),
 		frameRate: frameRateByClip[clip],
 		repeat: repeatByClip[clip]
@@ -517,7 +497,7 @@ function buildActorAnimationAsset(
 		clips: {
 			idle: buildClip(id, 'idle'),
 			walk: buildClip(id, 'walk'),
-			attack: id === 'hero' ? buildClip(id, 'attack', 'walk') : buildClip(id, 'attack'),
+			attack: buildClip(id, 'attack'),
 			dead: buildClip(id, 'dead')
 		}
 	};
@@ -533,13 +513,28 @@ export const animationPackAsset = {
 } as const;
 
 export const actorAnimationAssets: Record<ActorAnimationId, ActorAnimationAsset> = {
-	hero: buildActorAnimationAsset('hero', { width: 88, height: 90 }),
-	slimeScout: buildActorAnimationAsset('slimeScout', { width: 88, height: 66 }),
-	ruinsWarden: buildActorAnimationAsset('ruinsWarden', { width: 160, height: 144 })
+	hero: buildActorAnimationAsset('hero', { width: 90, height: 90 }),
+	forestWolf: buildActorAnimationAsset('forestWolf', { width: 96, height: 96 }),
+	mistToad: buildActorAnimationAsset('mistToad', { width: 84, height: 84 }),
+	thornbackBoar: buildActorAnimationAsset('thornbackBoar', { width: 108, height: 108 }),
+	boarKing: buildActorAnimationAsset('boarKing', { width: 168, height: 168 }),
+	tunnelCrawler: buildActorAnimationAsset('tunnelCrawler', { width: 96, height: 96 }),
+	humanSoldier: buildActorAnimationAsset('humanSoldier', { width: 96, height: 96 }),
+	sunCrestCaptain: buildActorAnimationAsset('sunCrestCaptain', { width: 116, height: 116 })
+};
+
+const enemyActorIds: Record<string, ActorAnimationId> = {
+	'forest-wolf': 'forestWolf',
+	'mist-toad': 'mistToad',
+	'thornback-boar': 'thornbackBoar',
+	'boar-king': 'boarKing',
+	'tunnel-crawler': 'tunnelCrawler',
+	'human-soldier': 'humanSoldier',
+	'sun-crest-captain': 'sunCrestCaptain'
 };
 
 export function getEnemyActorId(enemyId: string): ActorAnimationId {
-	return isWardenStandIn(enemyId) ? 'ruinsWarden' : 'slimeScout';
+	return enemyActorIds[enemyId] ?? 'forestWolf';
 }
 
 export function getActorAnimationAsset(actorId: ActorAnimationId): ActorAnimationAsset {

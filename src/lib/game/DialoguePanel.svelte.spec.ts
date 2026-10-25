@@ -281,7 +281,9 @@ describe('DialoguePanel.svelte', () => {
 
 		const bustImage = page.getByRole('img', { name: 'Mira, dialogue portrait' });
 		await expect.element(bustImage).toBeVisible();
-		expect(bustImage.element().getAttribute('src')).toBe('/game/assets/heroic-ui/busts/mira.png');
+		expect(bustImage.element().getAttribute('src')).toBe(
+			'/game/assets/heroic-ui/busts/shopkeeper.png'
+		);
 	});
 
 	it('renders no bust for NPCs outside the neutral bust map', async () => {

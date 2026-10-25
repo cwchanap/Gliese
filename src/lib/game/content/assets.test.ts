@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	actorAnimationAssets,
+	actorAnimationIds,
 	animationPackAsset,
 	battleBackgroundAssets,
 	coastDressingAsset,
@@ -13,7 +14,7 @@ import {
 	getBattleBackgroundAsset,
 	getBattleEnvironmentId,
 	getEnemyActorId,
-	getEnemyFrameName,
+	getEnemyPlateArtPath,
 	getVillageBuildingFrameName,
 	interiorPropAsset,
 	isNpcPackFrameName,
@@ -35,7 +36,7 @@ import {
 import { meadowEntryMap } from '$lib/game/content/maps';
 import { MEADOW_ENTRY_PAINTED_MODE_PILOT } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 
-const requiredActors: ActorAnimationId[] = ['hero', 'slimeScout', 'ruinsWarden'];
+const requiredActors: ActorAnimationId[] = [...actorAnimationIds];
 const requiredClips: ActorAnimationKey[] = ['idle', 'walk', 'attack', 'dead'];
 const requiredBuildingFrames: VillageBuildingFrameName[] = [
 	'heroHouse',
@@ -319,24 +320,29 @@ describe('interior prop asset metadata', () => {
 });
 
 describe('npc pack metadata', () => {
-	it('defines fixed-cell shopkeeper sprites separate from the starter sheet', () => {
+	it('defines fixed-cell family and villager sprites separate from the starter sheet', () => {
 		expect(npcPackAsset).toMatchObject({
 			key: 'npc-pack',
 			path: '/game/assets/npc-pack.png',
 			cellWidth: 96,
 			cellHeight: 96,
-			columns: 8,
+			columns: 13,
 			rows: 1
 		});
 		expect(npcPackAsset.frames).toEqual({
-			miraItemShopNpc: { x: 0, y: 0, w: 96, h: 96 },
-			quartermasterNpc: { x: 96, y: 0, w: 96, h: 96 },
-			guildMasterNpc: { x: 192, y: 0, w: 96, h: 96 },
-			fisherNpc: { x: 288, y: 0, w: 96, h: 96 },
-			travelerNpc: { x: 384, y: 0, w: 96, h: 96 },
-			pilgrimNpc: { x: 480, y: 0, w: 96, h: 96 },
-			woodcutterNpc: { x: 576, y: 0, w: 96, h: 96 },
-			crierNpc: { x: 672, y: 0, w: 96, h: 96 }
+			borakNpc: { x: 0, y: 0, w: 96, h: 96 },
+			droggNpc: { x: 96, y: 0, w: 96, h: 96 },
+			mottNpc: { x: 192, y: 0, w: 96, h: 96 },
+			tikkaNpc: { x: 288, y: 0, w: 96, h: 96 },
+			lirraNpc: { x: 384, y: 0, w: 96, h: 96 },
+			miraItemShopNpc: { x: 480, y: 0, w: 96, h: 96 },
+			quartermasterNpc: { x: 576, y: 0, w: 96, h: 96 },
+			guildMasterNpc: { x: 672, y: 0, w: 96, h: 96 },
+			fisherNpc: { x: 768, y: 0, w: 96, h: 96 },
+			travelerNpc: { x: 864, y: 0, w: 96, h: 96 },
+			pilgrimNpc: { x: 960, y: 0, w: 96, h: 96 },
+			woodcutterNpc: { x: 1_056, y: 0, w: 96, h: 96 },
+			crierNpc: { x: 1_152, y: 0, w: 96, h: 96 }
 		});
 		expect(isNpcPackFrameName('miraItemShopNpc')).toBe(true);
 		expect(isNpcPackFrameName('quartermasterNpc')).toBe(true);
@@ -368,6 +374,13 @@ describe('animation pack metadata', () => {
 		});
 	});
 
+	it('tiles actor blocks four to a row so the sheet stays within 4096px', () => {
+		expect(animationPackAsset.frames.heroIdle0).toMatchObject({ x: 0, y: 0 });
+		expect(animationPackAsset.frames.forestWolfIdle0).toMatchObject({ x: 768, y: 0 });
+		expect(animationPackAsset.frames.boarKingIdle0).toMatchObject({ x: 0, y: 768 });
+		expect(animationPackAsset.frames.sunCrestCaptainDead3).toMatchObject({ x: 2_880, y: 1_344 });
+	});
+
 	it('defines all required actor clips with valid frame references', () => {
 		for (const actorId of requiredActors) {
 			const actor = actorAnimationAssets[actorId];
@@ -394,22 +407,15 @@ describe('animation pack metadata', () => {
 		}
 	});
 
-	it('maps enemies to their actor animation definitions', () => {
-		expect(getEnemyActorId('forest-wolf')).toBe('slimeScout');
-		expect(getEnemyActorId('boar-king')).toBe('ruinsWarden');
+	it('maps each prologue enemy to its own actor', () => {
+		expect(getEnemyActorId('forest-wolf')).toBe('forestWolf');
+		expect(getEnemyActorId('boar-king')).toBe('boarKing');
+		expect(getEnemyActorId('sun-crest-captain')).toBe('sunCrestCaptain');
 		expect(getActorAnimationAsset('hero')).toBe(actorAnimationAssets.hero);
 	});
 
-	it('maps enemies to their starter pack frame names', () => {
-		expect(getEnemyFrameName('human-soldier')).toBe('ruinsWarden');
-		expect(getEnemyFrameName('mist-toad')).toBe('slimeScout');
-		expect(getEnemyFrameName('unknown-enemy')).toBe('slimeScout');
-	});
-
-	it('keeps the hero attack clip free of baked hit arcs', () => {
-		expect(actorAnimationAssets.hero.clips.attack.frames).toEqual(
-			actorAnimationAssets.hero.clips.walk.frames
-		);
+	it('gives every prologue enemy its own battle plate', () => {
+		expect(getEnemyPlateArtPath('mist-toad')).toBe('/game/assets/heroic-ui/enemies/mist-toad.png');
 	});
 });
 

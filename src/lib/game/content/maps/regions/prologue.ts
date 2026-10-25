@@ -132,38 +132,38 @@ const packs: Pack[] = [
 
 export const prologueRegion: RegionFragment = {
 	npcs: [
-		storyNpc('lirra-forest', { x: 4_950, y: 4_000 }, 'lirra', 'travelerNpc', {
+		storyNpc('lirra-forest', { x: 4_950, y: 4_000 }, 'lirra', 'lirraNpc', {
 			activeDuring: {
 				objectives: ['meet-lirra-forest', 'read-boar-signs', 'defeat-thornback-boar']
 			}
 		}),
-		storyNpc('lirra-mistfen', { x: 2_380, y: 3_500 }, 'lirra', 'travelerNpc', {
+		storyNpc('lirra-mistfen', { x: 2_380, y: 3_500 }, 'lirra', 'lirraNpc', {
 			activeDuring: { objectives: ['meet-lirra-mistfen', 'gather-moonmoss', 'rest-at-the-pond'] }
 		}),
-		storyNpc('drogg-crossroads', { x: 3_700, y: 4_160 }, 'drogg', 'fisherNpc', {
+		storyNpc('drogg-crossroads', { x: 3_700, y: 4_160 }, 'drogg', 'droggNpc', {
 			activeDuring: { objectives: ['meet-drogg-crossroads', 'track-the-boar-king'] }
 		}),
-		storyNpc('drogg-falls', { x: 2_700, y: 1_180 }, 'drogg', 'fisherNpc', {
+		storyNpc('drogg-falls', { x: 2_700, y: 1_180 }, 'drogg', 'droggNpc', {
 			activeDuring: { objectives: ['talk-to-drogg-falls', 'defeat-boar-king'] }
 		}),
-		storyNpc('borak-gate', { x: 2_720, y: 4_688 }, 'borak', 'guildMasterNpc', {
+		storyNpc('borak-gate', { x: 2_720, y: 4_688 }, 'borak', 'borakNpc', {
 			activeDuring: { quests: ['prologue-raid'] }
 		}),
-		storyNpc('drogg-well', { x: 1_504, y: 5_232 }, 'drogg', 'fisherNpc', {
+		storyNpc('drogg-well', { x: 1_504, y: 5_232 }, 'drogg', 'droggNpc', {
 			activeDuring: { objectives: ['find-drogg', 'charge-the-captain'] }
 		}),
 		storyNpc(
 			'tikka-captive',
 			{ x: 1_380, y: 4_840 },
 			'tikka',
-			'crierNpc',
+			'tikkaNpc',
 			during('charge-the-captain')
 		),
 		storyNpc(
 			'lirra-captive',
 			{ x: 1_630, y: 4_840 },
 			'lirra',
-			'travelerNpc',
+			'lirraNpc',
 			during('charge-the-captain')
 		)
 	],

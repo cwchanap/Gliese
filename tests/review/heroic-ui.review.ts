@@ -762,7 +762,7 @@ test('Dialogue capture through a real NPC interaction', async ({ page }) => {
 	// Presentation identity: npcId 'shopkeeper-mira' resolves the neutral bust.
 	const bust = dialogue.getByRole('img', { name: 'Mira, dialogue portrait' });
 	await expect(bust).toBeVisible();
-	expect(await bust.getAttribute('src')).toBe('/game/assets/heroic-ui/busts/mira.png');
+	expect(await bust.getAttribute('src')).toBe('/game/assets/heroic-ui/busts/shopkeeper.png');
 
 	// Name plate + prompt grammar (mockup: gold pill, A Next / B Close / ▼).
 	await expect(dialogue.locator('.jrpg-dialogue-speaker')).toContainText('Mira');
