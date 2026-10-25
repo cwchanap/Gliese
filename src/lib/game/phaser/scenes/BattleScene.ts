@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 
+import { playSfx } from '$lib/game/phaser/audio';
 import {
 	actorAnimationAssets,
 	actorAnimationKeys,
@@ -210,6 +211,7 @@ export class BattleScene extends Phaser.Scene {
 			this.removeHudCommandListener();
 			this.removeResizeListener();
 		});
+		playSfx(this, 'battle-start');
 		this.publishHudState(t(getActiveLocale(), 'status.battleStarted'));
 	}
 
@@ -482,6 +484,8 @@ export class BattleScene extends Phaser.Scene {
 		this.heroAnimationLockedUntil = time + BattleScene.actorAnimationLockMs;
 		this.setHeroAnimation('attack', false);
 		this.playHeroAttackPresentation(target, time);
+		playSfx(this, 'hero-swing');
+		playSfx(this, 'hit');
 		const hpBefore = target.hp;
 		target.hp = hitBattleEnemy(target, this.hero.attack);
 		target.invulnerableUntil = time + BattleScene.enemyInvulnerabilityMs;
@@ -518,6 +522,7 @@ export class BattleScene extends Phaser.Scene {
 
 		enemy.phase = nextState.phase;
 		enemy.marker.setTint(definition.boss.phaseTwoColor);
+		playSfx(this, 'boss-roar');
 		this.publishHudState(t(getActiveLocale(), 'status.bossEnraged'));
 	}
 
@@ -528,6 +533,7 @@ export class BattleScene extends Phaser.Scene {
 
 		enemy.defeated = true;
 		this.playEnemyDeathAnimation(enemy);
+		playSfx(this, 'enemy-defeat');
 		this.appendFeedEvent('defeat', 0, this.getEnemyName(enemy));
 		this.defeatedUnits.push({
 			unitId: enemy.unitId,
@@ -622,6 +628,7 @@ export class BattleScene extends Phaser.Scene {
 		this.heroInvulnerableUntil = time + BattleScene.heroInvulnerabilityMs;
 		this.playEnemyAnimation(enemy, 'attack', false);
 		this.playEnemyAttackPresentation();
+		playSfx(this, 'hero-hurt');
 
 		if (this.fleeChannel.status === 'channeling') {
 			this.fleeChannel = cancelFleeChannel();
@@ -654,6 +661,7 @@ export class BattleScene extends Phaser.Scene {
 			inventory: this.inventory,
 			defeatedUnits: outcome === 'victory' ? this.defeatedUnits : []
 		};
+		playSfx(this, outcome === 'fled' ? 'flee' : outcome);
 
 		// Fleeing has no summary: hand the result straight back to the field.
 		if (outcome === 'fled') {
@@ -838,6 +846,7 @@ export class BattleScene extends Phaser.Scene {
 			...this.hero,
 			hp: Math.min(this.hero.maxHp, this.hero.hp + item.effect.amount)
 		};
+		playSfx(this, 'heal');
 		this.appendFeedEvent(
 			'heal',
 			this.hero.hp - hpBefore,

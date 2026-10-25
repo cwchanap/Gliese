@@ -33,13 +33,33 @@ describe('preferences', () => {
 			locale: 'ja',
 			textSpeed: 'instant',
 			motion: 'reduced',
-			promptMode: 'pad'
+			promptMode: 'pad',
+			sound: 'off'
 		};
 		const storage = createMemoryStorage({
 			[PREFERENCES_STORAGE_KEY]: JSON.stringify(record)
 		});
 
 		expect(loadPreferences(storage)).toEqual(record);
+	});
+
+	it('keeps sound on for a record saved before the sound toggle existed', () => {
+		const storage = createMemoryStorage({
+			[PREFERENCES_STORAGE_KEY]: JSON.stringify({
+				locale: 'ja',
+				textSpeed: 'instant',
+				motion: 'on',
+				promptMode: 'auto'
+			})
+		});
+
+		expect(loadPreferences(storage)).toEqual({
+			locale: 'ja',
+			textSpeed: 'instant',
+			motion: 'on',
+			promptMode: 'auto',
+			sound: 'on'
+		});
 	});
 
 	it('falls back to defaults (with detected locale) on malformed JSON', () => {
@@ -93,7 +113,8 @@ describe('preferences', () => {
 			locale: 'zh-Hant',
 			textSpeed: 'slow',
 			motion: 'on',
-			promptMode: 'keys'
+			promptMode: 'keys',
+			sound: 'on'
 		};
 
 		savePreferences(record, storage);

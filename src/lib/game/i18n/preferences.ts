@@ -11,24 +11,28 @@ export const PREFERENCES_STORAGE_KEY = 'gliese.preferences.v1';
 export type TextSpeed = 'slow' | 'normal' | 'instant';
 export type MotionPreference = 'on' | 'reduced';
 export type PromptMode = 'auto' | 'pad' | 'keys';
+export type SoundPreference = 'on' | 'off';
 
 export type UiPreferences = {
 	locale: Locale;
 	textSpeed: TextSpeed;
 	motion: MotionPreference;
 	promptMode: PromptMode;
+	sound: SoundPreference;
 };
 
 export const DEFAULT_PREFERENCES: UiPreferences = {
 	locale: defaultLocale,
 	textSpeed: 'normal',
 	motion: 'on',
-	promptMode: 'auto'
+	promptMode: 'auto',
+	sound: 'on'
 };
 
 const TEXT_SPEEDS: readonly TextSpeed[] = ['slow', 'normal', 'instant'];
 const MOTION_PREFERENCES: readonly MotionPreference[] = ['on', 'reduced'];
 const PROMPT_MODES: readonly PromptMode[] = ['auto', 'pad', 'keys'];
+const SOUND_PREFERENCES: readonly SoundPreference[] = ['on', 'off'];
 
 function isTextSpeed(value: unknown): value is TextSpeed {
 	return typeof value === 'string' && TEXT_SPEEDS.includes(value as TextSpeed);
@@ -42,7 +46,13 @@ function isPromptMode(value: unknown): value is PromptMode {
 	return typeof value === 'string' && PROMPT_MODES.includes(value as PromptMode);
 }
 
-function isUiPreferences(value: unknown): value is UiPreferences {
+function isSoundPreference(value: unknown): value is SoundPreference {
+	return typeof value === 'string' && SOUND_PREFERENCES.includes(value as SoundPreference);
+}
+
+function isUiPreferences(value: unknown): value is Omit<UiPreferences, 'sound'> & {
+	sound?: unknown;
+} {
 	if (typeof value !== 'object' || value === null) return false;
 	const record = value as Record<string, unknown>;
 	return (
@@ -82,7 +92,9 @@ export function loadPreferences(
 					locale: parsed.locale,
 					textSpeed: parsed.textSpeed,
 					motion: parsed.motion,
-					promptMode: parsed.promptMode
+					promptMode: parsed.promptMode,
+					// Records saved before the sound toggle existed keep sound on.
+					sound: isSoundPreference(parsed.sound) ? parsed.sound : DEFAULT_PREFERENCES.sound
 				};
 			}
 		} catch {

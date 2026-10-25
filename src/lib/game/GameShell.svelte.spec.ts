@@ -32,7 +32,13 @@ afterEach(async () => {
 	localStorage.removeItem(PREFERENCES_STORAGE_KEY);
 	// Tests that wire a failing adapter must not leak it into later specs.
 	setSaveStorage(globalThis.localStorage);
-	updatePreferences({ locale: 'en', motion: 'on', textSpeed: 'normal', promptMode: 'auto' });
+	updatePreferences({
+		locale: 'en',
+		motion: 'on',
+		textSpeed: 'normal',
+		promptMode: 'auto',
+		sound: 'on'
+	});
 	setLastInputModality('keys');
 	vi.unstubAllGlobals();
 	await page.viewport(1280, 720);
@@ -3605,11 +3611,11 @@ describe('GameShell pad layer', () => {
 			.element(system.getByRole('tablist'))
 			.toHaveAttribute('aria-orientation', 'horizontal');
 
-		// Pad: Right/Left traverse the rail cards (skipping the disabled
-		// Audio card); Down drops into the settings column below; Up returns.
+		// Pad: Right/Left traverse the rail cards; Down drops into the settings
+		// column below; Up returns.
 		document.querySelector<HTMLElement>('[data-focus-id="system-rail-display"]')?.focus();
 		await tiltAxis(0.8, 0);
-		expect(focusedFocusId()).toBe('system-rail-input');
+		expect(focusedFocusId()).toBe('system-rail-audio');
 		await tiltAxis(-0.8, 0);
 		expect(focusedFocusId()).toBe('system-rail-display');
 		await tiltAxis(0, 0.8);
@@ -3620,7 +3626,7 @@ describe('GameShell pad layer', () => {
 		// Keyboard roving follows the same axis: Right stays inside the rail,
 		// Down falls through to the lattice and into the settings rows.
 		await userEvent.keyboard('{ArrowRight}');
-		expect(focusedFocusId()).toBe('system-rail-input');
+		expect(focusedFocusId()).toBe('system-rail-audio');
 		await userEvent.keyboard('{ArrowLeft}');
 		expect(focusedFocusId()).toBe('system-rail-display');
 		await userEvent.keyboard('{ArrowDown}');

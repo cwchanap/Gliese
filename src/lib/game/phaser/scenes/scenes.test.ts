@@ -700,6 +700,7 @@ const phaserState = vi.hoisted(() => {
 		>();
 		load = {
 			image: vi.fn(),
+			audio: vi.fn(),
 			on: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
 				const listeners = this.loadListeners.get(event) ?? new Set();
 				listeners.add({ callback, once: false });

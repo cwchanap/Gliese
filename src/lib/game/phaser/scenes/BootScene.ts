@@ -29,6 +29,7 @@ import {
 	buildRegionalBackgroundRendererDiagnostic,
 	emitRegionalBackgroundRendererDiagnostic
 } from '$lib/game/phaser/renderer-diagnostics';
+import { preloadAudio } from '$lib/game/phaser/audio';
 import { resolveWorldRenderOptions } from '$lib/game/phaser/world-render-options';
 import { WorldScene } from './WorldScene';
 
@@ -148,6 +149,7 @@ export class BootScene extends Phaser.Scene {
 		this.load.image(crossroadsDressingAsset.key, crossroadsDressingAsset.path);
 		this.load.image(villageDressingAsset.key, villageDressingAsset.path);
 		this.load.image(villageHedgeAsset.key, villageHedgeAsset.path);
+		preloadAudio(this.load);
 		for (const asset of Object.values(battleBackgroundAssets)) {
 			this.load.image(asset.key, asset.path);
 		}
