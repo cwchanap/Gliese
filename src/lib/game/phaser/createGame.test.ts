@@ -4,6 +4,7 @@ const phaserState = vi.hoisted(() => {
 	const destroyMock = vi.fn();
 	const gameMock = vi.fn();
 	const registrySetMock = vi.fn();
+	const games: Array<{ sound: { mute: boolean } }> = [];
 	class SceneMock {
 		constructor(...args: unknown[]) {
 			void args;
@@ -11,19 +12,25 @@ const phaserState = vi.hoisted(() => {
 	}
 	class GameMock {
 		registry = { set: registrySetMock };
+		sound = { mute: false };
 		destroy = destroyMock;
 
 		constructor(config: unknown) {
 			gameMock(config);
+			games.push(this);
 			// Real Phaser fires callbacks.preBoot(game) before booting scenes.
 			const { callbacks } = config as {
-				callbacks?: { preBoot?: (game: GameMock) => void };
+				callbacks?: {
+					preBoot?: (game: GameMock) => void;
+					postBoot?: (game: GameMock) => void;
+				};
 			};
 			callbacks?.preBoot?.(this);
+			callbacks?.postBoot?.(this);
 		}
 	}
 
-	return { destroyMock, gameMock, registrySetMock, SceneMock, GameMock };
+	return { destroyMock, gameMock, games, registrySetMock, SceneMock, GameMock };
 });
 
 vi.mock('phaser', () => {
@@ -92,6 +99,28 @@ describe('createGame', () => {
 		instance.destroy();
 
 		expect(phaserState.destroyMock).toHaveBeenCalledWith(true);
+	}, 20_000);
+
+	it('mutes the game while the sound preference is off', async () => {
+		Object.defineProperty(globalThis, 'window', {
+			configurable: true,
+			value: {}
+		});
+		const { createGame } = await import('./createGame');
+		const { updatePreferences } = await import('$lib/game/i18n/store');
+		const instance = await createGame({ id: 'mount-node' } as HTMLElement, {
+			reason: 'new',
+			saveState: null
+		});
+		const game = phaserState.games.at(-1)!;
+
+		expect(game.sound.mute).toBe(false);
+		updatePreferences({ sound: 'off' });
+		expect(game.sound.mute).toBe(true);
+
+		instance.destroy();
+		updatePreferences({ sound: 'on' });
+		expect(game.sound.mute).toBe(true);
 	}, 20_000);
 
 	it('does not pin the WebGL drawing buffer for thumbnails', async () => {
