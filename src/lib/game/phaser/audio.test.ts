@@ -59,4 +59,13 @@ describe('phaser audio', () => {
 		setAmbience(scene, null);
 		expect(sounds[1].destroy).toHaveBeenCalledOnce();
 	});
+
+	it('stops the active loop on reset', () => {
+		const { scene, sounds } = createScene();
+		setAmbience(scene, 'amb-tunnel');
+
+		resetAmbience();
+
+		expect(sounds[0].destroy).toHaveBeenCalledOnce();
+	});
 });

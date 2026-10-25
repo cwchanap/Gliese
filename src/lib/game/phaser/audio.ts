@@ -36,7 +36,8 @@ export function setAmbience(scene: Phaser.Scene, key: AmbienceKey | null) {
 	ambience = { key, sound };
 }
 
-/** Drops the loop reference when the game (and its sound manager) is destroyed. */
+/** Stops the loop when the game is torn down; Phaser destroys its sound manager a frame later. */
 export function resetAmbience() {
+	ambience?.sound.destroy();
 	ambience = null;
 }
