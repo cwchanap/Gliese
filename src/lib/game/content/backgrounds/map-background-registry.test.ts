@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-	MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION,
-	MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE,
-	MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE
-} from './meadow-entry-painted-v2-runtime';
-import {
 	MAP_BACKGROUND_DEFAULT_SELECTIONS,
 	MAP_BACKGROUND_PACKAGE_REGISTRY
 } from './map-background-registry';
@@ -582,14 +577,9 @@ describe('map background registry', () => {
 		expect(Object.isFrozen(VILLAGE_INTERIOR_PACKAGES)).toBe(true);
 	});
 
-	it('preserves Meadow packages and defaults while keeping IDs and maps unique', () => {
-		expect(MAP_BACKGROUND_PACKAGE_REGISTRY).toEqual([
-			MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE,
-			MEADOW_ENTRY_PAINTED_V2_COMPLETE_PACKAGE,
-			...VILLAGE_INTERIOR_PACKAGES
-		]);
+	it('registers only the interior packages and defaults while keeping IDs and maps unique', () => {
+		expect(MAP_BACKGROUND_PACKAGE_REGISTRY).toEqual([...VILLAGE_INTERIOR_PACKAGES]);
 		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS).toEqual({
-			'meadow-entry': MEADOW_ENTRY_DEFAULT_PACKAGE_SELECTION,
 			'hero-house': {
 				packageId: 'hero-house-painted',
 				mode: 'production'

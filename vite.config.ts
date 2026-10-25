@@ -2,51 +2,14 @@ import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import tailwindcss from '@tailwindcss/vite';
 import { playwright } from '@vitest/browser-playwright';
-import { existsSync } from 'node:fs';
 import path from 'node:path';
 
-// Asset-byte tests that hash/decode real Git LFS-tracked PNGs, plus the
-// heavy 6400×6400 master assembly integration test (synthetic data, but
-// too CPU-intensive for core CI runners — 224s locally, 450s+ on CI).
-// Core CI checks out without LFS and has tight time budgets, so these must
-// be skipped there; they run in the Asset Integrity workflow, which fetches
-// LFS and allows longer runtimes. Gated by env var so the Asset Integrity
-// workflow (which doesn't set it) still runs them.
-const lfsAssetTestFiles = [
-	'src/lib/game/content/village-interior-assets.asset.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts',
-	'src/lib/game/content/backgrounds/meadow-entry-painted-v2-complete-assembly.test.ts'
-];
+// Asset-byte tests that hash/decode real Git LFS-tracked PNGs. Core CI
+// checks out without LFS, so these must be skipped there; they run in the
+// Asset Integrity workflow, which fetches LFS. Gated by env var so the Asset
+// Integrity workflow (which doesn't set it) still runs them.
+const lfsAssetTestFiles = ['src/lib/game/content/village-interior-assets.asset.test.ts'];
 const skipLfsAssetTests = process.env.CI_SKIP_LFS_ASSET_TESTS === '1';
-
-// These read generation source material under artifacts/, which is
-// local-only now (untracked to keep the LFS payload at the shipped public/
-// assets). Partial local leftovers (provenance JSON without the PNG/proof
-// bytes) still exist, so each suite is gated on the exact subtree it reads.
-// They run wherever their data exists — dev machines — and skip everywhere
-// else, including the Asset Integrity workflow.
-const artifactsAssetTestFilesByDataDir = [
-	{
-		dataDir: 'artifacts/meadow-entry/painted-v2/proofs',
-		testFiles: ['src/lib/game/content/backgrounds/meadow-entry-art-proofs.test.ts']
-	},
-	{
-		dataDir: 'artifacts/meadow-entry/painted-v2/source-panels',
-		testFiles: [
-			'src/lib/game/content/backgrounds/meadow-entry-painted-v2-pilot.test.ts',
-			'src/lib/game/content/backgrounds/meadow-entry-painted-v2-underlay-assembly.test.ts'
-		]
-	},
-	{
-		dataDir: 'artifacts/meadow-entry/hpa-399',
-		testFiles: ['src/lib/game/content/backgrounds/meadow-entry-art-package-validator.test.ts']
-	}
-];
-const skipArtifactsAssetTestFiles = artifactsAssetTestFilesByDataDir
-	.filter(({ dataDir }) => !existsSync(dataDir))
-	.flatMap(({ testFiles }) => testFiles);
 
 export default defineConfig({
 	plugins: [tailwindcss(), svelte()],
@@ -90,13 +53,11 @@ export default defineConfig({
 						'src/**/*.{test,spec}.{js,ts}',
 						// vitest-native and CI-safe tools specs: no LFS assets, no
 						// bun:test/node:test imports, CPU-cheap.
-						'tools/validate-heroic-ui-art.test.ts',
-						'tools/verify-meadow-entry-art-storage.test.ts'
+						'tools/validate-heroic-ui-art.test.ts'
 					],
 					exclude: [
 						'src/**/*.svelte.{test,spec}.{js,ts}',
-						...(skipLfsAssetTests ? lfsAssetTestFiles : []),
-						...skipArtifactsAssetTestFiles
+						...(skipLfsAssetTests ? lfsAssetTestFiles : [])
 					]
 				}
 			}

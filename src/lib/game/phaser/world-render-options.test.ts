@@ -9,7 +9,6 @@ import {
 describe('hasRenderOptionOverrides', () => {
 	it('detects direct-boot tooling links by render-option parameter presence', () => {
 		expect(hasRenderOptionOverrides('?movementDiagnostics=on')).toBe(true);
-		expect(hasRenderOptionOverrides('?meadowPaintedPilot=off')).toBe(true);
 		expect(hasRenderOptionOverrides('?mapBackgroundReview=hero-house-review')).toBe(true);
 		expect(hasRenderOptionOverrides('?regionalBackground=off')).toBe(true);
 		expect(
@@ -27,8 +26,6 @@ describe('world render URL options', () => {
 	it('enables regional backgrounds and disables collision debug by default', () => {
 		expect(parseWorldRenderOptions('')).toEqual({
 			regionalBackgrounds: true,
-			meadowPaintedPilot: false,
-			meadowPaintedPilotOff: false,
 			mapBackgroundReviewIds: [],
 			collisionDebug: false,
 			movementDiagnostics: false,
@@ -95,43 +92,12 @@ describe('world render URL options', () => {
 		});
 	});
 
-	it('parses exact painted Meadow on and off overrides separately', () => {
-		expect(parseWorldRenderOptions('?meadowPaintedPilot=on')).toMatchObject({
-			meadowPaintedPilot: true,
-			meadowPaintedPilotOff: false
-		});
-		expect(parseWorldRenderOptions('?meadowPaintedPilot=off')).toMatchObject({
-			meadowPaintedPilot: false,
-			meadowPaintedPilotOff: true
-		});
-
-		for (const value of ['', 'ON', 'OFF', 'true', '1']) {
-			expect(parseWorldRenderOptions(`?meadowPaintedPilot=${value}`)).toMatchObject({
-				meadowPaintedPilot: false,
-				meadowPaintedPilotOff: false
-			});
-		}
-	});
-
-	it('preserves regional-background off priority over the legacy pilot alias', () => {
-		expect(parseWorldRenderOptions('?meadowPaintedPilot=on&regionalBackground=off')).toMatchObject({
-			regionalBackgrounds: false,
-			meadowPaintedPilot: true
-		});
-	});
-
 	it('uses the first value for repeated legacy parameters', () => {
 		expect(
 			parseWorldRenderOptions('?regionalBackground=on&regionalBackground=off').regionalBackgrounds
 		).toBe(true);
 		expect(
 			parseWorldRenderOptions('?regionalBackground=off&regionalBackground=on').regionalBackgrounds
-		).toBe(false);
-		expect(
-			parseWorldRenderOptions('?meadowPaintedPilot=on&meadowPaintedPilot=off').meadowPaintedPilot
-		).toBe(true);
-		expect(
-			parseWorldRenderOptions('?meadowPaintedPilot=off&meadowPaintedPilot=on').meadowPaintedPilot
 		).toBe(false);
 		expect(
 			parseWorldRenderOptions(

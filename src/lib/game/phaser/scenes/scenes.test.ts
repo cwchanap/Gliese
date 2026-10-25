@@ -32,7 +32,6 @@ import type {
 	MapBackgroundPackageSelection
 } from '$lib/game/content/backgrounds/map-background-package';
 import { MAP_BACKGROUND_DEFAULT_SELECTIONS } from '$lib/game/content/backgrounds/map-background-registry';
-import { collectStrictCollisionRects } from '$lib/game/save/save-state';
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 import * as questRuntime from '$lib/game/core/quests';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
@@ -95,35 +94,6 @@ const villagerHouse3CollisionIds = collisionIdsOf(villagerHouse3Map);
 const villagerHouse3StatefulObjectIds = statefulObjectIdsOf(villagerHouse3Map);
 const shrineCollisionIds = collisionIdsOf(shrineOfAuroraInteriorMap);
 const shrineStatefulObjectIds = statefulObjectIdsOf(shrineOfAuroraInteriorMap);
-
-const expectedOrganicBlockerOwners = [
-	'coast-crossroads-mouth-bank',
-	'mistfen-entry-bank-east',
-	'silverpine-wall-A-east',
-	'silverpine-wall-A-west',
-	'silverpine-wall-B-north',
-	'silverpine-wall-B-south',
-	'silverpine-wall-C-east',
-	'silverpine-wall-C-west',
-	'wildwood-forest-lane-west-bank'
-] as const;
-
-const expectedOrganicBlockerBounds = {
-	'coast-crossroads-mouth-bank': { x: 3_200, y: 5_100, width: 64, height: 400 },
-	'mistfen-entry-bank-east': { x: 3_100, y: 2_850, width: 64, height: 500 },
-	'silverpine-wall-A-east': { x: 3_660, y: 2_850, width: 64, height: 300 },
-	'silverpine-wall-A-west': { x: 3_340, y: 2_850, width: 64, height: 300 },
-	'silverpine-wall-B-north': { x: 3_340, y: 2_590, width: 384, height: 64 },
-	'silverpine-wall-B-south': { x: 3_340, y: 2_910, width: 384, height: 64 },
-	'silverpine-wall-C-east': { x: 3_340, y: 2_660, width: 64, height: 240 },
-	'silverpine-wall-C-west': { x: 3_020, y: 2_660, width: 64, height: 240 },
-	'wildwood-forest-lane-west-bank': { x: 5_040, y: 4_250, width: 64, height: 2_100 }
-} as const;
-
-function expectedOrganicBlockerMarkerCount(id: keyof typeof expectedOrganicBlockerBounds) {
-	const bounds = expectedOrganicBlockerBounds[id];
-	return Math.ceil(Math.max(bounds.width, bounds.height) / 48);
-}
 
 const localeState = vi.hoisted(() => ({
 	activeLocale: 'en' as 'en' | 'ja' | 'zh-Hant'
@@ -1038,52 +1008,13 @@ function installLocationSearch(search: string) {
 	};
 }
 
-const COMPLETE_PAINTED_BACKGROUND_TARGETS = [
-	['northwest', 'meadow-entry-painted-v2-complete-northwest-base-image'] as const,
-	['northeast', 'meadow-entry-painted-v2-complete-northeast-base-image'] as const,
-	['southwest', 'meadow-entry-painted-v2-complete-southwest-base-image'] as const,
-	['southeast', 'meadow-entry-painted-v2-complete-southeast-base-image'] as const
-];
-
-const COMPLETE_PAINTED_FAULT_CASES = [
-	[
-		'missing texture',
-		(key: string) => phaserState.missingTextureKeys.add(key),
-		'missing-texture',
-		false
-	] as const,
-	[
-		'wrong dimensions',
-		(key: string) => {
-			phaserState.regionalBackgroundTextureMocks.get(key)!.source[0] = {
-				width: 1,
-				height: 1
-			};
-		},
-		'invalid-dimensions',
-		false
-	] as const,
-	['injected render failure', () => {}, 'render-failed', true] as const
-];
-
-const COMPLETE_PAINTED_FAULT_MATRIX = COMPLETE_PAINTED_BACKGROUND_TARGETS.flatMap(
-	([targetLabel, targetId]) =>
-		COMPLETE_PAINTED_FAULT_CASES.map(
-			([faultLabel, arrange, status, fault]) =>
-				[targetLabel, targetId, faultLabel, arrange, status, fault] as const
-		)
-);
-
 describe('BootScene', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
 
 	it('uses the generic map-keyed default registry for approved maps', () => {
-		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['meadow-entry']).toEqual({
-			packageId: 'meadow-entry-painted-v2-complete',
-			mode: 'production'
-		});
+		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['meadow-entry']).toBeUndefined();
 		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['hero-house']).toEqual({
 			packageId: 'hero-house-painted',
 			mode: 'production'
@@ -1179,29 +1110,10 @@ describe('BootScene', () => {
 		}
 	});
 
-	it('does not preload regional backgrounds when the painted default is explicitly off', async () => {
-		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
-		const { BootScene } = await import('./BootScene');
-		const scene = new BootScene();
-
-		try {
-			scene.preload();
-
-			expect(scene.load.image).not.toHaveBeenCalledWith(
-				expect.anything(),
-				expect.stringContaining('/game/assets/regions/')
-			);
-		} finally {
-			restoreLocation();
-		}
-	});
-
-	it('preloads the complete Meadow package by default and emits exact renderer evidence', async () => {
+	it('preloads only the interior packages by default and emits exact renderer evidence', async () => {
 		const restoreLocation = installLocationSearch('');
 		const target = installHudCommandTarget();
 		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
-		const { MEADOW_ENTRY_PAINTED_MODE_COMPLETE } =
-			await import('$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime');
 		const { VILLAGE_INTERIOR_PACKAGES } =
 			await import('$lib/game/content/backgrounds/village-interior-packages');
 		const interiorPackages = VILLAGE_INTERIOR_PACKAGES;
@@ -1217,19 +1129,14 @@ describe('BootScene', () => {
 		try {
 			scene.preload();
 
-			const regionalCalls = vi
-				.mocked(scene.load.image)
-				.mock.calls.filter(([, path]) => String(path).includes('/game/assets/regions/'));
-			expect(regionalCalls).toEqual(
-				MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key, path }) => [key, path])
+			expect(scene.load.image).not.toHaveBeenCalledWith(
+				expect.anything(),
+				expect.stringContaining('/game/assets/regions/')
 			);
 			const interiorCalls = vi
 				.mocked(scene.load.image)
 				.mock.calls.filter(([, path]) => String(path).includes('/game/assets/interiors/'));
 			expect(interiorCalls).toEqual(interiorAssets.map(({ key, path }) => [key, path]));
-			for (const asset of MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets) {
-				scene.load.emit('filecomplete', asset.key, 'image', {});
-			}
 			for (const asset of interiorAssets) {
 				scene.load.emit('filecomplete', asset.key, 'image', {});
 			}
@@ -1238,15 +1145,9 @@ describe('BootScene', () => {
 			expect(diagnostics).toEqual([
 				{
 					renderer: 'webgl',
-					packageIds: [...interiorPackageIds, 'meadow-entry-painted-v2-complete'].sort(),
-					requiredAssetKeys: [
-						...MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key),
-						...interiorAssets.map(({ key }) => key)
-					].sort(),
-					completedAssetKeys: [
-						...MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key),
-						...interiorAssets.map(({ key }) => key)
-					].sort(),
+					packageIds: [...interiorPackageIds].sort(),
+					requiredAssetKeys: interiorAssets.map(({ key }) => key).sort(),
+					completedAssetKeys: interiorAssets.map(({ key }) => key).sort(),
 					maxTextureSize: 4096,
 					regionalBackgroundLoadMs: expect.any(Number)
 				}
@@ -1257,70 +1158,8 @@ describe('BootScene', () => {
 		}
 	});
 
-	it('preloads each complete Meadow texture exactly once for the exact review query', async () => {
-		const restoreLocation = installLocationSearch(
-			'?mapBackgroundReview=meadow-entry-painted-v2-complete'
-		);
-		const { MEADOW_ENTRY_PAINTED_MODE_COMPLETE } =
-			await import('$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime');
-		const { VILLAGE_INTERIOR_PACKAGES } =
-			await import('$lib/game/content/backgrounds/village-interior-packages');
-		const interiorPackages = VILLAGE_INTERIOR_PACKAGES;
-		const interiorAssets = interiorPackages.flatMap(({ assets }) => assets);
-		const interiorPackageIds = interiorPackages.map(({ id }) => id);
-		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
-			await import('$lib/game/phaser/renderer-diagnostics');
-		const target = installHudCommandTarget();
-		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
-		target.target.addEventListener(REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT, (event) => {
-			diagnostics.push((event as CustomEvent<RegionalBackgroundRendererDiagnostic>).detail);
-		});
-		const { BootScene } = await import('./BootScene');
-		const scene = new BootScene();
-
-		try {
-			scene.preload();
-
-			const regionalCalls = vi
-				.mocked(scene.load.image)
-				.mock.calls.filter(([, path]) => String(path).includes('/game/assets/regions/'));
-			expect(regionalCalls).toEqual(
-				MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key, path }) => [key, path])
-			);
-			expect(new Set(regionalCalls.map(([key]) => key)).size).toBe(4);
-			const interiorCalls = vi
-				.mocked(scene.load.image)
-				.mock.calls.filter(([, path]) => String(path).includes('/game/assets/interiors/'));
-			expect(interiorCalls).toEqual(interiorAssets.map(({ key, path }) => [key, path]));
-			expect(new Set(interiorCalls.map(([key]) => key)).size).toBe(interiorAssets.length);
-
-			for (const asset of MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets) {
-				scene.load.emit('filecomplete', asset.key, 'image', {});
-			}
-			for (const asset of interiorAssets) {
-				scene.load.emit('filecomplete', asset.key, 'image', {});
-			}
-			scene.load.emit('complete');
-
-			expect(diagnostics[0]).toMatchObject({
-				packageIds: [...interiorPackageIds, 'meadow-entry-painted-v2-complete'].sort(),
-				requiredAssetKeys: [
-					...MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key),
-					...interiorAssets.map(({ key }) => key)
-				].sort(),
-				completedAssetKeys: [
-					...MEADOW_ENTRY_PAINTED_MODE_COMPLETE.assets.map(({ key }) => key),
-					...interiorAssets.map(({ key }) => key)
-				].sort()
-			});
-		} finally {
-			target.restore();
-			restoreLocation();
-		}
-	});
-
-	it('gives regional-background off priority over pilot preload and emits a deliberate zero completion', async () => {
-		const restoreLocation = installLocationSearch('?meadowPaintedPilot=on&regionalBackground=off');
+	it('emits a deliberate zero completion when regional backgrounds are off', async () => {
+		const restoreLocation = installLocationSearch('?regionalBackground=off');
 		const target = installHudCommandTarget();
 		const diagnostics: RegionalBackgroundRendererDiagnostic[] = [];
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
@@ -1332,12 +1171,7 @@ describe('BootScene', () => {
 
 		try {
 			scene.preload();
-			scene.load.emit(
-				'filecomplete',
-				'meadow-entry-painted-v2-crossroads-camera-base',
-				'image',
-				{}
-			);
+			scene.load.emit('filecomplete', 'hero-house-painted-base', 'image', {});
 			scene.load.emit('complete');
 
 			expect(scene.load.image).not.toHaveBeenCalledWith(
@@ -1357,7 +1191,7 @@ describe('BootScene', () => {
 	});
 
 	it('emits WebGL renderer evidence with one maximum-texture-size query', async () => {
-		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
+		const restoreLocation = installLocationSearch('?regionalBackground=off');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
@@ -1394,7 +1228,7 @@ describe('BootScene', () => {
 	});
 
 	it('reports null maxTextureSize when the WebGL query throws', async () => {
-		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
+		const restoreLocation = installLocationSearch('?regionalBackground=off');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
@@ -1433,7 +1267,7 @@ describe('BootScene', () => {
 	});
 
 	it('reports Canvas with no texture limit without touching WebGL', async () => {
-		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
+		const restoreLocation = installLocationSearch('?regionalBackground=off');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
@@ -1471,7 +1305,7 @@ describe('BootScene', () => {
 	});
 
 	it('reports zero regional completions when the catalog is empty', async () => {
-		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
+		const restoreLocation = installLocationSearch('?regionalBackground=off');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
@@ -1534,7 +1368,7 @@ describe('BootScene', () => {
 	});
 
 	it('keeps regional timing null when no active background fails', async () => {
-		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
+		const restoreLocation = installLocationSearch('?regionalBackground=off');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
 		const { BootScene } = await import('./BootScene');
@@ -1563,7 +1397,7 @@ describe('BootScene', () => {
 	});
 
 	it('reports null timing and zero completions when no regional background is registered', async () => {
-		const restoreLocation = installLocationSearch('?meadowPaintedPilot=off');
+		const restoreLocation = installLocationSearch('?regionalBackground=off');
 		const assetsModule = await import('$lib/game/content/assets');
 		const { REGIONAL_BACKGROUND_RENDERER_DIAGNOSTIC_EVENT } =
 			await import('$lib/game/phaser/renderer-diagnostics');
@@ -3600,81 +3434,6 @@ describe('WorldScene', () => {
 		return { ...target, diagnostics };
 	}
 
-	async function registerPaintedPilotBackgroundMocks() {
-		const { MEADOW_ENTRY_PAINTED_MODE_PILOT } =
-			await import('$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime');
-		for (const background of MEADOW_ENTRY_PAINTED_MODE_PILOT.backgrounds) {
-			phaserState.regionalBackgroundTextureMocks.set(background.textureKey, {
-				key: background.textureKey,
-				source: [{ width: background.width, height: background.height }],
-				get: vi.fn(() => ({ cutWidth: background.width, cutHeight: background.height }))
-			});
-		}
-		return MEADOW_ENTRY_PAINTED_MODE_PILOT;
-	}
-
-	async function registerCompletePaintedBackgroundMocks() {
-		const { MEADOW_ENTRY_PAINTED_MODE_COMPLETE } =
-			await import('$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime');
-		for (const background of MEADOW_ENTRY_PAINTED_MODE_COMPLETE.backgrounds) {
-			phaserState.regionalBackgroundTextureMocks.set(background.textureKey, {
-				key: background.textureKey,
-				source: [{ width: background.width, height: background.height }],
-				get: vi.fn(() => ({ cutWidth: background.width, cutHeight: background.height }))
-			});
-		}
-		return MEADOW_ENTRY_PAINTED_MODE_COMPLETE;
-	}
-
-	function findPaintedFallbackMarkers(id: string) {
-		if (id in expectedOrganicBlockerBounds) {
-			const bounds = expectedOrganicBlockerBounds[id as keyof typeof expectedOrganicBlockerBounds];
-			const isHorizontal = bounds.width >= bounds.height;
-			const tileCount = expectedOrganicBlockerMarkerCount(
-				id as keyof typeof expectedOrganicBlockerBounds
-			);
-			const firstOffset = -((tileCount - 1) * 48) / 2;
-			const expectedCenters = Array.from({ length: tileCount }, (_, index) => {
-				const offset = firstOffset + index * 48;
-				return {
-					x: bounds.x + (isHorizontal ? offset : 0),
-					y: bounds.y + (isHorizontal ? 0 : offset)
-				};
-			});
-
-			return phaserState.imageMarkers.filter(
-				(marker) =>
-					marker.texture === forestDressingAsset.key &&
-					marker.frame === 'treeCluster' &&
-					expectedCenters.some(({ x, y }) => marker.x === x && marker.y === y)
-			);
-		}
-
-		const markerBounds: Record<string, { x: number; y: number; texture: string; frame: string }> = {
-			'village-decor-28-25': {
-				x: 1_072,
-				y: 4_880,
-				texture: 'village-dressing',
-				frame: 'poleLantern'
-			},
-			'village-decor-22-77': {
-				x: 2_736,
-				y: 4_688,
-				texture: 'village-dressing',
-				frame: 'gateArch'
-			}
-		};
-		const bounds = markerBounds[id];
-		if (!bounds) throw new Error(`Unknown painted fallback marker: ${id}`);
-		return phaserState.imageMarkers.filter(
-			(marker) =>
-				marker.texture === bounds.texture &&
-				marker.frame === bounds.frame &&
-				marker.y === bounds.y &&
-				marker.x === bounds.x
-		);
-	}
-
 	function registerAreaMapRevealTestMap() {
 		maps['area-map-reveal-test'] = {
 			id: 'area-map-reveal-test',
@@ -5696,534 +5455,6 @@ describe('WorldScene', () => {
 			target.restore();
 		}
 	});
-
-	it('uses the complete package by default for the active Meadow Entry map', async () => {
-		const restoreLocation = installLocationSearch('');
-		const target = installPlaneDiagnosticListener();
-		const selection = await registerCompletePaintedBackgroundMocks();
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		try {
-			scene.create({ mapId: meadowEntryMap.id });
-
-			expect(meadowEntryMap.backgroundImages ?? []).toEqual([]);
-			expect(target.diagnostics).toHaveLength(1);
-			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
-				'rendered',
-				'rendered',
-				'rendered',
-				'rendered'
-			]);
-			expect(target.diagnostics[0]).toMatchObject({
-				paintedMode: 'complete',
-				packageId: 'meadow-entry-painted-v2-complete',
-				requiredBackgroundIds: selection.backgrounds.map(({ id }) => id),
-				selectedBackgroundIds: selection.backgrounds.map(({ id }) => id),
-				successfulBackgroundIds: selection.backgrounds.map(({ id }) => id).sort(),
-				presentationMode: 'painted'
-			});
-			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
-			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([]);
-			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([]);
-		} finally {
-			restoreLocation();
-			target.restore();
-		}
-	});
-
-	it('resolves explicit painted opt-in descriptors while preserving historical partial ownership', async () => {
-		const restoreLocation = installLocationSearch('?meadowPaintedPilot=on');
-		const target = installPlaneDiagnosticListener();
-		const selection = await registerPaintedPilotBackgroundMocks();
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		try {
-			scene.create({ mapId: meadowEntryMap.id });
-
-			expect(
-				phaserState.imageMarkers
-					.filter((marker) =>
-						selection.backgrounds.some(({ textureKey }) => textureKey === marker.texture)
-					)
-					.map((marker) => marker.texture)
-			).toEqual(selection.backgrounds.map(({ textureKey }) => textureKey));
-			expect(target.diagnostics[0]?.paintedMode).toBe('pilot');
-			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
-				'rendered',
-				'rendered'
-			]);
-			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual(
-				selection.backgrounds.map(({ id }) => id).sort()
-			);
-			expect(target.diagnostics[0]).toMatchObject({
-				packageId: 'meadow-entry-painted-v2-legacy',
-				requiredBackgroundIds: selection.backgrounds.map(({ id }) => id),
-				selectedBackgroundIds: selection.backgrounds.map(({ id }) => id),
-				presentationMode: 'painted'
-			});
-			for (const sourceId of expectedOrganicBlockerOwners) {
-				expect(findPaintedFallbackMarkers(sourceId)).toHaveLength(0);
-			}
-			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
-			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([]);
-			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([]);
-			expect(findPaintedFallbackMarkers('village-decor-28-25')).toHaveLength(0);
-			expect(findPaintedFallbackMarkers('village-decor-22-77')).toHaveLength(0);
-			expect(phaserState.imageMarkers).toEqual(
-				expect.arrayContaining([
-					expect.objectContaining({
-						x: 704,
-						y: 5_712,
-						texture: 'village-buildings',
-						frame: 'heroHouse'
-					})
-				])
-			);
-			expect(
-				phaserState.imageMarkers.filter(
-					({ x, y, texture, frame }) =>
-						x === 3_040 && y === 4_544 && texture === 'village-dressing' && frame === 'poleLantern'
-				)
-			).toHaveLength(1);
-			expect(
-				phaserState.imageMarkers.filter(
-					({ x, y, texture, frame }) =>
-						x === 5_280 &&
-						y === 4_420 &&
-						texture === forestDressingAsset.key &&
-						frame === 'treeCluster'
-				)
-			).toHaveLength(1);
-			expect(
-				phaserState.tileSpriteMarkers.filter(
-					({ x, y, width, height, frame }) =>
-						x === 5_520 && y === 4_420 && width === 520 && height === 360 && frame === 'forestFloor'
-				)
-			).toHaveLength(1);
-			expect(
-				phaserState.imageMarkers.filter(
-					({ texture, frame }) => texture === fenceDressingAsset.key && frame === 'verticalFence'
-				)
-			).not.toHaveLength(0);
-			const strictCollisionRects = collectStrictCollisionRects(meadowEntryMap);
-			for (const sourceId of expectedOrganicBlockerOwners) {
-				expect(strictCollisionRects).toEqual(
-					expect.arrayContaining([expect.objectContaining(expectedOrganicBlockerBounds[sourceId])])
-				);
-			}
-		} finally {
-			target.restore();
-			restoreLocation();
-		}
-	});
-
-	it('renders the complete package with no legacy static presentation overlays', async () => {
-		const restoreLocation = installLocationSearch(
-			'?mapBackgroundReview=meadow-entry-painted-v2-complete'
-		);
-		const target = installPlaneDiagnosticListener();
-		const selection = await registerCompletePaintedBackgroundMocks();
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		try {
-			scene.create({ mapId: meadowEntryMap.id });
-
-			expect(
-				phaserState.imageMarkers.filter(
-					(marker) =>
-						selection.backgrounds.some(({ textureKey }) => textureKey === marker.texture) &&
-						marker.destroy.mock.calls.length === 0
-				)
-			).toHaveLength(4);
-			expect(scene.make.tilemap).not.toHaveBeenCalled();
-			expect(
-				phaserState.imageMarkers.filter((marker) =>
-					[
-						forestDressingAsset.key,
-						fenceDressingAsset.key,
-						'interior-props',
-						'village-dressing',
-						'village-hedge'
-					].includes(marker.texture)
-				)
-			).toEqual([]);
-			expect(phaserState.tileSpriteMarkers).toEqual([]);
-			expect(phaserState.playerMarker).toMatchObject({
-				x: meadowEntryMap.spawn.x,
-				y: meadowEntryMap.spawn.y
-			});
-			expect(phaserState.enemyMarkers).toHaveLength(
-				openingView(meadowEntryMap).encounters?.length ?? 0
-			);
-			expect(target.diagnostics[0]).toMatchObject({
-				paintedMode: 'complete',
-				packageId: 'meadow-entry-painted-v2-complete',
-				presentationMode: 'painted',
-				requiredBackgroundIds: selection.backgrounds.map(({ id }) => id),
-				selectedBackgroundIds: selection.backgrounds.map(({ id }) => id),
-				successfulBackgroundIds: selection.backgrounds.map(({ id }) => id).sort(),
-				selectedFallbackBlockerIds: [],
-				selectedFallbackDecorIds: [],
-				selectedFallbackFenceIds: []
-			});
-		} finally {
-			target.restore();
-			restoreLocation();
-		}
-	});
-
-	it.each(COMPLETE_PAINTED_FAULT_MATRIX)(
-		'restores every complete static collection when the %s texture has a %s',
-		async (_targetLabel, targetId, _faultLabel, arrange, status, fault) => {
-			const restoreLocation = installLocationSearch(
-				fault
-					? `?mapBackgroundReview=meadow-entry-painted-v2-complete&regionalBackgroundFault=${targetId}:render`
-					: '?mapBackgroundReview=meadow-entry-painted-v2-complete'
-			);
-			const selection = await registerCompletePaintedBackgroundMocks();
-			const targetTexture = selection.backgrounds.find(({ id }) => id === targetId)!.textureKey;
-			arrange(targetTexture);
-			const target = installPlaneDiagnosticListener();
-			const { meadowEntryMap } = await import('$lib/game/content/maps');
-			const { WorldScene } = await import('./WorldScene');
-			const scene = new WorldScene();
-
-			try {
-				scene.create({ mapId: meadowEntryMap.id });
-
-				expect(
-					phaserState.imageMarkers.filter(
-						(marker) =>
-							selection.backgrounds.some(({ textureKey }) => textureKey === marker.texture) &&
-							marker.destroy.mock.calls.length === 0
-					)
-				).toHaveLength(0);
-				expect(scene.make.tilemap).toHaveBeenCalledOnce();
-				expect(findPaintedFallbackMarkers('village-decor-28-25')).toHaveLength(1);
-				for (const sourceId of expectedOrganicBlockerOwners) {
-					expect(findPaintedFallbackMarkers(sourceId), sourceId).toHaveLength(
-						expectedOrganicBlockerMarkerCount(sourceId)
-					);
-				}
-				expect(phaserState.enemyMarkers).toHaveLength(
-					openingView(meadowEntryMap).encounters?.length ?? 0
-				);
-				expect(target.diagnostics[0]?.paintedMode).toBe('complete');
-				expect(target.diagnostics[0]?.entries.find(({ id }) => id === targetId)?.status).toBe(
-					status
-				);
-				expect(
-					target.diagnostics[0]?.entries.filter(({ status: entryStatus }) => entryStatus === status)
-				).toHaveLength(1);
-				expect(target.diagnostics[0]).toMatchObject({
-					packageId: null,
-					selectedBackgroundIds: [],
-					presentationMode: 'fallback',
-					successfulBackgroundIds: []
-				});
-				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual(
-					expect.arrayContaining([...expectedOrganicBlockerOwners])
-				);
-				expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual(
-					expect.arrayContaining(['village-decor-28-25'])
-				);
-				expect(target.diagnostics[0]?.selectedFallbackFenceIds.length).toBeGreaterThan(0);
-			} finally {
-				target.restore();
-				restoreLocation();
-			}
-		}
-	);
-
-	it('keeps non-Meadow maps on the registry source while pilot mode is enabled', async () => {
-		registerSceneSupportTestMap();
-		const restoreLocation = installLocationSearch('?meadowPaintedPilot=on');
-		const target = installPlaneDiagnosticListener();
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		try {
-			scene.create({ mapId: 'scene-support-test' });
-
-			expect(target.diagnostics[0]).toMatchObject({
-				mapId: 'scene-support-test',
-				paintedMode: 'pilot',
-				entries: [],
-				successfulBackgroundIds: []
-			});
-		} finally {
-			target.restore();
-			restoreLocation();
-		}
-	});
-
-	it.each([
-		[
-			'missing texture',
-			(key: string) => phaserState.missingTextureKeys.add(key),
-			'missing-texture',
-			false
-		],
-		[
-			'wrong dimensions',
-			(key: string) => {
-				phaserState.regionalBackgroundTextureMocks.get(key)!.source[0] = {
-					width: 1,
-					height: 1
-				};
-			},
-			'invalid-dimensions',
-			false
-		],
-		['injected render failure', () => {}, 'render-failed', true]
-	] as const)(
-		'restores the complete static overlay when the Crossroads plane has a pilot %s',
-		async (_label, arrange, status, fault) => {
-			const selection = await registerPaintedPilotBackgroundMocks();
-			const crossroads = selection.backgrounds.find((background) =>
-				background.id.includes('crossroads-camera-base-image')
-			)!;
-			const search = fault
-				? `?meadowPaintedPilot=on&mapDebug=collision&regionalBackgroundFault=${crossroads.id}:render`
-				: '?meadowPaintedPilot=on&mapDebug=collision';
-			const restoreLocation = installLocationSearch(search);
-			arrange(crossroads.textureKey);
-			const target = installPlaneDiagnosticListener();
-			const { meadowEntryMap } = await import('$lib/game/content/maps');
-			const { WorldScene } = await import('./WorldScene');
-			const scene = new WorldScene();
-
-			try {
-				scene.create({ mapId: meadowEntryMap.id });
-
-				for (const sourceId of expectedOrganicBlockerOwners) {
-					expect(findPaintedFallbackMarkers(sourceId), sourceId).toHaveLength(
-						expectedOrganicBlockerMarkerCount(sourceId)
-					);
-				}
-				expect(target.diagnostics[0]?.paintedMode).toBe('pilot');
-				expect(target.diagnostics[0]?.entries.find(({ id }) => id === crossroads.id)?.status).toBe(
-					status
-				);
-				expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
-					'rendered',
-					status
-				]);
-				expect(target.diagnostics[0]).toMatchObject({
-					packageId: null,
-					selectedBackgroundIds: [],
-					presentationMode: 'fallback',
-					successfulBackgroundIds: []
-				});
-				const packageMarkers = phaserState.imageMarkers.filter((marker) =>
-					selection.backgrounds.some(({ textureKey }) => textureKey === marker.texture)
-				);
-				expect(packageMarkers.length).toBeGreaterThan(0);
-				expect(packageMarkers.every((marker) => marker.destroy.mock.calls.length > 0)).toBe(true);
-				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual(
-					expect.arrayContaining([...expectedOrganicBlockerOwners])
-				);
-				expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual(
-					expect.arrayContaining([
-						'village-decor-28-25',
-						'wildwood-threshold-floor',
-						'wildwood-threshold-tree-wall-west'
-					])
-				);
-				expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual(
-					expect.arrayContaining([
-						'coast-approach-west-fence',
-						'coast-approach-east-fence',
-						'coast-fork-east-field-fence'
-					])
-				);
-				expect(phaserState.imageMarkers).toEqual(
-					expect.arrayContaining([
-						expect.objectContaining({
-							x: 3_040,
-							y: 4_544,
-							texture: 'village-dressing',
-							frame: 'poleLantern'
-						}),
-						expect.objectContaining({
-							x: 5_280,
-							y: 4_420,
-							texture: forestDressingAsset.key,
-							frame: 'treeCluster'
-						})
-					])
-				);
-				expect(phaserState.tileSpriteMarkers).toEqual(
-					expect.arrayContaining([
-						expect.objectContaining({
-							x: 5_520,
-							y: 4_420,
-							width: 520,
-							height: 360,
-							frame: 'forestFloor'
-						})
-					])
-				);
-				expect(phaserState.graphicsMarkers[0]?.commands).toContainEqual({
-					kind: 'fillRect',
-					x: 3_136,
-					y: 2_866,
-					width: 408,
-					height: 88,
-					color: 0xff3355,
-					alpha: 0.18
-				});
-				const playerLeftOfBlocker = meadowEntryMap.blockers?.find(
-					({ id }) => id === 'silverpine-wall-B-south'
-				);
-				expect(playerLeftOfBlocker).toBeDefined();
-				Object.assign(phaserState.playerMarker, {
-					x: playerLeftOfBlocker!.x - playerLeftOfBlocker!.width / 2 - PLAYER_COLLISION_RADIUS - 1,
-					y: playerLeftOfBlocker!.y
-				});
-				phaserState.cursorKeys.right.isDown = true;
-				scene.update(0, 1_000);
-				expect(phaserState.playerMarker.x).toBe(
-					playerLeftOfBlocker!.x - playerLeftOfBlocker!.width / 2 - PLAYER_COLLISION_RADIUS - 1
-				);
-			} finally {
-				target.restore();
-				restoreLocation();
-			}
-		}
-	);
-
-	it.each([
-		[
-			'missing texture',
-			(key: string) => phaserState.missingTextureKeys.add(key),
-			'missing-texture',
-			false
-		],
-		[
-			'wrong dimensions',
-			(key: string) => {
-				phaserState.regionalBackgroundTextureMocks.get(key)!.source[0] = {
-					width: 1,
-					height: 1
-				};
-			},
-			'invalid-dimensions',
-			false
-		],
-		['injected render failure', () => {}, 'render-failed', true]
-	] as const)(
-		'restores the complete static overlay when the Sundrop plane has a pilot %s',
-		async (_label, arrange, status, fault) => {
-			const selection = await registerPaintedPilotBackgroundMocks();
-			const sundrop = selection.backgrounds.find((background) =>
-				background.id.includes('sundrop-camera-base-image')
-			)!;
-			const search = fault
-				? `?meadowPaintedPilot=on&regionalBackgroundFault=${sundrop.id}:render`
-				: '?meadowPaintedPilot=on';
-			const restoreLocation = installLocationSearch(search);
-			arrange(sundrop.textureKey);
-			const target = installPlaneDiagnosticListener();
-			const { meadowEntryMap } = await import('$lib/game/content/maps');
-			const { WorldScene } = await import('./WorldScene');
-			const scene = new WorldScene();
-
-			try {
-				scene.create({ mapId: meadowEntryMap.id });
-
-				expect(findPaintedFallbackMarkers('village-decor-28-25')).toHaveLength(1);
-				for (const sourceId of expectedOrganicBlockerOwners) {
-					expect(findPaintedFallbackMarkers(sourceId), sourceId).toHaveLength(
-						expectedOrganicBlockerMarkerCount(sourceId)
-					);
-				}
-				expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual(
-					expect.arrayContaining([...expectedOrganicBlockerOwners])
-				);
-				expect(target.diagnostics[0]?.paintedMode).toBe('pilot');
-				expect(target.diagnostics[0]?.entries.find(({ id }) => id === sundrop.id)?.status).toBe(
-					status
-				);
-				expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
-					status,
-					'rendered'
-				]);
-				expect(target.diagnostics[0]).toMatchObject({
-					packageId: null,
-					selectedBackgroundIds: [],
-					presentationMode: 'fallback',
-					successfulBackgroundIds: []
-				});
-				const packageMarkers = phaserState.imageMarkers.filter((marker) =>
-					selection.backgrounds.some(({ textureKey }) => textureKey === marker.texture)
-				);
-				expect(packageMarkers.length).toBeGreaterThan(0);
-				expect(packageMarkers.every((marker) => marker.destroy.mock.calls.length > 0)).toBe(true);
-				expect(target.diagnostics[0]?.selectedFallbackDecorIds).toContain('village-decor-28-25');
-				expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual(
-					expect.arrayContaining(['wildwood-threshold-floor', 'wildwood-threshold-tree-wall-west'])
-				);
-				expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual(
-					expect.arrayContaining([
-						'coast-approach-west-fence',
-						'coast-approach-east-fence',
-						'coast-fork-east-field-fence'
-					])
-				);
-			} finally {
-				target.restore();
-				restoreLocation();
-			}
-		}
-	);
-
-	it.each([
-		['Crossroads crop succeeds', ['meadow-entry-painted-v2-sundrop-camera-base'], 1],
-		['Sundrop crop succeeds', ['meadow-entry-painted-v2-crossroads-camera-base'], 1],
-		[
-			'both overlap crops fail',
-			[
-				'meadow-entry-painted-v2-sundrop-camera-base',
-				'meadow-entry-painted-v2-crossroads-camera-base'
-			],
-			1
-		]
-	] as const)(
-		'restores all static overlays when any pilot crop is unavailable: %s',
-		async (_label, missingKeys, expectedCount) => {
-			await registerPaintedPilotBackgroundMocks();
-			for (const key of missingKeys) phaserState.missingTextureKeys.add(key);
-			const restoreLocation = installLocationSearch('?meadowPaintedPilot=on');
-			const target = installPlaneDiagnosticListener();
-			const { meadowEntryMap } = await import('$lib/game/content/maps');
-			const { WorldScene } = await import('./WorldScene');
-			const scene = new WorldScene();
-
-			try {
-				scene.create({ mapId: meadowEntryMap.id });
-
-				expect(findPaintedFallbackMarkers('village-decor-22-77')).toHaveLength(expectedCount);
-				expect(target.diagnostics[0]?.paintedMode).toBe('pilot');
-				if (expectedCount === 1) {
-					expect(target.diagnostics[0]?.selectedFallbackDecorIds).toContain('village-decor-22-77');
-				} else {
-					expect(target.diagnostics[0]?.selectedFallbackDecorIds).not.toContain(
-						'village-decor-22-77'
-					);
-				}
-			} finally {
-				target.restore();
-				restoreLocation();
-			}
-		}
-	);
 
 	it('suppresses static foreground decor for a selected full-map package', async () => {
 		registerSceneSupportTestMap();

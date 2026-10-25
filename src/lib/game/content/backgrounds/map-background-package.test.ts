@@ -50,8 +50,7 @@ const heroHouseInput: ResolveMapBackgroundPackageInput = {
 	mapId: 'hero-house',
 	regionalBackgrounds: true,
 	reviewPackageIds: ['hero-house-review'],
-	defaultSelection: null,
-	forcedFallback: false
+	defaultSelection: null
 };
 
 describe('map background package registry', () => {
@@ -67,15 +66,6 @@ describe('map background package registry', () => {
 			resolveMapBackgroundPackageSelection(registry, {
 				...heroHouseInput,
 				regionalBackgrounds: false
-			})
-		).toEqual({ mode: 'fallback', definition: null });
-	});
-
-	it('gives forced fallback priority over every package request', () => {
-		expect(
-			resolveMapBackgroundPackageSelection(registry, {
-				...heroHouseInput,
-				forcedFallback: true
 			})
 		).toEqual({ mode: 'fallback', definition: null });
 	});

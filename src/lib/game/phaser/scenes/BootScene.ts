@@ -19,7 +19,6 @@ import {
 	villageHedgeAsset
 } from '$lib/game/content/assets';
 import { maps } from '$lib/game/content/maps';
-import { MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 import {
 	MAP_BACKGROUND_DEFAULT_SELECTIONS,
 	MAP_BACKGROUND_PACKAGE_REGISTRY
@@ -73,17 +72,13 @@ export class BootScene extends Phaser.Scene {
 		// Playwright e2e suite (`installRegionalBackgroundDiagnosticListener`
 		// in `tests/e2e/game.e2e.ts`).
 		const renderOptions = resolveWorldRenderOptions();
-		const reviewPackageIds = renderOptions.meadowPaintedPilot
-			? [MEADOW_ENTRY_PAINTED_V2_LEGACY_PACKAGE_ID, ...renderOptions.mapBackgroundReviewIds]
-			: renderOptions.mapBackgroundReviewIds;
 		const selectedPackages = selectedMapBackgroundPackagesForPreload(
 			MAP_BACKGROUND_PACKAGE_REGISTRY,
 			Object.values(maps).map((map) => ({
 				mapId: map.id,
 				regionalBackgrounds: renderOptions.regionalBackgrounds,
-				reviewPackageIds,
-				defaultSelection: MAP_BACKGROUND_DEFAULT_SELECTIONS[map.id] ?? null,
-				forcedFallback: renderOptions.meadowPaintedPilotOff
+				reviewPackageIds: renderOptions.mapBackgroundReviewIds,
+				defaultSelection: MAP_BACKGROUND_DEFAULT_SELECTIONS[map.id] ?? null
 			}))
 		);
 		const selectedPackageIds = selectedPackages.map(({ id }) => id);

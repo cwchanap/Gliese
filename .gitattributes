@@ -1,3 +1,1 @@
-public/game/assets/regions/meadow-entry-painted-v2/**/*.png filter=lfs diff=lfs merge=lfs -text
-public/game/assets/regions/meadow-entry/**/*.png filter=lfs diff=lfs merge=lfs -text
 public/game/assets/interiors/**/*.png filter=lfs diff=lfs merge=lfs -text

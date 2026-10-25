@@ -51,7 +51,6 @@ export interface ResolveMapBackgroundPackageInput {
 		readonly packageId: string;
 		readonly mode: 'review' | 'production';
 	} | null;
-	readonly forcedFallback: boolean;
 }
 
 const PACKAGE_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -198,7 +197,6 @@ export function resolveMapBackgroundPackageSelection(
 		typeof input.mapId !== 'string' ||
 		input.mapId.length === 0 ||
 		!Array.isArray(input.reviewPackageIds) ||
-		input.forcedFallback ||
 		!input.regionalBackgrounds
 	) {
 		return fallbackSelection();
