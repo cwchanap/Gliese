@@ -1,5 +1,4 @@
 import type { MapBackgroundPlane } from '$lib/game/content/maps/types';
-import type { MeadowEntryPaintedMode } from '$lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 
 export const REGIONAL_BACKGROUND_PLANE_RENDER_DIAGNOSTIC_EVENT =
 	'gliese:regional-background-plane-render-diagnostic';
@@ -32,8 +31,6 @@ export interface RegionalBackgroundPlaneRenderDiagnosticEntry {
 export interface RegionalBackgroundPlaneRenderDiagnostic {
 	mapId: string;
 	regionalBackgroundsEnabled: boolean;
-	/** @deprecated Compatibility evidence for existing Meadow probes. */
-	paintedMode?: MeadowEntryPaintedMode;
 	packageId: string | null;
 	requiredBackgroundIds: readonly string[];
 	selectedBackgroundIds: readonly string[];

@@ -41,13 +41,6 @@ Story prose, beat metadata, or story-referenced content IDs:
 bun run story:check
 ```
 
-Meadow Entry controls or art package:
-
-```sh
-bun run art:validate:meadow-entry-controls
-bun run art:validate:meadow-entry
-```
-
 Repository checks:
 
 ```sh

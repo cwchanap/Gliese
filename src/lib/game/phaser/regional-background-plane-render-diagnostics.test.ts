@@ -12,7 +12,6 @@ describe('regional background plane render diagnostics', () => {
 		const diagnostic: RegionalBackgroundPlaneRenderDiagnostic = {
 			mapId: 'two-plane-test',
 			regionalBackgroundsEnabled: true,
-			paintedMode: 'pilot',
 			packageId: 'two-plane-review',
 			requiredBackgroundIds: ['foreground-image', 'base-image'],
 			selectedBackgroundIds: ['foreground-image', 'base-image'],
@@ -53,7 +52,6 @@ describe('regional background plane render diagnostics', () => {
 
 		expect(received?.entries.map((entry) => entry.id)).toEqual(['foreground-image', 'base-image']);
 		expect(received?.successfulBackgroundIds).toEqual(['base-image', 'foreground-image']);
-		expect(received?.paintedMode).toBe('pilot');
 		expect(received?.packageId).toBe('two-plane-review');
 		expect(received?.requiredBackgroundIds).toEqual(['foreground-image', 'base-image']);
 		expect(received?.selectedBackgroundIds).toEqual(['foreground-image', 'base-image']);
@@ -64,33 +62,5 @@ describe('regional background plane render diagnostics', () => {
 		expect(received?.statefulObjectIds).toEqual(['stateful-a', 'stateful-b']);
 		expect(received?.selectedFallbackDecorIds).toEqual(['decor-b', 'decor-a']);
 		expect(received?.selectedFallbackFenceIds).toEqual(['fence-a']);
-	});
-
-	it('preserves the complete Meadow painted-mode classification', () => {
-		const target = new EventTarget();
-		let received: RegionalBackgroundPlaneRenderDiagnostic | undefined;
-		target.addEventListener(REGIONAL_BACKGROUND_PLANE_RENDER_DIAGNOSTIC_EVENT, (event) => {
-			received = (event as CustomEvent<RegionalBackgroundPlaneRenderDiagnostic>).detail;
-		});
-
-		emitRegionalBackgroundPlaneRenderDiagnostic(
-			{
-				mapId: 'meadow-entry',
-				regionalBackgroundsEnabled: true,
-				paintedMode: 'complete',
-				packageId: 'meadow-entry-painted-v2-complete',
-				requiredBackgroundIds: ['complete-northwest'],
-				selectedBackgroundIds: ['complete-northwest'],
-				presentationMode: 'painted',
-				entries: [],
-				successfulBackgroundIds: ['complete-northwest'],
-				selectedFallbackBlockerIds: [],
-				selectedFallbackDecorIds: [],
-				selectedFallbackFenceIds: []
-			},
-			target
-		);
-
-		expect(received?.paintedMode).toBe('complete');
 	});
 });

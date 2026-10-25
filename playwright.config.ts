@@ -17,7 +17,7 @@ const retiredV1RegionalBackgroundProofs =
 // row (y = 400) and it now passes repeatedly, so it returned to the gate. The
 // painted-interior asset proof for the same map stays gated.
 const flakyRouteWalkTests =
-	/(Crossroads gameplay loop|traverses every map in fallback mode|Hero House painted interior preserves runtime|complete world layout journey renders approved Meadow art)/;
+	/(Crossroads gameplay loop|traverses every map in fallback mode|Hero House painted interior preserves runtime)/;
 
 const exhaustivePaintedInteriorTests =
 	/^(?!.*Blacksmith painted interior).*painted (?:village )?interiors?/i;

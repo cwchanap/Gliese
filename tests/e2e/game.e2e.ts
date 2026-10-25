@@ -7,13 +7,6 @@ import {
 	saveThroughSaveScreen,
 	startNewRunFromTitle
 } from './helpers/game';
-import { assertMeadowEntryPaintedV2CameraBoundsCovered } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2-camera-envelope';
-import {
-	MEADOW_ENTRY_PAINTED_V2_APPROVED_RUNTIME_BACKGROUNDS,
-	MEADOW_ENTRY_PAINTED_V2_RUNTIME_VISUAL_OWNERS
-} from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2.generated';
-import { MEADOW_ENTRY_PAINTED_V2_COMPLETE_APPROVED_RUNTIME_BACKGROUNDS } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2-complete.generated';
-import type { MeadowEntryPaintedMode } from '../../src/lib/game/content/backgrounds/meadow-entry-painted-v2-runtime';
 import {
 	blacksmithInteriorMap,
 	guildHallMap,
@@ -126,7 +119,6 @@ type RegionalBackgroundPlaneRenderDiagnosticEntry = {
 type RegionalBackgroundPlaneRenderDiagnostic = {
 	mapId: string;
 	regionalBackgroundsEnabled: boolean;
-	paintedMode?: MeadowEntryPaintedMode;
 	packageId: string | null;
 	requiredBackgroundIds: string[];
 	selectedBackgroundIds: string[];
@@ -12088,130 +12080,6 @@ test('Ruins Threshold core-stair staging leaves the trusted transition envelope 
 	);
 });
 
-const PAINTED_PILOT_BACKGROUND_IDS = [
-	'meadow-entry-painted-v2-sundrop-camera-base-image',
-	'meadow-entry-painted-v2-crossroads-camera-base-image'
-] as const;
-
-const PAINTED_PILOT_ASSET_KEYS = [
-	'meadow-entry-painted-v2-sundrop-camera-base',
-	'meadow-entry-painted-v2-crossroads-camera-base'
-] as const;
-
-const PAINTED_COMPLETE_BACKGROUND_IDS =
-	MEADOW_ENTRY_PAINTED_V2_COMPLETE_APPROVED_RUNTIME_BACKGROUNDS.map(({ id }) => id);
-
-const PAINTED_PILOT_BACKGROUND_DIMENSIONS = {
-	'meadow-entry-painted-v2-sundrop-camera-base-image': { width: 3_200, height: 3_200 },
-	'meadow-entry-painted-v2-crossroads-camera-base-image': { width: 3_200, height: 3_200 }
-} as const;
-
-const PAINTED_PILOT_CROSSROADS_TEXTURE = 'meadow-entry-painted-v2-crossroads-camera-base-image';
-const PAINTED_PILOT_SUNDROP_TEXTURE = 'meadow-entry-painted-v2-sundrop-camera-base-image';
-
-const PAINTED_PILOT_CROSSROADS_BLOCKER_OWNERS = [
-	'coast-crossroads-mouth-bank',
-	'mistfen-entry-bank-east',
-	'silverpine-wall-A-east',
-	'silverpine-wall-A-west',
-	'silverpine-wall-B-north',
-	'silverpine-wall-B-south',
-	'silverpine-wall-C-east',
-	'silverpine-wall-C-west',
-	'wildwood-forest-lane-west-bank'
-] as const;
-
-const PAINTED_PILOT_RUNTIME_CROP_BOUNDS = MEADOW_ENTRY_PAINTED_V2_APPROVED_RUNTIME_BACKGROUNDS.map(
-	({ x, y, width, height }) => ({
-		left: x - width / 2,
-		top: y - height / 2,
-		right: x + width / 2,
-		bottom: y + height / 2
-	})
-) satisfies readonly { left: number; top: number; right: number; bottom: number }[];
-
-function assertLiveMeadowCameraCoverage(
-	samples: readonly MeadowCameraSample[],
-	exteriorRouteTokens: readonly string[]
-) {
-	const meadowSamples = samples.filter((sample) => sample.mapId === 'meadow-entry');
-	expect(exteriorRouteTokens.length).toBeGreaterThan(0);
-	expect(meadowSamples.length).toBeGreaterThan(0);
-	const sampledTokens = new Set(meadowSamples.map((sample) => sample.routeToken));
-	for (const token of exteriorRouteTokens) {
-		expect(sampledTokens, `missing Meadow camera sample for ${token}`).toContain(token);
-	}
-	for (const sample of meadowSamples) {
-		expect(
-			[sample.left, sample.top, sample.right, sample.bottom, sample.width, sample.height].every(
-				Number.isFinite
-			)
-		).toBe(true);
-		expect({ width: sample.width, height: sample.height }).toEqual({
-			width: 1_920,
-			height: 1_080
-		});
-		expect(sample.right).toBe(sample.left + sample.width);
-		expect(sample.bottom).toBe(sample.top + sample.height);
-		try {
-			// Phaser follows at subpixel precision. The pure envelope helper computes
-			// exact half-open pixel union area, so rasterize outward for the live
-			// assertion while retaining the original fractional sample in evidence.
-			const sampledBounds = {
-				left: Math.floor(sample.left),
-				top: Math.floor(sample.top),
-				right: Math.ceil(sample.right),
-				bottom: Math.ceil(sample.bottom)
-			};
-			expect(sampledBounds.left).toBeLessThanOrEqual(sample.left);
-			expect(sampledBounds.top).toBeLessThanOrEqual(sample.top);
-			expect(sampledBounds.right).toBeGreaterThanOrEqual(sample.right);
-			expect(sampledBounds.bottom).toBeGreaterThanOrEqual(sample.bottom);
-			assertMeadowEntryPaintedV2CameraBoundsCovered(
-				PAINTED_PILOT_RUNTIME_CROP_BOUNDS,
-				sampledBounds,
-				`live camera sample ${sample.routeToken} point ${sample.pointIndex}`
-			);
-		} catch (error) {
-			throw new Error(`${String(error)} sample=${JSON.stringify(sample)}`, { cause: error });
-		}
-	}
-}
-
-async function waitForMeadowPlaneDiagnostic(page: Page) {
-	await page.waitForFunction(
-		() =>
-			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.some(
-				(diagnostic) => diagnostic.mapId === 'meadow-entry'
-			) === true,
-		undefined,
-		{ timeout: 30_000 }
-	);
-	const diagnostics = await page.evaluate(
-		() => (window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics ?? []
-	);
-	const diagnostic = diagnostics.find((entry) => entry.mapId === 'meadow-entry');
-	if (!diagnostic)
-		throw new Error(`Missing Meadow Entry plane diagnostic: ${JSON.stringify(diagnostics)}`);
-	return diagnostic;
-}
-
-async function waitForMeadowRendererDiagnostic(page: Page) {
-	await page.waitForFunction(
-		() => (window as GlieseProbeWindow).__glieseRegionalBackgroundRendererDiagnostics?.length === 1,
-		undefined,
-		{ timeout: 30_000 }
-	);
-	const diagnostics = await page.evaluate(
-		() => (window as GlieseProbeWindow).__glieseRegionalBackgroundRendererDiagnostics ?? []
-	);
-	const diagnostic = diagnostics[0];
-	if (!diagnostic) {
-		throw new Error(`Missing Meadow Entry preload diagnostic: ${JSON.stringify(diagnostics)}`);
-	}
-	return diagnostic;
-}
-
 async function waitForMapBackgroundDiagnostic(
 	page: Page,
 	mapId: string,
@@ -13288,53 +13156,6 @@ async function runAllEightBlacksmithPhase(
 	await exitInteriorWithTrustedKeyboard(page, interior);
 }
 
-function assertPaintedPilotPlaneDiagnostic(
-	diagnostic: RegionalBackgroundPlaneRenderDiagnostic,
-	expectedSuccessfulIds: readonly string[]
-) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'meadow-entry',
-		regionalBackgroundsEnabled: true,
-		paintedMode: 'pilot'
-	});
-	expect(diagnostic.successfulBackgroundIds).toEqual([...expectedSuccessfulIds].sort());
-	for (const entry of diagnostic.entries) {
-		if (!(entry.id in PAINTED_PILOT_BACKGROUND_DIMENSIONS)) continue;
-		expect(entry.status, entry.id).toBe('rendered');
-		expect(entry.expectedDimensions, entry.id).toEqual(
-			PAINTED_PILOT_BACKGROUND_DIMENSIONS[
-				entry.id as keyof typeof PAINTED_PILOT_BACKGROUND_DIMENSIONS
-			]
-		);
-		expect(entry.observedDimensions, entry.id).toEqual(entry.expectedDimensions);
-	}
-}
-
-function assertCompleteAuthoredMeadowFallback(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
-	expect(diagnostic).toMatchObject({
-		packageId: null,
-		presentationMode: 'fallback',
-		selectedBackgroundIds: [],
-		successfulBackgroundIds: []
-	});
-	expect(diagnostic.selectedFallbackBlockerIds).toEqual(
-		expect.arrayContaining([...PAINTED_PILOT_CROSSROADS_BLOCKER_OWNERS])
-	);
-	expect(diagnostic.selectedFallbackBlockerIds?.length).toBeGreaterThan(
-		PAINTED_PILOT_CROSSROADS_BLOCKER_OWNERS.length
-	);
-	expect(diagnostic.selectedFallbackDecorIds.length).toBeGreaterThan(4);
-	expect(diagnostic.selectedFallbackDecorIds).toEqual(
-		expect.arrayContaining([
-			'village-decor-22-77',
-			'village-decor-28-25',
-			'village-decor-28-53',
-			'village-decor-53-22'
-		])
-	);
-	expect(diagnostic.selectedFallbackFenceIds.length).toBeGreaterThan(0);
-}
-
 function assertCollisionDiagnosticsAreFaithful(diagnostics: readonly PlayerMovementDiagnostic[]) {
 	expect(diagnostics.length).toBeGreaterThan(0);
 	for (const diagnostic of diagnostics) {
@@ -13520,210 +13341,7 @@ test('validated route evidence records diagnostics without revalidating them', (
 	expect(() => assertRouteDiagnosticsAreFaithful(result, 'validator characterization')).toThrow();
 });
 
-test('Meadow painted pilot selects only approved planes and preserves live fallbacks', async ({
-	page
-}) => {
-	test.setTimeout(180_000);
-	await installRuntimeProbes(page);
-	const paintedRequests: string[] = [];
-	page.on('request', (request) => {
-		if (request.url().includes('/game/assets/regions/meadow-entry-painted-v2/')) {
-			paintedRequests.push(request.url());
-		}
-	});
-
-	await page.goto('/?meadowPaintedPilot=on&movementDiagnostics=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-
-	const pilotPlaneDiagnostic = await waitForMeadowPlaneDiagnostic(page);
-	const pilotRendererDiagnostic = await waitForMeadowRendererDiagnostic(page);
-	expect(pilotPlaneDiagnostic.entries).toHaveLength(2);
-	expect(pilotPlaneDiagnostic.entries.map((entry) => entry.id)).toEqual(
-		PAINTED_PILOT_BACKGROUND_IDS
-	);
-	assertPaintedPilotPlaneDiagnostic(pilotPlaneDiagnostic, PAINTED_PILOT_BACKGROUND_IDS);
-	const approvedBlockerOwners = MEADOW_ENTRY_PAINTED_V2_RUNTIME_VISUAL_OWNERS.filter(
-		(owner) => owner.sourceType === 'blocker'
-	).map((owner) => owner.sourceId);
-	expect(approvedBlockerOwners).toHaveLength(PAINTED_PILOT_CROSSROADS_BLOCKER_OWNERS.length);
-	expect(approvedBlockerOwners).toEqual(
-		expect.arrayContaining([...PAINTED_PILOT_CROSSROADS_BLOCKER_OWNERS])
-	);
-	expect(pilotPlaneDiagnostic.selectedFallbackBlockerIds).toEqual([]);
-	expect(pilotPlaneDiagnostic.selectedFallbackDecorIds).toEqual([]);
-	expect(pilotPlaneDiagnostic.selectedFallbackFenceIds).toEqual([]);
-	expect(pilotRendererDiagnostic.packageIds).toContain('meadow-entry-painted-v2-legacy');
-	expect(pilotRendererDiagnostic.requiredAssetKeys).toEqual(
-		expect.arrayContaining([...PAINTED_PILOT_ASSET_KEYS])
-	);
-	expect(pilotRendererDiagnostic.completedAssetKeys).toEqual(
-		expect.arrayContaining([...PAINTED_PILOT_ASSET_KEYS])
-	);
-	expect(pilotRendererDiagnostic.regionalBackgroundLoadMs).not.toBeNull();
-	expect(paintedRequests.map((url) => new URL(url).pathname).sort()).toEqual([
-		'/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-camera-base.png',
-		'/game/assets/regions/meadow-entry-painted-v2/painted-v2-sundrop-camera-base.png'
-	]);
-
-	paintedRequests.length = 0;
-	await page.goto('/?regionalBackground=off&meadowPaintedPilot=on&movementDiagnostics=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	const offPlaneDiagnostic = await waitForMeadowPlaneDiagnostic(page);
-	const offRendererDiagnostic = await waitForMeadowRendererDiagnostic(page);
-	expect(offPlaneDiagnostic).toMatchObject({
-		mapId: 'meadow-entry',
-		regionalBackgroundsEnabled: false,
-		paintedMode: 'pilot',
-		entries: [],
-		successfulBackgroundIds: [],
-		selectedFallbackBlockerIds: [],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: []
-	});
-	expect(offRendererDiagnostic).toMatchObject({
-		packageIds: [],
-		requiredAssetKeys: [],
-		completedAssetKeys: [],
-		regionalBackgroundLoadMs: null
-	});
-	expect(paintedRequests).toEqual([]);
-	expect(offPlaneDiagnostic.entries).not.toEqual(
-		expect.arrayContaining([
-			expect.objectContaining({ status: 'missing-texture' }),
-			expect.objectContaining({ status: 'render-failed' })
-		])
-	);
-
-	await page.route(
-		'**/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-camera-base.png',
-		(route) => route.abort()
-	);
-	await page.goto('/?meadowPaintedPilot=on&movementDiagnostics=on&mapDebug=collision');
-	await expect(page.locator('canvas')).toBeVisible();
-	const missingCrossroadsPlaneDiagnostic = await waitForMeadowPlaneDiagnostic(page);
-	const missingCrossroadsRendererDiagnostic = await waitForMeadowRendererDiagnostic(page);
-	expect(missingCrossroadsRendererDiagnostic.packageIds).toContain(
-		'meadow-entry-painted-v2-legacy'
-	);
-	expect(missingCrossroadsRendererDiagnostic.requiredAssetKeys).toEqual(
-		expect.arrayContaining([...PAINTED_PILOT_ASSET_KEYS])
-	);
-	expect(missingCrossroadsRendererDiagnostic.completedAssetKeys).toContain(
-		PAINTED_PILOT_ASSET_KEYS[0]
-	);
-	expect(missingCrossroadsRendererDiagnostic.completedAssetKeys).not.toContain(
-		PAINTED_PILOT_ASSET_KEYS[1]
-	);
-	assertCompleteAuthoredMeadowFallback(missingCrossroadsPlaneDiagnostic);
-	expect(
-		missingCrossroadsPlaneDiagnostic.entries.find(
-			(entry) => entry.id === PAINTED_PILOT_CROSSROADS_TEXTURE
-		)
-	).toEqual(
-		expect.objectContaining({
-			status: 'missing-texture',
-			expectedDimensions: PAINTED_PILOT_BACKGROUND_DIMENSIONS[PAINTED_PILOT_CROSSROADS_TEXTURE],
-			observedDimensions: null
-		})
-	);
-
-	// The restored Silverpine wall is still authoritative collision. Reach its
-	// south face with real keyboard input and require the collision diagnostic to
-	// resolve short of the requested point.
-	previousRouteSettleTolerance = AXIS_SETTLE_TOLERANCE;
-	await page.locator('canvas').click();
-	// The authored village-to-Crossroads handoff is a continuous eastbound lane;
-	// the intermediate x=3,264 seam marker is review metadata, not a required
-	// gameplay stop. Keep the real-input route on that lane and carry its actual
-	// settled point into the Silverpine connector so quantization at the seam does
-	// not become a false correction-limit failure.
-	const meadowConnectorPoint = await moveRoute(page, [
-		...HERO_HOUSE_TO_CROSSROADS.slice(0, 5),
-		{ x: 3_776, y: 4_688 }
-	]);
-	const silverpineArrival = await moveRoute(page, [
-		meadowConnectorPoint,
-		{ x: 3_648, y: meadowConnectorPoint.y },
-		...CROSSROADS_TO_SILVERPINE.slice(2)
-	]);
-	await moveRoute(page, [
-		silverpineArrival,
-		{ x: 3_776, y: silverpineArrival.y },
-		{ x: 3_776, y: 2_640 },
-		{ x: 3_600, y: 2_640 },
-		{ x: 3_600, y: 2_900 }
-	]);
-	await page.locator('canvas').click();
-	await page.keyboard.down('ArrowLeft');
-	try {
-		await page.waitForFunction(
-			() => {
-				const diagnostic = (window as GlieseProbeWindow).__glieseLastMovementDiagnostic;
-				return diagnostic?.mapId === 'meadow-entry' && diagnostic.blocked;
-			},
-			undefined,
-			{ timeout: 5_000 }
-		);
-	} finally {
-		await page.keyboard.up('ArrowLeft');
-	}
-	const wallCollisionDiagnostic = await latestMovement(page);
-	expect(wallCollisionDiagnostic?.mapId).toBe('meadow-entry');
-	expect(wallCollisionDiagnostic?.blocked).toBe(true);
-	expect(wallCollisionDiagnostic?.resolvedPosition.x).toBeGreaterThan(
-		wallCollisionDiagnostic?.requestedPosition.x ?? Number.POSITIVE_INFINITY
-	);
-
-	await page.unroute(
-		'**/game/assets/regions/meadow-entry-painted-v2/painted-v2-crossroads-camera-base.png'
-	);
-	await page.goto(
-		`/?meadowPaintedPilot=on&movementDiagnostics=on&mapDebug=collision&regionalBackgroundFault=${PAINTED_PILOT_CROSSROADS_TEXTURE}:render`
-	);
-	await expect(page.locator('canvas')).toBeVisible();
-	const crossroadsFaultPlaneDiagnostic = await waitForMeadowPlaneDiagnostic(page);
-	const crossroadsFaultRendererDiagnostic = await waitForMeadowRendererDiagnostic(page);
-	expect(crossroadsFaultRendererDiagnostic.packageIds).toContain('meadow-entry-painted-v2-legacy');
-	expect(crossroadsFaultRendererDiagnostic.completedAssetKeys).toEqual(
-		expect.arrayContaining([...PAINTED_PILOT_ASSET_KEYS])
-	);
-	assertCompleteAuthoredMeadowFallback(crossroadsFaultPlaneDiagnostic);
-	expect(
-		crossroadsFaultPlaneDiagnostic.entries.find(
-			(entry) => entry.id === PAINTED_PILOT_CROSSROADS_TEXTURE
-		)
-	).toEqual(
-		expect.objectContaining({
-			status: 'render-failed',
-			expectedDimensions: PAINTED_PILOT_BACKGROUND_DIMENSIONS[PAINTED_PILOT_CROSSROADS_TEXTURE],
-			observedDimensions: PAINTED_PILOT_BACKGROUND_DIMENSIONS[PAINTED_PILOT_CROSSROADS_TEXTURE]
-		})
-	);
-
-	await page.goto(
-		`/?meadowPaintedPilot=on&movementDiagnostics=on&regionalBackgroundFault=${PAINTED_PILOT_SUNDROP_TEXTURE}:render`
-	);
-	await expect(page.locator('canvas')).toBeVisible();
-	const sundropFaultPlaneDiagnostic = await waitForMeadowPlaneDiagnostic(page);
-	const sundropFaultRendererDiagnostic = await waitForMeadowRendererDiagnostic(page);
-	expect(sundropFaultRendererDiagnostic.packageIds).toContain('meadow-entry-painted-v2-legacy');
-	expect(sundropFaultRendererDiagnostic.completedAssetKeys).toEqual(
-		expect.arrayContaining([...PAINTED_PILOT_ASSET_KEYS])
-	);
-	assertCompleteAuthoredMeadowFallback(sundropFaultPlaneDiagnostic);
-	expect(
-		sundropFaultPlaneDiagnostic.entries.find((entry) => entry.id === PAINTED_PILOT_SUNDROP_TEXTURE)
-	).toEqual(
-		expect.objectContaining({
-			status: 'render-failed',
-			expectedDimensions: PAINTED_PILOT_BACKGROUND_DIMENSIONS[PAINTED_PILOT_SUNDROP_TEXTURE],
-			observedDimensions: PAINTED_PILOT_BACKGROUND_DIMENSIONS[PAINTED_PILOT_SUNDROP_TEXTURE]
-		})
-	);
-});
-
-test('Meadow painted pilot preserves the village Crossroads gameplay loop', async ({ page }) => {
+test('Meadow Entry fallback preserves the village Crossroads gameplay loop', async ({ page }) => {
 	test.setTimeout(360_000);
 	await installRuntimeProbes(page, { captureFacing: true });
 	await injectSave(
@@ -13742,7 +13360,7 @@ test('Meadow painted pilot preserves the village Crossroads gameplay loop', asyn
 		})
 	);
 	await page.setViewportSize({ width: 1_920, height: 1_080 });
-	await page.goto('/?meadowPaintedPilot=on&movementDiagnostics=on');
+	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 	await waitForExactHudPosition(page, 'meadow-entry', { x: 704, y: 5_920 });
@@ -13890,13 +13508,6 @@ test('Meadow painted pilot preserves the village Crossroads gameplay loop', asyn
 	});
 	expect(persisted.flags?.collectedPickups).toContain('village-market-cache');
 	expect(persisted.seenDiscoveries).toContain('crossroads-waystone-sign');
-	const cameraEvidence = await page.evaluate(() => {
-		const probeWindow = window as GlieseProbeWindow;
-		return {
-			samples: probeWindow.__glieseCameraSamples ?? [],
-			exteriorRouteTokens: probeWindow.__glieseExteriorRouteTokens ?? []
-		};
-	});
 
 	await page.reload();
 	await expect(page.locator('canvas')).toBeVisible();
@@ -13917,12 +13528,9 @@ test('Meadow painted pilot preserves the village Crossroads gameplay loop', asyn
 	expect(await page.evaluate(() => sessionStorage.getItem('__gliese_e2e_save_seeded_v1'))).toBe(
 		'1'
 	);
-	assertLiveMeadowCameraCoverage(cameraEvidence.samples, cameraEvidence.exteriorRouteTokens);
 });
 
-test('Meadow Entry starts with the complete painted package and accepts movement', async ({
-	page
-}) => {
+test('Meadow Entry starts on the authored fallback and accepts movement', async ({ page }) => {
 	await installRuntimeProbes(page);
 	await page.goto('/?movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
@@ -13942,21 +13550,13 @@ test('Meadow Entry starts with the complete painted package and accepts movement
 	expect(meadowDiagnostics[0]).toEqual(
 		expect.objectContaining({
 			mapId: 'meadow-entry',
-			paintedMode: 'complete',
-			packageId: 'meadow-entry-painted-v2-complete',
-			presentationMode: 'painted',
-			requiredBackgroundIds: PAINTED_COMPLETE_BACKGROUND_IDS,
-			selectedBackgroundIds: PAINTED_COMPLETE_BACKGROUND_IDS,
-			selectedFallbackBlockerIds: [],
-			selectedFallbackDecorIds: [],
-			selectedFallbackFenceIds: []
+			packageId: null,
+			presentationMode: 'fallback',
+			requiredBackgroundIds: [],
+			selectedBackgroundIds: [],
+			entries: []
 		})
 	);
-	expect(meadowDiagnostics[0]?.successfulBackgroundIds).toEqual(
-		[...PAINTED_COMPLETE_BACKGROUND_IDS].sort()
-	);
-	expect(meadowDiagnostics[0]?.entries).toHaveLength(PAINTED_COMPLETE_BACKGROUND_IDS.length);
-	expect(meadowDiagnostics[0]?.entries.every(({ status }) => status === 'rendered')).toBe(true);
 
 	await expect(page.getByTestId('hud-minimap')).toBeVisible();
 	await expect(page.getByTestId('hud-party-panel')).toBeVisible();
@@ -17405,63 +17005,6 @@ test('Meadow Entry supports the continuous outdoor route and persists its proof 
 	).toBeGreaterThanOrEqual(1);
 });
 
-test('Complete world layout foundation keeps historical Meadow art opt-in alongside the complete default', async ({
-	page
-}) => {
-	test.setTimeout(180_000);
-	await installRuntimeProbes(page);
-
-	await startNewRunFromTitle(page);
-	const completeDiagnostic = await waitForMeadowPlaneDiagnostic(page);
-	expect(completeDiagnostic).toMatchObject({
-		mapId: 'meadow-entry',
-		packageId: 'meadow-entry-painted-v2-complete',
-		presentationMode: 'painted',
-		selectedBackgroundIds: PAINTED_COMPLETE_BACKGROUND_IDS,
-		requiredBackgroundIds: PAINTED_COMPLETE_BACKGROUND_IDS,
-		selectedFallbackBlockerIds: [],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: []
-	});
-
-	await page.goto('/?meadowPaintedPilot=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	const pilotDiagnostic = await waitForMeadowPlaneDiagnostic(page);
-	expect(pilotDiagnostic).toMatchObject({
-		mapId: 'meadow-entry',
-		packageId: 'meadow-entry-painted-v2-legacy',
-		presentationMode: 'painted',
-		selectedBackgroundIds: [...PAINTED_PILOT_BACKGROUND_IDS],
-		requiredBackgroundIds: [...PAINTED_PILOT_BACKGROUND_IDS]
-	});
-
-	await page.goto(
-		`/?meadowPaintedPilot=on&regionalBackgroundFault=${PAINTED_PILOT_CROSSROADS_TEXTURE}:render`
-	);
-	await expect(page.locator('canvas')).toBeVisible();
-	const faultDiagnostic = await waitForMeadowPlaneDiagnostic(page);
-	expect(faultDiagnostic).toMatchObject({
-		mapId: 'meadow-entry',
-		packageId: null,
-		presentationMode: 'fallback',
-		selectedBackgroundIds: [],
-		successfulBackgroundIds: []
-	});
-	// A failed historical package restores the complete authored static
-	// presentation. The ownership IDs are the protected painted-pilot subset;
-	// assert their presence while also proving the fallback includes the other
-	// legacy static classes (rather than expecting only the pilot-owned subset).
-	assertCompleteAuthoredMeadowFallback(faultDiagnostic);
-	expect(faultDiagnostic.entries).toEqual(
-		expect.arrayContaining([
-			expect.objectContaining({
-				id: PAINTED_PILOT_CROSSROADS_TEXTURE,
-				status: 'render-failed'
-			})
-		])
-	);
-});
-
 test('Complete world layout foundation traverses every map in fallback mode', async ({ page }) => {
 	// This one continuous keyboard journey can exceed twenty minutes under the
 	// full composed-collision route. Provide a 120-minute outer budget for the
@@ -17496,7 +17039,7 @@ test('Complete world layout foundation traverses every map in fallback mode', as
 		})
 	);
 	await page.setViewportSize({ width: 1_920, height: 1_080 });
-	await page.goto('/?meadowPaintedPilot=off&movementDiagnostics=on');
+	await page.goto('/?regionalBackground=off&movementDiagnostics=on');
 	await expect(page.locator('canvas')).toBeVisible();
 	await waitForExactHudPosition(page, 'hero-house', { x: 352, y: 480 });
 
