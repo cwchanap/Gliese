@@ -17,9 +17,10 @@ import {
 	villagerHouse2Map,
 	villagerHouse3Map
 } from '$lib/game/content/maps';
-import type { MapBackgroundImage } from '$lib/game/content/maps/types';
+import type { MapBackgroundImage, WorldMapDefinition } from '$lib/game/content/maps/types';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { compileNavigationGrid } from '$lib/game/core/navigation';
+import { applyStoryGates } from '$lib/game/core/story-gates';
 import {
 	PLAYER_MOVEMENT_DIAGNOSTIC_EVENT,
 	type PlayerMovementDiagnostic
@@ -33,158 +34,67 @@ import type {
 import { MAP_BACKGROUND_DEFAULT_SELECTIONS } from '$lib/game/content/backgrounds/map-background-registry';
 import { collectStrictCollisionRects } from '$lib/game/save/save-state';
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
+import * as questRuntime from '$lib/game/core/quests';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 
-const guildMasterApproach = { x: 800, y: 184 };
-const quartermasterApproach = { x: 816, y: 568 };
+const createQuestStateWithOpening = questRuntime.createInitialQuestState;
 
-const itemShopCollisionIds = [
-	...(itemShopMap.blockers ?? []).map(({ id }) => id),
-	...(itemShopMap.fences ?? []).map(({ id }) => id),
-	...(itemShopMap.mapDecor ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
-	...(itemShopMap.interiorProps ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(itemShopMap.landmarks ?? []).map(({ id }) => id)
-].sort();
-const itemShopStatefulObjectIds = [
-	...itemShopMap.transitions.map(({ id }) => id),
-	...(itemShopMap.pickups ?? []).map(({ id }) => id),
-	...(itemShopMap.encounters ?? []).map(({ id }) => id),
-	...(itemShopMap.npcs ?? []).map(({ id }) => id),
-	...(itemShopMap.landmarks ?? []).map(({ id }) => id),
-	...(itemShopMap.ambientNpcs ?? []).map(({ id }) => id),
-	...(itemShopMap.discoveries ?? []).map(({ id }) => id),
-	...(itemShopMap.combatBounds ?? []).map(({ id }) => id)
-].sort();
+const borakApproach = { x: 800, y: 184 };
+const mottApproach = { x: 128, y: 392 };
+// Just east of the first Wildwood wolf pack, inside its engagement range.
+const wolvesMouthApproach = { x: 4_732, y: 3_200 };
+// The Boar King's pocket with the Silverpine wolves above it already cleared.
+const boarKingFlags = {
+	clearedEncounters: ['silverpine-wolves-falls', 'silverpine-wolves-terrace'],
+	clearedEncounterUnitCounts: {},
+	collectedPickups: [],
+	resolvedEncounterDrops: {}
+};
+const lodgeKeeperApproach = { x: 816, y: 568 };
 
-const blacksmithCollisionIds = [
-	...(blacksmithInteriorMap.blockers ?? []).map(({ id }) => id),
-	...(blacksmithInteriorMap.fences ?? []).map(({ id }) => id),
-	...(blacksmithInteriorMap.mapDecor ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(blacksmithInteriorMap.interiorProps ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(blacksmithInteriorMap.landmarks ?? []).map(({ id }) => id)
-].sort();
-const blacksmithStatefulObjectIds = [
-	...blacksmithInteriorMap.transitions.map(({ id }) => id),
-	...(blacksmithInteriorMap.pickups ?? []).map(({ id }) => id),
-	...(blacksmithInteriorMap.encounters ?? []).map(({ id }) => id),
-	...(blacksmithInteriorMap.npcs ?? []).map(({ id }) => id),
-	...(blacksmithInteriorMap.landmarks ?? []).map(({ id }) => id),
-	...(blacksmithInteriorMap.ambientNpcs ?? []).map(({ id }) => id),
-	...(blacksmithInteriorMap.discoveries ?? []).map(({ id }) => id),
-	...(blacksmithInteriorMap.combatBounds ?? []).map(({ id }) => id)
-].sort();
+// A fresh run renders each map as the opening story beat gates it.
+const openingProgress = questRuntime.getStoryProgress(createQuestStateWithOpening());
+const openingView = (map: WorldMapDefinition) => applyStoryGates(map, openingProgress);
 
-const heroHouseCollisionIds = [
-	...(heroHouseMap.blockers ?? []).map(({ id }) => id),
-	...(heroHouseMap.fences ?? []).map(({ id }) => id),
-	...(heroHouseMap.mapDecor ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
-	...(heroHouseMap.interiorProps ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(heroHouseMap.landmarks ?? []).map(({ id }) => id)
-].sort();
-const heroHouseStatefulObjectIds = [
-	...heroHouseMap.transitions.map(({ id }) => id),
-	...(heroHouseMap.pickups ?? []).map(({ id }) => id),
-	...(heroHouseMap.encounters ?? []).map(({ id }) => id),
-	...(heroHouseMap.npcs ?? []).map(({ id }) => id),
-	...(heroHouseMap.landmarks ?? []).map(({ id }) => id),
-	...(heroHouseMap.ambientNpcs ?? []).map(({ id }) => id),
-	...(heroHouseMap.discoveries ?? []).map(({ id }) => id),
-	...(heroHouseMap.combatBounds ?? []).map(({ id }) => id)
-].sort();
+function collisionIdsOf(source: WorldMapDefinition) {
+	const map = openingView(source);
+	return [
+		...(map.blockers ?? []).map(({ id }) => id),
+		...(map.fences ?? []).map(({ id }) => id),
+		...(map.mapDecor ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
+		...(map.interiorProps ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
+		...(map.landmarks ?? []).map(({ id }) => id)
+	].sort();
+}
 
-const villagerHouse1CollisionIds = [
-	...(villagerHouse1Map.blockers ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.fences ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.mapDecor ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(villagerHouse1Map.interiorProps ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(villagerHouse1Map.landmarks ?? []).map(({ id }) => id)
-].sort();
-const villagerHouse1StatefulObjectIds = [
-	...villagerHouse1Map.transitions.map(({ id }) => id),
-	...(villagerHouse1Map.pickups ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.encounters ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.npcs ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.landmarks ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.ambientNpcs ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.discoveries ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.combatBounds ?? []).map(({ id }) => id)
-].sort();
-const villagerHouse2CollisionIds = [
-	...(villagerHouse2Map.blockers ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.fences ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.mapDecor ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(villagerHouse2Map.interiorProps ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(villagerHouse2Map.landmarks ?? []).map(({ id }) => id)
-].sort();
-const villagerHouse2StatefulObjectIds = [
-	...villagerHouse2Map.transitions.map(({ id }) => id),
-	...(villagerHouse2Map.pickups ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.encounters ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.npcs ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.landmarks ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.ambientNpcs ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.discoveries ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.combatBounds ?? []).map(({ id }) => id)
-].sort();
-const villagerHouse3CollisionIds = [
-	...(villagerHouse3Map.blockers ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.fences ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.mapDecor ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(villagerHouse3Map.interiorProps ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(villagerHouse3Map.landmarks ?? []).map(({ id }) => id)
-].sort();
-const villagerHouse3StatefulObjectIds = [
-	...villagerHouse3Map.transitions.map(({ id }) => id),
-	...(villagerHouse3Map.pickups ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.encounters ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.npcs ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.landmarks ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.ambientNpcs ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.discoveries ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.combatBounds ?? []).map(({ id }) => id)
-].sort();
+function statefulObjectIdsOf(source: WorldMapDefinition) {
+	const map = openingView(source);
+	return [
+		...map.transitions.map(({ id }) => id),
+		...(map.pickups ?? []).map(({ id }) => id),
+		...(map.encounters ?? []).map(({ id }) => id),
+		...(map.npcs ?? []).map(({ id }) => id),
+		...(map.landmarks ?? []).map(({ id }) => id),
+		...(map.ambientNpcs ?? []).map(({ id }) => id),
+		...(map.discoveries ?? []).map(({ id }) => id),
+		...(map.combatBounds ?? []).map(({ id }) => id)
+	].sort();
+}
 
-const shrineCollisionIds = [
-	...(shrineOfAuroraInteriorMap.blockers ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.fences ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.mapDecor ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(shrineOfAuroraInteriorMap.interiorProps ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(shrineOfAuroraInteriorMap.landmarks ?? []).map(({ id }) => id)
-].sort();
-const shrineStatefulObjectIds = [
-	...shrineOfAuroraInteriorMap.transitions.map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.pickups ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.encounters ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.npcs ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.landmarks ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.ambientNpcs ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.discoveries ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.combatBounds ?? []).map(({ id }) => id)
-].sort();
+const itemShopCollisionIds = collisionIdsOf(itemShopMap);
+const itemShopStatefulObjectIds = statefulObjectIdsOf(itemShopMap);
+const blacksmithCollisionIds = collisionIdsOf(blacksmithInteriorMap);
+const blacksmithStatefulObjectIds = statefulObjectIdsOf(blacksmithInteriorMap);
+const heroHouseCollisionIds = collisionIdsOf(heroHouseMap);
+const heroHouseStatefulObjectIds = statefulObjectIdsOf(heroHouseMap);
+const villagerHouse1CollisionIds = collisionIdsOf(villagerHouse1Map);
+const villagerHouse1StatefulObjectIds = statefulObjectIdsOf(villagerHouse1Map);
+const villagerHouse2CollisionIds = collisionIdsOf(villagerHouse2Map);
+const villagerHouse2StatefulObjectIds = statefulObjectIdsOf(villagerHouse2Map);
+const villagerHouse3CollisionIds = collisionIdsOf(villagerHouse3Map);
+const villagerHouse3StatefulObjectIds = statefulObjectIdsOf(villagerHouse3Map);
+const shrineCollisionIds = collisionIdsOf(shrineOfAuroraInteriorMap);
+const shrineStatefulObjectIds = statefulObjectIdsOf(shrineOfAuroraInteriorMap);
 
 const expectedOrganicBlockerOwners = [
 	'coast-crossroads-mouth-bank',
@@ -264,136 +174,31 @@ const registryDrivenBackgroundRegistryMock = vi.hoisted(() => ({
 	}
 }));
 
-const storyClientMock = vi.hoisted(() => {
-	type StoryRequest = {
-		npcId: string;
-		mapId: string;
-		locale: 'en' | 'ja' | 'zh-Hant';
-		quest: {
-			mainQuestNeedsGuildBriefing: boolean;
-			guildBriefingComplete: boolean;
-			hasActiveSideQuest: boolean;
-			hasCompletedQuest: boolean;
-		};
-	};
+const storyClientMock = vi.hoisted(() => ({
+	getNpcStoryDialogue: vi.fn(),
+	getStoryScene: vi.fn()
+}));
 
-	function createStorySession({
-		id,
-		speaker,
-		lines,
-		choices,
-		completionIntent
-	}: {
-		id: string;
-		speaker: string;
-		lines: string[];
-		choices: Array<{ id: string; label: string; intent: Record<string, string> }>;
-		completionIntent: Record<string, string> | null;
-	}) {
-		return {
-			id,
-			npcId: null,
-			speaker,
-			lines,
-			line: lines[0] ?? '',
-			lineIndex: 0,
-			lineCount: lines.length,
-			mode: lines.length <= 1 && choices.length > 0 ? 'choice' : 'conversation',
-			choices,
-			completionIntent,
-			canClose: true
-		};
-	}
-
+// The world reads the real story catalog through the browser runtime; tests
+// override single responses with mockImplementationOnce.
+vi.mock('$lib/game/story/client', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('$lib/game/story/client')>();
+	const fixture = await import('$lib/game/story/browser-fixture');
+	const runtime = { mode: 'browser' as const, fixture };
+	storyClientMock.getNpcStoryDialogue.mockImplementation(
+		(request: Parameters<typeof actual.getNpcStoryDialogue>[0]) =>
+			actual.getNpcStoryDialogueWithRuntime(request, runtime)
+	);
+	storyClientMock.getStoryScene.mockImplementation(
+		(request: Parameters<typeof actual.getStoryScene>[0]) =>
+			actual.getStorySceneWithRuntime(request, runtime)
+	);
 	return {
-		getNpcStoryDialogue: vi.fn(async (request: StoryRequest) => {
-			if (request.npcId === 'guild-master') {
-				const lines = request.quest.mainQuestNeedsGuildBriefing
-					? [
-							'You made it. The eastern ruins are stirring again, and the village road is no longer safe.',
-							'Go through the forest path, reach the old core, and defeat the warden before it wakes the rest.'
-						]
-					: ['The ruins route is open. Steel yourself before you enter the core.'];
-
-				return createStorySession({
-					id: 'npc:guild-master:prologue.guild-master',
-					speaker: 'Guild Master Arlen',
-					lines,
-					choices: [
-						{
-							id: 'quest',
-							label: 'Quest',
-							intent: { type: 'showQuestList', giverNpcId: 'guild-master' }
-						}
-					],
-					completionIntent: request.quest.mainQuestNeedsGuildBriefing
-						? { type: 'recordNpcTalk', npcId: 'guild-master' }
-						: null
-				});
-			}
-
-			if (request.npcId === 'guild-quartermaster') {
-				return createStorySession({
-					id: 'npc:guild-quartermaster:always',
-					speaker: 'Quartermaster Vale',
-					lines: ['Need field gear before the ruins? Guild stock is limited, but sturdy.'],
-					choices: [
-						{
-							id: 'shop',
-							label: 'Shop',
-							intent: { type: 'openShop', shopId: 'guild-quartermaster' }
-						}
-					],
-					completionIntent: null
-				});
-			}
-
-			if (request.npcId === 'blacksmith-oren') {
-				return createStorySession({
-					id: 'npc:blacksmith-oren:always',
-					speaker: 'Blacksmith Oren',
-					lines: ['Steel holds when the hand behind it does. Take what fits, and keep it dry.'],
-					choices: [
-						{
-							id: 'shop',
-							label: 'Shop',
-							intent: { type: 'openShop', shopId: 'sundrop-forge' }
-						}
-					],
-					completionIntent: null
-				});
-			}
-
-			if (request.npcId === 'villager-lynn') {
-				return createStorySession({
-					id: 'npc:villager-lynn:always',
-					speaker: 'Lynn',
-					lines: ['The kettle is warm if you need a quiet minute before the road.'],
-					choices: [{ id: 'close', label: 'Close', intent: { type: 'close' } }],
-					completionIntent: null
-				});
-			}
-
-			return createStorySession({
-				id: 'npc:shopkeeper-mira:always',
-				speaker: 'Mira',
-				lines: ['Fresh tonics are on the shelf.'],
-				choices: [
-					{
-						id: 'shop',
-						label: 'Shop',
-						intent: { type: 'openShop', shopId: 'miras-item-shop' }
-					}
-				],
-				completionIntent: null
-			});
-		})
+		...actual,
+		getNpcStoryDialogue: storyClientMock.getNpcStoryDialogue,
+		getStoryScene: storyClientMock.getStoryScene
 	};
 });
-
-vi.mock('$lib/game/story/client', () => ({
-	getNpcStoryDialogue: storyClientMock.getNpcStoryDialogue
-}));
 
 vi.mock('$lib/game/i18n/store', () => ({
 	getActiveLocale: () => localeState.activeLocale,
@@ -449,26 +254,23 @@ vi.mock('$lib/game/i18n/content', async () => {
 
 			return actual.getShopText(locale, shopId);
 		}),
+		// Japanese quest text is stubbed as "JP <English>" so tests can tell the
+		// localized path from the English fallback.
 		getQuestText: vi.fn((locale: 'en' | 'ja' | 'zh-Hant', questId: string) => {
-			if (locale === 'ja' && questId === 'investigate-the-ruins') {
-				return {
-					title: 'JP Investigate the Ruins',
-					description: 'JP Report to the Guild Master, then defeat the ruins warden.'
-				};
+			const english = actual.getQuestText('en', questId);
+			if (locale === 'ja' && english) {
+				return { title: `JP ${english.title}`, description: `JP ${english.description}` };
 			}
 
 			return actual.getQuestText(locale, questId);
 		}),
 		getQuestObjectiveText: vi.fn(
 			(locale: 'en' | 'ja' | 'zh-Hant', questId: string, objectiveId: string) => {
-				if (
-					locale === 'ja' &&
-					questId === 'investigate-the-ruins' &&
-					objectiveId === 'talk-to-guild-master'
-				) {
+				const english = actual.getQuestObjectiveText('en', questId, objectiveId);
+				if (locale === 'ja' && english) {
 					return {
-						description: 'JP Talk to the Guild Master in the Guild Hall.',
-						progressLabel: 'JP Guild Master spoken to'
+						description: `JP ${english.description}`,
+						progressLabel: `JP ${english.progressLabel}`
 					};
 				}
 
@@ -477,8 +279,8 @@ vi.mock('$lib/game/i18n/content', async () => {
 		),
 		getNpcText: vi.fn((locale: 'en' | 'ja' | 'zh-Hant', npcId: string) => {
 			if (locale === 'ja') {
-				if (npcId === 'shopkeeper-mira') return { name: 'JP Mira' };
-				if (npcId === 'guild-master') return { name: 'JP Guild Master' };
+				if (npcId === 'mira') return { name: 'JP Mira' };
+				if (npcId === 'borak') return { name: 'JP Borak' };
 			}
 
 			return actual.getNpcText(locale, npcId);
@@ -1845,8 +1647,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState,
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 4,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
@@ -1858,12 +1660,12 @@ describe('BattleScene', () => {
 
 		expect(state.enemies).toHaveLength(4);
 		expect(state.enemies.map((enemy) => enemy.unitId)).toEqual([
-			'meadow-slime-west:unit:0',
-			'meadow-slime-west:unit:1',
-			'meadow-slime-west:unit:2',
-			'meadow-slime-west:unit:3'
+			'wildwood-wolves-mouth:unit:0',
+			'wildwood-wolves-mouth:unit:1',
+			'wildwood-wolves-mouth:unit:2',
+			'wildwood-wolves-mouth:unit:3'
 		]);
-		expect(state.enemies.every((enemy) => enemy.hp === 8 && !enemy.defeated)).toBe(true);
+		expect(state.enemies.every((enemy) => enemy.hp === 10 && !enemy.defeated)).toBe(true);
 		expect(state.enemies.map((enemy) => ({ x: enemy.x, y: enemy.y }))).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ x: 448 }),
@@ -1886,8 +1688,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
@@ -1907,8 +1709,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
@@ -1927,8 +1729,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'ruins-core',
-			sourceEncounterId: 'ruins-warden',
-			sourceEnemyId: 'ruins-warden',
+			sourceEncounterId: 'boar-king',
+			sourceEnemyId: 'boar-king',
 			returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
@@ -1950,8 +1752,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
@@ -1979,8 +1781,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 4,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
@@ -2003,11 +1805,11 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState,
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 2,
-			hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
+			hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
 		});
 		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
 		const state = scene as unknown as {
@@ -2026,25 +1828,25 @@ describe('BattleScene', () => {
 		expect(state.pendingResult).toMatchObject({
 			outcome: 'victory',
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
-			finalHeroHp: 18,
+			finalHeroHp: 17,
 			inventory: saveState.inventory,
 			defeatedUnits: [
 				expect.objectContaining({
-					unitId: 'meadow-slime-west:unit:0',
+					unitId: 'wildwood-wolves-mouth:unit:0',
 					unitIndex: 0,
-					enemyId: 'slime-scout',
-					xpReward: 4,
-					coinReward: 4
+					enemyId: 'forest-wolf',
+					xpReward: 2,
+					coinReward: 3
 				}),
 				expect.objectContaining({
-					unitId: 'meadow-slime-west:unit:1',
+					unitId: 'wildwood-wolves-mouth:unit:1',
 					unitIndex: 1,
-					enemyId: 'slime-scout',
-					xpReward: 4,
-					coinReward: 4
+					enemyId: 'forest-wolf',
+					xpReward: 2,
+					coinReward: 3
 				})
 			]
 		});
@@ -2053,51 +1855,41 @@ describe('BattleScene', () => {
 	it('publishes the applied victory save state in the battle summary HUD', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
 		const { BattleScene } = await import('./BattleScene');
 		const scene = new BattleScene();
 		const saveState = createNewSaveState();
-		saveState.mapId = 'ruins-core';
+		saveState.mapId = 'meadow-entry';
 		saveState.player = {
 			...saveState.player,
 			level: 1,
 			xp: 0,
 			hp: 20,
 			attack: 9,
-			x: 4_992,
-			y: 3_200,
+			x: 2_900,
+			y: 800,
 			facing: 'down'
 		};
-		saveState.inventory.equipment = ['training-sword', 'iron-cap', 'traveler-vest'];
-		saveState.equipment = { ...saveState.equipment, head: 'iron-cap', body: 'traveler-vest' };
-		saveState.wallet = { coins: 30 };
-		saveState.quests = {
-			entries: {
-				'investigate-the-ruins': {
-					status: 'active',
-					currentObjectiveId: 'defeat-ruins-warden',
-					progress: 0,
-					rewardApplied: false,
-					countedSourceIds: []
-				}
-			},
-			completedObjectives: {
-				'investigate-the-ruins': ['talk-to-guild-master']
-			}
+		saveState.inventory = {
+			stacks: [{ itemId: 'field-potion', quantity: 1 }],
+			equipment: ['practice-spear']
 		};
+		saveState.equipment = { ...saveState.equipment, weapon: 'practice-spear' };
+		saveState.wallet = { coins: 30 };
+		saveState.quests = questStateAt('defeat-boar-king');
 		localeState.activeLocale = 'ja';
 
 		try {
 			scene.create({
 				saveState,
-				sourceMapId: 'ruins-core',
-				sourceEncounterId: 'ruins-warden',
-				sourceEnemyId: 'ruins-warden',
-				completion: 'victory',
-				returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'boar-king',
+				sourceEnemyId: 'boar-king',
+				returnPosition: { mapId: 'meadow-entry', x: 2_900, y: 800, facing: 'down' },
 				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 50, defense: 0 }
+				hero: { hp: 20, maxHp: 20, attack: 90, defense: 0 }
 			});
 			emitHudStateSpy.mockClear();
 			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
@@ -2111,34 +1903,25 @@ describe('BattleScene', () => {
 
 			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 				expect.objectContaining({
-					hp: 24,
-					maxHp: 28,
-					level: 2,
-					xp: 33,
-					attack: 11,
-					defense: 1,
-					wallet: { coins: 90 },
-					heals: 2,
+					level: 4,
+					xp: 30,
+					wallet: { coins: 60 },
 					battle: {
 						phase: 'summary',
 						summary: expect.objectContaining({
 							outcome: 'victory',
-							xpGained: 33,
-							coinsGained: 60,
-							completedQuestTitles: ['JP Investigate the Ruins'],
-							drops: expect.arrayContaining([
-								expect.objectContaining({ itemId: 'warden-sigil', quantity: 1 }),
-								expect.objectContaining({ itemId: 'warden-crown', quantity: 1 }),
-								expect.objectContaining({ itemId: 'greater-field-potion', quantity: 1 })
-							])
+							xpGained: 30,
+							coinsGained: 30,
+							completedQuestTitles: ['JP Third Trial: The Boar King'],
+							drops: [expect.objectContaining({ itemId: 'greater-field-potion', quantity: 1 })]
 						}),
 						active: null
 					},
 					quests: expect.objectContaining({
 						completed: expect.arrayContaining([
 							expect.objectContaining({
-								questId: 'investigate-the-ruins',
-								title: 'JP Investigate the Ruins',
+								questId: 'prologue-trial-boar-king',
+								title: 'JP Third Trial: The Boar King',
 								status: 'completed'
 							})
 						])
@@ -2147,22 +1930,17 @@ describe('BattleScene', () => {
 						consumables: expect.arrayContaining([
 							expect.objectContaining({ itemId: 'greater-field-potion', quantity: 1 })
 						]),
-						equipment: expect.arrayContaining([
-							expect.objectContaining({ itemId: 'warden-crown', equipped: false })
-						]),
-						keyItems: expect.arrayContaining([
-							expect.objectContaining({ itemId: 'warden-sigil', quantity: 1 })
-						]),
-						equipped: expect.objectContaining({ weapon: 'training-sword' })
+						equipped: expect.objectContaining({ weapon: 'practice-spear' })
 					})
 				})
 			);
+			// The summary previews the applied state; the pre-battle save is untouched.
 			expect(saveState.player.level).toBe(1);
 			expect(saveState.wallet.coins).toBe(30);
 			expect(saveState.inventory.stacks).toEqual([{ itemId: 'field-potion', quantity: 1 }]);
-			expect(saveState.quests.entries['investigate-the-ruins']).toMatchObject({
+			expect(saveState.quests.entries['prologue-trial-boar-king']).toMatchObject({
 				status: 'active',
-				currentObjectiveId: 'defeat-ruins-warden'
+				currentObjectiveId: 'defeat-boar-king'
 			});
 		} finally {
 			randomSpy.mockRestore();
@@ -2178,8 +1956,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState,
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 1, maxHp: 20, attack: 1, defense: 0 }
@@ -2199,8 +1977,8 @@ describe('BattleScene', () => {
 		expect(state.pendingResult).toMatchObject({
 			outcome: 'defeat',
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			finalHeroHp: 0,
 			inventory: saveState.inventory,
@@ -2216,8 +1994,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
@@ -2247,8 +2025,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
@@ -2280,8 +2058,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
@@ -2317,8 +2095,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
@@ -2347,8 +2125,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
@@ -2397,8 +2175,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
@@ -2429,8 +2207,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
@@ -2461,11 +2239,11 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
+			hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
 		});
 		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
 		const state = scene as unknown as {
@@ -2501,8 +2279,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
@@ -2555,8 +2333,8 @@ describe('BattleScene', () => {
 			scene.create({
 				saveState: createNewSaveState(),
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
@@ -2589,8 +2367,8 @@ describe('BattleScene', () => {
 			scene.create({
 				saveState,
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 4, maxHp: 20, attack: 8, defense: 0 }
@@ -2639,8 +2417,8 @@ describe('BattleScene', () => {
 			scene.create({
 				saveState: createNewSaveState(),
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
@@ -2673,11 +2451,11 @@ describe('BattleScene', () => {
 			scene.create({
 				saveState,
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
+				hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
 			});
 			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
 			const state = scene as unknown as {
@@ -2713,11 +2491,11 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState,
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
+			hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
 		});
 		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
 		const state = scene as unknown as {
@@ -2760,8 +2538,8 @@ describe('BattleScene', () => {
 			scene.create({
 				saveState,
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
@@ -2789,12 +2567,12 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState,
-			sourceMapId: 'ruins-core',
-			sourceEncounterId: 'ruins-warden',
-			sourceEnemyId: 'ruins-warden',
-			returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'boar-king',
+			sourceEnemyId: 'boar-king',
+			returnPosition: { mapId: 'meadow-entry', x: 2_900, y: 800, facing: 'down' },
 			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 23, defense: 0 }
+			hero: { hp: 20, maxHp: 20, attack: 41, defense: 0 }
 		});
 		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
 		const state = scene as unknown as {
@@ -2814,7 +2592,7 @@ describe('BattleScene', () => {
 
 		scene.update(0, 16);
 
-		// Hit should trigger enrage (45 HP → 22, below 50%)
+		// Hit should trigger enrage (80 HP → 39, below 50%)
 		expect(state.enemies[0]!.phase).toBe(2);
 
 		// Now measure speed in phase 2: move hero far away, boss chases
@@ -2824,9 +2602,9 @@ describe('BattleScene', () => {
 		scene.update(500, 200);
 
 		const phase2Delta = Math.abs(state.enemies[0]!.x - xBeforeChase);
-		// Phase-2 boss (75 * 1.5 = 112.5 speed) * 0.2s = 22.5 units
-		// Phase-1 boss (75 speed) * 0.2s = 15 units
-		expect(phase2Delta).toBeGreaterThan(18);
+		// Phase-2 boss (90 * 1.5 = 135 speed) * 0.2s = 27 units
+		// Phase-1 boss (90 speed) * 0.2s = 18 units
+		expect(phase2Delta).toBeGreaterThan(22);
 	});
 
 	it('restores phase-2 boss tint after hit reaction expires', async () => {
@@ -2837,12 +2615,12 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState,
-			sourceMapId: 'ruins-core',
-			sourceEncounterId: 'ruins-warden',
-			sourceEnemyId: 'ruins-warden',
-			returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'boar-king',
+			sourceEnemyId: 'boar-king',
+			returnPosition: { mapId: 'meadow-entry', x: 2_900, y: 800, facing: 'down' },
 			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 23, defense: 0 }
+			hero: { hp: 20, maxHp: 20, attack: 41, defense: 0 }
 		});
 		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
 		const state = scene as unknown as {
@@ -2884,8 +2662,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			// Spawn ring: unit:0 lands at (448, 74) — distance 178 — and units 1/2
 			// tie at ~309, so unit:0 is nearest to the hero at center.
@@ -2895,7 +2673,7 @@ describe('BattleScene', () => {
 
 		const state = scene as unknown as { selectedTargetUnitId: string | null };
 
-		expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:0');
+		expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:0');
 	});
 
 	it('cycles targets skipping defeated enemies and falls back to nearest', async () => {
@@ -2908,8 +2686,8 @@ describe('BattleScene', () => {
 			scene.create({
 				saveState: createNewSaveState(),
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 3,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
@@ -2919,17 +2697,17 @@ describe('BattleScene', () => {
 				selectedTargetUnitId: string | null;
 			};
 
-			expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:0');
+			expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:0');
 			state.enemies[0]!.defeated = true;
 
 			// Invalid (defeated) current target falls back to the nearest living
 			// enemy (units 1/2 tie at ~309; the first, unit:1, wins).
 			hud.dispatch({ type: 'battle-cycle-target', direction: 1 });
-			expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:1');
+			expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:1');
 
 			// Next cycle wraps left-to-right past unit:1 to unit:2.
 			hud.dispatch({ type: 'battle-cycle-target', direction: 1 });
-			expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:2');
+			expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:2');
 		} finally {
 			hud.restore();
 		}
@@ -2945,8 +2723,8 @@ describe('BattleScene', () => {
 			scene.create({
 				saveState: createNewSaveState(),
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 3,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
@@ -2956,15 +2734,15 @@ describe('BattleScene', () => {
 				selectedTargetUnitId: string | null;
 			};
 
-			hud.dispatch({ type: 'battle-select-target', unitId: 'meadow-slime-west:unit:2' });
-			expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:2');
+			hud.dispatch({ type: 'battle-select-target', unitId: 'wildwood-wolves-mouth:unit:2' });
+			expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:2');
 
 			// Defeated and unknown ids leave the current selection untouched.
 			state.enemies[1]!.defeated = true;
-			hud.dispatch({ type: 'battle-select-target', unitId: 'meadow-slime-west:unit:1' });
-			expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:2');
-			hud.dispatch({ type: 'battle-select-target', unitId: 'meadow-slime-west:unit:9' });
-			expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:2');
+			hud.dispatch({ type: 'battle-select-target', unitId: 'wildwood-wolves-mouth:unit:1' });
+			expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:2');
+			hud.dispatch({ type: 'battle-select-target', unitId: 'wildwood-wolves-mouth:unit:9' });
+			expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:2');
 		} finally {
 			hud.restore();
 		}
@@ -2978,8 +2756,8 @@ describe('BattleScene', () => {
 		scene.create({
 			saveState: createNewSaveState(),
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 2,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
@@ -2998,9 +2776,9 @@ describe('BattleScene', () => {
 
 		scene.update(0, 16);
 
-		expect(state.selectedTargetUnitId).toBe('meadow-slime-west:unit:0');
-		expect(state.enemies[0]!.hp).toBe(4);
-		expect(state.enemies[1]!.hp).toBe(8);
+		expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:0');
+		expect(state.enemies[0]!.hp).toBe(6);
+		expect(state.enemies[1]!.hp).toBe(10);
 	});
 
 	it('appends bounded combat feed entries at damage, heal, and defeat points', async () => {
@@ -3020,11 +2798,11 @@ describe('BattleScene', () => {
 			scene.create({
 				saveState,
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+				hero: { hp: 20, maxHp: 20, attack: 5, defense: 0 }
 			});
 			const state = scene as unknown as {
 				enemies: Array<{ x: number; y: number; hp: number }>;
@@ -3037,16 +2815,16 @@ describe('BattleScene', () => {
 			// t=120 sits between hero cooldowns (no hit-stop): the enemy strikes back.
 			scene.update(120, 16);
 			expect(state.feed).toEqual([
-				{ id: 1, kind: 'hit', amount: 4, subject: 'Slime Scout' },
-				{ id: 2, kind: 'hurt', amount: 2, subject: 'Grik' }
+				{ id: 1, kind: 'hit', amount: 5, subject: 'Forest Wolf' },
+				{ id: 2, kind: 'hurt', amount: 3, subject: 'Grik' }
 			]);
 
 			hud.dispatch({ type: 'heal' });
-			// Hero is at 18/20 after the enemy hit, so the 8-HP potion only restores 2.
+			// Hero is at 17/20 after the enemy hit, so the 8-HP potion only restores 3.
 			expect(state.feed.at(-1)).toEqual({
 				id: 3,
 				kind: 'heal',
-				amount: 2,
+				amount: 3,
 				subject: 'Field Potion'
 			});
 
@@ -3070,8 +2848,8 @@ describe('BattleScene', () => {
 			scene.create({
 				saveState: createNewSaveState(),
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 3,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
@@ -3098,12 +2876,12 @@ describe('BattleScene', () => {
 			};
 			expect(payload.battle.active.ribbon).toEqual([
 				{ unitId: 'hero', readyAt: 100 },
-				{ unitId: 'meadow-slime-west:unit:1', readyAt: 200 },
-				{ unitId: 'meadow-slime-west:unit:0', readyAt: 500 },
-				{ unitId: 'meadow-slime-west:unit:2', readyAt: 700 }
+				{ unitId: 'wildwood-wolves-mouth:unit:1', readyAt: 200 },
+				{ unitId: 'wildwood-wolves-mouth:unit:0', readyAt: 500 },
+				{ unitId: 'wildwood-wolves-mouth:unit:2', readyAt: 700 }
 			]);
 			expect(payload.battle.active.enemies).toHaveLength(3);
-			expect(payload.battle.active.enemies[0]).toMatchObject({ name: 'Slime Scout' });
+			expect(payload.battle.active.enemies[0]).toMatchObject({ name: 'Forest Wolf' });
 		} finally {
 			emitHudStateSpy.mockRestore();
 			hud.restore();
@@ -3122,8 +2900,8 @@ describe('BattleScene', () => {
 			scene.create({
 				saveState: createNewSaveState(),
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
@@ -3161,8 +2939,8 @@ describe('BattleScene', () => {
 			scene.create({
 				saveState: createNewSaveState(),
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
@@ -3195,8 +2973,8 @@ describe('BattleScene', () => {
 			scene.create({
 				saveState: createNewSaveState(),
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
@@ -3236,8 +3014,8 @@ describe('BattleScene', () => {
 			scene.create({
 				saveState,
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 13, maxHp: 20, attack: 1, defense: 0 }
@@ -3262,11 +3040,11 @@ describe('BattleScene', () => {
 					reason: 'battle-result',
 					battleResult: expect.objectContaining({
 						outcome: 'fled',
-						finalHeroHp: 11,
+						finalHeroHp: 10,
 						inventory: saveState.inventory,
 						defeatedUnits: []
 					}),
-					recentlyFled: { encounterId: 'meadow-slime-west', fledAt: 2_600 }
+					recentlyFled: { encounterId: 'wildwood-wolves-mouth', fledAt: 2_600 }
 				})
 			);
 		} finally {
@@ -3292,8 +3070,8 @@ describe('BattleScene', () => {
 			scene.create({
 				saveState,
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 13, maxHp: 20, attack: 1, defense: 0 }
@@ -3317,7 +3095,7 @@ describe('BattleScene', () => {
 				expect.objectContaining({
 					reason: 'battle-result',
 					battleResult: expect.objectContaining({ outcome: 'fled' }),
-					recentlyFled: { encounterId: 'meadow-slime-west', fledAt: 7_400 }
+					recentlyFled: { encounterId: 'wildwood-wolves-mouth', fledAt: 7_400 }
 				})
 			);
 		} finally {
@@ -3411,7 +3189,7 @@ describe('WorldScene', () => {
 					leashRadius: 180
 				}
 			],
-			encounters: [{ id: 'scene-support-slime', x: 320, y: 320, enemyId: 'slime-scout' }]
+			encounters: [{ id: 'scene-support-slime', x: 320, y: 320, enemyId: 'forest-wolf' }]
 		};
 	}
 
@@ -3918,6 +3696,12 @@ describe('WorldScene', () => {
 	beforeEach(() => {
 		localeState.activeLocale = 'en';
 		vi.clearAllMocks();
+		// World tests start at the first objective with the opening scene already
+		// played; story-effect tests queue their own effects.
+		vi.spyOn(questRuntime, 'createInitialQuestState').mockImplementation(() => ({
+			...createQuestStateWithOpening(),
+			pendingEffects: []
+		}));
 		phaserState.reset();
 		Object.assign(phaserState.cursorKeys.left, { isDown: false });
 		Object.assign(phaserState.cursorKeys.right, { isDown: false });
@@ -4398,7 +4182,7 @@ describe('WorldScene', () => {
 		const target = installPlaneDiagnosticListener();
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'blacksmith-oren');
+		const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'oren');
 
 		try {
 			scene.create({ mapId: blacksmithInteriorMap.id });
@@ -4495,7 +4279,7 @@ describe('WorldScene', () => {
 		const target = installPlaneDiagnosticListener();
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'blacksmith-oren');
+		const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'oren');
 
 		try {
 			scene.create({ mapId: blacksmithInteriorMap.id });
@@ -5335,10 +5119,18 @@ describe('WorldScene', () => {
 			'animation-pack',
 			'heroIdle0'
 		);
-		expect(scene.add.sprite).toHaveBeenCalledWith(4_928, 960, 'animation-pack', 'slimeScoutIdle0');
-		expect(phaserState.enemyMarkers).toHaveLength(3);
+		const openingEncounters = openingView(meadowEntryMap).encounters ?? [];
+		const firstPack = openingEncounters[0]!;
+		expect(scene.add.sprite).toHaveBeenCalledWith(
+			firstPack.x,
+			firstPack.y,
+			'animation-pack',
+			'slimeScoutIdle0'
+		);
+		expect(phaserState.enemyMarkers).toHaveLength(openingEncounters.length);
+		// The cave stair stays hidden until the escape opens it.
 		expect(scene.add.image).not.toHaveBeenCalledWith(5_960, 1_868, 'starter-pack', 'doorwayTile');
-		expect(scene.add.image).toHaveBeenCalledWith(
+		expect(scene.add.image).not.toHaveBeenCalledWith(
 			5_960,
 			1_868,
 			'environment-dressing',
@@ -5393,7 +5185,8 @@ describe('WorldScene', () => {
 						prop.frameName
 					);
 				}
-				for (const npc of [...(map.npcs ?? []), ...(map.ambientNpcs ?? [])]) {
+				const view = openingView(map);
+				for (const npc of [...(view.npcs ?? []), ...(view.ambientNpcs ?? [])]) {
 					expect(scene.add.image).toHaveBeenCalledWith(npc.x, npc.y, 'npc-pack', npc.frameName);
 				}
 				expect(scene.add.image).toHaveBeenCalledWith(
@@ -6064,7 +5857,9 @@ describe('WorldScene', () => {
 				x: meadowEntryMap.spawn.x,
 				y: meadowEntryMap.spawn.y
 			});
-			expect(phaserState.enemyMarkers).toHaveLength(3);
+			expect(phaserState.enemyMarkers).toHaveLength(
+				openingView(meadowEntryMap).encounters?.length ?? 0
+			);
 			expect(target.diagnostics[0]).toMatchObject({
 				paintedMode: 'complete',
 				packageId: 'meadow-entry-painted-v2-complete',
@@ -6115,7 +5910,9 @@ describe('WorldScene', () => {
 						expectedOrganicBlockerMarkerCount(sourceId)
 					);
 				}
-				expect(phaserState.enemyMarkers).toHaveLength(3);
+				expect(phaserState.enemyMarkers).toHaveLength(
+					openingView(meadowEntryMap).encounters?.length ?? 0
+				);
 				expect(target.diagnostics[0]?.paintedMode).toBe('complete');
 				expect(target.diagnostics[0]?.entries.find(({ id }) => id === targetId)?.status).toBe(
 					status
@@ -7131,7 +6928,7 @@ describe('WorldScene', () => {
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(2_272, 5_024, 235, 226, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(2_272, 5_696, 246, 333, 0x5b4636, 0.9);
 		expect(scene.add.rectangle).not.toHaveBeenCalledWith(5_960, 1_800, 256, 224, 0x5b4636, 0.9);
-		expect(scene.add.text).toHaveBeenCalledWith(704, 5_572, "Hero's House", {
+		expect(scene.add.text).toHaveBeenCalledWith(704, 5_572, "Grik's House", {
 			color: '#f8fafc',
 			fontSize: '12px'
 		});
@@ -7221,8 +7018,16 @@ describe('WorldScene', () => {
 			'animation-pack',
 			'heroIdle0'
 		);
-		expect(scene.add.sprite).toHaveBeenCalledWith(4_928, 960, 'animation-pack', 'slimeScoutIdle0');
-		expect(phaserState.enemyMarkers).toHaveLength(3);
+		const firstPack = openingView(meadowEntryMap).encounters![0]!;
+		expect(scene.add.sprite).toHaveBeenCalledWith(
+			firstPack.x,
+			firstPack.y,
+			'animation-pack',
+			'slimeScoutIdle0'
+		);
+		expect(phaserState.enemyMarkers).toHaveLength(
+			openingView(meadowEntryMap).encounters?.length ?? 0
+		);
 		expect(phaserState.textureMock.add).toHaveBeenCalledWith(
 			'heroIdle0',
 			0,
@@ -7459,8 +7264,9 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('writes Slot 0 when a new run becomes ready', async () => {
+	it('writes Slot 0 when a new run becomes ready, with Grik at his bedside', async () => {
 		const slots = await import('$lib/game/save/slots');
+		const { homeBedside } = await import('$lib/game/content/player');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const memoryStorage = createSlotCaptureStorage();
@@ -7479,7 +7285,8 @@ describe('WorldScene', () => {
 			);
 			const autosave = slots.loadSaveSlots(memoryStorage).slots[0];
 			expect(autosave?.kind).toBe('autosave');
-			expect(autosave?.state.mapId).toBe('meadow-entry');
+			expect(autosave?.state.mapId).toBe(homeBedside.mapId);
+			expect(autosave?.state.player).toMatchObject({ x: homeBedside.x, y: homeBedside.y });
 		} finally {
 			storage.setSaveStorage(undefined);
 		}
@@ -7707,6 +7514,7 @@ describe('WorldScene', () => {
 				saveState: {
 					...createNewSaveState(),
 					player: { ...createNewSaveState().player, hp: 10 },
+					inventory: { stacks: [{ itemId: 'field-potion', quantity: 1 }], equipment: [] },
 					equipment: { weapon: null, head: null, body: null, hands: null, accessory: null }
 				}
 			});
@@ -7780,7 +7588,7 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('writes Slot 0 when a dialogue action changes quest state, but not during pure navigation', async () => {
+	it('writes Slot 0 when talking completes an objective, but not during pure navigation', async () => {
 		const slots = await import('$lib/game/save/slots');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -7792,24 +7600,59 @@ describe('WorldScene', () => {
 		const storage = await import('$lib/game/save/storage');
 		storage.setSaveStorage(memoryStorage);
 		try {
-			scene.create({ mapId: 'guild-hall' });
-			Object.assign(phaserState.playerMarker, guildMasterApproach);
+			scene.create({ mapId: 'hero-house' });
+			memoryStorage.setItem.mockClear();
+
+			// Opening Mott's lines is what counts the talk objective: write once.
+			Object.assign(phaserState.playerMarker, mottApproach);
 			phaserState.interactKeys.e.justDown = true;
 			scene.update(16, 16);
 			await flushStoryDialogue();
-			memoryStorage.setItem.mockClear();
-
-			// First advance: pure navigation through the briefing lines — no write.
-			sceneState.handleHudCommand({ type: 'dialogue-advance' });
-			expect(memoryStorage.setItem).not.toHaveBeenCalled();
-
-			// Final advance: completes the recordNpcTalk intent — quest state mutates, write.
-			sceneState.handleHudCommand({ type: 'dialogue-advance' });
 			expect(memoryStorage.setItem).toHaveBeenCalledTimes(1);
 			const autosave = slots.loadSaveSlots(memoryStorage).slots[0];
-			expect(autosave?.state.quests.completedObjectives['investigate-the-ruins']).toContain(
-				'talk-to-guild-master'
+			expect(autosave?.state.quests.completedObjectives['prologue-proving-morning']).toContain(
+				'talk-to-mott'
 			);
+			memoryStorage.setItem.mockClear();
+
+			// Advancing through the lines is pure navigation: no write.
+			sceneState.handleHudCommand({ type: 'dialogue-advance' });
+			expect(memoryStorage.setItem).not.toHaveBeenCalled();
+		} finally {
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('writes Slot 0 once a queued story scene is shown, so a reload does not replay it', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as { dialogueSession: unknown };
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({
+				saveState: {
+					...createNewSaveState(),
+					mapId: 'meadow-entry',
+					quests: {
+						...questStateAt('report-boar-king'),
+						pendingEffects: [{ type: 'play-scene', sceneId: 'prologue.boar-king-felled' }]
+					}
+				}
+			});
+			memoryStorage.setItem.mockClear();
+
+			scene.update(0, 16);
+			await vi.waitFor(() => expect(memoryStorage.setItem).toHaveBeenCalledTimes(1));
+
+			expect(sceneState.dialogueSession).toBeTruthy();
+			const autosave = slots.loadSaveSlots(memoryStorage).slots[0];
+			expect(autosave?.state.quests.pendingEffects).toEqual([]);
 		} finally {
 			storage.setSaveStorage(undefined);
 		}
@@ -8363,7 +8206,7 @@ describe('WorldScene', () => {
 					}
 				}
 			});
-			Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
+			Object.assign(phaserState.playerMarker, wolvesMouthApproach);
 
 			scene.update(0, 16);
 
@@ -8375,11 +8218,10 @@ describe('WorldScene', () => {
 						flags: expect.objectContaining({ clearedEncounters: [] })
 					}),
 					sourceMapId: 'meadow-entry',
-					sourceEncounterId: 'meadow-slime-west',
-					sourceEnemyId: 'slime-scout',
-					completion: undefined,
-					returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
-					enemyCount: 6,
+					sourceEncounterId: 'wildwood-wolves-mouth',
+					sourceEnemyId: 'forest-wolf',
+					returnPosition: { mapId: 'meadow-entry', x: 4_700, y: 3_264, facing: 'down' },
+					enemyCount: 2,
 					hero: { hp: 12, maxHp: 26, attack: 5, defense: 1 }
 				})
 			);
@@ -8399,11 +8241,11 @@ describe('WorldScene', () => {
 				mapId: 'meadow-entry',
 				flags: {
 					...save.flags,
-					clearedEncounters: ['meadow-slime-west']
+					clearedEncounters: ['wildwood-wolves-mouth']
 				}
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
+		Object.assign(phaserState.playerMarker, wolvesMouthApproach);
 
 		clearedScene.update(0, 16);
 
@@ -8415,7 +8257,7 @@ describe('WorldScene', () => {
 			enemies: Array<{ defeated: boolean; hp: number }>;
 		};
 		defeatedScene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
+		Object.assign(phaserState.playerMarker, wolvesMouthApproach);
 		Object.assign(defeatedState.enemies[0]!, { defeated: true, hp: 0 });
 
 		defeatedScene.update(0, 16);
@@ -8446,24 +8288,24 @@ describe('WorldScene', () => {
 				battleResult: {
 					outcome: 'victory',
 					sourceMapId: 'meadow-entry',
-					sourceEncounterId: 'meadow-slime-west',
-					sourceEnemyId: 'slime-scout',
+					sourceEncounterId: 'wildwood-wolves-mouth',
+					sourceEnemyId: 'forest-wolf',
 					returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 					finalHeroHp: 16,
 					inventory: saveState.inventory,
 					defeatedUnits: [
 						{
-							unitId: 'meadow-slime-west:unit:0',
+							unitId: 'wildwood-wolves-mouth:unit:0',
 							unitIndex: 0,
-							enemyId: 'slime-scout',
+							enemyId: 'forest-wolf',
 							xpReward: 4,
 							coinReward: 4,
 							drops: []
 						},
 						{
-							unitId: 'meadow-slime-west:unit:1',
+							unitId: 'wildwood-wolves-mouth:unit:1',
 							unitIndex: 1,
-							enemyId: 'slime-scout',
+							enemyId: 'forest-wolf',
 							xpReward: 4,
 							coinReward: 4,
 							drops: []
@@ -8477,7 +8319,7 @@ describe('WorldScene', () => {
 			const builtSave = (
 				scene as unknown as { buildSaveState: () => ReturnType<typeof createNewSaveState> }
 			).buildSaveState();
-			expect(builtSave.flags.clearedEncounters).toEqual(['meadow-slime-west']);
+			expect(builtSave.flags.clearedEncounters).toEqual(['wildwood-wolves-mouth']);
 			expect(builtSave.player).toMatchObject({ x: 4_928, y: 1_024, facing: 'down', hp: 20 });
 			expect(builtSave.player.xp).toBe(8);
 			expect(builtSave.wallet.coins).toBe(8);
@@ -8488,7 +8330,7 @@ describe('WorldScene', () => {
 			};
 			expect(envelope.slots[0]?.kind).toBe('autosave');
 			expect(envelope.slots[0]?.state).toMatchObject({
-				flags: expect.objectContaining({ clearedEncounters: ['meadow-slime-west'] }),
+				flags: expect.objectContaining({ clearedEncounters: ['wildwood-wolves-mouth'] }),
 				player: expect.objectContaining({ x: 4_928, y: 1_024, hp: 20 }),
 				mapExploration: expect.objectContaining({
 					'meadow-entry': expect.arrayContaining(['38,7'])
@@ -8554,7 +8396,7 @@ describe('WorldScene', () => {
 					outcome: 'defeat',
 					sourceMapId: 'ruins-threshold',
 					sourceEncounterId: 'threshold-slime-west',
-					sourceEnemyId: 'slime-scout',
+					sourceEnemyId: 'forest-wolf',
 					returnPosition: { mapId: 'ruins-threshold', x: 512, y: 3_200, facing: 'right' },
 					finalHeroHp: 0,
 					inventory: saveState.inventory,
@@ -8597,7 +8439,7 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'ruins-core' });
 		sceneState.playerProgress = { level: 1, xp: 0, hp: 1, attack: 3 };
-		Object.assign(phaserState.playerMarker, { x: 4_992, y: 3_200 });
+		Object.assign(phaserState.playerMarker, { x: 2_912, y: 3_200 });
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(500, 16);
@@ -8606,8 +8448,8 @@ describe('WorldScene', () => {
 			BattleScene.key,
 			expect.objectContaining({
 				sourceMapId: 'ruins-core',
-				sourceEncounterId: 'ruins-warden',
-				sourceEnemyId: 'ruins-warden'
+				sourceEncounterId: 'core-crawlers',
+				sourceEnemyId: 'tunnel-crawler'
 			})
 		);
 		expect(phaserState.playerMarker.play).not.toHaveBeenCalledWith('hero-dead', false);
@@ -8642,7 +8484,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
+		Object.assign(phaserState.playerMarker, wolvesMouthApproach);
 
 		scene.update(0, 16);
 
@@ -8662,7 +8504,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
+		Object.assign(phaserState.playerMarker, wolvesMouthApproach);
 		phaserState.enemyMarker.setTint.mockClear();
 		phaserState.enemyMarker.clearTint.mockClear();
 
@@ -8670,7 +8512,7 @@ describe('WorldScene', () => {
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
 			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'meadow-slime-west' })
+			expect.objectContaining({ sourceEncounterId: 'wildwood-wolves-mouth' })
 		);
 		expect(scene.add.arc).not.toHaveBeenCalled();
 		expect(phaserState.enemyMarker.setTint).not.toHaveBeenCalledWith(0xfff0a8);
@@ -8724,7 +8566,8 @@ describe('WorldScene', () => {
 				inventory: {
 					stacks: [{ itemId: 'field-potion', quantity: 1 }],
 					equipment: ['training-sword']
-				}
+				},
+				equipment: { ...createNewSaveState().equipment, weapon: 'training-sword' }
 			}
 		});
 		sceneState.handleHudCommand({ type: 'use-item', itemId: 'field-potion' });
@@ -8982,7 +8825,7 @@ describe('WorldScene', () => {
 			saveState: {
 				...save,
 				mapId: 'guild-hall',
-				player: { ...save.player, ...quartermasterApproach }
+				player: { ...save.player, ...lodgeKeeperApproach }
 			}
 		});
 		emitHudStateSpy.mockClear();
@@ -8994,7 +8837,7 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
 				mapId: 'guild-hall',
-				status: 'Quartermaster Vale nearby',
+				status: 'Lodge Keeper nearby',
 				dialogue: null
 			})
 		);
@@ -9013,9 +8856,9 @@ describe('WorldScene', () => {
 				status: 'New run',
 				quests: expect.objectContaining({
 					main: expect.objectContaining({
-						title: 'Investigate the Ruins',
-						objective: 'Talk to the Guild Master in the Guild Hall.',
-						progress: expect.objectContaining({ label: 'Guild Master spoken to' })
+						title: 'The Proving Morning',
+						objective: 'Talk to Old Mott by the hearth.',
+						progress: expect.objectContaining({ label: 'Spoke with Old Mott' })
 					})
 				})
 			})
@@ -9064,7 +8907,7 @@ describe('WorldScene', () => {
 				}
 			})
 		);
-		expect(localizedContent.getNpcText).toHaveBeenCalledWith('ja', 'shopkeeper-mira');
+		expect(localizedContent.getNpcText).toHaveBeenCalledWith('ja', 'mira');
 		expect(localizedContent.getShopText).toHaveBeenCalledWith('ja', 'miras-item-shop');
 
 		sceneState.handleHudCommand({ type: 'open-shop', shopId: 'miras-item-shop' });
@@ -9129,14 +8972,14 @@ describe('WorldScene', () => {
 				status: 'JP Miraが近くにいる',
 				dialogue: expect.objectContaining({
 					speaker: 'Mira',
-					line: 'Fresh tonics are on the shelf.',
-					choices: expect.arrayContaining([expect.objectContaining({ id: 'shop', label: 'Shop' })])
+					line: 'Herbs, salves, and potions, all fresh. What will it be?',
+					choices: expect.arrayContaining([expect.objectContaining({ id: 'shop' })])
 				})
 			})
 		);
 		expect(storyClient.getNpcStoryDialogue).toHaveBeenCalledWith(
 			expect.objectContaining({
-				npcId: 'shopkeeper-mira',
+				npcId: 'mira',
 				mapId: 'item-shop',
 				locale: 'ja'
 			})
@@ -9158,33 +9001,34 @@ describe('WorldScene', () => {
 			saveState: {
 				...save,
 				mapId: 'guild-hall',
-				player: { ...save.player, ...guildMasterApproach }
+				player: { ...save.player, ...borakApproach }
 			}
 		});
-		Object.assign(phaserState.playerMarker, guildMasterApproach);
+		Object.assign(phaserState.playerMarker, borakApproach);
 		emitHudStateSpy.mockClear();
 
 		scene.update(0, 16);
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'JP Guild Masterが近くにいる',
+				status: 'JP Borakが近くにいる',
 				quests: expect.objectContaining({
 					main: expect.objectContaining({
-						title: 'JP Investigate the Ruins',
-						description: 'JP Report to the Guild Master, then defeat the ruins warden.',
-						objective: 'JP Talk to the Guild Master in the Guild Hall.',
-						progress: expect.objectContaining({ label: 'JP Guild Master spoken to' })
+						title: 'JP The Proving Morning',
+						description:
+							"JP Today is Grik's proving hunt. Gather his gear and report to the Hunters' Lodge.",
+						objective: 'JP Talk to Old Mott by the hearth.',
+						progress: expect.objectContaining({ label: 'JP Spoke with Old Mott' })
 					})
 				})
 			})
 		);
-		expect(localizedContent.getNpcText).toHaveBeenCalledWith('ja', 'guild-master');
-		expect(localizedContent.getQuestText).toHaveBeenCalledWith('ja', 'investigate-the-ruins');
+		expect(localizedContent.getNpcText).toHaveBeenCalledWith('ja', 'borak');
+		expect(localizedContent.getQuestText).toHaveBeenCalledWith('ja', 'prologue-proving-morning');
 		expect(localizedContent.getQuestObjectiveText).toHaveBeenCalledWith(
 			'ja',
-			'investigate-the-ruins',
-			'talk-to-guild-master'
+			'prologue-proving-morning',
+			'talk-to-mott'
 		);
 
 		emitHudStateSpy.mockClear();
@@ -9194,19 +9038,16 @@ describe('WorldScene', () => {
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'JP Guild Masterが近くにいる',
+				status: 'JP Borakが近くにいる',
 				dialogue: expect.objectContaining({
-					speaker: 'Guild Master Arlen',
-					line: expect.stringContaining('The eastern ruins are stirring again'),
-					choices: expect.arrayContaining([
-						expect.objectContaining({ id: 'quest', label: 'Quest' })
-					])
+					speaker: 'Borak',
+					line: 'Not yet. A hunter does not walk into the lodge with empty hands.'
 				})
 			})
 		);
 		expect(storyClient.getNpcStoryDialogue).toHaveBeenCalledWith(
 			expect.objectContaining({
-				npcId: 'guild-master',
+				npcId: 'borak',
 				mapId: 'guild-hall',
 				locale: 'ja'
 			})
@@ -9262,7 +9103,7 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('starts Guild Master dialogue instead of status-only NPC text', async () => {
+	it('starts Borak dialogue instead of status-only NPC text', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const storyClient = await import('$lib/game/story/client');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
@@ -9270,7 +9111,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, guildMasterApproach);
+		Object.assign(phaserState.playerMarker, borakApproach);
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -9281,15 +9122,15 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
 				dialogue: expect.objectContaining({
-					npcId: 'guild-master',
-					speaker: 'Guild Master Arlen',
-					line: expect.stringContaining('The eastern ruins are stirring again')
+					npcId: 'borak',
+					speaker: 'Borak',
+					line: 'Not yet. A hunter does not walk into the lodge with empty hands.'
 				})
 			})
 		);
 		expect(storyClient.getNpcStoryDialogue).toHaveBeenCalledWith(
 			expect.objectContaining({
-				npcId: 'guild-master',
+				npcId: 'borak',
 				mapId: 'guild-hall',
 				locale: 'en'
 			})
@@ -9307,7 +9148,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, guildMasterApproach);
+		Object.assign(phaserState.playerMarker, borakApproach);
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -9342,7 +9183,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, guildMasterApproach);
+		Object.assign(phaserState.playerMarker, borakApproach);
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -9355,9 +9196,9 @@ describe('WorldScene', () => {
 
 		// Resolve with a valid-looking session — the stale guard should discard it
 		resolveDialogue!({
-			id: 'npc:guild-master:stale',
+			id: 'npc:borak:stale',
 			npcId: null,
-			speaker: 'Guild Master Arlen',
+			speaker: 'Borak',
 			lines: ['Stale response'],
 			line: 'Stale response',
 			lineIndex: 0,
@@ -9408,7 +9249,7 @@ describe('WorldScene', () => {
 
 		// Resolve with a valid-looking session — the stale guard should discard it
 		resolveDialogue!({
-			id: 'npc:shopkeeper-mira:stale',
+			id: 'npc:mira:stale',
 			npcId: null,
 			speaker: 'Mira',
 			lines: ['Stale response'],
@@ -9430,7 +9271,7 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('starts Guild Master dialogue after a no-NPC fallback prompt', async () => {
+	it('starts Borak dialogue after a no-NPC fallback prompt', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
@@ -9452,7 +9293,7 @@ describe('WorldScene', () => {
 			})
 		);
 
-		Object.assign(phaserState.playerMarker, guildMasterApproach);
+		Object.assign(phaserState.playerMarker, borakApproach);
 		scene.update(16, 16);
 		emitHudStateSpy.mockClear();
 
@@ -9463,10 +9304,10 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenCalledOnce();
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'Guild Master Arlen nearby',
+				status: 'Borak nearby',
 				dialogue: expect.objectContaining({
-					speaker: 'Guild Master Arlen',
-					line: expect.stringContaining('The eastern ruins are stirring again')
+					speaker: 'Borak',
+					line: 'Not yet. A hunter does not walk into the lodge with empty hands.'
 				})
 			})
 		);
@@ -9482,7 +9323,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, guildMasterApproach);
+		Object.assign(phaserState.playerMarker, borakApproach);
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
 		await flushStoryDialogue();
@@ -9533,11 +9374,10 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('advances dialogue and records Guild Master quest progress at the end of briefing', async () => {
+	it('records talk objective progress as soon as the dialogue opens', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			handleHudCommand: (command: HudCommand) => void;
 			buildSaveState: () => {
 				quests: {
 					entries: Record<string, { currentObjectiveId: string }>;
@@ -9546,28 +9386,35 @@ describe('WorldScene', () => {
 			};
 		};
 
-		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, guildMasterApproach);
+		scene.create({ mapId: 'hero-house' });
+		Object.assign(phaserState.playerMarker, mottApproach);
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
 		await flushStoryDialogue();
 
-		sceneState.handleHudCommand({ type: 'dialogue-advance' });
-		sceneState.handleHudCommand({ type: 'dialogue-advance' });
-
-		expect(sceneState.buildSaveState().quests.entries['investigate-the-ruins']).toMatchObject({
-			currentObjectiveId: 'defeat-ruins-warden'
+		expect(sceneState.buildSaveState().quests.entries['prologue-proving-morning']).toMatchObject({
+			currentObjectiveId: 'collect-practice-spear'
 		});
 		expect(
-			sceneState.buildSaveState().quests.completedObjectives['investigate-the-ruins']
-		).toContain('talk-to-guild-master');
+			sceneState.buildSaveState().quests.completedObjectives['prologue-proving-morning']
+		).toContain('talk-to-mott');
 	});
 
-	it('does not complete Guild Master quest progress from stale out-of-range dialogue', async () => {
+	it('does not count a talk objective from a dialogue that resolves after walking away', async () => {
+		const storyClient = await import('$lib/game/story/client');
+		const actualClient =
+			await vi.importActual<typeof import('$lib/game/story/client')>('$lib/game/story/client');
+		const fixture = await import('$lib/game/story/browser-fixture');
+		let release: (() => void) | undefined;
+		vi.mocked(storyClient.getNpcStoryDialogue).mockImplementationOnce(async (request) => {
+			await new Promise<void>((resolve) => {
+				release = resolve;
+			});
+			return actualClient.getNpcStoryDialogueWithRuntime(request, { mode: 'browser', fixture });
+		});
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			handleHudCommand: (command: HudCommand) => void;
 			buildSaveState: () => {
 				quests: {
 					entries: Record<string, { currentObjectiveId: string }>;
@@ -9576,72 +9423,23 @@ describe('WorldScene', () => {
 			};
 		};
 
-		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, guildMasterApproach);
+		scene.create({ mapId: 'hero-house' });
+		Object.assign(phaserState.playerMarker, mottApproach);
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
-		await flushStoryDialogue();
 
-		Object.assign(phaserState.playerMarker, { x: 64, y: 64 });
+		Object.assign(phaserState.playerMarker, { x: 600, y: 160 });
 		scene.update(32, 16);
-		sceneState.handleHudCommand({ type: 'dialogue-advance' });
-		sceneState.handleHudCommand({ type: 'dialogue-advance' });
-
-		expect(sceneState.buildSaveState().quests.entries['investigate-the-ruins']).toMatchObject({
-			currentObjectiveId: 'talk-to-guild-master'
-		});
-		expect(
-			sceneState.buildSaveState().quests.completedObjectives['investigate-the-ruins'] ?? []
-		).not.toContain('talk-to-guild-master');
-	});
-
-	it('accepts a Guild side quest through dialogue choices', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const sceneState = scene as unknown as {
-			handleHudCommand: (command: HudCommand) => void;
-			buildSaveState: () => {
-				quests: { entries: Record<string, { currentObjectiveId: string; progress: number }> };
-			};
-		};
-		const unlockedSave = createNewSaveState();
-
-		scene.create({
-			saveState: {
-				...unlockedSave,
-				mapId: 'guild-hall',
-				player: { ...unlockedSave.player, ...guildMasterApproach },
-				quests: {
-					entries: {
-						'investigate-the-ruins': {
-							status: 'active',
-							currentObjectiveId: 'defeat-ruins-warden',
-							progress: 0,
-							rewardApplied: false,
-							countedSourceIds: []
-						}
-					},
-					completedObjectives: { 'investigate-the-ruins': ['talk-to-guild-master'] }
-				}
-			}
-		});
-		Object.assign(phaserState.playerMarker, guildMasterApproach);
-		phaserState.interactKeys.e.justDown = true;
-		scene.update(16, 16);
+		release!();
+		await flushStoryDialogue();
 		await flushStoryDialogue();
 
-		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'quest' });
-		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'quest:thin-village-slimes' });
-		sceneState.handleHudCommand({
-			type: 'dialogue-choose',
-			choiceId: 'accept:thin-village-slimes'
+		expect(sceneState.buildSaveState().quests.entries['prologue-proving-morning']).toMatchObject({
+			currentObjectiveId: 'talk-to-mott'
 		});
-
-		expect(sceneState.buildSaveState().quests.entries['thin-village-slimes']).toMatchObject({
-			currentObjectiveId: 'defeat-village-slimes',
-			progress: 0
-		});
+		expect(
+			sceneState.buildSaveState().quests.completedObjectives['prologue-proving-morning'] ?? []
+		).not.toContain('talk-to-mott');
 	});
 
 	it('opens shops through dialogue choices', async () => {
@@ -9651,7 +9449,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, quartermasterApproach);
+		Object.assign(phaserState.playerMarker, lodgeKeeperApproach);
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
 		await flushStoryDialogue();
@@ -9667,95 +9465,47 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('talking through the Guild Master briefing unlocks ruins and publishes Guild quest offers', async () => {
+	it('reporting to Borak finishes the proving morning and starts the first trial', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			handleHudCommand: (command: HudCommand) => void;
-			buildSaveState: () => {
-				quests: {
-					entries: Record<string, { currentObjectiveId: string; progress: number }>;
-					completedObjectives: Record<string, string[]>;
-				};
-			};
+			buildSaveState: () => ReturnType<typeof createNewSaveState>;
 		};
+		const save = createNewSaveState();
 
-		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, guildMasterApproach);
-		scene.update(0, 16);
-		emitHudStateSpy.mockClear();
-
+		scene.create({
+			saveState: {
+				...save,
+				mapId: 'guild-hall',
+				player: { ...save.player, ...borakApproach },
+				quests: questStateAt('report-to-borak')
+			}
+		});
+		Object.assign(phaserState.playerMarker, borakApproach);
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
 		await flushStoryDialogue();
-		sceneState.handleHudCommand({ type: 'dialogue-advance' });
-		sceneState.handleHudCommand({ type: 'dialogue-advance' });
 
-		expect(sceneState.buildSaveState().quests.entries['investigate-the-ruins']).toMatchObject({
-			currentObjectiveId: 'defeat-ruins-warden',
-			progress: 0
+		const built = sceneState.buildSaveState();
+		expect(built.quests.entries['prologue-proving-morning']?.status).toBe('completed');
+		expect(built.quests.entries['prologue-trial-tracks']).toMatchObject({
+			status: 'active',
+			currentObjectiveId: 'meet-lirra-forest'
 		});
-		expect(
-			sceneState.buildSaveState().quests.completedObjectives['investigate-the-ruins']
-		).toContain('talk-to-guild-master');
+		expect(built.wallet.coins).toBe(save.wallet.coins + 10);
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'Ruins route unlocked',
+				dialogue: expect.objectContaining({ npcId: 'borak', speaker: 'Borak' }),
 				quests: expect.objectContaining({
-					guildOffer: expect.objectContaining({
-						quests: expect.arrayContaining([
-							expect.objectContaining({ questId: 'thin-village-slimes' })
-						])
-					})
+					main: expect.objectContaining({ questId: 'prologue-trial-tracks' }),
+					completed: [expect.objectContaining({ questId: 'prologue-proving-morning' })]
 				})
 			})
 		);
-	});
-
-	it('accepts Guild side quests through HUD commands and seeds cleared village slime progress', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const sceneState = scene as unknown as {
-			handleHudCommand: (command: HudCommand) => void;
-			buildSaveState: () => {
-				quests: { entries: Record<string, { currentObjectiveId: string; progress: number }> };
-			};
-		};
-
-		const unlockedSave = createNewSaveState();
-		scene.create({
-			saveState: {
-				...unlockedSave,
-				mapId: 'guild-hall',
-				player: { ...unlockedSave.player, ...guildMasterApproach },
-				flags: {
-					...unlockedSave.flags,
-					clearedEncounters: ['meadow-slime-west', 'meadow-slime-center']
-				},
-				quests: {
-					entries: {
-						'investigate-the-ruins': {
-							status: 'active',
-							currentObjectiveId: 'defeat-ruins-warden',
-							progress: 0,
-							rewardApplied: false,
-							countedSourceIds: []
-						}
-					},
-					completedObjectives: { 'investigate-the-ruins': ['talk-to-guild-master'] }
-				}
-			}
-		});
-
-		sceneState.handleHudCommand({ type: 'accept-quest', questId: 'thin-village-slimes' });
-
-		expect(sceneState.buildSaveState().quests.entries['thin-village-slimes']).toMatchObject({
-			currentObjectiveId: 'defeat-village-slimes',
-			progress: 2
-		});
 	});
 
 	it('starts nearby guild shopkeeper dialogue when an interact key is pressed', async () => {
@@ -9765,7 +9515,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, quartermasterApproach);
+		Object.assign(phaserState.playerMarker, lodgeKeeperApproach);
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -9776,9 +9526,9 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenCalledOnce();
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'Quartermaster Vale nearby',
+				status: 'Lodge Keeper nearby',
 				dialogue: expect.objectContaining({
-					speaker: 'Quartermaster Vale',
+					speaker: 'Lodge Keeper',
 					choices: expect.arrayContaining([expect.objectContaining({ id: 'shop' })])
 				})
 			})
@@ -9813,8 +9563,7 @@ describe('WorldScene', () => {
 				status: 'Lynn nearby',
 				dialogue: expect.objectContaining({
 					speaker: 'Lynn',
-					line: 'The kettle is warm if you need a quiet minute before the road.',
-					choices: [expect.objectContaining({ id: 'close', label: 'Close' })]
+					line: "The proving hunt is today, isn't it? Good luck, Grik. Bring back something with more meat than bone."
 				})
 			})
 		);
@@ -9854,63 +9603,6 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('shows Guild quest feedback from stale out-of-range Guild Master dialogue', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const sceneState = scene as unknown as {
-			handleHudCommand: (command: HudCommand) => void;
-		};
-		const unlockedSave = createNewSaveState();
-
-		scene.create({
-			saveState: {
-				...unlockedSave,
-				mapId: 'guild-hall',
-				player: { ...unlockedSave.player, ...guildMasterApproach },
-				quests: {
-					entries: {
-						'investigate-the-ruins': {
-							status: 'active',
-							currentObjectiveId: 'defeat-ruins-warden',
-							progress: 0,
-							rewardApplied: false,
-							countedSourceIds: []
-						}
-					},
-					completedObjectives: { 'investigate-the-ruins': ['talk-to-guild-master'] }
-				}
-			}
-		});
-		Object.assign(phaserState.playerMarker, guildMasterApproach);
-		phaserState.interactKeys.e.justDown = true;
-		scene.update(16, 16);
-		await flushStoryDialogue();
-		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'quest' });
-		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'quest:thin-village-slimes' });
-
-		Object.assign(phaserState.playerMarker, { x: 64, y: 64 });
-		scene.update(32, 16);
-		emitHudStateSpy.mockClear();
-
-		sceneState.handleHudCommand({
-			type: 'dialogue-choose',
-			choiceId: 'accept:thin-village-slimes'
-		});
-
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({
-				status: 'No Guild quest available',
-				dialogue: expect.objectContaining({
-					speaker: 'Guild Master Arlen',
-					line: 'No Guild quest is available here.'
-				})
-			})
-		);
-	});
-
 	it('starts nearby shopkeeper dialogue when an interact key is pressed', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
@@ -9937,7 +9629,7 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('starts Blacksmith Oren dialogue and opens the Sundrop Forge shop', async () => {
+	it('starts Oren dialogue and opens the Sundrop Forge shop', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
@@ -9956,11 +9648,11 @@ describe('WorldScene', () => {
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'Blacksmith Oren nearby',
+				status: 'Oren nearby',
 				dialogue: expect.objectContaining({
-					speaker: 'Blacksmith Oren',
-					line: 'Steel holds when the hand behind it does. Take what fits, and keep it dry.',
-					choices: [expect.objectContaining({ id: 'shop', label: 'Shop' })]
+					speaker: 'Oren',
+					line: "Steel for those who can pay, advice for those who can't. Today, the advice is free.",
+					choices: expect.arrayContaining([expect.objectContaining({ id: 'shop', label: 'Shop' })])
 				})
 			})
 		);
@@ -9981,7 +9673,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 
 		scene.create({ mapId: 'guild-hall' });
-		Object.assign(phaserState.playerMarker, quartermasterApproach);
+		Object.assign(phaserState.playerMarker, lodgeKeeperApproach);
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -9995,9 +9687,9 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenCalledOnce();
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'Quartermaster Vale nearby',
+				status: 'Lodge Keeper nearby',
 				dialogue: expect.objectContaining({
-					speaker: 'Quartermaster Vale',
+					speaker: 'Lodge Keeper',
 					choices: expect.arrayContaining([expect.objectContaining({ id: 'shop' })])
 				})
 			})
@@ -10031,20 +9723,20 @@ describe('WorldScene', () => {
 			y: 320,
 			nearbyShop: {
 				shopId: 'miras-item-shop',
-				name: "Mira's Item Shop",
+				name: "Mira's Herb Hut",
 				merchantName: 'Mira',
-				description: 'Reliable field supplies for the road east.',
+				description: 'Herbs and remedies for the hunt.',
 				bustPath: '/game/assets/heroic-ui/busts/mira.png'
 			}
 		},
 		{
 			mapId: 'guild-hall',
-			...quartermasterApproach,
+			...lodgeKeeperApproach,
 			nearbyShop: {
 				shopId: 'guild-quartermaster',
-				name: 'Guild Quartermaster',
-				merchantName: 'Quartermaster Vale',
-				description: 'Guild-approved gear for new ruins assignments.',
+				name: 'Lodge Stores',
+				merchantName: 'Lodge Keeper',
+				description: "Hunting gear from the lodge's stores.",
 				bustPath: '/game/assets/heroic-ui/busts/quartermaster-vale.png'
 			}
 		}
@@ -10078,8 +9770,17 @@ describe('WorldScene', () => {
 		const sceneState = scene as unknown as {
 			handleHudCommand: (command: HudCommand) => void;
 		};
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const save = createNewSaveState();
 
-		scene.create({ mapId: 'item-shop' });
+		scene.create({
+			saveState: {
+				...save,
+				mapId: 'item-shop',
+				player: { ...save.player, x: 416, y: 320 },
+				inventory: { stacks: [{ itemId: 'field-potion', quantity: 1 }], equipment: [] }
+			}
+		});
 		Object.assign(phaserState.playerMarker, { x: 416, y: 320 });
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
@@ -10118,11 +9819,11 @@ describe('WorldScene', () => {
 			saveState: {
 				...save,
 				mapId: 'guild-hall',
-				player: { ...save.player, ...quartermasterApproach },
+				player: { ...save.player, ...lodgeKeeperApproach },
 				wallet: { coins: 40 }
 			}
 		});
-		Object.assign(phaserState.playerMarker, quartermasterApproach);
+		Object.assign(phaserState.playerMarker, lodgeKeeperApproach);
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
@@ -10210,16 +9911,16 @@ describe('WorldScene', () => {
 			battleResult: {
 				outcome: 'victory',
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				finalHeroHp: 20,
 				inventory: save.inventory,
 				defeatedUnits: [
 					{
-						unitId: 'meadow-slime-west:unit:0',
+						unitId: 'wildwood-wolves-mouth:unit:0',
 						unitIndex: 0,
-						enemyId: 'slime-scout',
+						enemyId: 'forest-wolf',
 						xpReward: 4,
 						coinReward: 4,
 						drops: []
@@ -10403,14 +10104,14 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
+		Object.assign(phaserState.playerMarker, wolvesMouthApproach);
 		sceneState.enemies[0]!.hp = 3;
 
 		scene.update(0, 16);
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
 			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'meadow-slime-west' })
+			expect.objectContaining({ sourceEncounterId: 'wildwood-wolves-mouth' })
 		);
 		expect(applyExperienceGainSpy).not.toHaveBeenCalled();
 		expect(sceneState.enemies[0]!.hp).toBe(3);
@@ -10428,11 +10129,11 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: 'ruins-core' });
 		phaserState.enemyMarker.play.mockClear();
-		Object.assign(phaserState.playerMarker, { x: 4_912, y: 3_200 });
+		Object.assign(phaserState.playerMarker, { x: 2_800, y: 3_200 });
 
 		scene.update(0, 1000);
 
-		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('ruinsWarden-walk', true);
+		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('slimeScout-walk', true);
 
 		phaserState.enemyMarker.play.mockClear();
 		Object.assign(phaserState.playerMarker, {
@@ -10445,11 +10146,11 @@ describe('WorldScene', () => {
 		expect(scene.scene.start).toHaveBeenCalledWith(
 			BattleScene.key,
 			expect.objectContaining({
-				sourceEncounterId: 'ruins-warden',
-				sourceEnemyId: 'ruins-warden'
+				sourceEncounterId: 'core-crawlers',
+				sourceEnemyId: 'tunnel-crawler'
 			})
 		);
-		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('ruinsWarden-attack', false);
+		expect(phaserState.enemyMarker.play).not.toHaveBeenCalledWith('slimeScout-attack', false);
 	});
 
 	it('starts battle before enemy contact hit impact is resolved', async () => {
@@ -10461,7 +10162,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 4_992, y: 3_200 });
+		Object.assign(phaserState.playerMarker, { x: 2_880, y: 3_200 });
 		sceneState.enemies[0]!.attackCooldownUntil = 0;
 		phaserState.playerMarker.setTint.mockClear();
 		phaserState.playerMarker.clearTint.mockClear();
@@ -10470,7 +10171,7 @@ describe('WorldScene', () => {
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
 			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'ruins-warden' })
+			expect.objectContaining({ sourceEncounterId: 'core-crawlers' })
 		);
 		expect(phaserState.playerMarker.setTint).not.toHaveBeenCalledWith(0xfff0a8);
 		expect(phaserState.playerMarker.clearTint).not.toHaveBeenCalled();
@@ -10495,7 +10196,7 @@ describe('WorldScene', () => {
 			expect.objectContaining({
 				sourceMapId: 'scene-support-test',
 				sourceEncounterId: 'scene-support-slime',
-				sourceEnemyId: 'slime-scout'
+				sourceEnemyId: 'forest-wolf'
 			})
 		);
 		expect(sceneState.playerProgress.hp).toBe(20);
@@ -10511,12 +10212,12 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 4_800, y: 3_200 });
+		Object.assign(phaserState.playerMarker, { x: 2_688, y: 3_200 });
 
 		scene.update(0, 10_000);
 
-		expect(sceneState.enemies[0]!.x).toBeLessThan(4_992);
-		expect(sceneState.enemies[0]!.x).toBeGreaterThan(4_912);
+		expect(sceneState.enemies[0]!.x).toBeLessThan(2_880);
+		expect(sceneState.enemies[0]!.x).toBeGreaterThan(2_768);
 		expect(sceneState.enemies[0]!.y).toBe(3_200);
 		expect(sceneState.playerProgress.hp).toBe(20);
 		expect(scene.scene.start).not.toHaveBeenCalled();
@@ -10534,16 +10235,16 @@ describe('WorldScene', () => {
 			battleResult: {
 				outcome: 'victory',
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				finalHeroHp: 20,
 				inventory: save.inventory,
 				defeatedUnits: [
 					{
-						unitId: 'meadow-slime-west:unit:0',
+						unitId: 'wildwood-wolves-mouth:unit:0',
 						unitIndex: 0,
-						enemyId: 'slime-scout',
+						enemyId: 'forest-wolf',
 						xpReward: 4,
 						coinReward: 4,
 						drops: []
@@ -10577,16 +10278,16 @@ describe('WorldScene', () => {
 			battleResult: {
 				outcome: 'victory',
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-west',
-				sourceEnemyId: 'slime-scout',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
 				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 				finalHeroHp: 20,
 				inventory: save.inventory,
 				defeatedUnits: [
 					{
-						unitId: 'meadow-slime-west:unit:0',
+						unitId: 'wildwood-wolves-mouth:unit:0',
 						unitIndex: 0,
-						enemyId: 'slime-scout',
+						enemyId: 'forest-wolf',
 						xpReward: 4,
 						coinReward: 4,
 						drops: [{ itemId: 'field-potion', quantity: 1 }]
@@ -10596,9 +10297,11 @@ describe('WorldScene', () => {
 		});
 
 		expect(sceneState.buildSaveState()).toMatchObject({
-			inventory: { stacks: [{ itemId: 'field-potion', quantity: 2 }] },
+			inventory: { stacks: [{ itemId: 'field-potion', quantity: 1 }] },
 			flags: {
-				resolvedEncounterDrops: { 'meadow-slime-west': [{ itemId: 'field-potion', quantity: 1 }] }
+				resolvedEncounterDrops: {
+					'wildwood-wolves-mouth': [{ itemId: 'field-potion', quantity: 1 }]
+				}
 			}
 		});
 	});
@@ -10628,7 +10331,7 @@ describe('WorldScene', () => {
 						clearedEncounterUnitCounts: {},
 						collectedPickups: [],
 						resolvedEncounterDrops: {
-							'meadow-slime-west': [{ itemId: 'greater-field-potion', quantity: 1 }]
+							'wildwood-wolves-mouth': [{ itemId: 'greater-field-potion', quantity: 1 }]
 						}
 					},
 					inventory: {
@@ -10640,16 +10343,16 @@ describe('WorldScene', () => {
 				battleResult: {
 					outcome: 'victory',
 					sourceMapId: 'meadow-entry',
-					sourceEncounterId: 'meadow-slime-west',
-					sourceEnemyId: 'slime-scout',
+					sourceEncounterId: 'wildwood-wolves-mouth',
+					sourceEnemyId: 'forest-wolf',
 					returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 					finalHeroHp: 20,
 					inventory: { stacks: [], equipment: ['training-sword'] },
 					defeatedUnits: [
 						{
-							unitId: 'meadow-slime-west:unit:0',
+							unitId: 'wildwood-wolves-mouth:unit:0',
 							unitIndex: 0,
-							enemyId: 'slime-scout',
+							enemyId: 'forest-wolf',
 							xpReward: 4,
 							coinReward: 4,
 							drops: [{ itemId: 'field-potion', quantity: 1 }]
@@ -10663,7 +10366,7 @@ describe('WorldScene', () => {
 				inventory: { stacks: [{ itemId: 'field-potion', quantity: 1 }] },
 				flags: {
 					resolvedEncounterDrops: {
-						'meadow-slime-west': [{ itemId: 'field-potion', quantity: 1 }]
+						'wildwood-wolves-mouth': [{ itemId: 'field-potion', quantity: 1 }]
 					}
 				}
 			});
@@ -10681,15 +10384,15 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
+		Object.assign(phaserState.playerMarker, wolvesMouthApproach);
 
 		scene.update(0, 16);
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
 			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'meadow-slime-west' })
+			expect.objectContaining({ sourceEncounterId: 'wildwood-wolves-mouth' })
 		);
-		expect(sceneState.enemies[0]!.hp).toBe(8);
+		expect(sceneState.enemies[0]!.hp).toBe(10);
 	});
 
 	it('does not start battle before the engagement cooldown elapses', async () => {
@@ -10701,7 +10404,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 4_960, y: 960 });
+		Object.assign(phaserState.playerMarker, wolvesMouthApproach);
 		sceneState.playerAttackCooldownUntil = 500;
 
 		scene.update(0, 16);
@@ -10714,7 +10417,7 @@ describe('WorldScene', () => {
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
 			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'meadow-slime-west' })
+			expect.objectContaining({ sourceEncounterId: 'wildwood-wolves-mouth' })
 		);
 	});
 
@@ -10737,16 +10440,16 @@ describe('WorldScene', () => {
 				battleResult: {
 					outcome: 'victory',
 					sourceMapId: 'meadow-entry',
-					sourceEncounterId: 'meadow-slime-west',
-					sourceEnemyId: 'slime-scout',
+					sourceEncounterId: 'wildwood-wolves-mouth',
+					sourceEnemyId: 'forest-wolf',
 					returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 					finalHeroHp: 24,
 					inventory: save.inventory,
 					defeatedUnits: [
 						{
-							unitId: 'meadow-slime-west:unit:0',
+							unitId: 'wildwood-wolves-mouth:unit:0',
 							unitIndex: 0,
-							enemyId: 'slime-scout',
+							enemyId: 'forest-wolf',
 							xpReward: 4,
 							coinReward: 4,
 							drops: []
@@ -10763,18 +10466,13 @@ describe('WorldScene', () => {
 		});
 	});
 
-	it('side quest completion from returned battle result grants rewards once', async () => {
+	it('a returned Boar King victory completes the third trial and moves Grik home', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			buildSaveState: () => {
-				wallet: { coins: number };
-				inventory: { stacks: Array<{ itemId: string; quantity: number }> };
-				quests: {
-					entries: Record<string, { status: string; progress: number; rewardApplied: boolean }>;
-				};
-			};
+			buildSaveState: () => ReturnType<typeof createNewSaveState>;
 		};
 		const save = createNewSaveState();
 
@@ -10782,70 +10480,62 @@ describe('WorldScene', () => {
 			saveState: {
 				...save,
 				mapId: 'meadow-entry',
-				wallet: { coins: 0 },
-				flags: {
-					...save.flags,
-					clearedEncounters: ['meadow-slime-west', 'meadow-slime-center']
-				},
-				quests: {
-					entries: {
-						'investigate-the-ruins': {
-							status: 'active',
-							currentObjectiveId: 'defeat-ruins-warden',
-							progress: 0,
-							rewardApplied: false,
-							countedSourceIds: []
-						},
-						'thin-village-slimes': {
-							status: 'active',
-							currentObjectiveId: 'defeat-village-slimes',
-							progress: 2,
-							rewardApplied: false,
-							countedSourceIds: ['encounter:meadow-slime-west', 'encounter:meadow-slime-center']
-						}
-					},
-					completedObjectives: { 'investigate-the-ruins': ['talk-to-guild-master'] }
-				}
+				quests: questStateAt('defeat-boar-king')
 			},
 			reason: 'battle-result',
 			battleResult: {
 				outcome: 'victory',
 				sourceMapId: 'meadow-entry',
-				sourceEncounterId: 'meadow-slime-east',
-				sourceEnemyId: 'slime-scout',
-				returnPosition: { mapId: 'meadow-entry', x: 5_952, y: 1_600, facing: 'down' },
+				sourceEncounterId: 'boar-king',
+				sourceEnemyId: 'boar-king',
+				returnPosition: { mapId: 'meadow-entry', x: 2_900, y: 860, facing: 'down' },
 				finalHeroHp: 20,
 				inventory: save.inventory,
 				defeatedUnits: [
 					{
-						unitId: 'meadow-slime-east:unit:0',
+						unitId: 'boar-king:unit:0',
 						unitIndex: 0,
-						enemyId: 'slime-scout',
-						xpReward: 4,
-						coinReward: 4,
+						enemyId: 'boar-king',
+						xpReward: 20,
+						coinReward: 30,
 						drops: []
 					}
 				]
 			}
 		});
 
-		const completedSave = sceneState.buildSaveState();
-		expect(completedSave.quests.entries['thin-village-slimes']).toMatchObject({
-			status: 'completed',
-			progress: 3,
-			rewardApplied: true
+		const built = sceneState.buildSaveState();
+		expect(built.quests.entries['prologue-trial-boar-king']?.status).toBe('completed');
+		expect(built.quests.entries['prologue-hunters-name']).toMatchObject({
+			status: 'active',
+			currentObjectiveId: 'report-boar-king'
 		});
-		expect(completedSave.wallet.coins).toBe(16);
-		expect(completedSave.inventory.stacks).toContainEqual({
-			itemId: 'field-potion',
-			quantity: 2
-		});
+		// Enemy XP plus the trial's reward, granted once.
+		expect(built.player.xp).toBe(30);
+		expect(built.wallet.coins).toBe(save.wallet.coins + 30);
+		// The felled scene and the walk home to the lodge are queued, in order.
+		expect(built.quests.pendingEffects).toEqual([
+			{ type: 'play-scene', sceneId: 'prologue.boar-king-felled' },
+			{ type: 'move-player', mapId: 'guild-hall', x: 800, y: 200, facing: 'up' }
+		]);
 	});
 
-	it('blocks the ruins route until the Guild Master objective is complete', async () => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+	it('keeps the cave into the old tunnel closed until the escape begins', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ saveState: { ...createNewSaveState(), mapId: 'meadow-entry' } });
+		Object.assign(phaserState.playerMarker, { x: 5_960, y: 1_868 });
+
+		scene.update(0, 16);
+
+		expect(scene.scene.restart).not.toHaveBeenCalled();
+	});
+
+	it('enters the old tunnel from the cave once the escape begins', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
@@ -10853,53 +10543,7 @@ describe('WorldScene', () => {
 			saveState: {
 				...createNewSaveState(),
 				mapId: 'meadow-entry',
-				flags: {
-					clearedEncounters: ['meadow-slime-east', 'meadow-slime-center', 'meadow-slime-west'],
-					clearedEncounterUnitCounts: {},
-					collectedPickups: [],
-					resolvedEncounterDrops: {}
-				}
-			}
-		});
-		emitHudStateSpy.mockClear();
-		Object.assign(phaserState.playerMarker, { x: 5_960, y: 1_868 });
-
-		scene.update(0, 16);
-
-		expect(scene.scene.restart).not.toHaveBeenCalled();
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({ status: 'Report to the Guild Master first' })
-		);
-	});
-
-	it('moves into the ruins after the opening encounter is cleared and the exit is reached', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const save = createNewSaveState();
-
-		scene.create({
-			saveState: {
-				...save,
-				mapId: 'meadow-entry',
-				flags: {
-					clearedEncounters: ['meadow-slime-center', 'meadow-slime-east', 'meadow-slime-west'],
-					clearedEncounterUnitCounts: {},
-					collectedPickups: [],
-					resolvedEncounterDrops: {}
-				},
-				quests: {
-					entries: {
-						'investigate-the-ruins': {
-							status: 'active',
-							currentObjectiveId: 'defeat-ruins-warden',
-							progress: 0,
-							rewardApplied: false,
-							countedSourceIds: []
-						}
-					},
-					completedObjectives: { 'investigate-the-ruins': ['talk-to-guild-master'] }
-				}
+				quests: questStateAt('climb-to-the-ridge')
 			}
 		});
 
@@ -11043,7 +10687,7 @@ describe('WorldScene', () => {
 				...createNewSaveState(),
 				mapId: 'ruins-threshold',
 				flags: {
-					clearedEncounters: ['threshold-slime-east', 'threshold-slime-west'],
+					clearedEncounters: ['threshold-crawlers'],
 					clearedEncounterUnitCounts: {},
 					collectedPickups: [],
 					resolvedEncounterDrops: {}
@@ -11077,7 +10721,7 @@ describe('WorldScene', () => {
 				...createNewSaveState(),
 				mapId: 'ruins-threshold',
 				flags: {
-					clearedEncounters: ['threshold-slime-east', 'threshold-slime-west'],
+					clearedEncounters: ['threshold-crawlers'],
 					clearedEncounterUnitCounts: {},
 					collectedPickups: [],
 					resolvedEncounterDrops: {}
@@ -11106,26 +10750,15 @@ describe('WorldScene', () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
-		scene.create({
-			saveState: {
-				...createNewSaveState(),
-				mapId: 'meadow-entry',
-				flags: {
-					clearedEncounters: ['meadow-slime-west', 'meadow-slime-center'],
-					clearedEncounterUnitCounts: {},
-					collectedPickups: [],
-					resolvedEncounterDrops: {}
-				}
-			}
-		});
-		Object.assign(phaserState.playerMarker, { x: 5_960, y: 1_868 });
+		scene.create({ saveState: { ...createNewSaveState(), mapId: 'ruins-threshold' } });
+		Object.assign(phaserState.playerMarker, { x: 5_888, y: 3_200 });
 
 		scene.update(0, 16);
 
 		expect(scene.scene.restart).not.toHaveBeenCalled();
 	});
 
-	it('returns from the ruins core to the threshold after the boss encounter is cleared', async () => {
+	it('returns from the ruins core to the threshold after its crawlers are cleared', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -11135,7 +10768,7 @@ describe('WorldScene', () => {
 				...createNewSaveState(),
 				mapId: 'ruins-core',
 				flags: {
-					clearedEncounters: ['ruins-warden'],
+					clearedEncounters: ['core-crawlers'],
 					clearedEncounterUnitCounts: {},
 					collectedPickups: [],
 					resolvedEncounterDrops: {}
@@ -11189,11 +10822,11 @@ describe('WorldScene', () => {
 				...createNewSaveState(),
 				mapId: 'ruins-threshold',
 				flags: {
-					clearedEncounters: ['threshold-slime-east', 'threshold-slime-west'],
+					clearedEncounters: ['threshold-crawlers'],
 					clearedEncounterUnitCounts: {},
 					collectedPickups: ['meadow-cache'],
 					resolvedEncounterDrops: {
-						'threshold-slime-east': [{ itemId: 'field-potion', quantity: 1 }]
+						'threshold-crawlers': [{ itemId: 'field-potion', quantity: 1 }]
 					}
 				}
 			}
@@ -11206,18 +10839,18 @@ describe('WorldScene', () => {
 			reason: 'transition',
 			saveState: expect.objectContaining({
 				flags: {
-					clearedEncounters: ['threshold-slime-east', 'threshold-slime-west'],
+					clearedEncounters: ['threshold-crawlers'],
 					clearedEncounterUnitCounts: {},
 					collectedPickups: ['meadow-cache'],
 					resolvedEncounterDrops: {
-						'threshold-slime-east': [{ itemId: 'field-potion', quantity: 1 }]
+						'threshold-crawlers': [{ itemId: 'field-potion', quantity: 1 }]
 					}
 				}
 			})
 		});
 	});
 
-	it('keeps meadow slimes inside their top-right forest combat pockets while chasing', async () => {
+	it('keeps meadow wolves inside their forest combat pockets while chasing', async () => {
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -11226,7 +10859,7 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: meadowEntryMap.id });
-		Object.assign(phaserState.playerMarker, { x: 5_044, y: 960 });
+		Object.assign(phaserState.playerMarker, { x: 4_816, y: 3_200 });
 
 		scene.update(0, 1_000);
 
@@ -11245,7 +10878,7 @@ describe('WorldScene', () => {
 		expect(sceneState.enemies[0]!.movementMode).toBe('chase');
 	});
 
-	it('keeps an engaged meadow slime chasing inside the forest pocket leash beyond aggro range', async () => {
+	it('keeps an engaged meadow wolf chasing inside the forest pocket leash beyond aggro range', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -11253,8 +10886,8 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(sceneState.enemies[0]!, { x: 4_884, y: 960, movementMode: 'chase' });
-		Object.assign(phaserState.playerMarker, { x: 5_240, y: 960 });
+		Object.assign(sceneState.enemies[0]!, { x: 4_640, y: 3_200, movementMode: 'chase' });
+		Object.assign(phaserState.playerMarker, { x: 4_960, y: 3_200 });
 		const startX = sceneState.enemies[0]!.x;
 
 		scene.update(0, 1_000);
@@ -11263,7 +10896,7 @@ describe('WorldScene', () => {
 		expect(sceneState.enemies[0]!.x).toBeGreaterThan(startX);
 	});
 
-	it('returns meadow slimes home after the hero leaves the forest combat pocket', async () => {
+	it('returns meadow wolves home after the hero leaves the forest combat pocket', async () => {
 		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -11272,11 +10905,11 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: meadowEntryMap.id });
-		Object.assign(phaserState.playerMarker, { x: 5_044, y: 960 });
+		Object.assign(phaserState.playerMarker, { x: 4_816, y: 3_200 });
 		scene.update(0, 1_000);
 
 		const chasedX = sceneState.enemies[0]!.x;
-		Object.assign(phaserState.playerMarker, { x: 5_600, y: 960 });
+		Object.assign(phaserState.playerMarker, { x: 5_300, y: 3_200 });
 		scene.update(1_000, 1_000);
 
 		expect(sceneState.enemies[0]!.movementMode).toBe('return');
@@ -11285,7 +10918,7 @@ describe('WorldScene', () => {
 		expect(sceneState.enemies[0]!.y).toBe(sceneState.enemies[0]!.homeY);
 	});
 
-	it('prevents returning meadow slimes from attacking after the hero leaves the forest pocket', async () => {
+	it('prevents returning meadow wolves from attacking after the hero leaves the forest pocket', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -11294,8 +10927,8 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(sceneState.enemies[0]!, { x: 5_460, y: 960, movementMode: 'chase' });
-		Object.assign(phaserState.playerMarker, { x: 5_600, y: 960 });
+		Object.assign(sceneState.enemies[0]!, { x: 5_260, y: 3_200, movementMode: 'chase' });
+		Object.assign(phaserState.playerMarker, { x: 5_400, y: 3_200 });
 		const hpBeforeReturn = sceneState.playerProgress.hp;
 
 		scene.update(1_000, 16);
@@ -11304,7 +10937,7 @@ describe('WorldScene', () => {
 		expect(sceneState.playerProgress.hp).toBe(hpBeforeReturn);
 	});
 
-	it('keeps ruins slimes on the existing direct chase behavior', async () => {
+	it('keeps tunnel crawlers on the direct chase behavior', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -11316,85 +10949,117 @@ describe('WorldScene', () => {
 
 		scene.update(0, 1_000);
 
-		expect(sceneState.enemies[0]!.x).toBeLessThan(2_304);
+		expect(sceneState.enemies[0]!.x).toBeLessThan(3_200);
 		expect(sceneState.enemies[0]!.movementMode).toBe('chase');
 	});
 
 	it('bosses chase before battle and keep phase-2 enrage behavior', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			enemies: Array<{ x: number; hp: number }>;
+			enemies: Array<{
+				id: string;
+				x: number;
+				hp: number;
+				marker: { setTint: ReturnType<typeof vi.fn> };
+			}>;
 			updateBossPhase: (enemy: { x: number; hp: number }) => void;
 			playerProgress: { hp: number };
 		};
 
-		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 4_800, y: 3_200 });
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'meadow-entry',
+				flags: boarKingFlags,
+				quests: questStateAt('defeat-boar-king')
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 2_708, y: 800 });
 
 		scene.update(0, 1000);
 
-		expect(sceneState.enemies[0]!.x).toBeLessThan(4_992);
+		const boarKing = sceneState.enemies.find(({ id }) => id === 'boar-king')!;
+		expect(boarKing.x).toBeLessThan(2_900);
 		expect(sceneState.playerProgress.hp).toBe(20);
 		expect(scene.scene.start).not.toHaveBeenCalled();
 
-		sceneState.enemies[0]!.hp = 22;
-		sceneState.updateBossPhase(sceneState.enemies[0]!);
+		boarKing.hp = 39;
+		sceneState.updateBossPhase(boarKing);
 
-		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xff8a3d);
+		expect(boarKing.marker.setTint).toHaveBeenCalledWith(0xff8a3d);
 	});
 
 	it('starts BattleScene instead of damaging the boss with one opening engagement', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
 		const { BattleScene } = await import('./BattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
-			enemies: Array<{ hp: number; defeated: boolean }>;
+			enemies: Array<{ id: string; hp: number; defeated: boolean }>;
 		};
 
-		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 4_992, y: 3_200 });
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'meadow-entry',
+				flags: boarKingFlags,
+				quests: questStateAt('defeat-boar-king')
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 2_900, y: 800 });
 
 		scene.update(0, 16);
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
 			BattleScene.key,
 			expect.objectContaining({
-				sourceMapId: 'ruins-core',
-				sourceEncounterId: 'ruins-warden',
-				sourceEnemyId: 'ruins-warden',
-				completion: 'victory'
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'boar-king',
+				sourceEnemyId: 'boar-king',
+				enemyCount: 1
 			})
 		);
-		expect(sceneState.enemies[0]).toMatchObject({ hp: 45, defeated: false });
-		expect(scene.add.text).not.toHaveBeenCalled();
+		expect(sceneState.enemies.find(({ id }) => id === 'boar-king')).toMatchObject({
+			hp: 80,
+			defeated: false
+		});
 	});
 
 	it('suppresses the fled encounter until the re-engage grace period expires', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
 		const { BattleScene } = await import('./BattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		const save = { ...createNewSaveState(), mapId: 'ruins-core' };
+		const save = {
+			...createNewSaveState(),
+			mapId: 'meadow-entry',
+			flags: boarKingFlags,
+			quests: questStateAt('defeat-boar-king')
+		};
 
 		scene.create({
 			saveState: save,
 			reason: 'battle-result',
 			battleResult: {
 				outcome: 'fled',
-				sourceMapId: 'ruins-core',
-				sourceEncounterId: 'ruins-warden',
-				sourceEnemyId: 'ruins-warden',
-				returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_260, facing: 'down' },
+				sourceMapId: 'meadow-entry',
+				sourceEncounterId: 'boar-king',
+				sourceEnemyId: 'boar-king',
+				returnPosition: { mapId: 'meadow-entry', x: 2_900, y: 860, facing: 'down' },
 				finalHeroHp: 12,
 				inventory: save.inventory,
 				defeatedUnits: []
 			},
-			recentlyFled: { encounterId: 'ruins-warden', fledAt: 0 }
+			recentlyFled: { encounterId: 'boar-king', fledAt: 0 }
 		});
-		Object.assign(phaserState.playerMarker, { x: 4_992, y: 3_260 });
+		Object.assign(phaserState.playerMarker, { x: 2_900, y: 860 });
 
-		// The live warden is already in battle range (60px < 62px) but the
+		// The live Boar King is already in battle range (60px < 62px) but the
 		// recently-fled grace suppresses the restart.
 		scene.update(100, 16);
 		scene.update(1_499, 16);
@@ -11404,65 +11069,7 @@ describe('WorldScene', () => {
 		scene.update(1_500, 16);
 		expect(scene.scene.start).toHaveBeenCalledWith(
 			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'ruins-warden' })
-		);
-	});
-
-	it('shows a victory state after a returned boss battle victory', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-		const save = { ...createNewSaveState(), mapId: 'ruins-core' };
-
-		scene.create({
-			saveState: save,
-			reason: 'battle-result',
-			battleResult: {
-				outcome: 'victory',
-				sourceMapId: 'ruins-core',
-				sourceEncounterId: 'ruins-warden',
-				sourceEnemyId: 'ruins-warden',
-				completion: 'victory',
-				returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_264, facing: 'down' },
-				finalHeroHp: 20,
-				inventory: save.inventory,
-				defeatedUnits: [
-					{
-						unitId: 'ruins-warden:unit:0',
-						unitIndex: 0,
-						enemyId: 'ruins-warden',
-						xpReward: 15,
-						coinReward: 30,
-						drops: []
-					}
-				]
-			}
-		});
-
-		expect(scene.add.text).toHaveBeenCalledWith(
-			expect.any(Number),
-			expect.any(Number),
-			expect.stringMatching(/victory/i),
-			expect.anything()
-		);
-	});
-
-	it('passes enemyCount 1 for boss encounters instead of rolling a group', async () => {
-		const { BattleScene } = await import('./BattleScene');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'ruins-core' });
-		Object.assign(phaserState.playerMarker, { x: 4_992, y: 3_200 });
-
-		scene.update(0, 16);
-
-		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({
-				sourceEnemyId: 'ruins-warden',
-				enemyCount: 1
-			})
+			expect.objectContaining({ sourceEncounterId: 'boar-king' })
 		);
 	});
 
@@ -11477,8 +11084,8 @@ describe('WorldScene', () => {
 		scene.create({
 			saveState,
 			sourceMapId: 'meadow-entry',
-			sourceEncounterId: 'meadow-slime-west',
-			sourceEnemyId: 'slime-scout',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
 			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
@@ -11497,7 +11104,7 @@ describe('WorldScene', () => {
 		scene.update(120, 16);
 
 		const lastCall = emitHudStateSpy.mock.calls[emitHudStateSpy.mock.calls.length - 1];
-		expect(lastCall?.[0]).toMatchObject({ hp: 18, maxHp: 20 });
+		expect(lastCall?.[0]).toMatchObject({ hp: 17, maxHp: 20 });
 	});
 
 	it('applies boss enrage tint when enemy HP drops below 50% in BattleScene', async () => {
@@ -11508,12 +11115,12 @@ describe('WorldScene', () => {
 
 		scene.create({
 			saveState,
-			sourceMapId: 'ruins-core',
-			sourceEncounterId: 'ruins-warden',
-			sourceEnemyId: 'ruins-warden',
-			returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
+			sourceMapId: 'meadow-entry',
+			sourceEncounterId: 'boar-king',
+			sourceEnemyId: 'boar-king',
+			returnPosition: { mapId: 'meadow-entry', x: 2_900, y: 800, facing: 'down' },
 			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 23, defense: 0 }
+			hero: { hp: 20, maxHp: 20, attack: 41, defense: 0 }
 		});
 		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
 		const state = scene as unknown as {
@@ -11532,7 +11139,7 @@ describe('WorldScene', () => {
 
 		scene.update(0, 16);
 
-		expect(state.enemies[0]!.hp).toBe(22);
+		expect(state.enemies[0]!.hp).toBe(39);
 		expect(state.enemies[0]!.phase).toBe(2);
 		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xff8a3d);
 	});

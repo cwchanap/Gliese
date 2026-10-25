@@ -1,0 +1,1908 @@
+{
+  "packageId": "gliese-prologue",
+  "defaultLocale": "en",
+  "npcDialogues": [
+    {
+      "npcId": "borak",
+      "mapId": "guild-hall",
+      "branches": [
+        {
+          "beatId": "prologue.proving-morning",
+          "condition": {
+            "type": "quest",
+            "id": "prologue-proving-morning"
+          },
+          "lines": [
+            {
+              "speaker": "Borak",
+              "text": "Not yet. A hunter does not walk into the lodge with empty hands."
+            },
+            {
+              "speaker": "Borak",
+              "text": "Your spear is at Oren's forge, your herbs are at Mira's hut. Then come back."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.proving-morning",
+          "condition": {
+            "type": "objective",
+            "id": "report-to-borak"
+          },
+          "lines": [
+            {
+              "speaker": "Borak",
+              "text": "Grik. You came."
+            },
+            {
+              "speaker": "Borak",
+              "text": "Every hunter of Sundrop has stood where you stand. Today you face the Three Trials of the Hunter."
+            },
+            {
+              "speaker": "Borak",
+              "text": "The first: read the land. A thornback boar has been tearing up the Wildwood. Find its trail and bring it down."
+            },
+            {
+              "speaker": "Borak",
+              "text": "The second: feed the village. A hunter fills the stores, not just his own belly."
+            },
+            {
+              "speaker": "Borak",
+              "text": "The third: face the king of beasts. When you reach it, you will know."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "Don't worry, Father. If he comes back with a rabbit, we'll call it a very small boar."
+            },
+            {
+              "speaker": "Borak",
+              "text": "Drogg."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "Quiet. Yes."
+            },
+            {
+              "speaker": "Borak",
+              "text": "The Wildwood is east, past the river. Go, and come back a hunter."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-tracks",
+          "condition": {
+            "type": "quest",
+            "id": "prologue-trial-tracks"
+          },
+          "lines": [
+            {
+              "speaker": "Borak",
+              "text": "The thornback beds down in the Wildwood. Read its trail before you chase it."
+            },
+            {
+              "speaker": "Borak",
+              "text": "A hunter who runs in blind comes home carried."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-tracks",
+          "condition": {
+            "type": "objective",
+            "id": "report-first-trial"
+          },
+          "lines": [
+            {
+              "speaker": "Borak",
+              "text": "You found it. Tracked it. Brought it down."
+            },
+            {
+              "speaker": "Grik",
+              "text": "Lirra helped me read the signs."
+            },
+            {
+              "speaker": "Borak",
+              "text": "Then you also learned to listen. Good."
+            },
+            {
+              "speaker": "Borak",
+              "text": "..."
+            },
+            {
+              "speaker": "Borak",
+              "text": "The first trial. Passed."
+            },
+            {
+              "speaker": "Borak",
+              "text": "The second trial is not a fight. A hunter feeds the village, and Mira's winter stores are short. Go and ask her what she needs."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-mistfen",
+          "condition": {
+            "type": "quest",
+            "id": "prologue-trial-mistfen"
+          },
+          "lines": [
+            {
+              "speaker": "Borak",
+              "text": "A hunter feeds the village, not his pride. Bring Mira what she needs."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-boar-king",
+          "condition": {
+            "type": "quest",
+            "id": "prologue-trial-boar-king"
+          },
+          "lines": [
+            {
+              "speaker": "Borak",
+              "text": "The Boar King of Silverpine. My father faced it, and I faced it. Now it is your turn."
+            },
+            {
+              "speaker": "Borak",
+              "text": "Drogg is waiting at the crossroads. Go."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.hunters-name",
+          "condition": {
+            "type": "objective",
+            "id": "report-boar-king"
+          },
+          "lines": [
+            {
+              "speaker": "Borak",
+              "text": "Drogg came through the gate singing. The whole village heard him. Half of them followed him here."
+            },
+            {
+              "speaker": "Borak",
+              "text": "The Boar King of Silverpine. You read the land, you fed the village, and you faced the king of beasts."
+            },
+            {
+              "speaker": "Borak",
+              "text": "Kneel, Grik."
+            },
+            {
+              "speaker": "Borak",
+              "text": "By the Three Trials, you are a hunter of Sundrop. Your name goes on the lodge wall, beside mine and my father's."
+            },
+            {
+              "speaker": "Borak",
+              "text": "This knife was the first I ever carried. It is yours now. Keep it sharp, and never draw it for pride."
+            },
+            {
+              "speaker": "Grik",
+              "text": "Father, I..."
+            },
+            {
+              "speaker": "Borak",
+              "text": "Go home. Tikka has been cooking since noon, and if we are late, she will make us regret it."
+            },
+            {
+              "speaker": "Borak",
+              "text": "Take a few coins too. Oren will want to see what a real hunter buys."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.village",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Borak",
+              "text": "The lodge stands because its hunters come home. Mind that you do."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "borak-gate",
+      "mapId": "meadow-entry",
+      "branches": [
+        {
+          "beatId": "prologue.raid",
+          "condition": {
+            "type": "objective",
+            "id": "repel-the-soldiers"
+          },
+          "lines": [
+            {
+              "speaker": "Borak",
+              "text": "Grik! Get back! They are in the lanes, behind you. Drive them away from the houses!"
+            },
+            {
+              "speaker": "Borak",
+              "text": "Don't come to me until the lanes are clear. Go!"
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.raid",
+          "condition": {
+            "type": "objective",
+            "id": "reach-the-gate"
+          },
+          "lines": [
+            {
+              "speaker": "Borak",
+              "text": "Grik..."
+            },
+            {
+              "speaker": "Borak",
+              "text": "No. Don't look at it. Look at me."
+            },
+            {
+              "speaker": "Borak",
+              "text": "They came over the bridge in the dark. So many. Their armour turns a spear like it is nothing."
+            },
+            {
+              "speaker": "Borak",
+              "text": "I held the gate as long as I could. It was not long enough."
+            },
+            {
+              "speaker": "Borak",
+              "text": "Your brother went after Tikka. Toward the well. Find them, Grik."
+            },
+            {
+              "speaker": "Borak",
+              "text": "You are a hunter of Sundrop. Your name is on the wall. Beside mine."
+            },
+            {
+              "speaker": "Borak",
+              "text": "I was so proud... today..."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.raid",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Grik",
+              "text": "Father."
+            },
+            {
+              "speaker": "Grik",
+              "text": "...I'll find them. I promise."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "borak-home",
+      "mapId": "hero-house",
+      "branches": [
+        {
+          "beatId": "prologue.hunters-name",
+          "condition": {
+            "type": "objective",
+            "id": "share-the-dinner"
+          },
+          "lines": [
+            {
+              "speaker": "Borak",
+              "text": "..."
+            },
+            {
+              "speaker": "Borak",
+              "text": "When your mother was alive, she used to say you would be the best of us. I told her you were too stubborn."
+            },
+            {
+              "speaker": "Borak",
+              "text": "She was right. I was also right."
+            },
+            {
+              "speaker": "Borak",
+              "text": "Eat, Grik. Then listen to your grandfather. He has been waiting all day to tell you something."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.hunters-name",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Borak",
+              "text": "Eat. You earned it."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "drogg-crossroads",
+      "mapId": "meadow-entry",
+      "branches": [
+        {
+          "beatId": "prologue.trial-boar-king",
+          "condition": {
+            "type": "objective",
+            "id": "meet-drogg-crossroads"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "There he is. Father sent me to help carry the meat home. That's all. Not because he's worried."
+            },
+            {
+              "speaker": "Grik",
+              "text": "He's worried."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "He's terrified. Don't tell him I said that either."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "The Boar King roams Silverpine, north across the river. Old, huge, and meaner than Oren before breakfast."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "Its trail starts past the bridge. Go and find it. I'll be right behind you."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-boar-king",
+          "condition": {
+            "type": "objective",
+            "id": "track-the-boar-king"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "North, across the bridge into Silverpine. Look for the trail. You can't miss it. Trees don't usually lie down on their own."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-boar-king",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "Silverpine is that way. The scary way."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "drogg-falls",
+      "mapId": "meadow-entry",
+      "branches": [
+        {
+          "beatId": "prologue.trial-boar-king",
+          "condition": {
+            "type": "objective",
+            "id": "talk-to-drogg-falls"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "Hear that? It's up on the terrace. It knows we're here."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "Listen, little brother. No jokes for once."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "When a beast that big comes at you, every part of you will want to back away. Don't. You can't outrun it backwards."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "Step to the side. Let it pass. Strike while it turns. That's all hunting is, really. Knowing where not to stand."
+            },
+            {
+              "speaker": "Grik",
+              "text": "Drogg. Thank you."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "Don't make it strange. Go on. I'll be right here if it goes badly. Which it won't."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-boar-king",
+          "condition": {
+            "type": "objective",
+            "id": "defeat-boar-king"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "Up on the terrace. Sidestep, then strike. When it gets angry, and it will, keep your head."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-boar-king",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "Falls are loud. Good. Hides how hard my heart is beating."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "drogg-home",
+      "mapId": "hero-house",
+      "branches": [
+        {
+          "beatId": "prologue.hunters-name",
+          "condition": {
+            "type": "objective",
+            "id": "share-the-dinner"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "Have I told you about the moment the Boar King charged? Grik didn't even flinch. Stepped aside like a dancer."
+            },
+            {
+              "speaker": "Grik",
+              "text": "You told everyone. Three times."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "Then I'll tell them a fourth. It was the best thing I've ever seen, little brother. Honestly."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.hunters-name",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "If Tikka asks, I didn't take a second bowl."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "drogg-lodge",
+      "mapId": "guild-hall",
+      "branches": [
+        {
+          "beatId": "prologue.proving-morning",
+          "condition": {
+            "type": "quest",
+            "id": "prologue-proving-morning"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "Little brother! We were starting to think you'd run off to live with the rabbits."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "Hurry up and get your gear. Father has been staring at the door like it owes him money."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-tracks",
+          "condition": {
+            "type": "quest",
+            "id": "prologue-trial-tracks"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "Still here? The boar won't come to you, little brother. Though if it does, scream. I'd like to see that."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-mistfen",
+          "condition": {
+            "type": "quest",
+            "id": "prologue-trial-mistfen"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "Picking moss! The fearsome hunter! I'll warn the village to lock up its mushrooms."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "Fine, fine. Winter is long and fevers are worse. It matters. Don't tell Father I said that."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.village",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "Father is talking about the old days again. Save me."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "drogg-well",
+      "mapId": "meadow-entry",
+      "branches": [
+        {
+          "beatId": "prologue.raid",
+          "condition": {
+            "type": "objective",
+            "id": "find-drogg"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "Little brother. You found me. Good, I was getting bored."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "Don't look at that. It's nothing. It's... it's bad, Grik."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "They took Tikka. Lirra tried to pull her free, and they took her too. Dragged them both to the green, by the old signboard."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "There's a captain there. Sun on his chest. Big. Bigger than the Boar King."
+            },
+            {
+              "speaker": "Grik",
+              "text": "I'm not leaving you here."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "You are. Go. Sidestep, then strike. Remember?"
+            },
+            {
+              "speaker": "Drogg",
+              "text": "Go."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.raid",
+          "condition": {
+            "type": "objective",
+            "id": "charge-the-captain"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "Go... Grik..."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.raid",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Grik",
+              "text": "Drogg. Hold on."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "lirra-captive",
+      "mapId": "meadow-entry",
+      "branches": [
+        {
+          "beatId": "prologue.raid",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Lirra",
+              "text": "Grik, there are too many of them! Don't, please. Go!"
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "lirra-forest",
+      "mapId": "meadow-entry",
+      "branches": [
+        {
+          "beatId": "prologue.trial-tracks",
+          "condition": {
+            "type": "objective",
+            "id": "meet-lirra-forest"
+          },
+          "lines": [
+            {
+              "speaker": "Lirra",
+              "text": "Oh! Grik. What a surprise. I was just picking herbs. Here. At the edge of the Wildwood. On your proving day."
+            },
+            {
+              "speaker": "Grik",
+              "text": "Mira said you'd be here."
+            },
+            {
+              "speaker": "Lirra",
+              "text": "Mira says too much."
+            },
+            {
+              "speaker": "Lirra",
+              "text": "Well, since I'm here anyway. You're looking for a thornback, aren't you? I saw it cross the mouth of the forest at dawn."
+            },
+            {
+              "speaker": "Lirra",
+              "text": "Look for three signs: hoofprints in the mud, a sapling it smashed, and tusk scrapes on the bark. Read all three and you'll know where it sleeps."
+            },
+            {
+              "speaker": "Lirra",
+              "text": "I'll keep up. Try not to step on anything that bites."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-tracks",
+          "condition": {
+            "type": "objective",
+            "id": "read-boar-signs"
+          },
+          "lines": [
+            {
+              "speaker": "Lirra",
+              "text": "Hoofprints in the mud, a broken sapling, and tusk scrapes on the bark. Find all three."
+            },
+            {
+              "speaker": "Lirra",
+              "text": "The wolves are restless this morning. If they come at you, don't run. They love it when you run."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-tracks",
+          "condition": {
+            "type": "objective",
+            "id": "defeat-thornback-boar"
+          },
+          "lines": [
+            {
+              "speaker": "Lirra",
+              "text": "The trail goes north, up past the old cave. It will be bedded down in the high pocket."
+            },
+            {
+              "speaker": "Lirra",
+              "text": "Thornbacks charge when they're cornered. Keep a potion close."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-tracks",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Lirra",
+              "text": "The Wildwood always looks friendlier from the village."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "lirra-herb-hut",
+      "mapId": "item-shop",
+      "branches": [
+        {
+          "beatId": "prologue.hunters-name",
+          "condition": {
+            "type": "objective",
+            "id": "walk-lirra-home"
+          },
+          "lines": [
+            {
+              "speaker": "Lirra",
+              "text": "Here we are. Thank you for walking me home, hunter."
+            },
+            {
+              "speaker": "Grik",
+              "text": "You can just call me Grik."
+            },
+            {
+              "speaker": "Lirra",
+              "text": "Not tonight. Tonight you're a hunter."
+            },
+            {
+              "speaker": "Lirra",
+              "text": "Here. The arrow from the thornback. I've been carrying it all day. You should keep it. It belongs to the hunter who found it."
+            },
+            {
+              "speaker": "Grik",
+              "text": "It's just an orc arrow."
+            },
+            {
+              "speaker": "Lirra",
+              "text": "Then it's a lucky orc arrow. Keep it anyway."
+            },
+            {
+              "speaker": "Lirra",
+              "text": "Tomorrow. The river. Don't oversleep this time."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.hunters-name",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Lirra",
+              "text": "Goodnight, Grik. Tomorrow, remember."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "lirra-mistfen",
+      "mapId": "meadow-entry",
+      "branches": [
+        {
+          "beatId": "prologue.trial-mistfen",
+          "condition": {
+            "type": "objective",
+            "id": "meet-lirra-mistfen"
+          },
+          "lines": [
+            {
+              "speaker": "Lirra",
+              "text": "Second trial already? You're getting faster."
+            },
+            {
+              "speaker": "Lirra",
+              "text": "Moonmoss glows faintly in the fog. Look for pale green light near the water. There are clumps scattered all through the basin."
+            },
+            {
+              "speaker": "Lirra",
+              "text": "The marsh flowers are pretty. Don't smell them. I'm serious."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-mistfen",
+          "condition": {
+            "type": "objective",
+            "id": "gather-moonmoss"
+          },
+          "lines": [
+            {
+              "speaker": "Lirra",
+              "text": "Four clumps. Follow the glow and stay on the firm ground."
+            },
+            {
+              "speaker": "Lirra",
+              "text": "If the toads swell up, that's your cue to hit them first."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-mistfen",
+          "condition": {
+            "type": "objective",
+            "id": "rest-at-the-pond"
+          },
+          "lines": [
+            {
+              "speaker": "Lirra",
+              "text": "That's all four? Then come and sit by the pond with me before we go back. Just for a moment. I'll meet you there."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-mistfen",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Lirra",
+              "text": "The fog hides everything out here. I like that, sometimes."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "lodge-keeper",
+      "mapId": "guild-hall",
+      "branches": [
+        {
+          "beatId": "prologue.village",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Lodge Keeper",
+              "text": "Lodge stores. Rope, rations, and a few things the hunters left behind. Take what you need, pay what you owe."
+            }
+          ],
+          "actions": [
+            {
+              "id": "shop",
+              "label": "Shop",
+              "intent": {
+                "type": "openShop",
+                "shopId": "guild-quartermaster"
+              }
+            },
+            {
+              "id": "close",
+              "label": "Close",
+              "intent": {
+                "type": "close"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "npcId": "mira",
+      "mapId": "item-shop",
+      "branches": [
+        {
+          "beatId": "prologue.proving-morning",
+          "condition": {
+            "type": "objective",
+            "id": "collect-herb-pouch"
+          },
+          "lines": [
+            {
+              "speaker": "Mira",
+              "text": "Your herb pouch, hunter-to-be. Three field potions, mixed this morning."
+            },
+            {
+              "speaker": "Mira",
+              "text": "Drink one when a wound will not close on its own. Do not wait until you are seeing two of everything."
+            },
+            {
+              "speaker": "Mira",
+              "text": "Lirra was up before dawn too. She said she needed herbs from the Wildwood edge. Today. Of all days."
+            },
+            {
+              "speaker": "Mira",
+              "text": "I'm sure it's a coincidence."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-mistfen",
+          "condition": {
+            "type": "objective",
+            "id": "ask-mira-about-stores"
+          },
+          "lines": [
+            {
+              "speaker": "Mira",
+              "text": "Borak sent you? Good. A hunter who asks the herb-wife what the village needs. Your father taught him well, and he is teaching you."
+            },
+            {
+              "speaker": "Mira",
+              "text": "The winter stores are short on moonmoss. It keeps fever away when the snow comes, and it grows only in the deep Mistfen."
+            },
+            {
+              "speaker": "Mira",
+              "text": "Four clumps will see us through. Lirra knows the marsh better than anyone. She'll meet you at the Mistfen bridge, west of the village."
+            },
+            {
+              "speaker": "Mira",
+              "text": "Mind the toads. They puff up when they're angry, and they are always angry."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-mistfen",
+          "condition": {
+            "type": "quest",
+            "id": "prologue-trial-mistfen"
+          },
+          "lines": [
+            {
+              "speaker": "Mira",
+              "text": "Four clumps of moonmoss, from the deep Mistfen. Do you need anything for the road?"
+            }
+          ],
+          "actions": [
+            {
+              "id": "shop",
+              "label": "Shop",
+              "intent": {
+                "type": "openShop",
+                "shopId": "miras-item-shop"
+              }
+            },
+            {
+              "id": "close",
+              "label": "Close",
+              "intent": {
+                "type": "close"
+              }
+            }
+          ]
+        },
+        {
+          "beatId": "prologue.trial-mistfen",
+          "condition": {
+            "type": "objective",
+            "id": "deliver-moonmoss"
+          },
+          "lines": [
+            {
+              "speaker": "Mira",
+              "text": "Four clumps, and not a leaf bruised. The village will sleep easier this winter."
+            },
+            {
+              "speaker": "Mira",
+              "text": "And Lirra came back smiling, which she does not do for moss."
+            },
+            {
+              "speaker": "Mira",
+              "text": "Borak stopped by while you were out. The third trial is the Boar King of Silverpine. Drogg is waiting for you at the crossroads signpost."
+            },
+            {
+              "speaker": "Mira",
+              "text": "He told me to say it plainly, so I will: be careful, Grik."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.village",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Mira",
+              "text": "Herbs, salves, and potions, all fresh. What will it be?"
+            }
+          ],
+          "actions": [
+            {
+              "id": "shop",
+              "label": "Shop",
+              "intent": {
+                "type": "openShop",
+                "shopId": "miras-item-shop"
+              }
+            },
+            {
+              "id": "close",
+              "label": "Close",
+              "intent": {
+                "type": "close"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "npcId": "mott-hearth",
+      "mapId": "hero-house",
+      "branches": [
+        {
+          "beatId": "prologue.proving-morning",
+          "condition": {
+            "type": "objective",
+            "id": "talk-to-mott"
+          },
+          "lines": [
+            {
+              "speaker": "Old Mott",
+              "text": "There he is. The last goblin in Sundrop to wake, on the one morning it matters."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "Come here, boy. Bend down. My knees will not reach your neck."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "This amulet was my father's, and his mother's before him. It has hung on every hunter in our family since the old days."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "It will not stop a tusk. But it will remind you whose blood you carry. Wear it, and bring it home."
+            },
+            {
+              "speaker": "Grik",
+              "text": "I will, Grandfather."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "Good. Oren has the spear your father ordered, and Mira has your herb pouch. Fetch them both before you go to Borak."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.hunters-name",
+          "condition": {
+            "type": "objective",
+            "id": "hear-motts-tale"
+          },
+          "lines": [
+            {
+              "speaker": "Old Mott",
+              "text": "Sit by the fire, boy. A hunter should know where he comes from."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "Long ago, the world was at peace. Goblins, orcs, elves, even the demons of the north. We traded, we feasted, we married into each other's clans. A long peace, longer than anyone could count."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "Then a hero came across the sea. A human, with a sword that burned like the sun."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "He said the demons were a darkness on the world. And the humans who followed him believed him."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "The demons fell. All of them. And when there were no demons left, the humans looked at the rest of us, and they saw beasts."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "They called it the Great Hunt. Village after village burned. The ones who lived ran into the mountains and the deep woods."
+            },
+            {
+              "speaker": "Borak",
+              "text": "Father. Not tonight."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "He is a hunter now, Borak. He should know what hunts us."
+            },
+            {
+              "speaker": "Borak",
+              "text": "He will. Not tonight."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "...As you say."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "One more thing, boy. Under the shrine there is an old tunnel, sealed since before your father was born. No one goes in. No one. Do you understand?"
+            },
+            {
+              "speaker": "Grik",
+              "text": "Yes, Grandfather."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "Good. Now, your sister says Lirra is about to leave, and someone should walk her home."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.raid",
+          "condition": {
+            "type": "objective",
+            "id": "heed-mott"
+          },
+          "lines": [
+            {
+              "speaker": "Old Mott",
+              "text": "Humans. Humans, in the village. I thought I would never see it again."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "Your father and Drogg ran for the gate. Tikka went to the well for water before dawn. She has not come back."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "Take your spear and your knife. Find them. Go!"
+            },
+            {
+              "speaker": "Grik",
+              "text": "Grandfather, come with me..."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "My legs are too old to run, and too stubborn to hide. I will be at the shrine. Go!"
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.village",
+          "condition": {
+            "type": "quest",
+            "id": "prologue-trial-tracks"
+          },
+          "lines": [
+            {
+              "speaker": "Old Mott",
+              "text": "Back so soon? The Wildwood is east, past the river. The boar will not wait for you to finish napping."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.village",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Old Mott",
+              "text": "Hm? Oh, don't mind me. I'm only resting my eyes. They've seen a great deal."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "mott-shrine",
+      "mapId": "shrine-of-aurora-interior",
+      "branches": [
+        {
+          "beatId": "prologue.escape",
+          "condition": {
+            "type": "objective",
+            "id": "wake-in-the-shrine"
+          },
+          "lines": [
+            {
+              "speaker": "Old Mott",
+              "text": "Easy. Easy, boy. You are in the shrine. I carried you here myself, so don't tell me I'm too old."
+            },
+            {
+              "speaker": "Grik",
+              "text": "Father. Drogg. They..."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "I know."
+            },
+            {
+              "speaker": "Grik",
+              "text": "Tikka and Lirra. They took them. I have to..."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "You have to live. That is all you have to do tonight."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "The humans are searching every house. They will reach the shrine before the fire burns out."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "Do you remember what I told you last night? The tunnel under the shrine. I told you no one goes in. Tonight, you do."
+            },
+            {
+              "speaker": "Old Mott",
+              "text": "It runs under the mountain and comes out in the Wildwood, past the old cave. Our ancestors dug it, when the Great Hunt came the first time."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.escape",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Old Mott",
+              "text": "The tunnel is waiting, boy. Go."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "oren",
+      "mapId": "blacksmith-interior",
+      "branches": [
+        {
+          "beatId": "prologue.proving-morning",
+          "condition": {
+            "type": "objective",
+            "id": "collect-practice-spear"
+          },
+          "lines": [
+            {
+              "speaker": "Oren",
+              "text": "Borak's boy! Your father paid for this a week ago and made me swear not to tell you."
+            },
+            {
+              "speaker": "Oren",
+              "text": "A practice spear. Ash shaft, iron head, balanced for a short arm. No offence."
+            },
+            {
+              "speaker": "Grik",
+              "text": "Some offence."
+            },
+            {
+              "speaker": "Oren",
+              "text": "Ha! Grow into it. Open your pack and equip it before you leave. A spear in a bag has never killed anything."
+            },
+            {
+              "speaker": "Oren",
+              "text": "If you come home with coin, come back. I keep better steel for real hunters."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.village",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Oren",
+              "text": "Steel for those who can pay, advice for those who can't. Today, the advice is free."
+            }
+          ],
+          "actions": [
+            {
+              "id": "shop",
+              "label": "Shop",
+              "intent": {
+                "type": "openShop",
+                "shopId": "sundrop-forge"
+              }
+            },
+            {
+              "id": "close",
+              "label": "Close",
+              "intent": {
+                "type": "close"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "npcId": "tikka-captive",
+      "mapId": "meadow-entry",
+      "branches": [
+        {
+          "beatId": "prologue.raid",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Tikka",
+              "text": "Grik! No, don't! Run! Please, just run!"
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "tikka-home",
+      "mapId": "hero-house",
+      "branches": [
+        {
+          "beatId": "prologue.proving-morning",
+          "condition": {
+            "type": "quest",
+            "id": "prologue-proving-morning"
+          },
+          "lines": [
+            {
+              "speaker": "Tikka",
+              "text": "Why are you still here? Spear from Oren, herbs from Mira, then the lodge. Even I know that, and I'm not the one being proved."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.hunters-name",
+          "condition": {
+            "type": "objective",
+            "id": "share-the-dinner"
+          },
+          "lines": [
+            {
+              "speaker": "Tikka",
+              "text": "Sit! No, not there, that's Grandfather's spot. There. Good."
+            },
+            {
+              "speaker": "Tikka",
+              "text": "Drogg, plates. Father, stop sharpening that and pass the bread. Grik, you're a hunter now, so you can carry the stew pot."
+            },
+            {
+              "speaker": "Tikka",
+              "text": "It's the boar, obviously. I've been stewing it all afternoon. You're welcome."
+            },
+            {
+              "speaker": "Tikka",
+              "text": "I'm proud of you, by the way. Don't let it go to your head. You'll still do the dishes."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.hunters-name",
+          "condition": {
+            "type": "objective",
+            "id": "walk-lirra-home"
+          },
+          "lines": [
+            {
+              "speaker": "Tikka",
+              "text": "Lirra's leaving! Walk her back to the herb hut. Go on, hunter. Go!"
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.hunters-name",
+          "condition": {
+            "type": "objective",
+            "id": "go-to-sleep"
+          },
+          "lines": [
+            {
+              "speaker": "Tikka",
+              "text": "You're home. Good. Bed, hunter. Big day tomorrow, Lirra says. She wouldn't tell me why."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.village",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Tikka",
+              "text": "I'm making something good for tonight. No, you can't know what. Go and do your trials."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "villager-io",
+      "mapId": "villager-house-3",
+      "branches": [
+        {
+          "beatId": "prologue.proving-morning",
+          "condition": {
+            "type": "quest",
+            "id": "prologue-proving-morning"
+          },
+          "lines": [
+            {
+              "speaker": "Io",
+              "text": "When you're a real hunter, will you bring me a wolf tooth? A big one. Please?"
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.village",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Io",
+              "text": "I'm going to be a hunter too, one day. Just like you."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "villager-lynn",
+      "mapId": "villager-house-1",
+      "branches": [
+        {
+          "beatId": "prologue.proving-morning",
+          "condition": {
+            "type": "quest",
+            "id": "prologue-proving-morning"
+          },
+          "lines": [
+            {
+              "speaker": "Lynn",
+              "text": "The proving hunt is today, isn't it? Good luck, Grik. Bring back something with more meat than bone."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.village",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Lynn",
+              "text": "Sundrop is quiet today. I like quiet."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
+      "npcId": "villager-toma",
+      "mapId": "villager-house-2",
+      "branches": [
+        {
+          "beatId": "prologue.proving-morning",
+          "condition": {
+            "type": "quest",
+            "id": "prologue-proving-morning"
+          },
+          "lines": [
+            {
+              "speaker": "Toma",
+              "text": "My first proving, I tripped over my own spear in front of the whole lodge. Borak still tells that story."
+            },
+            {
+              "speaker": "Toma",
+              "text": "You'll do better. You can hardly do worse."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.village",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Toma",
+              "text": "My roof leaks, my goat bites, and my wife says I snore. Still, it's a good life."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "prologue.opening",
+      "beatId": "prologue.proving-morning",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "Morning light slants through the gaps in the thatch. Somewhere outside, a rooster is losing an argument with a goat."
+        },
+        {
+          "speaker": "Tikka",
+          "text": "Grik. Grik! Get up!"
+        },
+        {
+          "speaker": "Grik",
+          "text": "Mm. Five more breaths."
+        },
+        {
+          "speaker": "Tikka",
+          "text": "Today is your proving hunt, you lump! Father and Drogg left for the lodge before the sun was up."
+        },
+        {
+          "speaker": "Tikka",
+          "text": "If you make Father wait, he'll pretend he isn't angry. That's worse. Grandfather wants you by the hearth first. Go!"
+        }
+      ]
+    },
+    {
+      "id": "prologue.boar-sign-hoofprints",
+      "beatId": "prologue.trial-tracks",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "Deep, split hoofprints sink into the soft mud beside the trail."
+        },
+        {
+          "speaker": "Grik",
+          "text": "Big. Heavy on the front feet."
+        },
+        {
+          "speaker": "Lirra",
+          "text": "And fresh. See how the water hasn't filled them yet? It passed here this morning. Heading north."
+        }
+      ]
+    },
+    {
+      "id": "prologue.boar-sign-sapling",
+      "beatId": "prologue.trial-tracks",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "A young birch lies snapped at knee height, its bark peeled back in long strips."
+        },
+        {
+          "speaker": "Lirra",
+          "text": "It didn't go around. It went through."
+        },
+        {
+          "speaker": "Grik",
+          "text": "So it's angry."
+        },
+        {
+          "speaker": "Lirra",
+          "text": "Or it's something that has never needed to go around anything."
+        }
+      ]
+    },
+    {
+      "id": "prologue.boar-sign-tusk-scrape",
+      "beatId": "prologue.trial-tracks",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "Pale gouges score an old oak, higher than Grik's head. Sap still weeps from them."
+        },
+        {
+          "speaker": "Grik",
+          "text": "It marks its ground up here. The bed is close."
+        },
+        {
+          "speaker": "Lirra",
+          "text": "Look at you, reading the land. Borak would almost smile."
+        }
+      ]
+    },
+    {
+      "id": "prologue.sun-arrow",
+      "beatId": "prologue.trial-tracks",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "The thornback lies still. Grik's hands are shaking, and he lets them."
+        },
+        {
+          "speaker": "Lirra",
+          "text": "Grik. Look at its flank."
+        },
+        {
+          "speaker": "",
+          "text": "A broken arrow is buried in the boar's hide, half grown over. The head is iron, the shaft is straight and planed, and the fletching is stamped with a small golden sun."
+        },
+        {
+          "speaker": "Grik",
+          "text": "That isn't ours. No goblin fletches like that."
+        },
+        {
+          "speaker": "Lirra",
+          "text": "Then who?"
+        },
+        {
+          "speaker": "Grik",
+          "text": "An orc caravan, probably. They come through the passes sometimes. It's nothing."
+        },
+        {
+          "speaker": "",
+          "text": "Lirra works the arrow free and tucks it into her satchel without a word."
+        }
+      ]
+    },
+    {
+      "id": "prologue.mistfen-pond-rest",
+      "beatId": "prologue.trial-mistfen",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "The fog lies thick over the still water. For a while neither of them says anything."
+        },
+        {
+          "speaker": "Lirra",
+          "text": "Do you ever think about later? After you're a hunter, I mean."
+        },
+        {
+          "speaker": "Grik",
+          "text": "I'll hunt. I'll fill the stores. I'll get old and tell bad stories like Grandfather."
+        },
+        {
+          "speaker": "Lirra",
+          "text": "That's not later. That's just more of today."
+        },
+        {
+          "speaker": "Lirra",
+          "text": "Tomorrow, after all this, come to the river with me. There's a place I want to show you. Just you."
+        },
+        {
+          "speaker": "Grik",
+          "text": "What kind of place?"
+        },
+        {
+          "speaker": "Lirra",
+          "text": "The kind you have to see. Now come on. Mira will think the toads ate us."
+        }
+      ]
+    },
+    {
+      "id": "prologue.boar-king-trail",
+      "beatId": "prologue.trial-boar-king",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "The trail is not a trail so much as a road. Saplings are flattened, stones are overturned, and the earth is churned into ridges."
+        },
+        {
+          "speaker": "",
+          "text": "Each hoofprint is wider than Grik's two hands spread together."
+        },
+        {
+          "speaker": "Grik",
+          "text": "It went up toward the falls."
+        },
+        {
+          "speaker": "",
+          "text": "From somewhere ahead, over the noise of the water, comes a low, grinding snort."
+        }
+      ]
+    },
+    {
+      "id": "prologue.boar-king-felled",
+      "beatId": "prologue.trial-boar-king",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "The Boar King sways, groans, and crashes into the moss. The ground shakes once, and then the forest is quiet."
+        },
+        {
+          "speaker": "Drogg",
+          "text": "You did it. Grik, you actually did it!"
+        },
+        {
+          "speaker": "Drogg",
+          "text": "Wait until Father sees this. Wait until the whole village sees this!"
+        },
+        {
+          "speaker": "",
+          "text": "Drogg heaves the great boar across his shoulders, staggers, laughs, and sets off down the mountain."
+        },
+        {
+          "speaker": "Drogg",
+          "text": "Told you I came to carry the meat."
+        }
+      ]
+    },
+    {
+      "id": "prologue.nightfall",
+      "beatId": "prologue.hunters-name",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "Grik lies awake for a long time, turning the sun-stamped arrow over in his fingers."
+        },
+        {
+          "speaker": "",
+          "text": "Through the wall he can hear Drogg snoring and Tikka telling him to stop. Old Mott hums an old song by the fire."
+        },
+        {
+          "speaker": "",
+          "text": "Tomorrow, the river."
+        },
+        {
+          "speaker": "",
+          "text": "He sleeps."
+        }
+      ]
+    },
+    {
+      "id": "prologue.raid-wakes",
+      "beatId": "prologue.raid",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "A horn. Then another, long and low, nothing like the hunting horns of Sundrop."
+        },
+        {
+          "speaker": "",
+          "text": "Smoke is coming in under the door. Outside, someone is screaming."
+        },
+        {
+          "speaker": "Old Mott",
+          "text": "Grik! Up! Up, boy!"
+        }
+      ]
+    },
+    {
+      "id": "prologue.captain-sneers",
+      "beatId": "prologue.raid",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "The world goes dark and quiet. Somewhere far away, a deep voice laughs."
+        },
+        {
+          "speaker": "Captain",
+          "text": "Leave that one."
+        },
+        {
+          "speaker": "Captain",
+          "text": "Don't waste a rope on him. The little one won't last long out here anyway."
+        },
+        {
+          "speaker": "Captain",
+          "text": "Load the rest. We march south at first light."
+        }
+      ]
+    },
+    {
+      "id": "prologue.tunnel-seals",
+      "beatId": "prologue.escape",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "Old Mott pulls a carved stone from the shrine floor. Cold air breathes up out of the dark."
+        },
+        {
+          "speaker": "Grik",
+          "text": "Come with me."
+        },
+        {
+          "speaker": "Old Mott",
+          "text": "Someone has to close the door behind you. I am the only one left who knows how."
+        },
+        {
+          "speaker": "Old Mott",
+          "text": "Live, Grik. Remember us."
+        },
+        {
+          "speaker": "Old Mott",
+          "text": "Now, this is your hunt."
+        },
+        {
+          "speaker": "",
+          "text": "Grik steps down into the dark. Behind him, stone grinds on stone. Then the ceiling roars, and the tunnel falls in."
+        }
+      ]
+    },
+    {
+      "id": "prologue.ridge-overlook",
+      "beatId": "prologue.escape",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "The cave opens onto a high ridge above the Wildwood. Far below, beyond the river, Sundrop is a smudge of black smoke against the dawn."
+        },
+        {
+          "speaker": "",
+          "text": "On the southern road, a long line of soldiers marches away from the village. Between them, roped together, walk the goblins of Sundrop."
+        },
+        {
+          "speaker": "",
+          "text": "He can't see Tikka or Lirra. He looks until his eyes hurt."
+        }
+      ]
+    },
+    {
+      "id": "prologue.the-vow",
+      "beatId": "prologue.escape",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "Grik's hand finds something in his pack. Straight shaft. Iron head. A small golden sun stamped into the fletching."
+        },
+        {
+          "speaker": "",
+          "text": "Not an orc arrow. It never was."
+        },
+        {
+          "speaker": "Grik",
+          "text": "They hunted us like beasts."
+        },
+        {
+          "speaker": "Grik",
+          "text": "Now I will hunt them."
+        }
+      ]
+    },
+    {
+      "id": "prologue.chapter-one",
+      "beatId": "prologue.escape",
+      "lines": [
+        {
+          "speaker": "",
+          "text": "End of the Prologue."
+        },
+        {
+          "speaker": "",
+          "text": "Chapter One: The Hunt."
+        }
+      ]
+    }
+  ]
+}

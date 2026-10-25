@@ -5,7 +5,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .setup(|_app| Ok(()))
-        .invoke_handler(tauri::generate_handler![story::commands::get_npc_dialogue])
+        .invoke_handler(tauri::generate_handler![
+            story::commands::get_npc_dialogue,
+            story::commands::get_story_scene
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

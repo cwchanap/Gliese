@@ -63,7 +63,7 @@ import {
 } from '$lib/game/content/maps/navigation';
 import { getItem, type EquipmentSlot } from '$lib/game/content/items';
 import { startingPlayer } from '$lib/game/content/player';
-import { isQuestId, mainQuestId } from '$lib/game/content/quests';
+import { isQuestId, type QuestEffect } from '$lib/game/content/quests';
 import { getShop } from '$lib/game/content/shops';
 import {
 	emitRegionalBackgroundPlaneRenderDiagnostic,
@@ -103,16 +103,17 @@ import {
 } from '$lib/game/core/map-exploration';
 import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
 import {
-	acceptQuest,
 	applyQuestEvent,
 	buildHudQuestState,
 	cloneQuestState,
 	createInitialQuestState,
-	hasCompletedQuestObjective,
+	getStoryProgress,
+	takeNextQuestEffect,
 	type QuestEvent,
 	type QuestRewardGrant,
 	type QuestState
 } from '$lib/game/core/quests';
+import { applyStoryGates, storyGateSignature } from '$lib/game/core/story-gates';
 import {
 	buildShopBuyEntries,
 	buildShopSellEntries,
@@ -133,7 +134,6 @@ import {
 import {
 	advanceDialogue,
 	buildDialogueFallback,
-	buildQuestCompletionDialogue,
 	chooseDialogueOption,
 	type DialogueChoiceResult,
 	type DialogueIntent,
@@ -148,7 +148,7 @@ import { getPlaytimeSeconds } from '$lib/game/save/playtime';
 import { writeSaveSlot, type SaveSlotRecord } from '$lib/game/save/slots';
 import { flushSaveStorage } from '$lib/game/save/storage';
 import { captureSaveThumbnail } from '$lib/game/save/thumbnail';
-import { getNpcStoryDialogue, type StoryQuestSummary } from '$lib/game/story/client';
+import { getNpcStoryDialogue, getStoryScene } from '$lib/game/story/client';
 import {
 	emitHudState,
 	onHudCommand,
@@ -204,9 +204,14 @@ interface WorldSceneData {
 	battleResult?: BattleResult;
 	mapId?: string;
 	mapBackgroundPackageSelection?: MapBackgroundPackageSelection;
-	reason?: 'battle-result' | 'new' | 'resume' | 'transition';
+	/**
+	 * `story` re-renders the map in place after the story moved on; `story-move`
+	 * is a quest effect fading the hero somewhere else (sleeping, the tunnel).
+	 */
+	reason?: 'battle-result' | 'new' | 'resume' | 'transition' | 'story' | 'story-move';
 	recentlyFled?: RecentlyFledEncounter;
 	saveState?: SaveState | null;
+	status?: string;
 }
 
 type DirectionKey = {
@@ -283,7 +288,8 @@ type TilemapLayer = {
 };
 
 type EnemyInstance = {
-	completion?: 'victory';
+	/** Fixed battle size from the encounter; unset rolls a random pack. */
+	count?: number;
 	defeated: boolean;
 	definition: EnemyCombatDefinition;
 	attackCooldownUntil: number;
@@ -398,6 +404,7 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly collisionDebugOverlayDepth = 10_000;
 	/** Window after a fled battle during which that encounter cannot re-trigger. */
 	private static readonly recentlyFledGraceMs = 1_500;
+	private static readonly storyFadeMs = 600;
 
 	private clearedEncounterIds = new Set<string>();
 	private clearedEncounterUnitCounts: Record<string, number> = {};
@@ -448,7 +455,11 @@ export class WorldScene extends Phaser.Scene {
 	private removeHudCommandListener = () => {};
 	private renderOptions!: WorldRenderOptions;
 	private simulationPaused = false;
-	private victoryAchieved = false;
+	/** A quest effect (a scene or a fade) is playing; the next one waits for it. */
+	private storyEffectRunning = false;
+	/** The story moved on; re-render once the current dialogue and effects finish. */
+	private storyRefreshPending = false;
+	private storyGateKey = '';
 	private wasdKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private worldSize = { width: 0, height: 0 };
 	private navigationGrid!: NavigationGrid;
@@ -480,10 +491,6 @@ export class WorldScene extends Phaser.Scene {
 		return getNpcText(this.getLocale(), npc.id)?.name ?? npc.name;
 	}
 
-	private getGuildMasterName() {
-		return getNpcText(this.getLocale(), 'guild-master')?.name ?? 'Guild Master Arlen';
-	}
-
 	private getTravelerSpeaker() {
 		return this.status('content.dialogue.speakers.traveler');
 	}
@@ -498,7 +505,13 @@ export class WorldScene extends Phaser.Scene {
 			data.battleResult && data.saveState
 				? applyBattleResultToSaveState(data.saveState, data.battleResult)
 				: null;
-		const activeSave = battleApplication?.saveState ?? data.saveState;
+		const activeSave =
+			battleApplication?.saveState ??
+			data.saveState ??
+			// A new run starts from the fresh save, so Grik wakes at his bedside.
+			(data.reason === 'new' ? createNewSaveState() : undefined);
+		// Story gates read the quest state, so it must be in place before the map resolves.
+		this.quests = cloneQuestState(activeSave?.quests ?? createInitialQuestState());
 		const requestedPackageSelection = data.mapBackgroundPackageSelection;
 		const map = this.resolveMap(activeSave?.mapId ?? data.mapId, requestedPackageSelection);
 		this.navigationGrid = resolveMapNavigationGrid(map);
@@ -529,7 +542,6 @@ export class WorldScene extends Phaser.Scene {
 		this.hitImpactStartedAt = 0;
 		this.hitImpactUntil = 0;
 		this.inventory = cloneInventory(activeSave?.inventory ?? createNewSaveState().inventory);
-		this.quests = cloneQuestState(activeSave?.quests ?? createInitialQuestState());
 		this.mapExploration = cloneMapExploration(
 			activeSave?.mapExploration ?? createEmptyMapExploration()
 		);
@@ -561,7 +573,9 @@ export class WorldScene extends Phaser.Scene {
 		this.playerAttackCooldownUntil = 0;
 		this.recentlyFled = data.battleResult?.outcome === 'fled' ? (data.recentlyFled ?? null) : null;
 		this.simulationPaused = false;
-		this.victoryAchieved = false;
+		this.storyEffectRunning = false;
+		this.storyRefreshPending = false;
+		this.storyGateKey = this.computeStoryGateKey();
 		this.worldSize = { width, height };
 
 		this.registerAssetFrames(starterPackAsset);
@@ -679,15 +693,19 @@ export class WorldScene extends Phaser.Scene {
 		// captures the arrival map as a completed frame.
 		this.lastThumbnailMapId = null;
 		this.lastThumbnail = undefined;
-		if (reason === 'new' || reason === 'transition' || battleApplication) {
+		if (
+			reason === 'new' ||
+			reason === 'transition' ||
+			reason === 'story-move' ||
+			battleApplication
+		) {
 			this.events?.once?.('render', () => this.writeAutosave(this.buildSaveState()));
 		}
+		if (reason === 'story-move') {
+			this.cameras.main.fadeIn?.(WorldScene.storyFadeMs, 0, 0, 0);
+		}
 
-		this.publishHudState(
-			this.victoryAchieved
-				? this.status('status.victoryRuinsCleared')
-				: this.resolveInitialStatus(reason)
-		);
+		this.publishHudState(data.status ?? this.resolveInitialStatus(reason));
 	}
 
 	private getCenteredCameraBounds(width: number, height: number) {
@@ -715,6 +733,10 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		if (this.heroDefeated) {
+			return;
+		}
+
+		if (this.updateStory()) {
 			return;
 		}
 
@@ -801,17 +823,6 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private applyReward(xpReward: number): ProgressionState {
-		if (this.playerProgress.level === 1) {
-			return applyExperienceGain(this.playerProgress, xpReward);
-		}
-
-		return {
-			...this.playerProgress,
-			xp: this.playerProgress.xp + xpReward
-		};
-	}
-
 	private findHeroAttackTarget(time: number) {
 		if (!this.player) {
 			return undefined;
@@ -832,7 +843,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private buildSaveState(): SaveState {
 		return {
-			version: 9,
+			version: 10,
 			mapId: this.mapId,
 			player: {
 				level: this.playerProgress.level,
@@ -927,36 +938,6 @@ export class WorldScene extends Phaser.Scene {
 		this.publishHudState(this.status('status.recoveredHp'));
 	}
 
-	private finishEncounter(enemy: EnemyInstance) {
-		if (enemy.defeated) {
-			return;
-		}
-
-		enemy.defeated = true;
-		this.playEnemyDeathAnimation(enemy);
-		this.clearedEncounterIds.add(enemy.id);
-		this.awardEncounterDrops(enemy);
-		this.wallet = { coins: this.wallet.coins + enemy.definition.coinReward };
-		this.playerProgress = this.applyReward(enemy.definition.xpReward);
-
-		this.applyQuestProgress(
-			{
-				type: 'defeat-enemy',
-				mapId: this.mapId,
-				encounterId: enemy.id,
-				enemyId: enemy.definition.id,
-				completion: enemy.completion
-			},
-			enemy.completion === 'victory'
-				? this.status('status.victoryRuinsCleared')
-				: this.status('status.enemyDefeated')
-		);
-
-		if (enemy.completion === 'victory') {
-			this.showVictoryState();
-		}
-	}
-
 	private startBattle(enemy: EnemyInstance, time: number) {
 		if (!this.player) {
 			return;
@@ -977,14 +958,13 @@ export class WorldScene extends Phaser.Scene {
 			sourceMapId: this.mapId,
 			sourceEncounterId: enemy.id,
 			sourceEnemyId: enemy.definition.id,
-			completion: enemy.completion,
 			returnPosition: {
 				mapId: this.mapId,
 				x: enemy.homeX,
 				y: enemy.homeY + WorldScene.tileSize * 2,
 				facing: this.facing
 			},
-			enemyCount: enemy.definition.boss ? 1 : rollBattleEnemyCount(),
+			enemyCount: enemy.definition.boss ? 1 : (enemy.count ?? rollBattleEnemyCount()),
 			hero: {
 				hp: this.playerProgress.hp,
 				...effectiveStats
@@ -1088,104 +1068,28 @@ export class WorldScene extends Phaser.Scene {
 		this.publishHudState(this.status('status.soldItem', { itemName: this.getItemName(itemId) }));
 	}
 
-	private acceptGuildQuest(questId: string): boolean {
-		const nearbyNpc = this.findNearbyNpc();
-
-		if (nearbyNpc?.id !== 'guild-master') {
-			this.dialogueSession = buildDialogueFallback(
-				this.getGuildMasterName(),
-				this.status('content.dialogue.system.noGuildQuestAvailableHere')
-			);
-			this.publishHudState(this.status('status.noGuildQuestAvailable'));
-			return false;
-		}
-
-		this.currentNearbyNpcId = nearbyNpc.id;
-		this.nearbyShopId = null;
-		this.openShopId = null;
-
-		const result = acceptQuest({
-			state: this.quests,
-			questId,
-			worldFlags: {
-				clearedEncounterIds: this.clearedEncounterIds,
-				clearedEncounterUnitCounts: this.clearedEncounterUnitCounts,
-				collectedPickupIds: this.collectedPickupIds
-			}
-		});
-
-		if (!result.accepted) {
-			const failureStatus = this.formatQuestAcceptFailure(result.reason);
-			this.dialogueSession = buildDialogueFallback(this.getGuildMasterName(), failureStatus);
-			this.publishHudState(this.formatQuestAcceptFailure(result.reason));
-			return false;
-		}
-
-		this.quests = result.state;
-		this.applyQuestRewards(result.rewards);
-		this.dialogueSession =
-			result.completedQuestIds.length > 0 && result.rewards[0]
-				? buildQuestCompletionDialogue({
-						questId: result.rewards[0].questId,
-						title: result.rewards[0].title,
-						reward: result.rewards[0].reward,
-						locale: this.getLocale()
-					})
-				: null;
-		this.publishHudState(
-			result.completedQuestIds.length > 0
-				? this.status('status.questComplete', {
-						questTitle: this.getQuestTitle(
-							result.rewards[0]?.questId,
-							result.rewards[0]?.title ?? 'Quest'
-						)
-					})
-				: this.status('status.questAccepted')
-		);
-		return true;
-	}
-
-	private formatQuestAcceptFailure(reason: string): string {
-		if (reason === 'already-active') return this.status('status.questAlreadyActive');
-		if (reason === 'already-completed') return this.status('status.questAlreadyComplete');
-		if (reason === 'not-available') return this.status('status.questNotAvailable');
-
-		return this.status('status.questCannotBeAccepted');
-	}
-
 	private applyQuestProgress(event: QuestEvent, fallbackStatus: string) {
 		const result = applyQuestEvent({ state: this.quests, event });
 		this.quests = result.state;
 		this.applyQuestRewards(result.rewards);
+		this.storyRefreshPending = true;
 
-		if (result.completedQuestIds.length > 0) {
-			const rewardGrant = result.rewards[0];
-			if (rewardGrant) {
-				this.dialogueSession = buildQuestCompletionDialogue({
-					questId: rewardGrant.questId,
-					title: rewardGrant.title,
-					reward: rewardGrant.reward,
-					locale: this.getLocale()
-				});
-			}
-			this.publishHudState(
-				this.status('status.questComplete', {
-					questTitle: this.getQuestTitle(
-						result.rewards[0]?.questId,
-						result.rewards[0]?.title ?? 'Quest'
-					)
-				})
-			);
-			return;
-		}
-
-		this.publishHudState(fallbackStatus);
+		const completedGrant = result.rewards.find((grant) =>
+			result.completedQuestIds.includes(grant.questId)
+		);
+		this.publishHudState(
+			completedGrant
+				? this.status('status.questComplete', {
+						questTitle: this.getQuestTitle(completedGrant.questId, completedGrant.title)
+					})
+				: fallbackStatus
+		);
 	}
 
 	private applyQuestRewards(rewards: QuestRewardGrant[]) {
 		for (const grant of rewards) {
 			if (grant.reward.xp) {
-				this.playerProgress = this.applyReward(grant.reward.xp);
+				this.playerProgress = applyExperienceGain(this.playerProgress, grant.reward.xp);
 			}
 
 			if (grant.reward.coins) {
@@ -1276,9 +1180,6 @@ export class WorldScene extends Phaser.Scene {
 			case 'sell-inventory-item':
 				this.sellOpenShopItem(command.itemId);
 				return;
-			case 'accept-quest':
-				this.acceptGuildQuest(command.questId);
-				return;
 			case 'dialogue-advance':
 				this.advanceDialogueCommand();
 				return;
@@ -1294,31 +1195,18 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private advanceDialogueCommand() {
-		if (!this.dialogueSession) {
+		const session = this.dialogueSession;
+		if (!session) {
 			return;
 		}
 
-		const previousSession = this.dialogueSession;
-		const isTerminalLine = previousSession.lineIndex + 1 >= previousSession.lineCount;
-		const advancedSession = advanceDialogue(previousSession);
-		const completionIntent = isTerminalLine ? previousSession.completionIntent : null;
-
-		if (isTerminalLine && !completionIntent && previousSession.choices.length === 0) {
+		if (session.lineIndex + 1 >= session.lineCount && session.choices.length === 0) {
 			this.dialogueSession = null;
 			this.publishHudState(this.status('status.dialogueClosed'));
 			return;
 		}
 
-		this.dialogueSession = {
-			...advancedSession,
-			completionIntent: completionIntent ? null : advancedSession.completionIntent
-		};
-
-		if (completionIntent) {
-			this.applyDialogueIntent(completionIntent);
-			return;
-		}
-
+		this.dialogueSession = advanceDialogue(session);
 		this.publishHudState(this.status('status.dialogueUpdated'));
 	}
 
@@ -1335,8 +1223,7 @@ export class WorldScene extends Phaser.Scene {
 		const result = chooseDialogueOption({
 			session: this.dialogueSession,
 			choiceId,
-			questState: this.quests,
-			locale: this.getLocale()
+			fallbackLine: this.status('content.dialogue.system.optionNotAvailable')
 		});
 		this.applyDialogueChoiceResult(result);
 	}
@@ -1354,34 +1241,12 @@ export class WorldScene extends Phaser.Scene {
 
 	private applyDialogueIntent(intent: DialogueIntent) {
 		switch (intent.type) {
-			case 'recordNpcTalk':
-				if (!this.isNpcDialogueInRange(intent.npcId)) {
-					this.dialogueSession = buildDialogueFallback(
-						this.getTravelerSpeaker(),
-						this.status('content.dialogue.system.noOneNearby')
-					);
-					this.publishHudState(this.status('status.noOneNearby'));
-					return;
-				}
-
-				this.applyQuestProgress(
-					{ type: 'talk-to-npc', npcId: intent.npcId },
-					this.status('status.ruinsRouteUnlocked')
-				);
-				return;
-			case 'acceptQuest':
-				this.acceptGuildQuest(intent.questId);
-				return;
 			case 'openShop':
 				this.openNearbyShop(intent.shopId);
 				return;
 			case 'close':
 				this.dialogueSession = null;
 				this.publishHudState(this.status('status.dialogueClosed'));
-				return;
-			case 'showQuestList':
-			case 'showQuestDetails':
-				this.publishHudState(this.status('status.dialogueUpdated'));
 				return;
 		}
 	}
@@ -1423,11 +1288,7 @@ export class WorldScene extends Phaser.Scene {
 				summary: null,
 				active: null
 			},
-			quests: buildHudQuestState({
-				state: this.quests,
-				nearbyQuestGiverId: this.findNearbyNpc()?.id === 'guild-master' ? 'guild-master' : null,
-				locale: this.getLocale()
-			}),
+			quests: buildHudQuestState({ state: this.quests, locale: this.getLocale() }),
 			inventory: this.buildHudInventory()
 		});
 	}
@@ -2820,7 +2681,7 @@ export class WorldScene extends Phaser.Scene {
 	): WorldMapDefinition {
 		const source = maps[mapId ?? openingMapId] ?? maps[openingMapId];
 		return applyMapBackgroundPackage(
-			source,
+			applyStoryGates(source, getStoryProgress(this.quests)),
 			packageSelection ?? this.resolveMapBackgroundPackageSelection(source.id)
 		);
 	}
@@ -2978,7 +2839,7 @@ export class WorldScene extends Phaser.Scene {
 				1
 			) as OverlayMarker;
 			const enemy: EnemyInstance = {
-				completion: encounter.completion,
+				count: encounter.count,
 				defeated: isCleared,
 				definition,
 				attackCooldownUntil: 0,
@@ -3011,10 +2872,6 @@ export class WorldScene extends Phaser.Scene {
 				marker.setVisible(false);
 				healthBarBg.setVisible(false);
 				healthBarFill.setVisible(false);
-
-				if (encounter.completion === 'victory') {
-					this.showVictoryState();
-				}
 			} else {
 				this.playEnemyAnimation(enemy, 'idle');
 			}
@@ -3024,35 +2881,9 @@ export class WorldScene extends Phaser.Scene {
 	private resolveInitialStatus(reason: NonNullable<WorldSceneData['reason']>) {
 		if (reason === 'battle-result') return this.status('status.battleReturned');
 		if (reason === 'resume') return this.status('status.saveResumed');
-		if (reason === 'transition') return this.status('status.enteredArea');
+		if (reason === 'transition' || reason === 'story-move')
+			return this.status('status.enteredArea');
 		return this.status('status.newRun');
-	}
-
-	private showVictoryState() {
-		if (this.victoryAchieved) {
-			return;
-		}
-
-		this.victoryAchieved = true;
-		this.add.rectangle(
-			this.worldSize.width / 2,
-			this.worldSize.height / 2,
-			this.worldSize.width,
-			this.worldSize.height,
-			0x0f172a,
-			0.78
-		);
-		this.add
-			.text(
-				this.worldSize.width / 2,
-				this.worldSize.height / 2,
-				this.status('status.victoryRuinsCleared'),
-				{
-					color: '#f8fafc',
-					fontSize: '28px'
-				}
-			)
-			.setOrigin(0.5);
 	}
 
 	private awardEncounterDrops(enemy: EnemyInstance) {
@@ -3087,18 +2918,6 @@ export class WorldScene extends Phaser.Scene {
 			);
 
 			if (distance <= WorldScene.playerRadius + WorldScene.transitionRadius) {
-				if (transition.questRequirement) {
-					const { questId, objectiveId } = transition.questRequirement;
-
-					if (
-						!isQuestId(questId) ||
-						!hasCompletedQuestObjective(this.quests, questId, objectiveId)
-					) {
-						this.publishHudState(this.status('status.reportToGuildMasterFirst'));
-						return false;
-					}
-				}
-
 				this.scene.restart({
 					saveState: this.buildTransitionSaveState(transition),
 					reason: 'transition'
@@ -3227,19 +3046,119 @@ export class WorldScene extends Phaser.Scene {
 
 	private readDiscovery(discovery: MapDiscovery) {
 		const locale = this.getLocale();
-		this.storyDialogueSeq++;
-		this.dialogueSession = buildDialogueFallback(
-			t(locale, discovery.labelKey),
-			t(locale, discovery.descriptionKey)
-		);
-
-		if (!this.seenDiscoveryIds.has(discovery.id)) {
-			this.seenDiscoveryIds.add(discovery.id);
-			// Discovery is a durable point: persist the new seen id immediately.
-			this.writeAutosave(this.buildSaveState());
+		const requestSeq = ++this.storyDialogueSeq;
+		if (discovery.sceneId) {
+			// Hold queued effects until the scene arrives, so they play after it.
+			this.storyEffectRunning = true;
+			void this.playStoryScene(discovery.sceneId, requestSeq).finally(() => {
+				this.storyEffectRunning = false;
+			});
+		} else if (discovery.descriptionKey) {
+			this.dialogueSession = buildDialogueFallback(
+				t(locale, discovery.labelKey),
+				t(locale, discovery.descriptionKey)
+			);
 		}
 
-		this.publishHudState(this.status('status.dialogueUpdated'));
+		this.seenDiscoveryIds.add(discovery.id);
+		this.applyQuestProgress(
+			{ type: 'inspect', discoveryId: discovery.id },
+			this.status('status.dialogueUpdated')
+		);
+		// Discovery is a durable point: persist the seen id and any quest progress.
+		this.writeAutosave(this.buildSaveState());
+	}
+
+	/**
+	 * Plays one queued quest effect at a time, between interactions, then re-renders
+	 * the map once the story has moved on. Returns true while the world is held.
+	 */
+	private updateStory(): boolean {
+		if (this.storyEffectRunning || this.dialogueSession || this.openShopId) {
+			return this.storyEffectRunning;
+		}
+
+		const next = takeNextQuestEffect(this.quests);
+		if (next.effect) {
+			this.quests = next.state;
+			this.runQuestEffect(next.effect);
+			return true;
+		}
+
+		if (this.storyRefreshPending) {
+			this.storyRefreshPending = false;
+			if (this.computeStoryGateKey() !== this.storyGateKey) {
+				this.scene.restart({
+					saveState: this.buildSaveState(),
+					reason: 'story',
+					status: this.lastPublishedStatus
+				});
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private runQuestEffect(effect: QuestEffect) {
+		this.storyEffectRunning = true;
+
+		if (effect.type === 'play-scene') {
+			void this.playStoryScene(effect.sceneId, ++this.storyDialogueSeq)
+				.then((shown) => {
+					// The scene is on screen: persist its consumption so a reload
+					// doesn't replay it. A scene that failed to load stays queued on disk.
+					if (shown) this.writeAutosave(this.buildSaveState());
+				})
+				.finally(() => {
+					this.storyEffectRunning = false;
+				});
+			return;
+		}
+
+		// Sleep, or wake somewhere new: fade out, rest to full HP, and arrive.
+		const saveState = this.buildSaveState();
+		const arrive = () =>
+			this.scene.restart({
+				saveState: {
+					...saveState,
+					mapId: effect.mapId,
+					player: {
+						...saveState.player,
+						hp: this.getEffectiveStats().maxHp,
+						x: effect.x,
+						y: effect.y,
+						facing: effect.facing
+					}
+				},
+				reason: 'story-move'
+			});
+		const camera = this.cameras.main;
+		if (!camera.fadeOut) {
+			arrive();
+			return;
+		}
+		camera.once('camerafadeoutcomplete', arrive);
+		camera.fadeOut(WorldScene.storyFadeMs, 0, 0, 0);
+	}
+
+	/** Shows a story scene as a system dialogue once its prose arrives; true once shown. */
+	private async playStoryScene(sceneId: string, requestSeq: number): Promise<boolean> {
+		try {
+			const session = await getStoryScene({ sceneId, locale: this.getLocale() });
+			if (this.storyDialogueSeq !== requestSeq) return false;
+			this.dialogueSession = session;
+			this.publishHudState(this.status('status.dialogueUpdated'));
+			return true;
+		} catch (error) {
+			console.error('[story] story scene failed for scene=%s:', sceneId, error);
+			return false;
+		}
+	}
+
+	private computeStoryGateKey(): string {
+		const source = maps[this.mapId] ?? maps[openingMapId];
+		return storyGateSignature(source, getStoryProgress(this.quests));
 	}
 
 	private hasInteractJustDown() {
@@ -3276,20 +3195,21 @@ export class WorldScene extends Phaser.Scene {
 				npcId: nearbyNpc.dialogueId,
 				mapId: this.mapId,
 				locale: this.getLocale(),
-				quest: this.buildStoryQuestSummary()
+				progress: getStoryProgress(this.quests)
 			});
 
 			if (this.storyDialogueSeq !== requestSeq) {
 				return;
 			}
 
-			this.dialogueSession = {
-				...session,
-				npcId: nearbyNpc.dialogueId
-			};
-			this.publishHudState(
+			this.dialogueSession = session;
+			// Talking is what a talk objective counts, so the line the player reads
+			// is the one written for the objective it completes.
+			this.applyQuestProgress(
+				{ type: 'talk-to-npc', npcId: nearbyNpc.dialogueId },
 				this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) })
 			);
+			this.writeAutosave(this.buildSaveState());
 		} catch (error) {
 			console.error(
 				'[story] story dialogue failed for npc=%s map=%s locale=%s:',
@@ -3309,27 +3229,6 @@ export class WorldScene extends Phaser.Scene {
 			);
 			this.publishHudState(this.status('status.dialogueUpdated'));
 		}
-	}
-
-	private buildStoryQuestSummary(): StoryQuestSummary {
-		return {
-			mainQuestNeedsGuildBriefing: !hasCompletedQuestObjective(
-				this.quests,
-				mainQuestId,
-				'talk-to-guild-master'
-			),
-			guildBriefingComplete: hasCompletedQuestObjective(
-				this.quests,
-				mainQuestId,
-				'talk-to-guild-master'
-			),
-			hasActiveSideQuest: Object.entries(this.quests.entries).some(
-				([questId, entry]) => questId !== mainQuestId && entry.status === 'active'
-			),
-			hasCompletedQuest: Object.entries(this.quests.entries).some(
-				([questId, entry]) => questId !== mainQuestId && entry.status === 'completed'
-			)
-		};
 	}
 
 	private findNearbyNpc(): MapNpc | undefined {

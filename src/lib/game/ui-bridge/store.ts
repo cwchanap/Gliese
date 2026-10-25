@@ -38,11 +38,7 @@ const initialHudState: HudState = {
 		summary: null,
 		active: null
 	},
-	quests: buildHudQuestState({
-		state: createInitialQuestState(),
-		nearbyQuestGiverId: null,
-		locale: initialLocale
-	}),
+	quests: buildHudQuestState({ state: createInitialQuestState(), locale: initialLocale }),
 	inventory: {
 		consumables: [],
 		equipment: [],
@@ -95,10 +91,6 @@ export function requestBuyShopItem(shopId: string, stockId: string) {
 
 export function requestSellInventoryItem(itemId: string) {
 	emitHudCommand({ type: 'sell-inventory-item', itemId });
-}
-
-export function requestAcceptQuest(questId: string) {
-	emitHudCommand({ type: 'accept-quest', questId });
 }
 
 export function requestDialogueAdvance() {

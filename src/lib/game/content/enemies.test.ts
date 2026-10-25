@@ -1,23 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { enemies, ruinsWarden, slimeScout } from '$lib/game/content/enemies';
+import {
+	boarKing,
+	enemies,
+	enemyList,
+	forestWolf,
+	sunCrestCaptain
+} from '$lib/game/content/enemies';
 
 describe('enemy combat tuning', () => {
-	it('keeps normal enemies durable enough to need multiple training-sword hits', () => {
-		expect(slimeScout.baseHp).toBe(8);
-		expect(slimeScout.xpReward).toBe(4);
+	it('keeps trail enemies durable enough to need multiple practice-spear hits', () => {
+		expect(forestWolf.baseHp).toBe(10);
+		expect(forestWolf.xpReward).toBe(2);
 	});
 
-	it('keeps the boss from dying in one opening attack', () => {
-		expect(ruinsWarden.baseHp).toBe(45);
-		expect(ruinsWarden.baseAttack).toBe(5);
-		expect(ruinsWarden.xpReward).toBe(18);
+	it('keeps the Boar King a boss with a phase-two colour', () => {
+		expect(boarKing.baseHp).toBe(80);
+		expect(boarKing.boss).toBeDefined();
 	});
 
-	it('defines non-negative coin rewards for every enemy', () => {
-		expect(enemies['slime-scout'].coinReward).toBe(4);
-		expect(enemies['ruins-warden'].coinReward).toBe(25);
+	it('builds the raid captain to be unbeatable and unrewarding', () => {
+		expect(sunCrestCaptain.baseHp).toBeGreaterThanOrEqual(999);
+		expect(sunCrestCaptain.xpReward).toBe(0);
+		expect(sunCrestCaptain.coinReward).toBe(0);
+	});
 
-		for (const enemy of Object.values(enemies)) {
+	it('registers every enemy by id with non-negative integer coin rewards', () => {
+		expect(Object.keys(enemies)).toEqual(enemyList.map((enemy) => enemy.id));
+		for (const enemy of enemyList) {
+			expect(enemies[enemy.id]).toBe(enemy);
 			expect(Number.isInteger(enemy.coinReward)).toBe(true);
 			expect(enemy.coinReward).toBeGreaterThanOrEqual(0);
 		}

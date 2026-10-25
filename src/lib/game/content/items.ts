@@ -209,6 +209,56 @@ const itemDefinitions = {
 		type: 'key',
 		stackable: true
 	},
+	// Prologue items. Their icons are copies of existing art until the Codex art task replaces them.
+	'practice-spear': {
+		id: 'practice-spear',
+		nameKey: 'content.items.practice-spear.name',
+		descriptionKey: 'content.items.practice-spear.description',
+		iconPath: '/game/assets/items/practice-spear.png',
+		type: 'equipment',
+		stackable: false,
+		basePrice: 30,
+		slot: 'weapon',
+		modifiers: { attack: 1 }
+	},
+	'hunters-knife': {
+		id: 'hunters-knife',
+		nameKey: 'content.items.hunters-knife.name',
+		descriptionKey: 'content.items.hunters-knife.description',
+		iconPath: '/game/assets/items/hunters-knife.png',
+		type: 'equipment',
+		stackable: false,
+		basePrice: 120,
+		slot: 'weapon',
+		modifiers: { attack: 4 }
+	},
+	'ancestral-amulet': {
+		id: 'ancestral-amulet',
+		nameKey: 'content.items.ancestral-amulet.name',
+		descriptionKey: 'content.items.ancestral-amulet.description',
+		iconPath: '/game/assets/items/ancestral-amulet.png',
+		type: 'equipment',
+		stackable: false,
+		basePrice: 40,
+		slot: 'accessory',
+		modifiers: { maxHp: 2, defense: 1 }
+	},
+	moonmoss: {
+		id: 'moonmoss',
+		nameKey: 'content.items.moonmoss.name',
+		descriptionKey: 'content.items.moonmoss.description',
+		iconPath: '/game/assets/items/moonmoss.png',
+		type: 'key',
+		stackable: true
+	},
+	'sun-stamped-arrow': {
+		id: 'sun-stamped-arrow',
+		nameKey: 'content.items.sun-stamped-arrow.name',
+		descriptionKey: 'content.items.sun-stamped-arrow.description',
+		iconPath: '/game/assets/items/sun-stamped-arrow.png',
+		type: 'key',
+		stackable: true
+	},
 	'warden-sigil': {
 		id: 'warden-sigil',
 		nameKey: 'content.items.warden-sigil.name',

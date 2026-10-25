@@ -1,7 +1,7 @@
 import { equipmentSlots, getItem } from '$lib/game/content/items';
-import { maps, meadowEntryMap } from '$lib/game/content/maps';
+import { maps } from '$lib/game/content/maps';
 import type { MapLandmark, MapTransition, WorldMapDefinition } from '$lib/game/content/maps/types';
-import { startingPlayer } from '$lib/game/content/player';
+import { homeBedside, startingPlayer } from '$lib/game/content/player';
 import { getShop } from '$lib/game/content/shops';
 import { createEmptyEquipment, type EquipmentState } from '$lib/game/core/equipment';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
@@ -39,10 +39,15 @@ import {
 	type WalletState
 } from '$lib/game/core/shop';
 import type { Direction } from '$lib/game/core/types';
-import { getQuest, isQuestId, mainQuestId, type QuestDefinition } from '$lib/game/content/quests';
+import {
+	getQuest,
+	isQuestId,
+	type QuestDefinition,
+	type QuestEffect
+} from '$lib/game/content/quests';
 
 export type SaveState = {
-	version: 9;
+	version: 10;
 	mapId: string;
 	player: {
 		level: number;
@@ -84,18 +89,19 @@ export const NORMALIZE_DOORWAY_CLEARANCE_WIDTH = 56;
 // doorway transition point that stays open for the player to enter.
 export const NORMALIZE_TRANSITION_RADIUS = 18;
 
+/** A new run wakes Grik in his own house on the morning of his proving hunt. */
 export function createNewSaveState(): SaveState {
 	return {
-		version: 9,
-		mapId: meadowEntryMap.id,
+		version: 10,
+		mapId: homeBedside.mapId,
 		player: {
 			level: 1,
 			xp: getXpForLevel(1),
 			hp: startingPlayer.baseHp,
 			attack: startingPlayer.baseAttack,
-			x: meadowEntryMap.spawn.x,
-			y: meadowEntryMap.spawn.y,
-			facing: meadowEntryMap.spawnDirection
+			x: homeBedside.x,
+			y: homeBedside.y,
+			facing: homeBedside.facing
 		},
 		flags: {
 			clearedEncounters: [],
@@ -103,15 +109,9 @@ export function createNewSaveState(): SaveState {
 			collectedPickups: [],
 			resolvedEncounterDrops: {}
 		},
-		inventory: {
-			stacks: [{ itemId: 'field-potion', quantity: 1 }],
-			equipment: ['training-sword']
-		},
-		equipment: {
-			...createEmptyEquipment(),
-			weapon: 'training-sword'
-		},
-		wallet: { coins: 30 },
+		inventory: { stacks: [], equipment: [] },
+		equipment: createEmptyEquipment(),
+		wallet: { coins: 20 },
 		shops: {
 			stock: createInitialShopStockState()
 		},
@@ -127,130 +127,21 @@ export function serializeSaveState(saveState: SaveState): string {
 
 export function parseSaveState(value: string): SaveState | null {
 	try {
+		// Saves from older schema versions are rejected, not migrated.
 		const parsed: unknown = JSON.parse(value);
-		const migrated = migrateSaveState(parsed);
 
-		if (!isSaveState(migrated)) {
+		if (!isSaveState(parsed)) {
 			return null;
 		}
 
 		return {
-			...migrated,
-			player: normalizePlayerPosition(migrated.mapId, migrated.player),
-			mapExploration: cloneMapExploration(migrated.mapExploration)
+			...parsed,
+			player: normalizePlayerPosition(parsed.mapId, parsed.player),
+			mapExploration: cloneMapExploration(parsed.mapExploration)
 		};
 	} catch {
 		return null;
 	}
-}
-
-function migrateSaveState(value: unknown): unknown {
-	let migrated = migrateV5ToV6(value);
-	migrated = migrateV6ToV7(migrated);
-	migrated = migrateV7ToV8(migrated);
-	migrated = migrateV8ToV9(migrated);
-	return migrated;
-}
-
-function migrateV5ToV6(value: unknown): unknown {
-	if (!isRecord(value) || value.version !== 5) {
-		return value;
-	}
-
-	const flags = isRecord(value.flags) ? value.flags : {};
-
-	return {
-		...value,
-		version: 6,
-		flags: {
-			...flags,
-			clearedEncounters: Array.isArray(flags.clearedEncounters) ? flags.clearedEncounters : [],
-			clearedEncounterUnitCounts: isRecord(flags.clearedEncounterUnitCounts)
-				? flags.clearedEncounterUnitCounts
-				: {},
-			collectedPickups: Array.isArray(flags.collectedPickups) ? flags.collectedPickups : [],
-			resolvedEncounterDrops:
-				isRecord(flags.resolvedEncounterDrops) && !Array.isArray(flags.resolvedEncounterDrops)
-					? flags.resolvedEncounterDrops
-					: {}
-		}
-	};
-}
-
-function migrateV6ToV7(value: unknown): unknown {
-	if (!isRecord(value) || value.version !== 6) {
-		return value;
-	}
-
-	return {
-		...value,
-		version: 7,
-		seenDiscoveries: Array.isArray(value.seenDiscoveries) ? value.seenDiscoveries : []
-	};
-}
-
-function migrateV7ToV8(value: unknown): unknown {
-	if (!isRecord(value) || value.version !== 7) {
-		return value;
-	}
-
-	// The layered village refactor moved landmarks substantially within
-	// meadow-entry (e.g. villager-house-1 door shifted from (870, 4825) to
-	// (880, 4624)). mapExploration cells are coordinate-based (128px grid),
-	// so old cells no longer cover the new landmark positions — area map
-	// markers would stay hidden until the player re-explores. Clear the
-	// meadow-entry exploration so the player rediscovers the repositioned
-	// village on load.
-	const mapExploration = isRecord(value.mapExploration) ? { ...value.mapExploration } : {};
-	delete mapExploration['meadow-entry'];
-
-	return {
-		...value,
-		version: 8,
-		mapExploration
-	};
-}
-
-function migrateV8ToV9(value: unknown): unknown {
-	if (
-		!isRecord(value) ||
-		value.version !== 8 ||
-		!isRecord(value.shops) ||
-		Array.isArray(value.shops) ||
-		!isV8ShopStockState(value.shops.stock)
-	) {
-		return value;
-	}
-
-	return {
-		...value,
-		version: 9,
-		shops: {
-			...value.shops,
-			stock: {
-				...value.shops.stock,
-				'sundrop-forge': { ...createInitialShopStockState()['sundrop-forge'] }
-			}
-		}
-	};
-}
-
-function isV8ShopStockState(value: unknown): value is Record<string, Record<string, number>> {
-	if (!isRecord(value) || Array.isArray(value) || !hasExactKeys(value, ['guild-quartermaster'])) {
-		return false;
-	}
-
-	const guildStock = value['guild-quartermaster'];
-
-	return (
-		isRecord(guildStock) &&
-		!Array.isArray(guildStock) &&
-		hasExactKeys(guildStock, ['iron-cap', 'grip-wraps', 'traveler-vest']) &&
-		Object.values(guildStock).every(
-			(quantity) =>
-				isNumber(quantity) && Number.isInteger(quantity) && quantity >= 0 && quantity <= 1
-		)
-	);
 }
 
 function isSaveState(value: unknown): value is SaveState {
@@ -275,7 +166,7 @@ function isSaveState(value: unknown): value is SaveState {
 	// Version and isSaveState must move in lockstep on every schema change. Bumping
 	// version without updating isSaveState lets old-shape payloads pass validation.
 	if (
-		version !== 9 ||
+		version !== 10 ||
 		typeof mapId !== 'string' ||
 		!isRecord(player) ||
 		!isRecord(flags) ||
@@ -378,7 +269,7 @@ function isQuestState(value: unknown): value is QuestState {
 		Array.isArray(value.entries) ||
 		!isRecord(value.completedObjectives) ||
 		Array.isArray(value.completedObjectives) ||
-		!Object.prototype.hasOwnProperty.call(value.entries, mainQuestId)
+		!Array.isArray(value.pendingEffects)
 	) {
 		return false;
 	}
@@ -399,7 +290,21 @@ function isQuestState(value: unknown): value is QuestState {
 						quest.objectives.some((objective) => objective.id === objectiveId)
 				)
 			);
-		})
+		}) &&
+		value.pendingEffects.every(isQuestEffect)
+	);
+}
+
+function isQuestEffect(value: unknown): value is QuestEffect {
+	if (!isRecord(value)) return false;
+	if (value.type === 'play-scene') return typeof value.sceneId === 'string';
+	return (
+		value.type === 'move-player' &&
+		typeof value.mapId === 'string' &&
+		maps[value.mapId] !== undefined &&
+		isNumber(value.x) &&
+		isNumber(value.y) &&
+		isFacingDirection(value.facing)
 	);
 }
 
@@ -420,7 +325,6 @@ function isQuestEntryState(value: unknown, quest: QuestDefinition): value is Que
 		Number.isInteger(value.progress) &&
 		value.progress >= 0 &&
 		value.progress <= objective.target &&
-		typeof value.rewardApplied === 'boolean' &&
 		Array.isArray(value.countedSourceIds) &&
 		value.countedSourceIds.every((sourceId) => typeof sourceId === 'string')
 	);

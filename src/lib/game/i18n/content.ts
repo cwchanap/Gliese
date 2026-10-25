@@ -1,14 +1,10 @@
-import {
-	getDialogue,
-	type DialogueActionDefinition,
-	type NpcDialogueDefinition
-} from '$lib/game/content/dialogue';
+import { enemies } from '$lib/game/content/enemies';
 import { getItem } from '$lib/game/content/items';
 import { maps } from '$lib/game/content/maps';
 import { getQuest, type QuestReward } from '$lib/game/content/quests';
 import { getShop } from '$lib/game/content/shops';
 import type { Locale } from '$lib/game/i18n/locales';
-import { t } from '$lib/game/i18n/translate';
+import { t, type MessageKey } from '$lib/game/i18n/translate';
 
 export type LocalizedItemText = {
 	name: string;
@@ -29,14 +25,6 @@ export type LocalizedQuestText = {
 export type LocalizedQuestObjectiveText = {
 	description: string;
 	progressLabel: string;
-};
-
-export type LocalizedDialogueAction = Omit<DialogueActionDefinition, 'labelKey'> & {
-	label: string;
-};
-
-export type LocalizedDialogueText = Omit<NpcDialogueDefinition, 'actions'> & {
-	actions: LocalizedDialogueAction[];
 };
 
 export function getItemText(locale: Locale, itemId: string): LocalizedItemText | null {
@@ -84,24 +72,10 @@ export function getQuestObjectiveText(
 	};
 }
 
-export function getDialogueText(locale: Locale, dialogueId: string): LocalizedDialogueText | null {
-	const dialogue = getDialogue(dialogueId);
-	if (!dialogue) return null;
-
-	return {
-		id: dialogue.id,
-		actions: dialogue.actions.map((action) => ({
-			id: action.id,
-			label: t(locale, action.labelKey),
-			intent: action.intent
-		}))
-	};
-}
-
 export function getEnemyText(locale: Locale, enemyId: string): { name: string } | null {
-	if (enemyId !== 'slime-scout' && enemyId !== 'ruins-warden') return null;
+	if (!enemies[enemyId]) return null;
 
-	return { name: t(locale, `content.enemies.${enemyId}.name`) };
+	return { name: t(locale, `content.enemies.${enemyId}.name` as MessageKey) };
 }
 
 export function getNpcText(locale: Locale, npcId: string): { name: string } | null {

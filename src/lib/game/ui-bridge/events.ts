@@ -181,7 +181,6 @@ export type HudCommand =
 	| { type: 'close-shop' }
 	| { type: 'buy-shop-item'; shopId: string; stockId: string }
 	| { type: 'sell-inventory-item'; itemId: string }
-	| { type: 'accept-quest'; questId: string }
 	| { type: 'dialogue-advance' }
 	| { type: 'dialogue-close' }
 	| { type: 'dialogue-choose'; choiceId: string }

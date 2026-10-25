@@ -1,676 +1,211 @@
 import { describe, expect, it } from 'vitest';
 
+import { homeBedside } from '$lib/game/content/player';
+import { mainQuestIds, quests } from '$lib/game/content/quests';
 import {
-	acceptQuest,
 	applyQuestEvent,
 	buildHudQuestState,
+	cloneQuestState,
 	createInitialQuestState,
-	getAvailableGuildQuestIds,
-	hasCompletedQuestObjective,
-	isQuestComplete
+	getCurrentObjective,
+	getStoryProgress,
+	takeNextQuestEffect,
+	type QuestEvent,
+	type QuestEventResult,
+	type QuestState
 } from '$lib/game/core/quests';
-import { mainQuestId } from '$lib/game/content/quests';
+import { eventsFor } from '$lib/game/core/quests.fixtures';
 
-const emptyWorldFlags = {
-	clearedEncounterIds: new Set<string>(),
-	clearedEncounterUnitCounts: {} as Record<string, number>,
-	collectedPickupIds: new Set<string>()
-};
+function apply(state: QuestState, events: QuestEvent[]): QuestEventResult[] {
+	const results: QuestEventResult[] = [];
+	for (const event of events) {
+		const result = applyQuestEvent({ state, event });
+		results.push(result);
+		state = result.state;
+	}
+	return results;
+}
+
+function completeCurrentObjective(state: QuestState): QuestEventResult[] {
+	const objective = getCurrentObjective(state);
+	if (!objective) throw new Error('no current objective');
+	return apply(state, eventsFor(objective));
+}
+
+function drainEffects(state: QuestState): QuestState {
+	let next = takeNextQuestEffect(state);
+	while (next.effect) next = takeNextQuestEffect(next.state);
+	return next.state;
+}
 
 describe('quest core', () => {
-	it('starts the main quest at the Guild Master objective', () => {
+	it('starts the prologue at Old Mott with the opening scene queued', () => {
 		const state = createInitialQuestState();
 
-		expect(state.entries).toEqual({
-			'investigate-the-ruins': {
-				status: 'active',
-				currentObjectiveId: 'talk-to-guild-master',
-				progress: 0,
-				rewardApplied: false,
-				countedSourceIds: []
-			}
+		expect(getStoryProgress(state)).toEqual({
+			questId: 'prologue-proving-morning',
+			objectiveId: 'talk-to-mott'
 		});
-		expect(getAvailableGuildQuestIds(state)).toEqual([]);
-		expect(hasCompletedQuestObjective(state, 'investigate-the-ruins', 'talk-to-guild-master')).toBe(
-			false
+		expect(state.pendingEffects).toEqual([{ type: 'play-scene', sceneId: 'prologue.opening' }]);
+	});
+
+	it('takes queued effects in order without mutating the source state', () => {
+		const state = createInitialQuestState();
+		const next = takeNextQuestEffect(state);
+
+		expect(next.effect).toEqual({ type: 'play-scene', sceneId: 'prologue.opening' });
+		expect(next.state.pendingEffects).toEqual([]);
+		expect(state.pendingEffects).toHaveLength(1);
+		expect(takeNextQuestEffect(next.state)).toEqual({ effect: null, state: next.state });
+	});
+
+	it('advances objective by objective and grants objective rewards', () => {
+		const state = drainEffects(createInitialQuestState());
+		const [result] = apply(state, [{ type: 'talk-to-npc', npcId: 'mott-hearth' }]);
+
+		expect(getStoryProgress(result!.state).objectiveId).toBe('collect-practice-spear');
+		expect(result!.rewards).toEqual([
+			{
+				questId: 'prologue-proving-morning',
+				title: quests['prologue-proving-morning'].title,
+				reward: { items: [{ itemId: 'ancestral-amulet', quantity: 1 }] }
+			}
+		]);
+		expect(result!.state.completedObjectives['prologue-proving-morning']).toEqual(['talk-to-mott']);
+	});
+
+	it('ignores events for anything but the current objective', () => {
+		const state = drainEffects(createInitialQuestState());
+
+		for (const event of [
+			{ type: 'talk-to-npc', npcId: 'borak' },
+			{ type: 'inspect', discoveryId: 'boar-sign-sapling' },
+			{ type: 'lose-battle', enemyId: 'sun-crest-captain' }
+		] satisfies QuestEvent[]) {
+			const result = applyQuestEvent({ state, event });
+			expect(result.state).toBe(state);
+			expect(result.rewards).toEqual([]);
+			expect(result.progressUpdates).toEqual([]);
+		}
+	});
+
+	it('counts each talk target once and reports partial progress', () => {
+		let state = createInitialQuestState();
+		while (getStoryProgress(state).objectiveId !== 'share-the-dinner') {
+			state = completeCurrentObjective(state).at(-1)!.state;
+		}
+
+		const [first, repeat, second] = apply(state, [
+			{ type: 'talk-to-npc', npcId: 'tikka-home' },
+			{ type: 'talk-to-npc', npcId: 'tikka-home' },
+			{ type: 'talk-to-npc', npcId: 'drogg-home' }
+		]);
+
+		expect(first!.progressUpdates[0]).toMatchObject({
+			objectiveId: 'share-the-dinner',
+			previousProgress: 0,
+			currentProgress: 1,
+			target: 3
+		});
+		expect(repeat!.progressUpdates).toEqual([]);
+		expect(second!.progressUpdates[0]).toMatchObject({ currentProgress: 2, target: 3 });
+	});
+
+	it('counts separate battle units in one encounter but not the same unit twice', () => {
+		let state = createInitialQuestState();
+		while (getStoryProgress(state).objectiveId !== 'repel-the-soldiers') {
+			state = completeCurrentObjective(state).at(-1)!.state;
+		}
+		const soldier = (sourceId: string): QuestEvent => ({
+			type: 'defeat-enemy',
+			mapId: 'meadow-entry',
+			encounterId: 'raid-soldiers-lane',
+			enemyId: 'human-soldier',
+			sourceId
+		});
+
+		const results = apply(state, [soldier('a'), soldier('a'), soldier('b')]);
+
+		expect(results.map((result) => result.progressUpdates[0]?.currentProgress)).toEqual([
+			1,
+			undefined,
+			2
+		]);
+	});
+
+	it('completes a quest, grants its reward, and starts the next with its opening effects', () => {
+		let state = drainEffects(createInitialQuestState());
+		while (getStoryProgress(state).objectiveId !== 'report-to-borak') {
+			state = completeCurrentObjective(state).at(-1)!.state;
+		}
+
+		const [result] = completeCurrentObjective(state);
+
+		expect(result!.completedQuestIds).toEqual(['prologue-proving-morning']);
+		expect(result!.rewards.at(-1)?.reward).toEqual({ coins: 10 });
+		expect(getStoryProgress(result!.state)).toEqual({
+			questId: 'prologue-trial-tracks',
+			objectiveId: 'meet-lirra-forest'
+		});
+	});
+
+	it('plays the whole prologue chain to the end, queueing every effect in story order', () => {
+		let state = createInitialQuestState();
+		const completed: string[] = [];
+
+		while (getCurrentObjective(state)) {
+			for (const result of completeCurrentObjective(state)) {
+				completed.push(...result.completedQuestIds);
+				state = result.state;
+			}
+		}
+
+		expect(completed).toEqual([...mainQuestIds]);
+		expect(getStoryProgress(state)).toEqual({ questId: 'prologue-escape', objectiveId: null });
+		expect(state.pendingEffects).toEqual(
+			mainQuestIds.flatMap((questId) => [
+				...(quests[questId].onStart ?? []),
+				...quests[questId].objectives.flatMap((objective) => objective.onComplete ?? [])
+			])
 		);
+		expect(state.pendingEffects).toContainEqual({ type: 'move-player', ...homeBedside });
 	});
 
-	it('advances the main quest and unlocks Guild side quests after talking to the Guild Master', () => {
-		const result = applyQuestEvent({
-			state: createInitialQuestState(),
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		});
+	it('deep-clones state so later events never touch an earlier snapshot', () => {
+		const state = createInitialQuestState();
+		const clone = cloneQuestState(state);
+		clone.pendingEffects.pop();
+		clone.entries['prologue-proving-morning']!.countedSourceIds.push('npc:x');
 
-		expect(result.rewards).toEqual([]);
-		expect(result.state.entries['investigate-the-ruins']).toEqual({
-			status: 'active',
-			currentObjectiveId: 'defeat-ruins-warden',
-			progress: 0,
-			rewardApplied: false,
-			countedSourceIds: []
-		});
-		expect(
-			hasCompletedQuestObjective(result.state, 'investigate-the-ruins', 'talk-to-guild-master')
-		).toBe(true);
-		expect(getAvailableGuildQuestIds(result.state)).toEqual([
-			'thin-village-slimes',
-			'thin-ruins-slimes',
-			'recover-ruins-relics'
-		]);
+		expect(state.pendingEffects).toHaveLength(1);
+		expect(state.entries['prologue-proving-morning']!.countedSourceIds).toEqual([]);
 	});
 
-	it('accepts available Guild side quests and rejects invalid accepts without mutation', () => {
-		const locked = createInitialQuestState();
-		const unlocked = applyQuestEvent({
-			state: locked,
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		}).state;
+	it('builds HUD state with the active quest and completed quests', () => {
+		let state = createInitialQuestState();
+		while (getStoryProgress(state).questId !== 'prologue-trial-tracks') {
+			state = completeCurrentObjective(state).at(-1)!.state;
+		}
 
-		const accepted = acceptQuest({
-			state: unlocked,
-			questId: 'thin-village-slimes',
-			worldFlags: emptyWorldFlags
-		});
-		const duplicate = accepted.accepted
-			? acceptQuest({
-					state: accepted.state,
-					questId: 'thin-village-slimes',
-					worldFlags: emptyWorldFlags
-				})
-			: accepted;
-		const main = acceptQuest({
-			state: unlocked,
-			questId: 'investigate-the-ruins',
-			worldFlags: emptyWorldFlags
-		});
-		const missing = acceptQuest({
-			state: unlocked,
-			questId: 'not-a-quest',
-			worldFlags: emptyWorldFlags
-		});
-		const lockedResult = acceptQuest({
-			state: locked,
-			questId: 'thin-ruins-slimes',
-			worldFlags: emptyWorldFlags
-		});
-
-		expect(accepted.accepted).toBe(true);
-		expect(accepted.accepted ? accepted.state.entries['thin-village-slimes'] : undefined).toEqual({
-			status: 'active',
-			currentObjectiveId: 'defeat-village-slimes',
-			progress: 0,
-			rewardApplied: false,
-			countedSourceIds: []
-		});
-		expect(duplicate).toMatchObject({ accepted: false, reason: 'already-active' });
-		expect(main).toMatchObject({ accepted: false, reason: 'main-quest' });
-		expect(missing).toMatchObject({ accepted: false, reason: 'quest-not-found' });
-		expect(lockedResult).toMatchObject({ accepted: false, reason: 'not-available' });
-		expect(unlocked.entries['thin-village-slimes']).toBeUndefined();
-	});
-
-	it('seeds accepted side quest progress from already cleared world flags', () => {
-		const unlocked = applyQuestEvent({
-			state: createInitialQuestState(),
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		}).state;
-
-		const accepted = acceptQuest({
-			state: unlocked,
-			questId: 'thin-village-slimes',
-			worldFlags: {
-				clearedEncounterIds: new Set(['meadow-slime-west', 'meadow-slime-center']),
-				clearedEncounterUnitCounts: {
-					'meadow-slime-west': 1,
-					'meadow-slime-center': 1
-				},
-				collectedPickupIds: new Set()
-			}
-		});
-
-		expect(accepted.accepted).toBe(true);
-		expect(accepted.accepted ? accepted.rewards : []).toEqual([]);
-		expect(
-			accepted.accepted ? accepted.state.entries['thin-village-slimes']?.progress : undefined
-		).toBe(2);
-		expect(
-			accepted.accepted ? accepted.state.entries['thin-village-slimes']?.countedSourceIds : []
-		).toEqual(['encounter:meadow-slime-west:unit:0', 'encounter:meadow-slime-center:unit:0']);
-	});
-
-	it('seeds multi-unit encounter progress from cleared encounter unit counts', () => {
-		const unlocked = applyQuestEvent({
-			state: createInitialQuestState(),
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		}).state;
-
-		const accepted = acceptQuest({
-			state: unlocked,
-			questId: 'thin-village-slimes',
-			worldFlags: {
-				clearedEncounterIds: new Set(['meadow-slime-west']),
-				clearedEncounterUnitCounts: { 'meadow-slime-west': 3 },
-				collectedPickupIds: new Set()
-			}
-		});
-
-		expect(accepted.accepted).toBe(true);
-		expect(
-			accepted.accepted ? accepted.state.entries['thin-village-slimes']?.progress : undefined
-		).toBe(3);
-		expect(
-			accepted.accepted ? accepted.state.entries['thin-village-slimes']?.countedSourceIds : []
-		).toEqual([
-			'encounter:meadow-slime-west:unit:0',
-			'encounter:meadow-slime-west:unit:1',
-			'encounter:meadow-slime-west:unit:2'
-		]);
-	});
-
-	it('completes and rewards a side quest on accept when all sources are already cleared', () => {
-		const unlocked = applyQuestEvent({
-			state: createInitialQuestState(),
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		}).state;
-
-		const accepted = acceptQuest({
-			state: unlocked,
-			questId: 'thin-village-slimes',
-			worldFlags: {
-				clearedEncounterIds: new Set([
-					'meadow-slime-west',
-					'meadow-slime-center',
-					'meadow-slime-east'
-				]),
-				clearedEncounterUnitCounts: {
-					'meadow-slime-west': 1,
-					'meadow-slime-center': 1,
-					'meadow-slime-east': 1
-				},
-				collectedPickupIds: new Set()
-			}
-		});
-
-		expect(accepted.accepted).toBe(true);
-		expect(
-			accepted.accepted ? accepted.state.entries['thin-village-slimes'] : undefined
-		).toMatchObject({
-			status: 'completed',
-			progress: 3,
-			rewardApplied: true
-		});
-		expect(accepted.accepted ? accepted.rewards : []).toEqual([
-			{
-				questId: 'thin-village-slimes',
-				title: 'Thin Village Slimes',
-				reward: { xp: 6, coins: 12, items: [{ itemId: 'field-potion', quantity: 1 }] }
-			}
-		]);
-	});
-
-	it('rejects accepting an already completed side quest', () => {
-		const unlocked = applyQuestEvent({
-			state: createInitialQuestState(),
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		}).state;
-		const accepted = acceptQuest({
-			state: unlocked,
-			questId: 'thin-village-slimes',
-			worldFlags: {
-				clearedEncounterIds: new Set([
-					'meadow-slime-west',
-					'meadow-slime-center',
-					'meadow-slime-east'
-				]),
-				clearedEncounterUnitCounts: {
-					'meadow-slime-west': 1,
-					'meadow-slime-center': 1,
-					'meadow-slime-east': 1
-				},
-				collectedPickupIds: new Set()
-			}
-		});
-		if (!accepted.accepted) throw new Error(accepted.reason);
-
-		const result = acceptQuest({
-			state: accepted.state,
-			questId: 'thin-village-slimes',
-			worldFlags: emptyWorldFlags
-		});
-
-		expect(result).toMatchObject({ accepted: false, reason: 'already-completed' });
-	});
-
-	it('completes side quests from enemy and pickup events and emits rewards once', () => {
-		const unlocked = applyQuestEvent({
-			state: createInitialQuestState(),
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		}).state;
-		const villageAccepted = acceptQuest({
-			state: unlocked,
-			questId: 'thin-village-slimes',
-			worldFlags: emptyWorldFlags
-		});
-		if (!villageAccepted.accepted) throw new Error(villageAccepted.reason);
-
-		const first = applyQuestEvent({
-			state: villageAccepted.state,
-			event: {
-				type: 'defeat-enemy',
-				mapId: 'meadow-entry',
-				encounterId: 'meadow-slime-west',
-				enemyId: 'slime-scout'
-			}
-		});
-		const second = applyQuestEvent({
-			state: first.state,
-			event: {
-				type: 'defeat-enemy',
-				mapId: 'meadow-entry',
-				encounterId: 'meadow-slime-center',
-				enemyId: 'slime-scout'
-			}
-		});
-		const third = applyQuestEvent({
-			state: second.state,
-			event: {
-				type: 'defeat-enemy',
-				mapId: 'meadow-entry',
-				encounterId: 'meadow-slime-east',
-				enemyId: 'slime-scout'
-			}
-		});
-		const repeated = applyQuestEvent({
-			state: third.state,
-			event: {
-				type: 'defeat-enemy',
-				mapId: 'meadow-entry',
-				encounterId: 'meadow-slime-east',
-				enemyId: 'slime-scout'
-			}
-		});
-
-		expect(first.rewards).toEqual([]);
-		expect(second.rewards).toEqual([]);
-		expect(third.state.entries['thin-village-slimes']).toMatchObject({
-			status: 'completed',
-			progress: 3,
-			rewardApplied: true
-		});
-		expect(third.rewards).toEqual([
-			{
-				questId: 'thin-village-slimes',
-				title: 'Thin Village Slimes',
-				reward: { xp: 6, coins: 12, items: [{ itemId: 'field-potion', quantity: 1 }] }
-			}
-		]);
-		expect(repeated.rewards).toEqual([]);
-
-		const relicsAccepted = acceptQuest({
-			state: unlocked,
-			questId: 'recover-ruins-relics',
-			worldFlags: emptyWorldFlags
-		});
-		if (!relicsAccepted.accepted) throw new Error(relicsAccepted.reason);
-
-		const rune = applyQuestEvent({
-			state: relicsAccepted.state,
-			event: {
-				type: 'collect-item',
-				mapId: 'ruins-threshold',
-				pickupId: 'ruins-threshold-rune',
-				itemId: 'threshold-rune',
-				quantity: 1
-			}
-		});
-		const draught = applyQuestEvent({
-			state: rune.state,
-			event: {
-				type: 'collect-item',
-				mapId: 'ruins-core',
-				pickupId: 'ruins-core-draught',
-				itemId: 'ruin-draught',
-				quantity: 1
-			}
-		});
-
-		expect(rune.rewards).toEqual([]);
-		expect(draught.rewards).toEqual([
-			{
-				questId: 'recover-ruins-relics',
-				title: 'Recover Ruins Relics',
-				reward: { xp: 8, coins: 18, items: [{ itemId: 'ruin-draught', quantity: 1 }] }
-			}
-		]);
-	});
-
-	it('does not count duplicate encounter events before the objective completes', () => {
-		const unlocked = applyQuestEvent({
-			state: createInitialQuestState(),
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		}).state;
-		const accepted = acceptQuest({
-			state: unlocked,
-			questId: 'thin-village-slimes',
-			worldFlags: emptyWorldFlags
-		});
-		if (!accepted.accepted) throw new Error(accepted.reason);
-
-		const first = applyQuestEvent({
-			state: accepted.state,
-			event: {
-				type: 'defeat-enemy',
-				mapId: 'meadow-entry',
-				encounterId: 'meadow-slime-west',
-				enemyId: 'slime-scout'
-			}
-		});
-		const duplicate = applyQuestEvent({
-			state: first.state,
-			event: {
-				type: 'defeat-enemy',
-				mapId: 'meadow-entry',
-				encounterId: 'meadow-slime-west',
-				enemyId: 'slime-scout'
-			}
-		});
-
-		expect(first.state.entries['thin-village-slimes']?.progress).toBe(1);
-		expect(duplicate.state.entries['thin-village-slimes']?.progress).toBe(1);
-		expect(duplicate.rewards).toEqual([]);
-	});
-
-	it('counts defeat enemy events from separate battle units in one world encounter', () => {
-		const accepted = acceptQuest({
-			state: {
-				...createInitialQuestState(),
-				completedObjectives: { [mainQuestId]: ['talk-to-guild-master'] }
-			},
-			questId: 'thin-village-slimes',
-			worldFlags: {
-				clearedEncounterIds: new Set(),
-				clearedEncounterUnitCounts: {},
-				collectedPickupIds: new Set()
-			}
-		});
-		expect(accepted.accepted).toBe(true);
-
-		const first = applyQuestEvent({
-			state: accepted.accepted ? accepted.state : createInitialQuestState(),
-			event: {
-				type: 'defeat-enemy',
-				mapId: 'meadow-entry',
-				encounterId: 'meadow-slime-west',
-				enemyId: 'slime-scout',
-				sourceId: 'unit:0'
-			}
-		});
-		const second = applyQuestEvent({
-			state: first.state,
-			event: {
-				type: 'defeat-enemy',
-				mapId: 'meadow-entry',
-				encounterId: 'meadow-slime-west',
-				enemyId: 'slime-scout',
-				sourceId: 'unit:1'
-			}
-		});
-
-		expect(second.state.entries['thin-village-slimes']).toMatchObject({
-			progress: 2,
-			countedSourceIds: ['encounter:meadow-slime-west:unit:0', 'encounter:meadow-slime-west:unit:1']
-		});
-		expect(second.rewards).toEqual([]);
-	});
-
-	it('does not count duplicate pickup events before the objective completes', () => {
-		const unlocked = applyQuestEvent({
-			state: createInitialQuestState(),
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		}).state;
-		const accepted = acceptQuest({
-			state: unlocked,
-			questId: 'recover-ruins-relics',
-			worldFlags: emptyWorldFlags
-		});
-		if (!accepted.accepted) throw new Error(accepted.reason);
-
-		const first = applyQuestEvent({
-			state: accepted.state,
-			event: {
-				type: 'collect-item',
-				mapId: 'ruins-threshold',
-				pickupId: 'ruins-threshold-rune',
-				itemId: 'threshold-rune',
-				quantity: 1
-			}
-		});
-		const duplicate = applyQuestEvent({
-			state: first.state,
-			event: {
-				type: 'collect-item',
-				mapId: 'ruins-threshold',
-				pickupId: 'ruins-threshold-rune',
-				itemId: 'threshold-rune',
-				quantity: 1
-			}
-		});
-
-		expect(first.state.entries['recover-ruins-relics']?.progress).toBe(1);
-		expect(duplicate.state.entries['recover-ruins-relics']?.progress).toBe(1);
-		expect(duplicate.rewards).toEqual([]);
-	});
-
-	it('completes the main quest from the ruins boss victory event', () => {
-		const unlocked = applyQuestEvent({
-			state: createInitialQuestState(),
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		}).state;
-
-		const result = applyQuestEvent({
-			state: unlocked,
-			event: {
-				type: 'defeat-enemy',
-				mapId: 'ruins-core',
-				encounterId: 'ruins-warden',
-				enemyId: 'ruins-warden',
-				completion: 'victory'
-			}
-		});
-
-		expect(isQuestComplete(result.state, 'investigate-the-ruins')).toBe(true);
-		expect(result.rewards).toEqual([
-			{
-				questId: 'investigate-the-ruins',
-				title: 'Investigate the Ruins',
-				reward: { xp: 15, coins: 35, items: [{ itemId: 'greater-field-potion', quantity: 1 }] }
-			}
-		]);
-	});
-
-	it('builds normalized quest HUD state', () => {
-		const unlocked = applyQuestEvent({
-			state: createInitialQuestState(),
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		}).state;
-		const accepted = acceptQuest({
-			state: unlocked,
-			questId: 'thin-ruins-slimes',
-			worldFlags: emptyWorldFlags
-		});
-		if (!accepted.accepted) throw new Error(accepted.reason);
-
-		const hud = buildHudQuestState({
-			state: accepted.state,
-			nearbyQuestGiverId: 'guild-master',
-			locale: 'en'
-		});
+		const hud = buildHudQuestState({ state, locale: 'en' });
 
 		expect(hud.main).toMatchObject({
-			questId: 'investigate-the-ruins',
-			title: 'Investigate the Ruins',
-			objective: 'Defeat the ruins warden in the ruins core.',
-			status: 'active'
+			questId: 'prologue-trial-tracks',
+			status: 'active',
+			objectiveId: 'meet-lirra-forest',
+			progress: { current: 0, target: 1 }
 		});
-		expect(hud.side).toContainEqual(
-			expect.objectContaining({
-				questId: 'thin-ruins-slimes',
-				title: 'Thin Ruins Slimes',
-				description: 'Reduce the slime presence inside the ruin threshold.',
-				progress: { current: 0, target: 2, label: 'Ruins slimes defeated' }
-			})
-		);
-		expect(hud.completed).toEqual([]);
-		expect(hud.guildOffer?.giverName).toBe('Guild Master Arlen');
-		expect(hud.guildOffer?.quests.map((quest) => quest.questId)).toEqual([
-			'thin-village-slimes',
-			'recover-ruins-relics'
-		]);
-		expect(
-			buildHudQuestState({ state: accepted.state, nearbyQuestGiverId: null, locale: 'en' })
-				.guildOffer
-		).toBe(null);
+		expect(hud.completed.map((entry) => entry.questId)).toEqual(['prologue-proving-morning']);
+		expect(hud.completed[0]?.progress.current).toBe(hud.completed[0]?.progress.target);
 	});
 
 	it('localizes quest HUD text for Japanese', () => {
-		const unlocked = applyQuestEvent({
-			state: createInitialQuestState(),
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		}).state;
-		const hud = buildHudQuestState({
-			state: unlocked,
-			nearbyQuestGiverId: 'guild-master',
-			locale: 'ja'
-		});
+		const hud = buildHudQuestState({ state: createInitialQuestState(), locale: 'ja' });
 
 		expect(hud.main).toMatchObject({
-			title: '遺跡を調査せよ',
-			description: 'ギルドマスターに報告し、その後で遺跡の守護者を倒す。',
-			objective: '遺跡の中心部で守護者を倒す。',
-			progress: { current: 0, target: 1, label: '遺跡の守護者を倒した' },
-			rewardSummary: '15XP / 35コイン / 1個'
+			title: '試練の朝',
+			objective: '炉端のモット爺と話す。',
+			progress: { label: 'モット爺と話した' }
 		});
-		expect(hud.guildOffer?.giverName).toBe('ギルドマスター・アーレン');
-		expect(hud.guildOffer?.quests[0]).toMatchObject({
-			title: '村道のスライム掃討',
-			description: '村へ続く道に集まったスライムを一掃する。',
-			objective: '村の近くでスライムを倒す。',
-			rewardSummary: '6XP / 12コイン / 1個'
-		});
-	});
-
-	it('returns progressUpdates for quests advanced but not completed', () => {
-		const unlocked = applyQuestEvent({
-			state: createInitialQuestState(),
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		}).state;
-		const accepted = acceptQuest({
-			state: unlocked,
-			questId: 'thin-village-slimes',
-			worldFlags: emptyWorldFlags
-		});
-		if (!accepted.accepted) throw new Error(accepted.reason);
-
-		const first = applyQuestEvent({
-			state: accepted.state,
-			event: {
-				type: 'defeat-enemy',
-				mapId: 'meadow-entry',
-				encounterId: 'meadow-slime-west',
-				enemyId: 'slime-scout'
-			}
-		});
-		const second = applyQuestEvent({
-			state: first.state,
-			event: {
-				type: 'defeat-enemy',
-				mapId: 'meadow-entry',
-				encounterId: 'meadow-slime-center',
-				enemyId: 'slime-scout'
-			}
-		});
-
-		expect(first.progressUpdates).toEqual([
-			{
-				questId: 'thin-village-slimes',
-				title: 'Thin Village Slimes',
-				objectiveId: 'defeat-village-slimes',
-				progressLabel: 'Village slimes defeated',
-				previousProgress: 0,
-				currentProgress: 1,
-				target: 3
-			}
-		]);
-		expect(second.progressUpdates).toEqual([
-			{
-				questId: 'thin-village-slimes',
-				title: 'Thin Village Slimes',
-				objectiveId: 'defeat-village-slimes',
-				progressLabel: 'Village slimes defeated',
-				previousProgress: 1,
-				currentProgress: 2,
-				target: 3
-			}
-		]);
-	});
-
-	it('excludes progressUpdates for completed quests and includes them only for partial progress', () => {
-		const unlocked = applyQuestEvent({
-			state: createInitialQuestState(),
-			event: { type: 'talk-to-npc', npcId: 'guild-master' }
-		}).state;
-		const accepted = acceptQuest({
-			state: unlocked,
-			questId: 'thin-village-slimes',
-			worldFlags: emptyWorldFlags
-		});
-		if (!accepted.accepted) throw new Error(accepted.reason);
-
-		// Advance to 2/3 — should produce progressUpdates, no rewards
-		const first = applyQuestEvent({
-			state: accepted.state,
-			event: {
-				type: 'defeat-enemy',
-				mapId: 'meadow-entry',
-				encounterId: 'meadow-slime-west',
-				enemyId: 'slime-scout'
-			}
-		});
-		const second = applyQuestEvent({
-			state: first.state,
-			event: {
-				type: 'defeat-enemy',
-				mapId: 'meadow-entry',
-				encounterId: 'meadow-slime-center',
-				enemyId: 'slime-scout'
-			}
-		});
-
-		expect(first.progressUpdates.length).toBe(1);
-		expect(second.progressUpdates.length).toBe(1);
-		expect(first.rewards).toEqual([]);
-		expect(second.rewards).toEqual([]);
-
-		// Complete the quest (3/3) — should produce rewards, no progressUpdates
-		const completing = applyQuestEvent({
-			state: second.state,
-			event: {
-				type: 'defeat-enemy',
-				mapId: 'meadow-entry',
-				encounterId: 'meadow-slime-east',
-				enemyId: 'slime-scout'
-			}
-		});
-
-		expect(completing.progressUpdates).toEqual([]);
-		expect(completing.rewards).toEqual([
-			{
-				questId: 'thin-village-slimes',
-				title: 'Thin Village Slimes',
-				reward: { xp: 6, coins: 12, items: [{ itemId: 'field-potion', quantity: 1 }] }
-			}
-		]);
-		expect(completing.completedQuestIds).toEqual(['thin-village-slimes']);
 	});
 });

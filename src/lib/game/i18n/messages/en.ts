@@ -111,7 +111,6 @@ export const en = {
 		close: 'Close',
 		next: 'Next',
 		mainQuest: 'Main Quest',
-		sideActive: '{{count}} side active',
 		fieldPack: 'Field Pack',
 		bagCategories: {
 			potions: 'Potions',
@@ -131,8 +130,7 @@ export const en = {
 		fieldJournal: 'Field Journal',
 		questLog: 'Quest Log',
 		main: 'Main',
-		side: 'Side',
-		questOffered: 'Offered',
+		questDone: 'Done',
 		questRewards: 'Reward',
 		questTurnedInBy: 'Turned in by',
 		questChapterProgress: 'Chapter Progress',
@@ -140,7 +138,6 @@ export const en = {
 		questJournalEmpty: 'No quests in the journal yet.',
 		rewardCoins: 'Coins',
 		rewardItem: 'Item',
-		noSideQuestsActive: 'No side quests active.',
 		coins: 'Coins: {{coins}}',
 		buy: 'Buy',
 		sell: 'Sell',
@@ -211,7 +208,6 @@ export const en = {
 		recoveredHp: 'Recovered HP',
 		strikeLanded: 'Strike landed',
 		enemyDefeated: 'Enemy defeated',
-		victoryRuinsCleared: 'Victory: ruins cleared',
 		itemCannotBeEquipped: 'Item cannot be equipped',
 		equippedItem: 'Equipped item',
 		unequippedItem: 'Unequipped item',
@@ -220,13 +216,8 @@ export const en = {
 		shopClosed: 'Shop closed',
 		boughtItem: 'Bought {{itemName}}',
 		soldItem: 'Sold {{itemName}}',
-		noGuildQuestAvailable: 'No Guild quest available',
-		questAccepted: 'Quest accepted',
 		questComplete: 'Quest complete: {{questTitle}}',
-		questAlreadyActive: 'Quest already active',
-		questAlreadyComplete: 'Quest already complete',
-		questNotAvailable: 'Quest not available',
-		questCannotBeAccepted: 'Quest cannot be accepted',
+		questStarted: 'New quest: {{questTitle}}',
 		notEnoughCoins: 'Not enough coins',
 		itemOutOfStock: 'Item out of stock',
 		itemCannotBeBought: 'Item cannot be bought',
@@ -235,7 +226,6 @@ export const en = {
 		itemCannotBeSold: 'Item cannot be sold',
 		noDialogueOpen: 'No dialogue open',
 		noOneNearby: 'No one nearby',
-		ruinsRouteUnlocked: 'Ruins route unlocked',
 		dialogueClosed: 'Dialogue closed',
 		dialogueUpdated: 'Dialogue updated',
 		saved: 'Saved',
@@ -244,7 +234,6 @@ export const en = {
 		saveResumed: 'Save resumed',
 		enteredArea: 'Entered area',
 		newRun: 'New run',
-		reportToGuildMasterFirst: 'Report to the Guild Master first',
 		shopOutOfReach: 'Shop out of reach',
 		bossEnraged: 'Boss enraged',
 		heroDown: 'Hero down',
@@ -254,11 +243,26 @@ export const en = {
 	},
 	content: {
 		enemies: {
-			'slime-scout': {
-				name: 'Slime Scout'
+			'forest-wolf': {
+				name: 'Forest Wolf'
 			},
-			'ruins-warden': {
-				name: 'Ruins Warden'
+			'thornback-boar': {
+				name: 'Thornback Boar'
+			},
+			'mist-toad': {
+				name: 'Mist Toad'
+			},
+			'boar-king': {
+				name: 'Boar King'
+			},
+			'human-soldier': {
+				name: 'Human Soldier'
+			},
+			'sun-crest-captain': {
+				name: 'Sun-Crest Captain'
+			},
+			'tunnel-crawler': {
+				name: 'Tunnel Crawler'
 			}
 		},
 		items: {
@@ -325,102 +329,228 @@ export const en = {
 			'warden-sigil': {
 				name: 'Warden Sigil',
 				description: 'Proof that the ruins warden fell.'
+			},
+			'practice-spear': {
+				name: 'Practice Spear',
+				description: 'A light spear for a first hunt.'
+			},
+			'hunters-knife': {
+				name: "Hunter's Knife",
+				description: "Borak's gift to a new hunter of Sundrop."
+			},
+			'ancestral-amulet': {
+				name: 'Ancestral Amulet',
+				description: 'Handed down since the old days. It keeps you.'
+			},
+			moonmoss: {
+				name: 'Moonmoss',
+				description: 'Pale moss from deep in the Mistfen, for the winter stores.'
+			},
+			'sun-stamped-arrow': {
+				name: 'Sun-Stamped Arrow',
+				description: "A broken iron arrow with a sun on its fletching. Goblins don't make these."
 			}
 		},
 		shops: {
 			'miras-item-shop': {
-				name: "Mira's Item Shop",
+				name: "Mira's Herb Hut",
 				merchantName: 'Mira',
-				description: 'Reliable field supplies for the road east.'
+				description: 'Herbs and remedies for the hunt.'
 			},
 			'guild-quartermaster': {
-				name: 'Guild Quartermaster',
-				merchantName: 'Quartermaster Vale',
-				description: 'Guild-approved gear for new ruins assignments.'
+				name: 'Lodge Stores',
+				merchantName: 'Lodge Keeper',
+				description: "Hunting gear from the lodge's stores."
 			},
 			'sundrop-forge': {
 				name: 'Sundrop Forge',
-				merchantName: 'Blacksmith Oren',
-				description: 'Village-forged equipment for the road beyond Sundrop.'
+				merchantName: 'Oren',
+				description: 'Bone-iron gear forged in Sundrop.'
 			}
 		},
 		quests: {
-			'investigate-the-ruins': {
-				title: 'Investigate the Ruins',
-				description: 'Report to the Guild Master, then defeat the ruins warden.',
+			'prologue-proving-morning': {
+				title: 'The Proving Morning',
+				description:
+					"Today is Grik's proving hunt. Gather his gear and report to the Hunters' Lodge.",
 				objectives: {
-					'talk-to-guild-master': {
-						description: 'Talk to the Guild Master in the Guild Hall.',
-						progressLabel: 'Guild Master spoken to'
+					'talk-to-mott': {
+						description: 'Talk to Old Mott by the hearth.',
+						progressLabel: 'Spoke with Old Mott'
 					},
-					'defeat-ruins-warden': {
-						description: 'Defeat the ruins warden in the ruins core.',
-						progressLabel: 'Ruins warden defeated'
+					'collect-practice-spear': {
+						description: 'Collect the practice spear from Oren at the forge.',
+						progressLabel: 'Spear collected'
+					},
+					'collect-herb-pouch': {
+						description: 'Collect the herb pouch from Mira at the Herb Hut.',
+						progressLabel: 'Herb pouch collected'
+					},
+					'report-to-borak': {
+						description: "Report to Borak at the Hunters' Lodge.",
+						progressLabel: 'Reported to Borak'
 					}
 				}
 			},
-			'thin-village-slimes': {
-				title: 'Thin Village Slimes',
-				description: 'Clear the slimes gathering on the village road.',
+			'prologue-trial-tracks': {
+				title: 'First Trial: Tracks',
+				description: 'Read the land. Track the boar through the Wildwood with Lirra.',
 				objectives: {
-					'defeat-village-slimes': {
-						description: 'Defeat slimes near the village.',
-						progressLabel: 'Village slimes defeated'
+					'meet-lirra-forest': {
+						description: 'Meet Lirra at the edge of the Wildwood.',
+						progressLabel: 'Met Lirra'
+					},
+					'read-boar-signs': {
+						description: "Examine the boar's signs in the Wildwood.",
+						progressLabel: 'Signs read'
+					},
+					'defeat-thornback-boar': {
+						description: 'Bring down the Thornback Boar.',
+						progressLabel: 'Thornback Boar defeated'
+					},
+					'report-first-trial': {
+						description: "Report to Borak at the Hunters' Lodge.",
+						progressLabel: 'Reported to Borak'
 					}
 				}
 			},
-			'thin-ruins-slimes': {
-				title: 'Thin Ruins Slimes',
-				description: 'Reduce the slime presence inside the ruin threshold.',
+			'prologue-trial-mistfen': {
+				title: 'Second Trial: Mistfen',
+				description:
+					"Feed the village. Gather moonmoss from deep in the Mistfen for Mira's winter stores.",
 				objectives: {
-					'defeat-ruins-slimes': {
-						description: 'Defeat slimes in the ruins.',
-						progressLabel: 'Ruins slimes defeated'
+					'ask-mira-about-stores': {
+						description: 'Ask Mira about the winter stores.',
+						progressLabel: 'Spoke with Mira'
+					},
+					'meet-lirra-mistfen': {
+						description: 'Meet Lirra at the Mistfen bridge.',
+						progressLabel: 'Met Lirra'
+					},
+					'gather-moonmoss': {
+						description: 'Gather moonmoss in the Mistfen.',
+						progressLabel: 'Moonmoss gathered'
+					},
+					'rest-at-the-pond': {
+						description: 'Rest by the pond in the heart of the Mistfen.',
+						progressLabel: 'Rested at the pond'
+					},
+					'deliver-moonmoss': {
+						description: 'Bring the moonmoss to Mira.',
+						progressLabel: 'Moonmoss delivered'
 					}
 				}
 			},
-			'recover-ruins-relics': {
-				title: 'Recover Ruins Relics',
-				description: 'Bring back useful items from the old ruins.',
+			'prologue-trial-boar-king': {
+				title: 'Third Trial: The Boar King',
+				description: 'Face the king of beasts. Hunt the Boar King in Silverpine with Drogg.',
 				objectives: {
-					'collect-ruins-items': {
-						description: 'Collect ruins items from the threshold and core.',
-						progressLabel: 'Ruins items recovered'
+					'meet-drogg-crossroads': {
+						description: 'Meet Drogg at the crossroads waystone.',
+						progressLabel: 'Met Drogg'
+					},
+					'track-the-boar-king': {
+						description: "Find the Boar King's trail toward Silverpine.",
+						progressLabel: 'Trail found'
+					},
+					'talk-to-drogg-falls': {
+						description: 'Talk to Drogg at Silverpine Falls.',
+						progressLabel: 'Spoke with Drogg'
+					},
+					'defeat-boar-king': {
+						description: 'Defeat the Boar King on the Silverpine terrace.',
+						progressLabel: 'Boar King defeated'
+					}
+				}
+			},
+			'prologue-hunters-name': {
+				title: "A Hunter's Name",
+				description: 'Grik has passed the three trials. Tonight Sundrop celebrates.',
+				objectives: {
+					'report-boar-king': {
+						description: "Report to Borak at the Hunters' Lodge.",
+						progressLabel: 'Reported to Borak'
+					},
+					'share-the-dinner': {
+						description: 'Join the family at the dinner table.',
+						progressLabel: 'Family spoken to'
+					},
+					'hear-motts-tale': {
+						description: "Listen to Old Mott's tale.",
+						progressLabel: 'Heard the tale'
+					},
+					'walk-lirra-home': {
+						description: 'Walk Lirra home to the Herb Hut.',
+						progressLabel: 'Walked Lirra home'
+					},
+					'go-to-sleep': {
+						description: 'Go home and sleep.',
+						progressLabel: 'Went to sleep'
+					}
+				}
+			},
+			'prologue-raid': {
+				title: 'Morning of Fire',
+				description: 'Sundrop is burning. Find your family.',
+				objectives: {
+					'heed-mott': {
+						description: 'Talk to Old Mott.',
+						progressLabel: 'Spoke with Old Mott'
+					},
+					'repel-the-soldiers': {
+						description: 'Drive back the soldiers in the village.',
+						progressLabel: 'Soldiers defeated'
+					},
+					'reach-the-gate': {
+						description: 'Reach your father at the village gate.',
+						progressLabel: 'Reached the gate'
+					},
+					'find-drogg': {
+						description: 'Find Drogg at Sundrop Well.',
+						progressLabel: 'Found Drogg'
+					},
+					'charge-the-captain': {
+						description: 'Charge into the village green.',
+						progressLabel: 'Charged the captain'
+					}
+				}
+			},
+			'prologue-escape': {
+				title: 'The Old Tunnel',
+				description: 'Escape through the tunnel beneath the shrine. Survive.',
+				objectives: {
+					'wake-in-the-shrine': {
+						description: 'Talk to Old Mott in the shrine.',
+						progressLabel: 'Spoke with Old Mott'
+					},
+					'climb-to-the-ridge': {
+						description: 'Leave the tunnel and climb to the ridge above the cave.',
+						progressLabel: 'Reached the ridge'
 					}
 				}
 			}
 		},
 		dialogue: {
 			actions: {
-				quest: 'Quest',
 				shop: 'Shop',
-				accept: 'Accept',
-				back: 'Back',
 				close: 'Close'
 			},
 			speakers: {
-				traveler: 'Traveler',
-				guildNotice: 'Guild Notice'
+				traveler: 'Traveler'
 			},
 			system: {
 				noDialogueAvailable: 'No dialogue is available.',
 				optionNotAvailable: 'That option is not available.',
-				chooseGuildWork: 'Choose the Guild work you want to review.',
-				noNewGuildWork: 'No new Guild work is available right now.',
-				guildWorkUnavailable: 'That Guild work is no longer available.',
 				noDialogueOpen: 'No dialogue is open.',
 				noOneNearby: 'No one is nearby.',
-				noGuildQuestAvailableHere: 'No Guild quest is available here.',
-				shopOutOfReach: 'Shop out of reach.',
-				questDetailNotice: '{{questTitle}}: {{objectiveDescription}} Reward: {{rewardSummary}}.',
-				questCompleteNotice: 'Quest complete: {{questTitle}}. Reward: {{rewardSummary}}.'
+				shopOutOfReach: 'Shop out of reach.'
 			}
 		},
 		maps: {
 			landmarks: {
-				'hero-house-exterior': { label: "Hero's House" },
-				'guild-hall-exterior': { label: 'Guild' },
-				'item-shop-exterior': { label: 'Item Shop' },
+				'hero-house-exterior': { label: "Grik's House" },
+				'guild-hall-exterior': { label: "Hunters' Lodge" },
+				'item-shop-exterior': { label: 'Herb Hut' },
 				'villager-house-1-exterior': { label: 'Villager Home' },
 				'villager-house-2-exterior': { label: 'Villager Home' },
 				'villager-house-3-exterior': { label: 'Villager Home' },
@@ -464,29 +594,50 @@ export const en = {
 				'wildwood-cave-danger': {
 					label: 'Cave Warning',
 					description: 'Claw-scarred bark. Something denned in the Whispering Cave does not sleep.'
+				},
+				'boar-sign-hoofprints': { label: 'Hoofprints' },
+				'boar-sign-sapling': { label: 'Snapped Sapling' },
+				'boar-sign-tusk-scrape': { label: 'Tusk Scrapes' },
+				'mistfen-pond-rest': { label: 'Quiet Pond' },
+				'boar-king-trail': { label: 'Great Tracks' },
+				'ridge-overlook': { label: 'Ridge Overlook' },
+				'grik-bed': { label: "Grik's Bed" },
+				'threshold-relief': {
+					label: 'Carved Relief',
+					description:
+						'Goblins, orcs, elves, and demons share one long table, carved by hands that knew them all.'
+				},
+				'core-relief': {
+					label: 'Worn Relief',
+					description:
+						'A goblin and a demon hold one torch between them. The stone around it is scorched.'
 				}
 			},
 			npcs: {
-				'guild-master': { name: 'Guild Master Arlen' },
-				'guild-quartermaster': { name: 'Quartermaster Vale' },
-				'blacksmith-oren': { name: 'Blacksmith Oren' },
-				'shopkeeper-mira': { name: 'Mira' },
+				borak: { name: 'Borak' },
+				'lodge-keeper': { name: 'Lodge Keeper' },
+				mira: { name: 'Mira' },
+				oren: { name: 'Oren' },
+				mott: { name: 'Old Mott' },
+				tikka: { name: 'Tikka' },
+				drogg: { name: 'Drogg' },
+				lirra: { name: 'Lirra' },
 				'villager-lynn': { name: 'Lynn' },
 				'villager-toma': { name: 'Toma' },
 				'villager-io': { name: 'Io' }
 			},
 			areas: {
 				'meadow-entry': 'Sundrop Meadows',
-				'hero-house': "Hero's House",
-				'guild-hall': 'Guild Hall',
-				'item-shop': 'Item Shop',
+				'hero-house': "Grik's House",
+				'guild-hall': "Hunters' Lodge",
+				'item-shop': 'Herb Hut',
 				'blacksmith-interior': 'Sundrop Forge',
 				'villager-house-1': 'Villager House',
 				'villager-house-2': 'Villager House',
 				'villager-house-3': 'Villager House',
 				'shrine-of-aurora-interior': 'Shrine of Aurora',
-				'ruins-threshold': 'Ruins Threshold',
-				'ruins-core': 'Ruins Core'
+				'ruins-threshold': 'Old Tunnel',
+				'ruins-core': 'Old Tunnel Depths'
 			}
 		},
 		rewards: {

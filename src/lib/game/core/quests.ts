@@ -1,20 +1,14 @@
 import {
 	getQuest,
-	mainQuestId,
-	questList,
-	sideQuestIds,
+	mainQuestIds,
+	quests,
 	type QuestDefinition,
+	type QuestEffect,
 	type QuestId,
 	type QuestObjective,
 	type QuestReward
 } from '$lib/game/content/quests';
-import { maps } from '$lib/game/content/maps';
-import {
-	formatRewardSummary,
-	getNpcText,
-	getQuestObjectiveText,
-	getQuestText
-} from '$lib/game/i18n/content';
+import { formatRewardSummary, getQuestObjectiveText, getQuestText } from '$lib/game/i18n/content';
 import type { Locale } from '$lib/game/i18n/locales';
 
 export type QuestEntryStatus = 'active' | 'completed';
@@ -23,19 +17,20 @@ export type QuestEntryState = {
 	status: QuestEntryStatus;
 	currentObjectiveId: string;
 	progress: number;
-	rewardApplied: boolean;
 	countedSourceIds: string[];
 };
 
 export type QuestState = {
-	entries: Record<string, QuestEntryState>;
-	completedObjectives: Record<string, string[]>;
+	entries: Partial<Record<QuestId, QuestEntryState>>;
+	completedObjectives: Partial<Record<QuestId, string[]>>;
+	/** Presentation queued by completed objectives; the world plays it in order. */
+	pendingEffects: QuestEffect[];
 };
 
-export type QuestWorldFlags = {
-	clearedEncounterIds: Set<string>;
-	clearedEncounterUnitCounts: Record<string, number>;
-	collectedPickupIds: Set<string>;
+/** Where the main story stands. `objectiveId` is null once the prologue is complete. */
+export type StoryProgress = {
+	questId: QuestId;
+	objectiveId: string | null;
 };
 
 export type QuestEvent =
@@ -45,10 +40,11 @@ export type QuestEvent =
 			mapId: string;
 			encounterId: string;
 			enemyId: string;
-			completion?: 'victory';
 			sourceId?: string;
 	  }
-	| { type: 'collect-item'; mapId: string; pickupId: string; itemId: string; quantity: number };
+	| { type: 'collect-item'; mapId: string; pickupId: string; itemId: string; quantity: number }
+	| { type: 'inspect'; discoveryId: string }
+	| { type: 'lose-battle'; enemyId: string };
 
 export type QuestRewardGrant = {
 	questId: QuestId;
@@ -73,22 +69,10 @@ export type QuestEventResult = {
 	progressUpdates: QuestProgressUpdate[];
 };
 
-export type AcceptQuestFailureReason =
-	| 'quest-not-found'
-	| 'main-quest'
-	| 'already-active'
-	| 'already-completed'
-	| 'not-available';
-
-export type AcceptQuestResult =
-	| { accepted: true; state: QuestState; rewards: QuestRewardGrant[]; completedQuestIds: QuestId[] }
-	| { accepted: false; reason: AcceptQuestFailureReason; state: QuestState };
-
 export type HudQuestEntry = {
 	questId: QuestId;
 	title: string;
-	type: QuestDefinition['type'];
-	status: QuestEntryStatus | 'available';
+	status: QuestEntryStatus;
 	description: string;
 	/** Stable id of the current objective — the journal matches the chain
 	 *  position on this, never on the translated `objective` text. */
@@ -98,42 +82,16 @@ export type HudQuestEntry = {
 	rewardSummary: string;
 };
 
-export type HudQuestOffer = {
-	questId: QuestId;
-	title: string;
-	description: string;
-	objectiveId: string;
-	objective: string;
-	rewardSummary: string;
-};
-
 export type HudQuestState = {
 	main: HudQuestEntry | null;
-	side: HudQuestEntry[];
 	completed: HudQuestEntry[];
-	guildOffer: null | {
-		giverNpcId: 'guild-master';
-		giverName: string;
-		quests: HudQuestOffer[];
-	};
 };
 
 export function createInitialQuestState(): QuestState {
-	const mainQuest = getQuest(mainQuestId)!;
-	const firstObjective = mainQuest.objectives[0]!;
-
-	return {
-		entries: {
-			[mainQuestId]: {
-				status: 'active',
-				currentObjectiveId: firstObjective.id,
-				progress: 0,
-				rewardApplied: false,
-				countedSourceIds: []
-			}
-		},
-		completedObjectives: {}
-	};
+	return activateQuest(
+		{ entries: {}, completedObjectives: {}, pendingEffects: [] },
+		mainQuestIds[0]
+	);
 }
 
 export function cloneQuestState(state: QuestState): QuestState {
@@ -149,71 +107,41 @@ export function cloneQuestState(state: QuestState): QuestState {
 				questId,
 				[...objectiveIds]
 			])
-		)
+		),
+		pendingEffects: state.pendingEffects.map((effect) => ({ ...effect }))
 	};
-}
-
-export function hasCompletedQuestObjective(
-	state: QuestState,
-	questId: QuestId,
-	objectiveId: string
-): boolean {
-	return state.completedObjectives[questId]?.includes(objectiveId) ?? false;
 }
 
 export function isQuestComplete(state: QuestState, questId: QuestId): boolean {
 	return state.entries[questId]?.status === 'completed';
 }
 
-export function getAvailableGuildQuestIds(state: QuestState): QuestId[] {
-	if (!hasCompletedQuestObjective(state, mainQuestId, 'talk-to-guild-master')) {
-		return [];
+export function getStoryProgress(state: QuestState): StoryProgress {
+	for (const questId of mainQuestIds) {
+		const entry = state.entries[questId];
+		if (entry?.status === 'active') {
+			return { questId, objectiveId: entry.currentObjectiveId };
+		}
 	}
 
-	return sideQuestIds.filter((questId) => state.entries[questId] === undefined);
+	// Past the last objective the world stays in its final story state.
+	return { questId: mainQuestIds[mainQuestIds.length - 1]!, objectiveId: null };
 }
 
-export function acceptQuest({
-	state,
-	questId,
-	worldFlags
-}: {
+/** The active main objective, or null once the prologue is complete. */
+export function getCurrentObjective(state: QuestState): QuestObjective | null {
+	const { questId, objectiveId } = getStoryProgress(state);
+	return getQuest(questId)?.objectives.find((objective) => objective.id === objectiveId) ?? null;
+}
+
+export function takeNextQuestEffect(state: QuestState): {
+	effect: QuestEffect | null;
 	state: QuestState;
-	questId: string;
-	worldFlags: QuestWorldFlags;
-}): AcceptQuestResult {
-	const quest = getQuest(questId);
-
-	if (!quest) return { accepted: false, reason: 'quest-not-found', state };
-	if (quest.type === 'main') return { accepted: false, reason: 'main-quest', state };
-
-	const existing = state.entries[quest.id];
-	if (existing?.status === 'active') return { accepted: false, reason: 'already-active', state };
-	if (existing?.status === 'completed')
-		return { accepted: false, reason: 'already-completed', state };
-	if (!getAvailableGuildQuestIds(state).includes(quest.id)) {
-		return { accepted: false, reason: 'not-available', state };
-	}
-
-	const objective = quest.objectives[0]!;
-	const seededSourceIds = getExistingSourceIdsForObjective(objective, worldFlags);
-	const seededProgress = Math.min(objective.target, seededSourceIds.length);
-	const completed = seededProgress >= objective.target;
-	const nextState = setQuestEntry(
-		state,
-		quest,
-		objective,
-		completed ? objective.target : seededProgress,
-		completed,
-		seededSourceIds
-	);
-
-	return {
-		accepted: true,
-		state: nextState,
-		rewards: completed ? [buildRewardGrant(quest)] : [],
-		completedQuestIds: completed ? [quest.id] : []
-	};
+} {
+	const [effect, ...rest] = state.pendingEffects;
+	return effect
+		? { effect, state: { ...cloneQuestState(state), pendingEffects: rest } }
+		: { effect: null, state };
 }
 
 export function applyQuestEvent({
@@ -223,226 +151,153 @@ export function applyQuestEvent({
 	state: QuestState;
 	event: QuestEvent;
 }): QuestEventResult {
+	const result: QuestEventResult = {
+		state,
+		rewards: [],
+		completedQuestIds: [],
+		progressUpdates: []
+	};
+	const { questId, objectiveId } = getStoryProgress(state);
+	const quest = getQuest(questId);
+	const entry = state.entries[questId];
+	const objective = quest?.objectives.find((candidate) => candidate.id === objectiveId);
+	if (!quest || !entry || !objective || !eventMatchesObjective(event, objective)) return result;
+
+	const sourceId = getQuestEventSourceId(event);
+	if (entry.countedSourceIds.includes(sourceId)) return result;
+
+	const previousProgress = entry.progress;
+	const progress = Math.min(objective.target, previousProgress + getEventProgress(event));
 	let nextState = cloneQuestState(state);
-	const rewards: QuestRewardGrant[] = [];
-	const completedQuestIds: QuestId[] = [];
-	const progressUpdates: QuestProgressUpdate[] = [];
+	nextState.entries[quest.id] = {
+		...entry,
+		progress,
+		countedSourceIds: [...entry.countedSourceIds, sourceId]
+	};
 
-	for (const quest of questList) {
-		const entry = nextState.entries[quest.id];
-		if (!entry || entry.status === 'completed') continue;
-
-		const objective = quest.objectives.find(
-			(candidate) => candidate.id === entry.currentObjectiveId
-		);
-		if (!objective || !eventMatchesObjective(event, objective)) continue;
-
-		const sourceId = getQuestEventSourceId(event, objective);
-		if (sourceId && entry.countedSourceIds.includes(sourceId)) continue;
-
-		const previousProgress = entry.progress;
-		const nextProgress = Math.min(
-			objective.target,
-			entry.progress + getEventProgress(event, objective)
-		);
-		const countedSourceIds = sourceId
-			? [...entry.countedSourceIds, sourceId]
-			: entry.countedSourceIds;
-		nextState = setQuestEntry(
-			nextState,
-			quest,
-			objective,
-			nextProgress,
-			nextProgress >= objective.target,
-			countedSourceIds
-		);
-
-		const updatedEntry = nextState.entries[quest.id]!;
-		if (updatedEntry.status === 'completed' && updatedEntry.rewardApplied) {
-			rewards.push(buildRewardGrant(quest));
-			completedQuestIds.push(quest.id);
-		} else if (nextProgress > previousProgress) {
-			progressUpdates.push({
-				questId: quest.id,
-				title: quest.title,
-				objectiveId: objective.id,
-				progressLabel: objective.progressLabel,
-				previousProgress,
-				currentProgress: nextProgress,
-				target: objective.target
-			});
-		}
+	const progressUpdate: QuestProgressUpdate = {
+		questId: quest.id,
+		title: quest.title,
+		objectiveId: objective.id,
+		progressLabel: objective.progressLabel,
+		previousProgress,
+		currentProgress: progress,
+		target: objective.target
+	};
+	if (progress < objective.target) {
+		result.state = nextState;
+		result.progressUpdates.push(progressUpdate);
+		return result;
 	}
 
-	return { state: nextState, rewards, completedQuestIds, progressUpdates };
+	nextState.completedObjectives[quest.id] = [
+		...(nextState.completedObjectives[quest.id] ?? []),
+		objective.id
+	];
+	nextState.pendingEffects.push(...(objective.onComplete ?? []));
+	if (objective.reward) {
+		result.rewards.push({ questId: quest.id, title: quest.title, reward: objective.reward });
+	}
+
+	const nextObjective = quest.objectives[quest.objectives.indexOf(objective) + 1];
+	if (nextObjective) {
+		// The quest goes on: report the finished objective at its full count.
+		nextState.entries[quest.id] = startObjective(nextObjective);
+		result.state = nextState;
+		result.progressUpdates.push(progressUpdate);
+		return result;
+	}
+
+	nextState.entries[quest.id] = { ...nextState.entries[quest.id]!, status: 'completed' };
+	result.rewards.push({ questId: quest.id, title: quest.title, reward: quest.reward });
+	result.completedQuestIds.push(quest.id);
+	const nextQuestId = mainQuestIds[mainQuestIds.indexOf(quest.id) + 1];
+	if (nextQuestId) nextState = activateQuest(nextState, nextQuestId);
+	result.state = nextState;
+	return result;
 }
 
 export function buildHudQuestState({
 	state,
-	nearbyQuestGiverId,
 	locale
 }: {
 	state: QuestState;
-	nearbyQuestGiverId: string | null;
 	locale: Locale;
 }): HudQuestState {
-	const entries = Object.entries(state.entries).flatMap(([questId, entry]) => {
-		const quest = getQuest(questId);
-		const objective = quest?.objectives.find(
-			(candidate) => candidate.id === entry.currentObjectiveId
+	const entries = mainQuestIds.flatMap((questId) => {
+		const quest = quests[questId];
+		const entry = state.entries[questId];
+		const objective = quest.objectives.find(
+			(candidate) => candidate.id === entry?.currentObjectiveId
 		);
-		return quest && objective ? [buildHudEntry(quest, objective, entry, locale)] : [];
+		return entry && objective ? [buildHudEntry(quest, objective, entry, locale)] : [];
 	});
-
-	const availableQuestIds =
-		nearbyQuestGiverId === 'guild-master' ? getAvailableGuildQuestIds(state) : [];
-	const availableQuests = availableQuestIds.flatMap((questId) => {
-		const quest = getQuest(questId);
-		const objective = quest?.objectives[0];
-		return quest && objective ? [buildHudOffer(quest, objective, locale)] : [];
-	});
-	const guildMasterText = getNpcText(locale, 'guild-master');
 
 	return {
-		main: entries.find((entry) => entry.type === 'main') ?? null,
-		side: entries.filter((entry) => entry.type === 'side' && entry.status === 'active'),
-		completed: entries.filter((entry) => entry.status === 'completed'),
-		guildOffer:
-			availableQuests.length > 0
-				? {
-						giverNpcId: 'guild-master',
-						giverName: guildMasterText?.name ?? 'Guild Master',
-						quests: availableQuests
-					}
-				: null
+		main: entries.find((entry) => entry.status === 'active') ?? null,
+		completed: entries.filter((entry) => entry.status === 'completed')
 	};
 }
 
-function setQuestEntry(
-	state: QuestState,
-	quest: QuestDefinition,
-	objective: QuestObjective,
-	progress: number,
-	objectiveComplete: boolean,
-	countedSourceIds: string[]
-): QuestState {
-	const objectiveIndex = quest.objectives.findIndex((candidate) => candidate.id === objective.id);
-	const nextObjective = quest.objectives[objectiveIndex + 1];
-	const completedObjectives = objectiveComplete
-		? Array.from(new Set([...(state.completedObjectives[quest.id] ?? []), objective.id]))
-		: (state.completedObjectives[quest.id] ?? []);
-
-	if (objectiveComplete && nextObjective) {
-		return {
-			entries: {
-				...state.entries,
-				[quest.id]: {
-					status: 'active',
-					currentObjectiveId: nextObjective.id,
-					progress: 0,
-					rewardApplied: false,
-					countedSourceIds: []
-				}
-			},
-			completedObjectives: { ...state.completedObjectives, [quest.id]: completedObjectives }
-		};
-	}
-
+function activateQuest(state: QuestState, questId: QuestId): QuestState {
+	const quest = quests[questId];
 	return {
-		entries: {
-			...state.entries,
-			[quest.id]: {
-				status: objectiveComplete ? 'completed' : 'active',
-				currentObjectiveId: objective.id,
-				progress,
-				rewardApplied: objectiveComplete,
-				countedSourceIds
-			}
-		},
-		completedObjectives: objectiveComplete
-			? { ...state.completedObjectives, [quest.id]: completedObjectives }
-			: state.completedObjectives
+		...state,
+		entries: { ...state.entries, [questId]: startObjective(quest.objectives[0]!) },
+		pendingEffects: [...state.pendingEffects, ...(quest.onStart ?? [])]
 	};
 }
 
-function getQuestEventSourceId(event: QuestEvent, objective: QuestObjective): string | null {
-	if (objective.kind === 'defeat-enemy' && event.type === 'defeat-enemy') {
-		return event.sourceId
-			? `encounter:${event.encounterId}:${event.sourceId}`
-			: `encounter:${event.encounterId}`;
-	}
+function startObjective(objective: QuestObjective): QuestEntryState {
+	return { status: 'active', currentObjectiveId: objective.id, progress: 0, countedSourceIds: [] };
+}
 
-	if (objective.kind === 'collect-item' && event.type === 'collect-item') {
-		return `pickup:${event.pickupId}`;
+function getQuestEventSourceId(event: QuestEvent): string {
+	switch (event.type) {
+		case 'talk-to-npc':
+			return `npc:${event.npcId}`;
+		case 'defeat-enemy':
+			return event.sourceId
+				? `encounter:${event.encounterId}:${event.sourceId}`
+				: `encounter:${event.encounterId}`;
+		case 'collect-item':
+			return `pickup:${event.pickupId}`;
+		case 'inspect':
+			return `discovery:${event.discoveryId}`;
+		case 'lose-battle':
+			return `defeat:${event.enemyId}`;
 	}
-
-	return null;
 }
 
 function eventMatchesObjective(event: QuestEvent, objective: QuestObjective): boolean {
-	if (objective.kind === 'talk-to-npc') {
-		return event.type === 'talk-to-npc' && event.npcId === objective.npcId;
+	switch (objective.kind) {
+		case 'talk-to-npc':
+			return event.type === 'talk-to-npc' && objective.npcIds.includes(event.npcId);
+		case 'defeat-enemy':
+			return (
+				event.type === 'defeat-enemy' &&
+				event.enemyId === objective.enemyId &&
+				objective.mapIds.includes(event.mapId)
+			);
+		case 'collect-item':
+			return (
+				event.type === 'collect-item' &&
+				objective.sources.some(
+					(source) =>
+						source.mapId === event.mapId &&
+						source.pickupId === event.pickupId &&
+						source.itemId === event.itemId
+				)
+			);
+		case 'inspect':
+			return event.type === 'inspect' && objective.discoveryIds.includes(event.discoveryId);
+		case 'lose-battle':
+			return event.type === 'lose-battle' && event.enemyId === objective.enemyId;
 	}
-
-	if (objective.kind === 'defeat-enemy') {
-		return (
-			event.type === 'defeat-enemy' &&
-			event.enemyId === objective.enemyId &&
-			objective.mapIds.includes(event.mapId) &&
-			(objective.requiresCompletion === undefined ||
-				event.completion === objective.requiresCompletion)
-		);
-	}
-
-	return (
-		event.type === 'collect-item' &&
-		objective.sources.some(
-			(source) =>
-				source.mapId === event.mapId &&
-				source.pickupId === event.pickupId &&
-				source.itemId === event.itemId
-		)
-	);
 }
 
-function getEventProgress(event: QuestEvent, objective: QuestObjective): number {
-	if (objective.kind === 'collect-item' && event.type === 'collect-item') {
-		return Math.max(0, event.quantity);
-	}
-
-	return 1;
-}
-
-function getExistingSourceIdsForObjective(
-	objective: QuestObjective,
-	worldFlags: QuestWorldFlags
-): string[] {
-	if (objective.kind === 'defeat-enemy') {
-		const matchingEncounterIds = objective.mapIds.flatMap((mapId) =>
-			(maps[mapId]?.encounters ?? [])
-				.filter((encounter) => encounter.enemyId === objective.enemyId)
-				.map((encounter) => encounter.id)
-		);
-		return matchingEncounterIds
-			.filter((encounterId) => worldFlags.clearedEncounterIds.has(encounterId))
-			.flatMap((encounterId) => {
-				const unitCount = worldFlags.clearedEncounterUnitCounts[encounterId] ?? 1;
-				return Array.from(
-					{ length: Math.min(unitCount, objective.target) },
-					(_, i) => `encounter:${encounterId}:unit:${i}`
-				);
-			})
-			.slice(0, objective.target);
-	}
-
-	if (objective.kind === 'collect-item') {
-		return objective.sources
-			.filter((source) => worldFlags.collectedPickupIds.has(source.pickupId))
-			.slice(0, objective.target)
-			.map((source) => `pickup:${source.pickupId}`);
-	}
-
-	return [];
+function getEventProgress(event: QuestEvent): number {
+	return event.type === 'collect-item' ? Math.max(0, event.quantity) : 1;
 }
 
 function buildHudEntry(
@@ -457,38 +312,15 @@ function buildHudEntry(
 	return {
 		questId: quest.id,
 		title: questText?.title ?? quest.title,
-		type: quest.type,
 		status: entry.status,
 		description: questText?.description ?? quest.description,
 		objectiveId: objective.id,
 		objective: objectiveText?.description ?? objective.description,
 		progress: {
-			current: entry.progress,
+			current: entry.status === 'completed' ? objective.target : entry.progress,
 			target: objective.target,
 			label: objectiveText?.progressLabel ?? objective.progressLabel
 		},
 		rewardSummary: formatRewardSummary(locale, quest.reward)
 	};
-}
-
-function buildHudOffer(
-	quest: QuestDefinition,
-	objective: QuestObjective,
-	locale: Locale
-): HudQuestOffer {
-	const questText = getQuestText(locale, quest.id);
-	const objectiveText = getQuestObjectiveText(locale, quest.id, objective.id);
-
-	return {
-		questId: quest.id,
-		title: questText?.title ?? quest.title,
-		description: questText?.description ?? quest.description,
-		objectiveId: objective.id,
-		objective: objectiveText?.description ?? objective.description,
-		rewardSummary: formatRewardSummary(locale, quest.reward)
-	};
-}
-
-function buildRewardGrant(quest: QuestDefinition): QuestRewardGrant {
-	return { questId: quest.id, title: quest.title, reward: quest.reward };
 }

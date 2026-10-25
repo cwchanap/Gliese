@@ -80,7 +80,6 @@ Story prose and beat metadata live in `story/manifest.yaml` and `story/beats/`. 
 Runtime content remains in:
 
 ```text
-src/lib/game/content/dialogue.ts
 src/lib/game/content/shops.ts
 src/lib/game/content/quests.ts
 src/lib/game/content/enemies.ts
@@ -88,7 +87,7 @@ src/lib/game/content/maps.ts
 tools/export-story-content-references.ts
 ```
 
-`dialogue.ts` owns action and intent shells, not prose. NPC placement belongs to the owning map. After story or story-referenced content IDs change, run `bun run story:check`.
+Dialogue choices (shop, close) live in the beats, not TypeScript. NPC placement belongs to the owning map, and story-gated placements use `activeDuring` / `hiddenDuring`. After story or story-referenced content IDs change, run `bun run story:check`.
 
 Use `::: unsupported-hook` for unsupported story needs, or record the owning runtime gap. Do not hide unsupported behavior in coordinates, art, or dialogue text.
 

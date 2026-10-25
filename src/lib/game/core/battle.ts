@@ -1,8 +1,9 @@
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
 import { shrineOfAuroraInteriorMap } from '$lib/game/content/maps';
+import { resolveHit } from '$lib/game/core/combat';
 import { addItem } from '$lib/game/core/inventory';
 import type { ItemDrop } from '$lib/game/core/loot';
-import { applyExperienceGain, type ProgressionState } from '$lib/game/core/progression';
+import { applyExperienceGain } from '$lib/game/core/progression';
 import {
 	applyQuestEvent,
 	type QuestProgressUpdate,
@@ -49,10 +50,6 @@ export type BattleStartPayload = {
 	sourceMapId: string;
 	sourceEncounterId: string;
 	sourceEnemyId: string;
-	/** Quest-completion signal copied from the encounter definition — marks
-	 *  the battle as satisfying `requiresCompletion` objectives. Independent
-	 *  of the actual outcome; quest events only fire on victories anyway. */
-	completion?: 'victory';
 	returnPosition: BattleReturnPosition;
 	enemyCount: number;
 	hero: {
@@ -68,10 +65,6 @@ export type BattleResult = {
 	sourceMapId: string;
 	sourceEncounterId: string;
 	sourceEnemyId: string;
-	/** Quest-completion signal carried over from the encounter definition; see
-	 *  BattleStartPayload.completion. Only meaningful on victory results —
-	 *  non-victory results fire no quest events. */
-	completion?: 'victory';
 	returnPosition: BattleReturnPosition;
 	finalHeroHp: number;
 	inventory: SaveState['inventory'];
@@ -184,7 +177,7 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 		inventory = addItem(inventory, drop.itemId, drop.quantity);
 	}
 
-	let progression = applyProgressionReward(
+	let progression = applyExperienceGain(
 		{
 			level: saveState.player.level,
 			xp: saveState.player.xp,
@@ -206,7 +199,6 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 				mapId: result.sourceMapId,
 				encounterId: result.sourceEncounterId,
 				enemyId: unit.enemyId,
-				completion: result.completion,
 				sourceId: buildBattleUnitSourceSuffix(unit.unitIndex)
 			}
 		});
@@ -218,7 +210,7 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 
 	for (const grant of questRewards) {
 		if (grant.reward.xp) {
-			progression = applyProgressionReward(progression, grant.reward.xp);
+			progression = applyExperienceGain(progression, grant.reward.xp);
 		}
 
 		for (const item of grant.reward.items ?? []) {
@@ -339,8 +331,20 @@ function normalizeBattleEnemyCount(count: number): number {
 	);
 }
 
+/**
+ * The hero falls and wakes in the Shrine of Aurora at 1 HP. A fall can also be
+ * the story's own beat: it reports `lose-battle` so a scripted loss completes.
+ */
 function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleApplication {
 	const shrine = shrineOfAuroraInteriorMap;
+	const questResult = applyQuestEvent({
+		state: saveState.quests,
+		event: { type: 'lose-battle', enemyId: result.sourceEnemyId }
+	});
+	let inventory = result.inventory;
+	for (const item of questResult.rewards.flatMap((grant) => grant.reward.items ?? [])) {
+		inventory = addItem(inventory, item.itemId, item.quantity);
+	}
 
 	return {
 		saveState: {
@@ -353,7 +357,8 @@ function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleAp
 				y: shrine.spawn.y,
 				facing: shrine.spawnDirection
 			},
-			inventory: result.inventory
+			inventory,
+			quests: questResult.state
 		},
 		summary: {
 			outcome: 'defeat',
@@ -362,26 +367,17 @@ function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleAp
 			coinsGained: 0,
 			drops: [],
 			leveledUp: false,
-			completedQuestIds: [],
-			questRewards: [],
+			completedQuestIds: questResult.completedQuestIds,
+			questRewards: questResult.rewards,
 			questProgress: []
 		}
 	};
 }
 
-function applyProgressionReward(state: ProgressionState, xpReward: number): ProgressionState {
-	if (xpReward <= 0) {
-		return state;
-	}
-
-	// Level-1 XP must go through applyExperienceGain which handles the 1→2 level-up
-	// (HP +4, attack +1). Level-2+ has no further level-ups implemented, so XP is just
-	// accumulated without stat changes.
-	if (state.level === 1) {
-		return applyExperienceGain(state, xpReward);
-	}
-
-	return { ...state, xp: state.xp + xpReward };
+/** The enemy's HP after a hero hit. An unbeatable enemy never drops below 1 HP. */
+export function hitBattleEnemy(unit: BattleEnemyUnit, power: number): number {
+	const hp = resolveHit({ hp: unit.hp, defense: 0 }, { power }).hp;
+	return enemies[unit.enemyId]?.unbeatable ? Math.max(1, hp) : hp;
 }
 
 export function getBattleEnemyDefinition(enemyId: string): EnemyCombatDefinition {

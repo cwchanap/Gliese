@@ -205,7 +205,9 @@ const DEFAULT_FRAGMENT_OWNERS = {
 	silverpine: 'silverpine',
 	wildwood: 'wildwood',
 	'river-system': 'outer-boundary',
-	'outer-boundary': 'outer-boundary'
+	'outer-boundary': 'outer-boundary',
+	// Story placements span the whole map and carry no baked art of their own.
+	prologue: 'outer-boundary'
 } as const satisfies Readonly<Record<string, MeadowEntryAuthoringRegionId>>;
 
 const EXACT_PATH_OWNERS = {
@@ -252,7 +254,7 @@ export const MEADOW_ENTRY_PRIMARY_SOURCE_OWNERS: Readonly<
 // future catalog addition fail review even though default fragment assignment
 // can still build a useful diagnostic owner in memory.
 export const MEADOW_ENTRY_REVIEWED_PRIMARY_SOURCE_OWNERS_SHA256 =
-	'50362deec5a856596a04e97a9b12db0210b72a05de472f0172532aa1c19f30a8';
+	'5c3640babe3aa232550da8884993a178856ad3ff20b923d74992befd08b42d78';
 
 export const MEADOW_ENTRY_CROSS_REGION_COVERAGE: readonly MeadowEntryCrossRegionCoverage[] = [
 	{
@@ -422,11 +424,6 @@ export const MEADOW_ENTRY_OUTLIER_RESOLUTIONS: readonly MeadowEntryOutlierResolu
 		sourceKey: 'blocker:wildwood-north-climb-east-bank',
 		mode: 'deferred-to-disposition',
 		reason: 'The eastern Wildwood climb bank exceeds the V2 Wildwood right edge.'
-	},
-	{
-		sourceKey: 'combat-bounds:whispering-cave-combat-pocket',
-		mode: 'deferred-to-disposition',
-		reason: 'The Whispering Cave combat pocket remains live outside the V2 art envelope.'
 	},
 	{
 		sourceKey: 'decor:coast-foam',

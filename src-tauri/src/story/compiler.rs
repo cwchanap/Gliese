@@ -1,14 +1,12 @@
-use std::collections::{btree_map::Entry, BTreeMap};
+use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
 
-use super::beat::{BeatDialogue, StoryBeat};
-use super::reference::{NPC_IDS, SHOP_IDS};
+use super::beat::{BeatDialogue, BeatLine, BeatScene, StoryBeat};
 use super::types::{
     NpcStoryDialogue, StoryBranchCondition, StoryCatalog, StoryDialogueAction, StoryDialogueBranch,
-    StoryIntent,
+    StoryIntent, StoryLine, StoryScene,
 };
 
 struct NpcDialogueAccumulator {
-    beat_id: String,
     map_id: String,
     branches: Vec<StoryDialogueBranch>,
 }
@@ -19,33 +17,47 @@ pub fn compile_catalog(
     beats: &[StoryBeat],
 ) -> Result<StoryCatalog, String> {
     let mut dialogues_by_npc: BTreeMap<String, NpcDialogueAccumulator> = BTreeMap::new();
+    let mut scenes = Vec::new();
+    let mut scene_ids = BTreeSet::new();
 
     for beat in beats {
         for dialogue in &beat.dialogues {
-            let branch = compile_dialogue(dialogue)?;
+            let branch = compile_dialogue(&beat.id, dialogue)?;
             match dialogues_by_npc.entry(dialogue.npc_id.clone()) {
                 Entry::Vacant(entry) => {
                     entry.insert(NpcDialogueAccumulator {
-                        beat_id: beat.id.clone(),
-                        map_id: beat.map_id.clone(),
+                        map_id: dialogue.map_id.clone(),
                         branches: vec![branch],
                     });
                 }
                 Entry::Occupied(mut entry) => {
                     let existing = entry.get_mut();
-                    if existing.beat_id != beat.id || existing.map_id != beat.map_id {
+                    if existing.map_id != dialogue.map_id {
                         return Err(format!(
-                            "story npc {} appears in multiple beats or maps: {}@{} and {}@{}; multi-beat or multi-map NPC dialogue requires a separate runtime model",
-                            dialogue.npc_id,
-                            existing.beat_id,
-                            existing.map_id,
-                            beat.id,
-                            beat.map_id
+                            "story npc {} has dialogue on maps {} and {}; an npc id belongs to exactly one map",
+                            dialogue.npc_id, existing.map_id, dialogue.map_id
+                        ));
+                    }
+                    if existing
+                        .branches
+                        .iter()
+                        .any(|candidate| candidate.condition == branch.condition)
+                    {
+                        return Err(format!(
+                            "story npc {} has more than one {} branch",
+                            dialogue.npc_id, dialogue.branch
                         ));
                     }
                     existing.branches.push(branch);
                 }
             }
+        }
+
+        for scene in &beat.scenes {
+            if !scene_ids.insert(scene.id.clone()) {
+                return Err(format!("duplicate scene id {}", scene.id));
+            }
+            scenes.push(compile_scene(&beat.id, scene)?);
         }
     }
 
@@ -56,15 +68,43 @@ pub fn compile_catalog(
             .into_iter()
             .map(|(npc_id, dialogue)| NpcStoryDialogue {
                 npc_id,
-                beat_id: dialogue.beat_id,
                 map_id: dialogue.map_id,
                 branches: dialogue.branches,
             })
             .collect(),
+        scenes,
     })
 }
 
-fn compile_dialogue(dialogue: &BeatDialogue) -> Result<StoryDialogueBranch, String> {
+pub fn parse_branch_condition(branch: &str) -> Result<StoryBranchCondition, String> {
+    if branch == "always" {
+        return Ok(StoryBranchCondition::Always);
+    }
+    if let Some(quest_id) = branch.strip_prefix("quest:") {
+        return non_empty_id(quest_id, branch).map(StoryBranchCondition::Quest);
+    }
+    if let Some(objective_id) = branch.strip_prefix("objective:") {
+        return non_empty_id(objective_id, branch).map(StoryBranchCondition::Objective);
+    }
+    Err(format!(
+        "unknown dialogue branch condition {}; use always, quest:<questId>, or objective:<objectiveId>",
+        branch
+    ))
+}
+
+fn non_empty_id(id: &str, branch: &str) -> Result<String, String> {
+    let id = id.trim();
+    if id.is_empty() {
+        Err(format!(
+            "dialogue branch condition {} has an empty id",
+            branch
+        ))
+    } else {
+        Ok(id.to_string())
+    }
+}
+
+fn compile_dialogue(beat_id: &str, dialogue: &BeatDialogue) -> Result<StoryDialogueBranch, String> {
     if dialogue.lines.is_empty() {
         return Err(format!(
             "dialogue for npc {} has no dialogue lines",
@@ -73,53 +113,50 @@ fn compile_dialogue(dialogue: &BeatDialogue) -> Result<StoryDialogueBranch, Stri
     }
 
     Ok(StoryDialogueBranch {
-        condition: compile_branch_condition(&dialogue.branch)?,
-        speaker: dialogue.speaker.clone(),
-        lines: dialogue.lines.clone(),
+        beat_id: beat_id.to_string(),
+        condition: parse_branch_condition(&dialogue.branch)?,
+        lines: compile_lines(&dialogue.lines, &dialogue.speaker),
         actions: dialogue
             .choices
             .iter()
             .map(|choice| compile_action(choice, dialogue))
             .collect::<Result<Vec<_>, _>>()?,
-        completion_intent: dialogue
-            .completion_intent
-            .as_deref()
-            .map(compile_completion_intent)
-            .transpose()?,
     })
 }
 
-fn compile_branch_condition(branch: &str) -> Result<StoryBranchCondition, String> {
-    match branch {
-        "always" => Ok(StoryBranchCondition::Always),
-        "mainQuestNeedsGuildBriefing" => Ok(StoryBranchCondition::MainQuestNeedsGuildBriefing),
-        "guildBriefingComplete" => Ok(StoryBranchCondition::GuildBriefingComplete),
-        "hasActiveSideQuest" => Ok(StoryBranchCondition::HasActiveSideQuest),
-        "hasCompletedQuest" => Ok(StoryBranchCondition::HasCompletedQuest),
-        _ => Err(format!("unknown dialogue branch condition {}", branch)),
+fn compile_scene(beat_id: &str, scene: &BeatScene) -> Result<StoryScene, String> {
+    if scene.lines.is_empty() {
+        return Err(format!("scene {} has no lines", scene.id));
     }
+
+    Ok(StoryScene {
+        id: scene.id.clone(),
+        beat_id: beat_id.to_string(),
+        lines: compile_lines(&scene.lines, scene.speaker.as_deref().unwrap_or("")),
+    })
+}
+
+fn compile_lines(lines: &[BeatLine], default_speaker: &str) -> Vec<StoryLine> {
+    lines
+        .iter()
+        .map(|line| StoryLine {
+            speaker: line
+                .speaker
+                .clone()
+                .unwrap_or_else(|| default_speaker.to_string()),
+            text: line.text.clone(),
+        })
+        .collect()
 }
 
 fn compile_action(choice: &str, dialogue: &BeatDialogue) -> Result<StoryDialogueAction, String> {
     let npc_id = &dialogue.npc_id;
     let (label, intent) = match choice {
-        "quest" => {
-            quest_npc_id(npc_id)?;
-            (
-                "Quest",
-                StoryIntent::ShowQuestList {
-                    giver_npc_id: npc_id.to_string(),
-                },
-            )
-        }
         "shop" => {
             let shop_id = dialogue
                 .shop
                 .as_deref()
                 .ok_or_else(|| format!("missing shop field for npc {}", npc_id))?;
-            if !SHOP_IDS.contains(&shop_id) {
-                return Err(format!("unknown shop id {} for npc {}", shop_id, npc_id));
-            }
             (
                 "Shop",
                 StoryIntent::OpenShop {
@@ -143,458 +180,164 @@ fn compile_action(choice: &str, dialogue: &BeatDialogue) -> Result<StoryDialogue
     })
 }
 
-fn quest_npc_id(npc_id: &str) -> Result<(), String> {
-    match npc_id {
-        "guild-master" => Ok(()),
-        _ => Err(format!(
-            "quest choice not supported for npc {}; only guild-master can give quests",
-            npc_id
-        )),
-    }
-}
-
-fn compile_completion_intent(intent: &str) -> Result<StoryIntent, String> {
-    let Some(npc_id) = intent.strip_prefix("recordNpcTalk:") else {
-        return Err(format!("unknown completion intent {}", intent));
-    };
-
-    if npc_id.is_empty() {
-        return Err(format!("invalid completion intent {}", intent));
-    }
-
-    if !NPC_IDS.contains(&npc_id) {
-        return Err(format!("unknown completion intent npc {}", npc_id));
-    }
-
-    Ok(StoryIntent::RecordNpcTalk {
-        npc_id: npc_id.to_string(),
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::story::types::{StoryBranchCondition, StoryIntent};
+    use crate::story::beat::parse_beat_markdown;
+
+    fn beat(source: &str) -> StoryBeat {
+        parse_beat_markdown(source).expect("beat should parse")
+    }
 
     #[test]
-    fn compiles_quest_choice_and_record_talk_intent() {
-        let beat = crate::story::beat::parse_beat_markdown(
-            r#"# Guild Master
-
-::: story
-id: prologue.guild-master
+    fn groups_branches_by_npc_across_beats_and_resolves_speakers() {
+        let morning = beat(
+            r#"::: story
+id: prologue.morning
 chapter: prologue
 map: guild-hall
-primaryNpc: guild-master
 :::
 
 ::: dialogue
-npc: guild-master
-branch: mainQuestNeedsGuildBriefing
-speaker: Guild Master Arlen
-choices: quest
-completionIntent: recordNpcTalk:guild-master
+npc: borak
+branch: objective:meet-borak
+speaker: Borak
 :::
 
-You made it.
+You are late.
+
+[Drogg] He overslept.
 "#,
-        )
-        .unwrap();
-
-        let catalog = compile_catalog("sundrop-ruins", "en", &[beat]).expect("compile");
-        let guild = catalog
-            .npc_dialogues
-            .iter()
-            .find(|dialogue| dialogue.npc_id == "guild-master")
-            .unwrap();
-        let branch = &guild.branches[0];
-
-        assert_eq!(guild.beat_id, "prologue.guild-master");
-        assert_eq!(guild.map_id, "guild-hall");
-        assert_eq!(
-            branch.condition,
-            StoryBranchCondition::MainQuestNeedsGuildBriefing
         );
-        assert_eq!(branch.actions[0].id, "quest");
-        assert_eq!(branch.actions[0].label, "Quest");
-        assert_eq!(
-            branch.actions[0].intent,
-            StoryIntent::ShowQuestList {
-                giver_npc_id: "guild-master".to_string()
-            }
-        );
-        assert_eq!(
-            branch.completion_intent,
-            Some(StoryIntent::RecordNpcTalk {
-                npc_id: "guild-master".to_string()
-            })
-        );
-    }
-
-    #[test]
-    fn rejects_one_npc_across_multiple_beats_or_maps() {
-        let first = crate::story::beat::parse_beat_markdown(
-            r#"# First
-
-::: story
-id: prologue.guild-master
+        let evening = beat(
+            r#"::: story
+id: prologue.evening
 chapter: prologue
 map: guild-hall
-primaryNpc: guild-master
 :::
 
 ::: dialogue
-npc: guild-master
+npc: borak
 branch: always
-speaker: Guild Master Arlen
-choices: quest
-:::
-
-First.
-"#,
-        )
-        .unwrap();
-        let second = crate::story::beat::parse_beat_markdown(
-            r#"# Second
-
-::: story
-id: prologue.guild-master-followup
-chapter: prologue
-map: item-shop
-primaryNpc: guild-master
-:::
-
-::: dialogue
-npc: guild-master
-branch: guildBriefingComplete
-speaker: Guild Master Arlen
-choices: quest
-:::
-
-Second.
-"#,
-        )
-        .unwrap();
-
-        let error = compile_catalog("sundrop-ruins", "en", &[first, second]).unwrap_err();
-        assert!(error.contains("guild-master"));
-        assert!(error.contains("prologue.guild-master@guild-hall"));
-        assert!(error.contains("prologue.guild-master-followup@item-shop"));
-        assert!(error.contains("separate runtime model"));
-    }
-
-    #[test]
-    fn compiles_shop_choice_by_explicit_shop_field() {
-        let beat = crate::story::beat::parse_beat_markdown(
-            r#"# Shopkeeper Mira
-
-::: story
-id: prologue.shopkeeper-mira
-chapter: prologue
-map: item-shop
-primaryNpc: shopkeeper-mira
-:::
-
-::: dialogue
-npc: shopkeeper-mira
-branch: always
-speaker: Mira
-choices: shop
-shop: miras-item-shop
-:::
-
-Need supplies?
-"#,
-        )
-        .unwrap();
-
-        let catalog = compile_catalog("sundrop-ruins", "en", &[beat]).expect("compile");
-        let branch = &catalog.npc_dialogues[0].branches[0];
-
-        assert_eq!(branch.actions[0].id, "shop");
-        assert_eq!(branch.actions[0].label, "Shop");
-        assert_eq!(
-            branch.actions[0].intent,
-            StoryIntent::OpenShop {
-                shop_id: "miras-item-shop".to_string()
-            }
-        );
-    }
-
-    #[test]
-    fn compiles_guild_quartermaster_shop_choice() {
-        let beat = crate::story::beat::parse_beat_markdown(
-            r#"# Guild Quartermaster
-
-::: story
-id: prologue.guild-quartermaster
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-quartermaster
-:::
-
-::: dialogue
-npc: guild-quartermaster
-branch: always
-speaker: Quartermaster
-choices: shop
-shop: guild-quartermaster
-:::
-
-Stock up before you go.
-"#,
-        )
-        .unwrap();
-
-        let catalog = compile_catalog("sundrop-ruins", "en", &[beat]).expect("compile");
-        let branch = &catalog.npc_dialogues[0].branches[0];
-
-        assert_eq!(
-            branch.actions[0].intent,
-            StoryIntent::OpenShop {
-                shop_id: "guild-quartermaster".to_string()
-            }
-        );
-    }
-
-    #[test]
-    fn compiles_close_choice_to_close_intent() {
-        let beat = crate::story::beat::parse_beat_markdown(
-            r#"# Villager House
-
-::: story
-id: prologue.villager-house-1-family
-chapter: prologue
-map: villager-house-1
-primaryNpc: villager-house-1-family
-:::
-
-::: dialogue
-npc: villager-house-1-family
-branch: always
-speaker: Villager
+speaker: Borak
 choices: close
 :::
 
-Make yourself at home.
+Go home.
+
+::: scene
+id: scene.dusk
+:::
+
+The sun sets.
 "#,
-        )
-        .unwrap();
+        );
 
-        let catalog = compile_catalog("sundrop-ruins", "en", &[beat]).expect("compile");
-        let branch = &catalog.npc_dialogues[0].branches[0];
+        let catalog = compile_catalog("gliese", "en", &[morning, evening]).expect("compile");
 
-        assert_eq!(branch.actions[0].id, "close");
-        assert_eq!(branch.actions[0].label, "Close");
-        assert_eq!(branch.actions[0].intent, StoryIntent::Close);
-    }
-
-    #[test]
-    fn rejects_shop_choice_with_missing_or_unknown_shop() {
-        let mut beat = crate::story::beat::parse_beat_markdown(
-            r#"# Guild Master
-
-::: story
-id: prologue.guild-master
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
-
-::: dialogue
-npc: guild-master
-branch: always
-speaker: Guild Master Arlen
-choices: shop
-:::
-
-No shop here.
-"#,
-        )
-        .unwrap();
-
-        let error = compile_catalog("sundrop-ruins", "en", &[beat.clone()]).unwrap_err();
-        assert!(error.contains("guild-master"));
-        assert!(error.contains("missing shop field"));
-
-        beat.dialogues[0].shop = Some("unknown-shop".to_string());
-        let error = compile_catalog("sundrop-ruins", "en", &[beat]).unwrap_err();
-        assert!(error.contains("unknown-shop"));
-        assert!(error.contains("unknown shop id"));
-    }
-
-    #[test]
-    fn groups_dialogues_by_npc_in_deterministic_order() {
-        let guild_master = crate::story::beat::parse_beat_markdown(
-            r#"# Guild Master
-
-::: story
-id: prologue.guild-master
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
-
-::: dialogue
-npc: guild-master
-branch: always
-speaker: Guild Master Arlen
-choices: quest
-:::
-
-First briefing.
-
-::: dialogue
-npc: guild-master
-branch: guildBriefingComplete
-speaker: Guild Master Arlen
-choices: quest
-:::
-
-Second briefing.
-"#,
-        )
-        .unwrap();
-        let shopkeeper_mira = crate::story::beat::parse_beat_markdown(
-            r#"# Shopkeeper Mira
-
-::: story
-id: prologue.shopkeeper-mira
-chapter: prologue
-map: item-shop
-primaryNpc: shopkeeper-mira
-:::
-
-::: dialogue
-npc: shopkeeper-mira
-branch: always
-speaker: Mira
-choices: shop
-shop: miras-item-shop
-:::
-
-Fresh stock.
-"#,
-        )
-        .unwrap();
-
-        let catalog = compile_catalog("sundrop-ruins", "en", &[guild_master, shopkeeper_mira])
-            .expect("compile");
-
-        assert_eq!(catalog.npc_dialogues[0].npc_id, "guild-master");
-        assert_eq!(catalog.npc_dialogues[0].branches.len(), 2);
+        assert_eq!(catalog.npc_dialogues.len(), 1);
+        let borak = &catalog.npc_dialogues[0];
+        assert_eq!(borak.map_id, "guild-hall");
+        assert_eq!(borak.branches.len(), 2);
+        assert_eq!(borak.branches[0].beat_id, "prologue.morning");
         assert_eq!(
-            catalog.npc_dialogues[0].branches[0].lines,
-            ["First briefing."]
+            borak.branches[0].condition,
+            StoryBranchCondition::Objective("meet-borak".to_string())
         );
         assert_eq!(
-            catalog.npc_dialogues[0].branches[1].condition,
-            StoryBranchCondition::GuildBriefingComplete
+            borak.branches[0].lines,
+            vec![
+                StoryLine {
+                    speaker: "Borak".to_string(),
+                    text: "You are late.".to_string()
+                },
+                StoryLine {
+                    speaker: "Drogg".to_string(),
+                    text: "He overslept.".to_string()
+                }
+            ]
         );
-        assert_eq!(catalog.npc_dialogues[1].npc_id, "shopkeeper-mira");
+        assert_eq!(borak.branches[1].actions[0].intent, StoryIntent::Close);
+        assert_eq!(catalog.scenes[0].id, "scene.dusk");
+        assert_eq!(catalog.scenes[0].lines[0].speaker, "");
     }
 
     #[test]
-    fn rejects_unknown_branch_choice_and_completion_intent() {
-        let mut beat = crate::story::beat::parse_beat_markdown(
-            r#"# Guild Master
-
-::: story
-id: prologue.guild-master
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
-
-::: dialogue
-npc: guild-master
-branch: mainQuestNeedsGuildBriefing
-speaker: Guild Master Arlen
-choices: quest
-completionIntent: recordNpcTalk:guild-master
-:::
-
-You made it.
-"#,
-        )
-        .unwrap();
-
-        beat.dialogues[0].branch = "missingBranch".to_string();
-        let error = compile_catalog("sundrop-ruins", "en", &[beat.clone()]).unwrap_err();
-        assert!(error.contains("unknown dialogue branch condition"));
-
-        beat.dialogues[0].branch = "mainQuestNeedsGuildBriefing".to_string();
-        beat.dialogues[0].choices = vec!["missingChoice".to_string()];
-        let error = compile_catalog("sundrop-ruins", "en", &[beat.clone()]).unwrap_err();
-        assert!(error.contains("unknown dialogue choice"));
-
-        beat.dialogues[0].choices = vec!["quest".to_string()];
-        beat.dialogues[0].completion_intent = Some("markSomethingElse:guild-master".to_string());
-        let error = compile_catalog("sundrop-ruins", "en", &[beat.clone()]).unwrap_err();
-        assert!(error.contains("unknown completion intent"));
-
-        beat.dialogues[0].completion_intent = Some("recordNpcTalk:guild-mastre".to_string());
-        let error = compile_catalog("sundrop-ruins", "en", &[beat]).unwrap_err();
-        assert!(error.contains("unknown completion intent npc guild-mastre"));
+    fn parses_branch_conditions() {
+        assert_eq!(
+            parse_branch_condition("always"),
+            Ok(StoryBranchCondition::Always)
+        );
+        assert_eq!(
+            parse_branch_condition("quest:prologue-raid"),
+            Ok(StoryBranchCondition::Quest("prologue-raid".to_string()))
+        );
+        assert!(parse_branch_condition("objective:")
+            .unwrap_err()
+            .contains("empty id"));
+        assert!(parse_branch_condition("briefing")
+            .unwrap_err()
+            .contains("unknown dialogue branch condition briefing"));
     }
 
     #[test]
-    fn rejects_empty_dialogue_lines() {
-        let mut beat = crate::story::beat::parse_beat_markdown(
-            r#"# Guild Master
+    fn rejects_an_npc_spread_over_two_maps() {
+        let first = beat(
+            "::: story\nid: a\nchapter: prologue\nmap: guild-hall\n:::\n\n::: dialogue\nnpc: borak\nbranch: always\nspeaker: Borak\n:::\n\nHi.\n",
+        );
+        let second = beat(
+            "::: story\nid: b\nchapter: prologue\nmap: hero-house\n:::\n\n::: dialogue\nnpc: borak\nbranch: quest:q\nspeaker: Borak\n:::\n\nHi.\n",
+        );
 
-::: story
-id: prologue.guild-master
-chapter: prologue
-map: guild-hall
-primaryNpc: guild-master
-:::
+        let error = compile_catalog("gliese", "en", &[first, second]).unwrap_err();
 
-::: dialogue
-npc: guild-master
-branch: always
-speaker: Guild Master Arlen
-choices: quest
-:::
-
-Some text.
-"#,
-        )
-        .unwrap();
-
-        beat.dialogues[0].lines.clear();
-        let error = compile_catalog("sundrop-ruins", "en", &[beat]).unwrap_err();
-        assert!(error.contains("no dialogue lines"));
-        assert!(error.contains("guild-master"));
+        assert!(error.contains("story npc borak has dialogue on maps guild-hall and hero-house"));
     }
 
     #[test]
-    fn rejects_quest_choice_for_non_guild_master_npc() {
-        let mut beat = crate::story::beat::parse_beat_markdown(
-            r#"# Shopkeeper Mira
+    fn rejects_duplicate_conditions_scenes_and_unknown_choices() {
+        let duplicate_branch = beat(
+            "::: story\nid: a\nchapter: prologue\nmap: guild-hall\n:::\n\n::: dialogue\nnpc: borak\nbranch: always\nspeaker: Borak\n:::\n\nHi.\n\n::: dialogue\nnpc: borak\nbranch: always\nspeaker: Borak\n:::\n\nAgain.\n",
+        );
+        assert!(compile_catalog("gliese", "en", &[duplicate_branch])
+            .unwrap_err()
+            .contains("more than one always branch"));
 
-::: story
-id: prologue.shopkeeper-mira
-chapter: prologue
-map: item-shop
-primaryNpc: shopkeeper-mira
-:::
+        let duplicate_scene = beat(
+            "::: story\nid: a\nchapter: prologue\n:::\n\n::: scene\nid: s\n:::\n\nOne.\n\n::: scene\nid: s\n:::\n\nTwo.\n",
+        );
+        assert!(compile_catalog("gliese", "en", &[duplicate_scene])
+            .unwrap_err()
+            .contains("duplicate scene id s"));
 
-::: dialogue
-npc: shopkeeper-mira
-branch: always
-speaker: Mira
-choices: shop
-:::
+        let unknown_choice = beat(
+            "::: story\nid: a\nchapter: prologue\nmap: guild-hall\n:::\n\n::: dialogue\nnpc: borak\nbranch: always\nspeaker: Borak\nchoices: quest\n:::\n\nHi.\n",
+        );
+        assert!(compile_catalog("gliese", "en", &[unknown_choice])
+            .unwrap_err()
+            .contains("unknown dialogue choice quest"));
 
-Need supplies?
-"#,
-        )
-        .unwrap();
+        let missing_shop = beat(
+            "::: story\nid: a\nchapter: prologue\nmap: item-shop\n:::\n\n::: dialogue\nnpc: mira\nbranch: always\nspeaker: Mira\nchoices: shop\n:::\n\nHi.\n",
+        );
+        assert!(compile_catalog("gliese", "en", &[missing_shop])
+            .unwrap_err()
+            .contains("missing shop field for npc mira"));
+    }
 
-        beat.dialogues[0].choices = vec!["quest".to_string()];
-        let error = compile_catalog("sundrop-ruins", "en", &[beat]).unwrap_err();
-        assert!(error.contains("quest choice not supported"));
-        assert!(error.contains("shopkeeper-mira"));
+    #[test]
+    fn rejects_empty_dialogue_and_scene_lines() {
+        let empty_dialogue = beat(
+            "::: story\nid: a\nchapter: prologue\nmap: guild-hall\n:::\n\n::: dialogue\nnpc: borak\nbranch: always\nspeaker: Borak\n:::\n",
+        );
+        assert!(compile_catalog("gliese", "en", &[empty_dialogue])
+            .unwrap_err()
+            .contains("dialogue for npc borak has no dialogue lines"));
+
+        let empty_scene =
+            beat("::: story\nid: a\nchapter: prologue\n:::\n\n::: scene\nid: s\n:::\n");
+        assert!(compile_catalog("gliese", "en", &[empty_scene])
+            .unwrap_err()
+            .contains("scene s has no lines"));
     }
 }

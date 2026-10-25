@@ -33,7 +33,8 @@ export type {
 	WorldMapDefinition
 } from '$lib/game/content/maps/types';
 
-import type { WorldMapDefinition } from '$lib/game/content/maps/types';
+import type { StoryGated, WorldMapDefinition } from '$lib/game/content/maps/types';
+import { storyWindows } from '$lib/game/content/quests';
 
 export { meadowEntryMap, openingMapId };
 
@@ -570,7 +571,17 @@ const villagerHouse3GroundPatches = [
 
 const villagerHouse3Blockers = interiorWallBlockers(villagerHouse3Layout.walls);
 
-export const heroHouseMap: WorldMapDefinition = {
+const dayOne: StoryGated = { activeDuring: storyWindows.dayOne };
+
+/** Where the family stands in the living room; the table sits at x 224-336, y 400-464. */
+const prologueHomeSpots = {
+	mott: { x: 128, y: 352 },
+	tikka: { x: 192, y: 432 },
+	borak: { x: 408, y: 400 },
+	drogg: { x: 280, y: 496 }
+} as const;
+
+export const heroHouseMap: WorldMapDefinition = addEnglishMapText({
 	id: 'hero-house',
 	width: heroHouseLayout.widthTiles,
 	height: heroHouseLayout.heightTiles,
@@ -618,8 +629,56 @@ export const heroHouseMap: WorldMapDefinition = {
 				heroHouseLayout.propCollisions.kitchenStorage
 			)
 		}
+	],
+	npcs: [
+		{
+			id: 'mott-hearth',
+			...prologueHomeSpots.mott,
+			nameKey: 'content.maps.npcs.mott.name',
+			dialogueId: 'mott-hearth',
+			role: 'home',
+			frameName: 'pilgrimNpc',
+			activeDuring: { ...storyWindows.dayOne, objectives: ['heed-mott'] }
+		},
+		{
+			id: 'tikka-home',
+			...prologueHomeSpots.tikka,
+			nameKey: 'content.maps.npcs.tikka.name',
+			dialogueId: 'tikka-home',
+			role: 'home',
+			frameName: 'crierNpc',
+			...dayOne
+		},
+		{
+			id: 'borak-home',
+			...prologueHomeSpots.borak,
+			nameKey: 'content.maps.npcs.borak.name',
+			dialogueId: 'borak-home',
+			role: 'home',
+			frameName: 'guildMasterNpc',
+			activeDuring: storyWindows.evening
+		},
+		{
+			id: 'drogg-home',
+			...prologueHomeSpots.drogg,
+			nameKey: 'content.maps.npcs.drogg.name',
+			dialogueId: 'drogg-home',
+			role: 'home',
+			frameName: 'fisherNpc',
+			activeDuring: storyWindows.evening
+		}
+	],
+	discoveries: [
+		{
+			id: 'grik-bed',
+			x: 160,
+			y: 160,
+			radius: 96,
+			labelKey: 'content.maps.discoveries.grik-bed.label',
+			activeDuring: { objectives: ['go-to-sleep'] }
+		}
 	]
-};
+});
 
 export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 	id: 'guild-hall',
@@ -641,21 +700,36 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 	],
 	npcs: [
 		{
-			id: 'guild-master',
+			id: 'borak',
 			...guildHallLayout.npcApproaches.guildMaster.npc,
-			nameKey: 'content.maps.npcs.guild-master.name',
-			dialogueId: 'guild-master',
+			nameKey: 'content.maps.npcs.borak.name',
+			dialogueId: 'borak',
 			role: 'guild',
-			frameName: 'guildMasterNpc'
+			frameName: 'guildMasterNpc',
+			...dayOne,
+			hiddenDuring: storyWindows.evening
 		},
 		{
-			id: 'guild-quartermaster',
+			id: 'lodge-keeper',
 			...guildHallLayout.npcApproaches.quartermaster.npc,
-			nameKey: 'content.maps.npcs.guild-quartermaster.name',
-			dialogueId: 'guild-quartermaster',
+			nameKey: 'content.maps.npcs.lodge-keeper.name',
+			dialogueId: 'lodge-keeper',
 			role: 'shopkeeper',
 			frameName: 'quartermasterNpc',
-			shopId: 'guild-quartermaster'
+			shopId: 'guild-quartermaster',
+			...dayOne
+		},
+		{
+			id: 'drogg-lodge',
+			x: 672,
+			y: 368,
+			nameKey: 'content.maps.npcs.drogg.name',
+			dialogueId: 'drogg-lodge',
+			role: 'home',
+			frameName: 'fisherNpc',
+			activeDuring: {
+				quests: ['prologue-proving-morning', 'prologue-trial-tracks', 'prologue-trial-mistfen']
+			}
 		}
 	],
 	interiorProps: [
@@ -756,13 +830,24 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 	],
 	npcs: [
 		{
-			id: 'shopkeeper-mira',
+			id: 'mira',
 			...itemShopLayout.npcApproaches.mira.npc,
-			nameKey: 'content.maps.npcs.shopkeeper-mira.name',
-			dialogueId: 'shopkeeper-mira',
+			nameKey: 'content.maps.npcs.mira.name',
+			dialogueId: 'mira',
 			role: 'shopkeeper',
 			frameName: 'miraItemShopNpc',
-			shopId: 'miras-item-shop'
+			shopId: 'miras-item-shop',
+			...dayOne
+		},
+		{
+			id: 'lirra-herb-hut',
+			x: 544,
+			y: 448,
+			nameKey: 'content.maps.npcs.lirra.name',
+			dialogueId: 'lirra-herb-hut',
+			role: 'home',
+			frameName: 'travelerNpc',
+			activeDuring: { objectives: ['walk-lirra-home'] }
 		}
 	],
 	interiorProps: [
@@ -836,13 +921,14 @@ export const blacksmithInteriorMap: WorldMapDefinition = addEnglishMapText({
 	],
 	npcs: [
 		{
-			id: 'blacksmith-oren',
+			id: 'oren',
 			...blacksmithLayout.npcApproaches.oren.npc,
-			nameKey: 'content.maps.npcs.blacksmith-oren.name',
-			dialogueId: 'blacksmith-oren',
+			nameKey: 'content.maps.npcs.oren.name',
+			dialogueId: 'oren',
 			role: 'shopkeeper',
 			shopId: 'sundrop-forge',
-			frameName: 'woodcutterNpc'
+			frameName: 'woodcutterNpc',
+			...dayOne
 		}
 	],
 	interiorProps: [
@@ -950,6 +1036,7 @@ export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 			nameKey: 'content.maps.npcs.villager-lynn.name',
 			dialogueId: 'villager-lynn',
 			role: 'villager',
+			...dayOne,
 			frameName: 'miraItemShopNpc'
 		}
 	],
@@ -1027,6 +1114,7 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 			nameKey: 'content.maps.npcs.villager-toma.name',
 			dialogueId: 'villager-toma',
 			role: 'villager',
+			...dayOne,
 			frameName: 'quartermasterNpc'
 		}
 	],
@@ -1112,6 +1200,7 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 			nameKey: 'content.maps.npcs.villager-io.name',
 			dialogueId: 'villager-io',
 			role: 'villager',
+			...dayOne,
 			frameName: 'guildMasterNpc'
 		}
 	],
@@ -1125,7 +1214,7 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 	]
 });
 
-export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
+export const shrineOfAuroraInteriorMap: WorldMapDefinition = addEnglishMapText({
 	id: 'shrine-of-aurora-interior',
 	width: shrineOfAuroraLayout.widthTiles,
 	height: shrineOfAuroraLayout.heightTiles,
@@ -1192,8 +1281,21 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = {
 			...toMapRect('shrine-of-aurora-entrance-lamps', shrineOfAuroraLayout.propZones.entranceLamps),
 			frameName: 'hearthLamp'
 		}
+	],
+	npcs: [
+		{
+			id: 'mott-shrine',
+			// Beside the aisle, clear of the processional routes.
+			x: 576,
+			y: 336,
+			nameKey: 'content.maps.npcs.mott.name',
+			dialogueId: 'mott-shrine',
+			role: 'home',
+			frameName: 'pilgrimNpc',
+			activeDuring: { quests: ['prologue-escape'] }
+		}
 	]
-};
+});
 
 export const ruinsThresholdMap: WorldMapDefinition = {
 	id: 'ruins-threshold',
@@ -1369,8 +1471,16 @@ export const ruinsThresholdMap: WorldMapDefinition = {
 		{ id: 'ruins-threshold-salve', x: 2_048, y: 4_800, itemId: 'sunleaf-salve', quantity: 2 }
 	],
 	encounters: [
-		{ id: 'threshold-slime-west', x: 2_304, y: 3_200, enemyId: 'slime-scout' },
-		{ id: 'threshold-slime-east', x: 4_096, y: 3_008, enemyId: 'slime-scout' }
+		{ id: 'threshold-crawlers', x: 3_200, y: 3_200, enemyId: 'tunnel-crawler', count: 3 }
+	],
+	discoveries: [
+		{
+			id: 'threshold-relief',
+			x: 1_600,
+			y: 3_040,
+			labelKey: 'content.maps.discoveries.threshold-relief.label',
+			descriptionKey: 'content.maps.discoveries.threshold-relief.description'
+		}
 	]
 };
 
@@ -1521,8 +1631,15 @@ export const ruinsCoreMap: WorldMapDefinition = {
 		{ id: 'ruins-core-mail', x: 2_240, y: 2_048, itemId: 'stone-mail', quantity: 1 },
 		{ id: 'ruins-core-draught', x: 3_584, y: 4_544, itemId: 'ruin-draught', quantity: 1 }
 	],
-	encounters: [
-		{ id: 'ruins-warden', x: 4_992, y: 3_200, enemyId: 'ruins-warden', completion: 'victory' }
+	encounters: [{ id: 'core-crawlers', x: 2_880, y: 3_200, enemyId: 'tunnel-crawler', count: 3 }],
+	discoveries: [
+		{
+			id: 'core-relief',
+			x: 4_992,
+			y: 2_880,
+			labelKey: 'content.maps.discoveries.core-relief.label',
+			descriptionKey: 'content.maps.discoveries.core-relief.description'
+		}
 	]
 };
 
@@ -1539,3 +1656,8 @@ export const maps: DefinitionRegistry<WorldMapDefinition> = {
 	[ruinsThresholdMap.id]: ruinsThresholdMap,
 	[ruinsCoreMap.id]: ruinsCoreMap
 };
+
+// Sundrop's everyday crowd is gone once the raid begins; only story NPCs remain.
+for (const map of Object.values(maps)) {
+	for (const npc of map.ambientNpcs ?? []) npc.hiddenDuring ??= storyWindows.afterRaid;
+}

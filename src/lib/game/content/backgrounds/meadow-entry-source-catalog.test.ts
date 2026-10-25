@@ -96,6 +96,7 @@ describe('meadow-entry source catalog', () => {
 				'fence',
 				'landmark',
 				'transition',
+				'npc',
 				'ambient-npc',
 				'pickup',
 				'encounter',
@@ -118,7 +119,7 @@ describe('meadow-entry source catalog', () => {
 			.map(({ ref }) => meadowEntrySourceKey(ref));
 
 		expect(transitionKeys).toEqual([...EXPECTED_TRANSITION_KEYS].sort());
-		expect(preBlacksmithCatalog).toHaveLength(396);
+		expect(preBlacksmithCatalog).toHaveLength(447);
 		expect(
 			createHash('sha256')
 				.update(
@@ -130,8 +131,8 @@ describe('meadow-entry source catalog', () => {
 						.join('')
 				)
 				.digest('hex')
-		).toBe('41d7dc3a8d584ea91104049a5c3c96f910d8be7c9d57755bda07dc1da5e2c765');
-		expect(catalog).toHaveLength(397);
+		).toBe('e90189194fec9c75f615875a68c4fa059a08d4fc851ef8ebb31b29acbd6c59a8');
+		expect(catalog).toHaveLength(448);
 		expect(
 			resolveMeadowEntrySource({
 				sourceType: 'transition',

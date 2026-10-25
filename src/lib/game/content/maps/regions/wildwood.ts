@@ -9,9 +9,9 @@ const wildwoodRoutePatches = meadowEntryV2RoutePatchesFor('wildwood').map(
 
 /**
  * Wildwood region — the top-right (NE) forest road leading to the Whispering
- * Cave: the gated ruins-threshold transition, the forest-road and combat-pocket
- * ground patches, the colliding canopy decor, the slime encounters, and their
- * combat bounds.
+ * Cave: the story-gated ruins-threshold transition, the forest-road and
+ * combat-pocket ground patches, and the colliding canopy decor. The prologue's
+ * packs and their combat bounds live in `regions/prologue.ts`.
  *
  * The `whispering-cave` landmark is co-located here with its transition,
  * paths, and combat pockets so all Whispering Cave content lives in one file.
@@ -35,10 +35,8 @@ export const wildwoodRegion: RegionFragment = {
 			toMapId: 'ruins-threshold',
 			requiresClear: true,
 			marker: 'stair',
-			questRequirement: {
-				questId: 'investigate-the-ruins',
-				objectiveId: 'talk-to-guild-master'
-			},
+			// The cave opens only from the tunnel side, once the escape begins.
+			activeDuring: { quests: ['prologue-escape'] },
 			arrival: { x: 512, y: 3_200, facing: 'right' }
 		}
 	],
@@ -463,43 +461,6 @@ export const wildwoodRegion: RegionFragment = {
 	ambientNpcs: [{ id: 'wildwood-woodcutter', x: 5_340, y: 4_520, frameName: 'woodcutterNpc' }],
 	pickups: [
 		{ id: 'wildwood-grove-cache', x: 4_700, y: 3_650, itemId: 'sunleaf-salve', quantity: 1 }
-	],
-	combatBounds: [
-		{
-			id: 'wildwood-north-combat-pocket',
-			x: 5_120,
-			y: 960,
-			width: 672,
-			height: 384,
-			encounterIds: ['meadow-slime-west'],
-			aggroRadius: 240,
-			leashRadius: 420
-		},
-		{
-			id: 'wildwood-crossing-combat-pocket',
-			x: 5_360,
-			y: 1_280,
-			width: 512,
-			height: 320,
-			encounterIds: ['meadow-slime-center'],
-			aggroRadius: 240,
-			leashRadius: 420
-		},
-		{
-			id: 'whispering-cave-combat-pocket',
-			x: 5_920,
-			y: 1_600,
-			width: 512,
-			height: 384,
-			encounterIds: ['meadow-slime-east'],
-			aggroRadius: 240,
-			leashRadius: 420
-		}
-	],
-	encounters: [
-		{ id: 'meadow-slime-west', x: 4_928, y: 960, enemyId: 'slime-scout' },
-		{ id: 'meadow-slime-center', x: 5_360, y: 1_280, enemyId: 'slime-scout' },
-		{ id: 'meadow-slime-east', x: 5_920, y: 1_600, enemyId: 'slime-scout' }
 	],
 	blockers: [
 		// Forest-lane banks flanking the vertical climb at x≈5600 (route segment

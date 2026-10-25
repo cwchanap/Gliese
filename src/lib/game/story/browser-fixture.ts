@@ -1,228 +1,87 @@
-// Browser-only fixture for Vite dev and Playwright. Tauri release builds use VITE_STORY_RUNTIME=tauri and must tree-shake this module.
+// Browser-only fixture for Vite dev and Playwright. Tauri release builds use
+// VITE_STORY_RUNTIME=tauri and must tree-shake this module, because the catalog
+// below is the compiled story prose (written by `bun run story:check`).
+import catalogJson from '$lib/game/story/browser-catalog.generated.json';
 import type {
+	StoryAction,
+	StoryDialogueRequest,
 	StoryDialogueResponse,
-	StoryIntent,
-	StoryQuestSummary,
-	StoryRuntimeDialogueRequest
+	StoryLine,
+	StorySceneRequest,
+	StorySceneResponse
 } from '$lib/game/story/client';
 
 type StoryBranchCondition =
-	| 'mainQuestNeedsGuildBriefing'
-	| 'hasActiveSideQuest'
-	| 'hasCompletedQuest'
-	| 'guildBriefingComplete'
-	| 'always';
+	| { type: 'always' }
+	| { type: 'quest'; id: string }
+	| { type: 'objective'; id: string };
 
-type StoryFixtureBranch = {
-	condition: StoryBranchCondition;
-	speaker: string;
-	lines: string[];
-	actions: Array<{ id: string; label: string; intent: StoryIntent }>;
-	completionIntent: StoryIntent | null;
+export type BrowserStoryCatalog = {
+	packageId: string;
+	defaultLocale: string;
+	npcDialogues: Array<{
+		npcId: string;
+		mapId: string;
+		branches: Array<{
+			beatId: string;
+			condition: StoryBranchCondition;
+			lines: StoryLine[];
+			actions: StoryAction[];
+		}>;
+	}>;
+	scenes: Array<{ id: string; beatId: string; lines: StoryLine[] }>;
 };
 
-const branchPriority: StoryBranchCondition[] = [
-	'mainQuestNeedsGuildBriefing',
-	'hasActiveSideQuest',
-	'hasCompletedQuest',
-	'guildBriefingComplete',
-	'always'
-];
+export const browserStoryCatalog = catalogJson as BrowserStoryCatalog;
 
-const npcFixtures: Record<string, StoryFixtureBranch[]> = {
-	'guild-master': [
-		{
-			condition: 'mainQuestNeedsGuildBriefing',
-			speaker: 'Guild Master Arlen',
-			lines: [
-				'You made it. The eastern ruins are stirring again, and the village road is no longer safe.',
-				'Go through the forest path, reach the old core, and defeat the warden before it wakes the rest.'
-			],
-			actions: [
-				{
-					id: 'quest',
-					label: 'Quest',
-					intent: { type: 'showQuestList', giverNpcId: 'guild-master' }
-				}
-			],
-			completionIntent: { type: 'recordNpcTalk', npcId: 'guild-master' }
-		},
-		{
-			condition: 'hasActiveSideQuest',
-			speaker: 'Guild Master Arlen',
-			lines: [
-				'The Guild board is yours to work through, but do not lose sight of the warden.',
-				'Report progress through your journal. I will keep new work here at the counter.'
-			],
-			actions: [
-				{
-					id: 'quest',
-					label: 'Quest',
-					intent: { type: 'showQuestList', giverNpcId: 'guild-master' }
-				}
-			],
-			completionIntent: null
-		},
-		{
-			condition: 'hasCompletedQuest',
-			speaker: 'Guild Master Arlen',
-			lines: ['Good work out there. The village notices when a hunter keeps the roads clear.'],
-			actions: [
-				{
-					id: 'quest',
-					label: 'Quest',
-					intent: { type: 'showQuestList', giverNpcId: 'guild-master' }
-				}
-			],
-			completionIntent: null
-		},
-		{
-			condition: 'guildBriefingComplete',
-			speaker: 'Guild Master Arlen',
-			lines: ['The ruins route is open. Steel yourself before you enter the core.'],
-			actions: [
-				{
-					id: 'quest',
-					label: 'Quest',
-					intent: { type: 'showQuestList', giverNpcId: 'guild-master' }
-				}
-			],
-			completionIntent: null
-		},
-		{
-			condition: 'always',
-			speaker: 'Guild Master Arlen',
-			lines: ['The Guild keeps watch over the old road. Speak plainly and choose your work.'],
-			actions: [
-				{
-					id: 'quest',
-					label: 'Quest',
-					intent: { type: 'showQuestList', giverNpcId: 'guild-master' }
-				}
-			],
-			completionIntent: null
-		}
-	],
-	'guild-quartermaster': [
-		{
-			condition: 'guildBriefingComplete',
-			speaker: 'Quartermaster Vale',
-			lines: ['If you are bound for the ruins, buy what keeps you standing.'],
-			actions: [
-				{ id: 'shop', label: 'Shop', intent: { type: 'openShop', shopId: 'guild-quartermaster' } }
-			],
-			completionIntent: null
-		},
-		{
-			condition: 'always',
-			speaker: 'Quartermaster Vale',
-			lines: ['Need field gear before the ruins? Guild stock is limited, but sturdy.'],
-			actions: [
-				{ id: 'shop', label: 'Shop', intent: { type: 'openShop', shopId: 'guild-quartermaster' } }
-			],
-			completionIntent: null
-		}
-	],
-	'blacksmith-oren': [
-		{
-			condition: 'always',
-			speaker: 'Blacksmith Oren',
-			lines: ['Steel holds when the hand behind it does. Take what fits, and keep it dry.'],
-			actions: [
-				{ id: 'shop', label: 'Shop', intent: { type: 'openShop', shopId: 'sundrop-forge' } }
-			],
-			completionIntent: null
-		}
-	],
-	'shopkeeper-mira': [
-		{
-			condition: 'guildBriefingComplete',
-			speaker: 'Mira',
-			lines: ['Back from the Guild? Take a tonic before the forest path gets rough.'],
-			actions: [
-				{ id: 'shop', label: 'Shop', intent: { type: 'openShop', shopId: 'miras-item-shop' } }
-			],
-			completionIntent: null
-		},
-		{
-			condition: 'always',
-			speaker: 'Mira',
-			lines: ['Fresh tonics are on the shelf. The guild already stocked your field kit today.'],
-			actions: [
-				{ id: 'shop', label: 'Shop', intent: { type: 'openShop', shopId: 'miras-item-shop' } }
-			],
-			completionIntent: null
-		}
-	],
-	'villager-lynn': [
-		{
-			condition: 'always',
-			speaker: 'Lynn',
-			lines: ['The kettle is warm if you need a quiet minute before the road.'],
-			actions: [{ id: 'close', label: 'Close', intent: { type: 'close' } }],
-			completionIntent: null
-		}
-	],
-	'villager-toma': [
-		{
-			condition: 'always',
-			speaker: 'Toma',
-			lines: [
-				'I patched the south fence this morning. If the slimes cross it again, tell the Guild.'
-			],
-			actions: [{ id: 'close', label: 'Close', intent: { type: 'close' } }],
-			completionIntent: null
-		}
-	],
-	'villager-io': [
-		{
-			condition: 'always',
-			speaker: 'Io',
-			lines: ['Old records say the ruins quiet down when someone brave reaches the core.'],
-			actions: [{ id: 'close', label: 'Close', intent: { type: 'close' } }],
-			completionIntent: null
-		}
-	]
-};
-
-export function getBrowserNpcDialogue(request: StoryRuntimeDialogueRequest): StoryDialogueResponse {
-	const branches = npcFixtures[request.npcId];
-	if (!branches) {
-		throw new Error(`unknown story npc: ${request.npcId}`);
+// Mirrors `select_branch` in src-tauri/src/story/commands.rs: the current
+// objective wins over the current quest, which wins over `always`.
+export function getBrowserNpcDialogue(
+	request: StoryDialogueRequest,
+	catalog: BrowserStoryCatalog = browserStoryCatalog
+): StoryDialogueResponse {
+	assertLocale(catalog, request.locale);
+	const dialogue = catalog.npcDialogues.find((candidate) => candidate.npcId === request.npcId);
+	if (!dialogue) throw new Error(`unknown story npc: ${request.npcId}`);
+	if (dialogue.mapId !== request.mapId) {
+		throw new Error(`story npc ${request.npcId} is not available on map ${request.mapId}`);
 	}
 
-	const branch = branchPriority
-		.filter((condition) => branchConditionMatches(condition, request.quest))
-		.map((condition) => branches.find((candidate) => candidate.condition === condition))
-		.find((candidate) => candidate !== undefined);
-
-	if (!branch) {
-		throw new Error(`no story dialogue branch for npc: ${request.npcId}`);
-	}
+	const { questId, objectiveId } = request.progress;
+	const find = (matches: (condition: StoryBranchCondition) => boolean) =>
+		dialogue.branches.find((branch) => matches(branch.condition));
+	const branch =
+		(objectiveId !== null
+			? find((condition) => condition.type === 'objective' && condition.id === objectiveId)
+			: undefined) ??
+		(questId !== null
+			? find((condition) => condition.type === 'quest' && condition.id === questId)
+			: undefined) ??
+		find((condition) => condition.type === 'always');
+	if (!branch) throw new Error(`no story dialogue branch for npc: ${request.npcId}`);
 
 	return {
-		sessionId: `npc:${request.npcId}:${branch.condition}`,
-		speaker: branch.speaker,
+		sessionId: `npc:${request.npcId}:${conditionKey(branch.condition)}`,
 		lines: branch.lines,
-		actions: branch.actions,
-		completionIntent: branch.completionIntent
+		actions: branch.actions
 	};
 }
 
-function branchConditionMatches(
-	condition: StoryBranchCondition,
-	quest: StoryQuestSummary
-): boolean {
-	switch (condition) {
-		case 'mainQuestNeedsGuildBriefing':
-			return quest.mainQuestNeedsGuildBriefing;
-		case 'hasActiveSideQuest':
-			return quest.hasActiveSideQuest;
-		case 'hasCompletedQuest':
-			return quest.hasCompletedQuest;
-		case 'guildBriefingComplete':
-			return quest.guildBriefingComplete;
-		case 'always':
-			return true;
-	}
+export function getBrowserStoryScene(
+	request: StorySceneRequest,
+	catalog: BrowserStoryCatalog = browserStoryCatalog
+): StorySceneResponse {
+	assertLocale(catalog, request.locale);
+	const scene = catalog.scenes.find((candidate) => candidate.id === request.sceneId);
+	if (!scene) throw new Error(`unknown story scene: ${request.sceneId}`);
+
+	return { sessionId: `scene:${scene.id}`, lines: scene.lines };
+}
+
+function assertLocale(catalog: BrowserStoryCatalog, locale: string) {
+	if (locale !== catalog.defaultLocale) throw new Error(`unsupported story locale: ${locale}`);
+}
+
+function conditionKey(condition: StoryBranchCondition): string {
+	return condition.type === 'always' ? 'always' : `${condition.type}:${condition.id}`;
 }

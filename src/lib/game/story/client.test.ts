@@ -1,187 +1,122 @@
 import { describe, expect, it } from 'vitest';
 
-import { getBrowserNpcDialogue } from '$lib/game/story/browser-fixture';
 import {
 	createDialogueSessionFromStory,
+	createSceneSessionFromStory,
 	getNpcStoryDialogue,
 	getNpcStoryDialogueWithRuntime,
-	type StoryDialogueCommandArgs,
+	getStorySceneWithRuntime,
 	type StoryDialogueResponse
 } from '$lib/game/story/client';
 
+const shopResponse: StoryDialogueResponse = {
+	sessionId: 'npc:mira:always',
+	lines: [{ speaker: 'Mira', text: 'Herbs, salves, and potions, all fresh.' }],
+	actions: [
+		{ id: 'shop', label: 'Shop', intent: { type: 'openShop', shopId: 'miras-item-shop' } },
+		{ id: 'close', label: 'Close', intent: { type: 'close' } }
+	]
+};
+
 describe('story client', () => {
-	it('adapts Rust story payloads into dialogue sessions', () => {
+	it('adapts story payloads into dialogue sessions with per-line speakers', () => {
 		const session = createDialogueSessionFromStory(
 			{
-				sessionId: 'npc:guild-master:mainQuestNeedsGuildBriefing',
-				speaker: 'Guild Master Arlen',
-				lines: ['You made it.', 'Go to the ruins.'],
-				actions: [
-					{
-						id: 'quest',
-						label: 'Quest',
-						intent: { type: 'showQuestList', giverNpcId: 'guild-master' }
-					}
+				sessionId: 'npc:borak:objective:report-to-borak',
+				lines: [
+					{ speaker: 'Borak', text: 'Grik. You came.' },
+					{ speaker: 'Drogg', text: 'A very small boar.' }
 				],
-				completionIntent: { type: 'recordNpcTalk', npcId: 'guild-master' }
+				actions: []
 			},
+			'borak',
 			'en'
 		);
 
 		expect(session).toMatchObject({
-			id: 'npc:guild-master:mainQuestNeedsGuildBriefing',
-			speaker: 'Guild Master Arlen',
-			line: 'You made it.',
+			id: 'npc:borak:objective:report-to-borak',
+			npcId: 'borak',
+			speaker: 'Borak',
+			line: 'Grik. You came.',
 			lineCount: 2,
-			mode: 'conversation'
+			mode: 'conversation',
+			choices: []
 		});
-		expect(session.choices.map((choice) => choice.id)).toEqual(['quest']);
 	});
 
-	it('starts single-line action payloads in choice mode when no completion intent', () => {
-		const session = createDialogueSessionFromStory(
-			{
-				sessionId: 'npc:shopkeeper-mira:always',
-				speaker: 'Mira',
-				lines: ['Fresh tonics are on the shelf.'],
-				actions: [
-					{
-						id: 'shop',
-						label: 'Shop',
-						intent: { type: 'openShop', shopId: 'miras-item-shop' }
-					}
-				],
-				completionIntent: null
-			},
-			'en'
-		);
+	it('starts single-line action payloads in choice mode with localized labels', () => {
+		const session = createDialogueSessionFromStory(shopResponse, 'mira', 'ja');
 
 		expect(session.mode).toBe('choice');
 		expect(session.choices).toEqual([
-			{ id: 'shop', label: 'Shop', intent: { type: 'openShop', shopId: 'miras-item-shop' } }
+			{ id: 'shop', label: '店', intent: { type: 'openShop', shopId: 'miras-item-shop' } },
+			{ id: 'close', label: '閉じる', intent: { type: 'close' } }
 		]);
 	});
 
-	it('keeps single-line action payloads in conversation mode when completion intent is present', () => {
+	it('falls back to the payload label when an action id has no i18n key', () => {
 		const session = createDialogueSessionFromStory(
 			{
-				sessionId: 'npc:guild-master:mainQuestNeedsGuildBriefing',
-				speaker: 'Guild Master Arlen',
-				lines: ['You made it.'],
-				actions: [
-					{
-						id: 'quest',
-						label: 'Quest',
-						intent: { type: 'showQuestList', giverNpcId: 'guild-master' }
-					}
-				],
-				completionIntent: { type: 'recordNpcTalk', npcId: 'guild-master' }
+				sessionId: 'npc:test:custom',
+				lines: [{ speaker: 'Test', text: 'Hello.' }],
+				actions: [{ id: 'unknown-action', label: 'Custom Action', intent: { type: 'close' } }]
 			},
+			'test',
 			'en'
 		);
 
-		expect(session.mode).toBe('conversation');
-		expect(session.completionIntent).toEqual({
-			type: 'recordNpcTalk',
-			npcId: 'guild-master'
-		});
-		expect(session.choices.map((choice) => choice.id)).toEqual(['quest']);
+		expect(session.choices[0]?.label).toBe('Custom Action');
 	});
 
-	it('rejects story payloads without dialogue lines', () => {
+	it('rejects dialogue and scene payloads without lines', () => {
 		expect(() =>
-			createDialogueSessionFromStory(
-				{
-					sessionId: 'npc:guild-master:empty',
-					speaker: 'Guild Master Arlen',
-					lines: [],
-					actions: [],
-					completionIntent: null
-				},
-				'en'
-			)
+			createDialogueSessionFromStory({ sessionId: 'x', lines: [], actions: [] }, 'x', 'en')
 		).toThrow('Story dialogue response must include at least one line.');
+		expect(() => createSceneSessionFromStory({ sessionId: 'x', lines: [] })).toThrow(
+			'Story scene response must include at least one line.'
+		);
 	});
 
-	it('uses browser fixture branch priority for current NPCs', () => {
-		const response = getBrowserNpcDialogue({
-			npcId: 'guild-master',
-			mapId: 'guild-hall',
-			locale: 'en',
-			quest: {
-				mainQuestNeedsGuildBriefing: true,
-				guildBriefingComplete: false,
-				hasActiveSideQuest: true,
-				hasCompletedQuest: true
-			}
-		});
-
-		expect(response).toMatchObject({
-			sessionId: 'npc:guild-master:mainQuestNeedsGuildBriefing',
-			speaker: 'Guild Master Arlen',
-			completionIntent: { type: 'recordNpcTalk', npcId: 'guild-master' }
-		});
-		expect(response.actions.map((action) => action.id)).toEqual(['quest']);
-	});
-
-	it('loads browser fixture dialogue outside the Tauri story runtime with app locales', async () => {
+	it('loads browser fixture dialogue for the current objective with app locales', async () => {
 		const session = await getNpcStoryDialogue({
-			npcId: 'shopkeeper-mira',
+			npcId: 'mira',
 			mapId: 'item-shop',
-			locale: 'ja',
-			quest: {
-				mainQuestNeedsGuildBriefing: false,
-				guildBriefingComplete: true,
-				hasActiveSideQuest: false,
-				hasCompletedQuest: false
-			}
+			locale: 'zh-Hant',
+			progress: { questId: 'prologue-proving-morning', objectiveId: 'collect-herb-pouch' }
 		});
 
 		expect(session).toMatchObject({
-			id: 'npc:shopkeeper-mira:guildBriefingComplete',
+			id: 'npc:mira:objective:collect-herb-pouch',
+			npcId: 'mira',
 			speaker: 'Mira',
-			mode: 'choice'
+			mode: 'conversation',
+			choices: []
 		});
-		expect(session.choices).toEqual([
-			{ id: 'shop', label: '店', intent: { type: 'openShop', shopId: 'miras-item-shop' } }
-		]);
 	});
 
-	it('invokes the Tauri story command with a normalized request envelope', async () => {
-		const response: StoryDialogueResponse = {
-			sessionId: 'npc:guild-master:mainQuestNeedsGuildBriefing',
-			speaker: 'Guild Master Arlen',
-			lines: ['You made it.'],
-			actions: [
-				{
-					id: 'quest',
-					label: 'Quest',
-					intent: { type: 'showQuestList', giverNpcId: 'guild-master' }
-				}
-			],
-			completionIntent: { type: 'recordNpcTalk', npcId: 'guild-master' }
-		};
+	it('invokes the Tauri story commands with normalized request envelopes', async () => {
 		const calls: Array<{ command: string; args: unknown }> = [];
+		const invoke = async <T>(command: string, args: Record<string, unknown>): Promise<T> => {
+			calls.push({ command, args });
+			return (
+				command === 'get_npc_dialogue'
+					? shopResponse
+					: { sessionId: 'scene:prologue.opening', lines: [{ speaker: '', text: 'Morning.' }] }
+			) as T;
+		};
 
 		const session = await getNpcStoryDialogueWithRuntime(
 			{
-				npcId: 'guild-master',
-				mapId: 'guild-hall',
+				npcId: 'mira',
+				mapId: 'item-shop',
 				locale: 'zh-Hant',
-				quest: {
-					mainQuestNeedsGuildBriefing: true,
-					guildBriefingComplete: false,
-					hasActiveSideQuest: false,
-					hasCompletedQuest: false
-				}
+				progress: { questId: 'prologue-trial-tracks', objectiveId: 'read-boar-signs' }
 			},
-			{
-				mode: 'tauri',
-				invoke: async <T>(command: string, args: StoryDialogueCommandArgs): Promise<T> => {
-					calls.push({ command, args });
-					return response as T;
-				}
-			}
+			{ mode: 'tauri', invoke }
+		);
+		const scene = await getStorySceneWithRuntime(
+			{ sceneId: 'prologue.opening', locale: 'ja' },
+			{ mode: 'tauri', invoke }
 		);
 
 		expect(calls).toEqual([
@@ -189,62 +124,19 @@ describe('story client', () => {
 				command: 'get_npc_dialogue',
 				args: {
 					request: {
-						npcId: 'guild-master',
-						mapId: 'guild-hall',
+						npcId: 'mira',
+						mapId: 'item-shop',
 						locale: 'en',
-						quest: {
-							mainQuestNeedsGuildBriefing: true,
-							guildBriefingComplete: false,
-							hasActiveSideQuest: false,
-							hasCompletedQuest: false
-						}
+						progress: { questId: 'prologue-trial-tracks', objectiveId: 'read-boar-signs' }
 					}
 				}
+			},
+			{
+				command: 'get_story_scene',
+				args: { request: { sceneId: 'prologue.opening', locale: 'en' } }
 			}
 		]);
-		expect(session.completionIntent).toEqual({ type: 'recordNpcTalk', npcId: 'guild-master' });
-		expect(session.choices[0]?.label).toBe('任務');
-	});
-
-	it('localizes action labels to English when locale is en', () => {
-		const session = createDialogueSessionFromStory(
-			{
-				sessionId: 'npc:shopkeeper-mira:always',
-				speaker: 'Mira',
-				lines: ['Fresh tonics.'],
-				actions: [
-					{
-						id: 'shop',
-						label: 'Shop',
-						intent: { type: 'openShop', shopId: 'miras-item-shop' }
-					}
-				],
-				completionIntent: null
-			},
-			'en'
-		);
-
-		expect(session.choices[0]?.label).toBe('Shop');
-	});
-
-	it('falls back to payload label when action id has no i18n key', () => {
-		const session = createDialogueSessionFromStory(
-			{
-				sessionId: 'npc:test:unknown-action',
-				speaker: 'Test',
-				lines: ['Hello.'],
-				actions: [
-					{
-						id: 'unknown-action',
-						label: 'Custom Action',
-						intent: { type: 'close' }
-					}
-				],
-				completionIntent: null
-			},
-			'en'
-		);
-
-		expect(session.choices[0]?.label).toBe('Custom Action');
+		expect(session.choices[0]?.label).toBe('商店');
+		expect(scene).toMatchObject({ mode: 'system', npcId: null, line: 'Morning.' });
 	});
 });

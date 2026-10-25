@@ -2,15 +2,16 @@ import {
 	maps,
 	meadowEntryMap,
 	type MapDiscovery,
-	type MapEncounter,
-	type MapLandmark,
-	type MapNpc,
-	type MapTransition,
 	type WorldMapDefinition
 } from '$lib/game/content/maps';
-import { mainQuestId } from '$lib/game/content/quests';
+import type { QuestObjective } from '$lib/game/content/quests';
 import { AREA_MAP_CELL_SIZE, isWorldPositionRevealed } from '$lib/game/core/map-exploration';
-import { createInitialQuestState, type QuestState } from '$lib/game/core/quests';
+import {
+	createInitialQuestState,
+	getCurrentObjective,
+	getStoryProgress,
+	type QuestState
+} from '$lib/game/core/quests';
 import { getQuestText } from '$lib/game/i18n/content';
 import type { Locale } from '$lib/game/i18n/locales';
 import { t, type MessageKey } from '$lib/game/i18n/translate';
@@ -125,68 +126,63 @@ function buildTransitionMarkers(map: WorldMapDefinition, locale: Locale): HudAre
 		}));
 }
 
+/**
+ * Pins the current main objective's targets on this map: the NPCs still to talk
+ * to, the discoveries still to examine, the pickups still to gather, and the
+ * encounters still to fight. Targets on other maps are left to the journal.
+ */
 function buildMainQuestMarkers(
 	map: WorldMapDefinition,
 	quests: QuestState,
 	locale: Locale
 ): HudAreaMapMarker[] {
-	const mainQuest = quests.entries[mainQuestId];
-	if (!mainQuest || mainQuest.status !== 'active') return [];
+	const objective = getCurrentObjective(quests);
+	if (!objective) return [];
 
-	const target = getMainQuestObjectiveTarget(map, mainQuest.currentObjectiveId);
-	if (!target) return [];
+	const { questId } = getStoryProgress(quests);
+	const counted = new Set(quests.entries[questId]?.countedSourceIds ?? []);
+	const label = getQuestText(locale, questId)?.title ?? t(locale, 'ui.quests');
 
-	return [
-		{
-			id: `${mainQuestId}:${mainQuest.currentObjectiveId}:${map.id}`,
-			kind: 'quest',
-			x: target.x,
-			y: target.y,
-			label: getQuestText(locale, mainQuestId)?.title ?? t(locale, 'ui.quests'),
-			emphasis: true
-		}
-	];
+	return getObjectiveTargets(map, objective, counted).map((target) => ({
+		id: `${questId}:${objective.id}:${target.id}`,
+		kind: 'quest',
+		x: target.x,
+		y: target.y,
+		label,
+		emphasis: true
+	}));
 }
 
-function getMainQuestObjectiveTarget(
+function getObjectiveTargets(
 	map: WorldMapDefinition,
-	objectiveId: string
-): { x: number; y: number } | undefined {
-	switch (objectiveId) {
-		case 'talk-to-guild-master':
-			return getTalkToGuildMasterTarget(map);
-		case 'defeat-ruins-warden':
-			return getDefeatRuinsWardenTarget(map);
-		default:
-			return undefined;
+	objective: QuestObjective,
+	counted: ReadonlySet<string>
+): Array<{ id: string; x: number; y: number }> {
+	switch (objective.kind) {
+		case 'talk-to-npc':
+			return (map.npcs ?? []).filter(
+				(npc) => objective.npcIds.includes(npc.dialogueId) && !counted.has(`npc:${npc.dialogueId}`)
+			);
+		case 'inspect':
+			return (map.discoveries ?? []).filter(
+				(discovery) =>
+					objective.discoveryIds.includes(discovery.id) && !counted.has(`discovery:${discovery.id}`)
+			);
+		case 'collect-item':
+			return (map.pickups ?? []).filter(
+				(pickup) =>
+					objective.sources.some(
+						(source) => source.mapId === map.id && source.pickupId === pickup.id
+					) && !counted.has(`pickup:${pickup.id}`)
+			);
+		case 'defeat-enemy':
+		case 'lose-battle':
+			return (map.encounters ?? []).filter(
+				(encounter) =>
+					encounter.enemyId === objective.enemyId &&
+					![...counted].some((sourceId) => sourceId.startsWith(`encounter:${encounter.id}:`))
+			);
 	}
-}
-
-function getTalkToGuildMasterTarget(map: WorldMapDefinition): MapLandmark | MapNpc | undefined {
-	if (map.id === 'meadow-entry') {
-		return map.landmarks?.find((landmark) => landmark.id === 'guild-hall-exterior');
-	}
-	if (map.id === 'guild-hall') {
-		return map.npcs?.find((npc) => npc.id === 'guild-master');
-	}
-
-	return undefined;
-}
-
-function getDefeatRuinsWardenTarget(
-	map: WorldMapDefinition
-): MapTransition | MapEncounter | undefined {
-	if (map.id === 'meadow-entry') {
-		return map.transitions.find((transition) => transition.toMapId === 'ruins-threshold');
-	}
-	if (map.id === 'ruins-threshold') {
-		return map.transitions.find((transition) => transition.id === 'threshold-to-core');
-	}
-	if (map.id === 'ruins-core') {
-		return map.encounters?.find((encounter) => encounter.id === 'ruins-warden');
-	}
-
-	return undefined;
 }
 
 const areaNameKeys = {

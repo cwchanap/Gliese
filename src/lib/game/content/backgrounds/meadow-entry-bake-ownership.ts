@@ -73,7 +73,7 @@ export const MEADOW_ENTRY_FOREGROUND_FRONT_CUTOFF_PX =
 // `sourceKey=owner|JSON(disposition)|runtimeRequirement\n` records. The test
 // owns SHA-256 computation so a catalog or disposition change cannot self-seal.
 export const MEADOW_ENTRY_REVIEWED_BAKE_OWNERSHIP_SHA256 =
-	'9b5c24995010179caa00e081b929e25cc6a20a0d85258788707225c939033271';
+	'ab49ef3b1c5562827839c4392ab4afbafd192db3a95b5e7e2e28a1b36854ab17';
 
 const reviewedPolicies: ReviewedBakePolicy[] = [];
 
@@ -715,22 +715,6 @@ addPolicies(
 	'remain-live'
 );
 addPolicies(
-	'encounter',
-	['meadow-slime-center', 'meadow-slime-east', 'meadow-slime-west'],
-	{ mode: 'control-only', reason: 'Encounter spawn state is semantic control data.' },
-	'none'
-);
-addPolicies(
-	'combat-bounds',
-	[
-		'whispering-cave-combat-pocket',
-		'wildwood-crossing-combat-pocket',
-		'wildwood-north-combat-pocket'
-	],
-	{ mode: 'control-only', reason: 'Combat bounds are non-visual semantic control data.' },
-	'none'
-);
-addPolicies(
 	'discovery',
 	[
 		'castle-gate-warning',
@@ -797,6 +781,7 @@ function defaultV2BakePolicy(ref: MeadowEntrySourceRef): ReviewedBakePolicy {
 		case 'fence':
 		case 'landmark':
 		case 'transition':
+		case 'npc':
 		case 'ambient-npc':
 		case 'pickup':
 			return {
@@ -811,15 +796,6 @@ function defaultV2BakePolicy(ref: MeadowEntrySourceRef): ReviewedBakePolicy {
 		case 'encounter':
 		case 'combat-bounds':
 		case 'discovery':
-			return {
-				ref,
-				disposition: {
-					mode: 'control-only',
-					reason: 'Semantic control data remains runtime-owned.'
-				},
-				runtimeRequirement: 'none'
-			};
-		case 'npc':
 			return {
 				ref,
 				disposition: {
@@ -873,7 +849,7 @@ export const MEADOW_ENTRY_BAKE_OWNERSHIP = buildMeadowEntryBakeOwnership();
  * removals fail closed before a control package can be built.
  */
 const PAINTED_V2_REVIEWED_SOURCE_CATALOG_KEYS_SHA256 =
-	'424f86a1c82ed378df8adf46d2fba93728f3de888fbb0751a1e8b6f86ee32626';
+	'295851acea52d2bea1f151f9347c9bfc048bd07d067371a52a787a1c33c3c6aa';
 
 const PAINTED_V2_BASE_UNDERLAY_SOURCE_KEYS = [
 	'ground-patch:crossroads-north-trunk',
@@ -1101,19 +1077,13 @@ const PAINTED_V2_COLLISION_FALLBACK_SOURCE_KEYS = [
 ] as const;
 
 const PAINTED_V2_CONTROL_SOURCE_KEYS = [
-	'combat-bounds:whispering-cave-combat-pocket',
-	'combat-bounds:wildwood-crossing-combat-pocket',
-	'combat-bounds:wildwood-north-combat-pocket',
 	'discovery:castle-gate-warning',
 	'discovery:coast-jetty-foreshadow',
 	'discovery:crossroads-waystone-sign',
 	'discovery:ferry-shrine-lore',
 	'discovery:silverpine-amulet-foreshadow',
 	'discovery:wildwood-cave-danger',
-	'discovery:witchwood-poison-warning',
-	'encounter:meadow-slime-center',
-	'encounter:meadow-slime-east',
-	'encounter:meadow-slime-west'
+	'discovery:witchwood-poison-warning'
 ] as const;
 
 const PAINTED_V2_BASE_STATIC_POLICIES = {
@@ -1286,7 +1256,7 @@ function buildMeadowEntryPaintedV2BakeOwnership(): readonly MeadowEntryBakeOwner
 }
 
 export const MEADOW_ENTRY_REVIEWED_PAINTED_V2_BAKE_OWNERSHIP_SHA256 =
-	'8e372c21ba776aff5597ba2b45004e5db99c8632998fac7f9986e3e7289c84a5';
+	'0bec8837e33f4c81d2effb2265d316483e9b075c9042b9b85e6f54aa66230c6c';
 export const MEADOW_ENTRY_PAINTED_V2_BAKE_OWNERSHIP = buildMeadowEntryPaintedV2BakeOwnership();
 
 function assertNonEmpty(value: string, field: string, key: string): void {

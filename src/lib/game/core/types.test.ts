@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { enemies, ruinsWarden, slimeScout } from '$lib/game/content/enemies';
+import { boarKing, enemies, forestWolf } from '$lib/game/content/enemies';
 import { maps, meadowEntryMap } from '$lib/game/content/maps';
 import { players, startingPlayer } from '$lib/game/content/player';
 
@@ -11,11 +11,10 @@ describe('game content scaffolding', () => {
 		expect('facing' in startingPlayer).toBe(false);
 	});
 
-	it('defines the first enemy archetype in a registry', () => {
-		expect(slimeScout.id).toBe('slime-scout');
-		expect(enemies['slime-scout']).toBe(slimeScout);
-		expect(enemies['ruins-warden']).toBe(ruinsWarden);
-		expect(Object.keys(enemies)).toContain('slime-scout');
+	it('defines the prologue enemies in a registry', () => {
+		expect(forestWolf.id).toBe('forest-wolf');
+		expect(enemies['forest-wolf']).toBe(forestWolf);
+		expect(enemies['boar-king']).toBe(boarKing);
 	});
 
 	it('defines the opening map in a registry', () => {

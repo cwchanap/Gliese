@@ -13,8 +13,7 @@ import {
 } from '$lib/game/content/maps';
 import { COMPLETE_WORLD_MAP_IDS } from '$lib/game/content/maps/layouts/complete-world-layout-foundation';
 import { MEADOW_ENTRY_V2_RIVER_SEGMENTS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
-import { startingPlayer } from '$lib/game/content/player';
-import { mainQuestId } from '$lib/game/content/quests';
+import { homeBedside, startingPlayer } from '$lib/game/content/player';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { getXpForLevel } from '$lib/game/core/progression';
 import { createInitialQuestState } from '$lib/game/core/quests';
@@ -31,22 +30,33 @@ import {
 	findLandmarkDoorway,
 	isInsideAnyCollisionRect,
 	parseSaveState,
-	serializeSaveState
+	serializeSaveState,
+	type SaveState
 } from '$lib/game/save/save-state';
+
+/** A new run moved onto Meadow Entry, for position and normalization checks. */
+function meadowSaveState(): SaveState {
+	const save = createNewSaveState();
+	return {
+		...save,
+		mapId: meadowEntryMap.id,
+		player: { ...save.player, x: meadowEntryMap.spawn.x, y: meadowEntryMap.spawn.y }
+	};
+}
 
 describe('save state', () => {
 	it('creates a level 1 starting save', () => {
 		expect(createNewSaveState()).toEqual({
-			version: 9,
-			mapId: meadowEntryMap.id,
+			version: 10,
+			mapId: homeBedside.mapId,
 			player: {
 				level: 1,
 				xp: getXpForLevel(1),
 				hp: startingPlayer.baseHp,
 				attack: startingPlayer.baseAttack,
-				x: meadowEntryMap.spawn.x,
-				y: meadowEntryMap.spawn.y,
-				facing: meadowEntryMap.spawnDirection
+				x: homeBedside.x,
+				y: homeBedside.y,
+				facing: homeBedside.facing
 			},
 			flags: {
 				clearedEncounters: [],
@@ -54,18 +64,15 @@ describe('save state', () => {
 				collectedPickups: [],
 				resolvedEncounterDrops: {}
 			},
-			inventory: {
-				stacks: [{ itemId: 'field-potion', quantity: 1 }],
-				equipment: ['training-sword']
-			},
+			inventory: { stacks: [], equipment: [] },
 			equipment: {
-				weapon: 'training-sword',
+				weapon: null,
 				head: null,
 				body: null,
 				hands: null,
 				accessory: null
 			},
-			wallet: { coins: 30 },
+			wallet: { coins: 20 },
 			shops: {
 				stock: {
 					'guild-quartermaster': {
@@ -89,11 +96,11 @@ describe('save state', () => {
 
 	it('round-trips a valid save payload', () => {
 		const encoded = serializeSaveState(createNewSaveState());
-		expect(parseSaveState(encoded)?.mapId).toBe('meadow-entry');
+		expect(parseSaveState(encoded)).toEqual(createNewSaveState());
 	});
 
 	it('round-trips an Item Shop save at Mira approach without moving the player', () => {
-		const save = createNewSaveState();
+		const save = meadowSaveState();
 		save.mapId = itemShopMap.id;
 		save.player = {
 			...save.player,
@@ -121,7 +128,7 @@ describe('save state', () => {
 	});
 
 	it('round-trips a Blacksmith save at Oren approach without moving the player', () => {
-		const save = createNewSaveState();
+		const save = meadowSaveState();
 		save.mapId = blacksmithInteriorMap.id;
 		save.player = {
 			...save.player,
@@ -179,7 +186,7 @@ describe('save state', () => {
 
 	it('round-trips map exploration cells with cloned arrays', () => {
 		const save = {
-			...createNewSaveState(),
+			...meadowSaveState(),
 			mapExploration: { 'meadow-entry': ['0,0', '1,0'] }
 		};
 
@@ -194,7 +201,7 @@ describe('save state', () => {
 			expect(
 				parseSaveState(
 					JSON.stringify({
-						...createNewSaveState(),
+						...meadowSaveState(),
 						mapExploration: { 'meadow-entry': [cell] }
 					})
 				)
@@ -204,7 +211,7 @@ describe('save state', () => {
 
 	it('rejects legacy v1 save payloads instead of migrating them', () => {
 		const legacySave = {
-			...createNewSaveState(),
+			...meadowSaveState(),
 			version: 1,
 			flags: { clearedEncounters: [] },
 			consumables: { heals: 1 }
@@ -213,128 +220,8 @@ describe('save state', () => {
 		expect(parseSaveState(JSON.stringify(legacySave))).toBeNull();
 	});
 
-	it('migrates v5 saves to v9 by defaulting clearedEncounterUnitCounts and seenDiscoveries', () => {
-		const v5Save = {
-			...createNewSaveState(),
-			version: 5
-		};
-		v5Save.shops = {
-			stock: {
-				'guild-quartermaster': {
-					'iron-cap': 1,
-					'grip-wraps': 1,
-					'traveler-vest': 1
-				}
-			}
-		};
-		delete (v5Save.flags as Record<string, unknown>).clearedEncounterUnitCounts;
-		delete (v5Save as Record<string, unknown>).seenDiscoveries;
-
-		const migrated = parseSaveState(JSON.stringify(v5Save));
-
-		expect(migrated).not.toBeNull();
-		expect(migrated?.version).toBe(9);
-		expect(migrated?.flags.clearedEncounterUnitCounts).toEqual({});
-		expect(migrated?.seenDiscoveries).toEqual([]);
-	});
-
-	it('migrates v7 saves to v9 by clearing meadow-entry exploration', () => {
-		// The layered village refactor moved landmarks within meadow-entry,
-		// so coordinate-based exploration cells no longer cover the new
-		// landmark positions. The v7→v8 migration must clear meadow-entry
-		// exploration so area map markers reappear as the player re-explores.
-		const v7Save = {
-			...createNewSaveState(),
-			version: 7,
-			mapExploration: {
-				'meadow-entry': ['6,37', '6,36'],
-				'ruins-core': ['0,0', '1,0']
-			}
-		};
-		v7Save.shops = {
-			stock: {
-				'guild-quartermaster': {
-					'iron-cap': 1,
-					'grip-wraps': 1,
-					'traveler-vest': 1
-				}
-			}
-		};
-
-		const migrated = parseSaveState(JSON.stringify(v7Save));
-
-		expect(migrated).not.toBeNull();
-		expect(migrated?.version).toBe(9);
-		expect(migrated?.mapExploration['meadow-entry']).toBeUndefined();
-		// Other maps' exploration is preserved.
-		expect(migrated?.mapExploration['ruins-core']).toEqual(['0,0', '1,0']);
-	});
-
-	it('migrates v7 saves to v9 preserving exploration when meadow-entry is absent', () => {
-		const v7Save = {
-			...createNewSaveState(),
-			version: 7,
-			mapExploration: {
-				'ruins-core': ['0,0', '1,0']
-			}
-		};
-		v7Save.shops = {
-			stock: {
-				'guild-quartermaster': {
-					'iron-cap': 1,
-					'grip-wraps': 1,
-					'traveler-vest': 1
-				}
-			}
-		};
-
-		const migrated = parseSaveState(JSON.stringify(v7Save));
-
-		expect(migrated).not.toBeNull();
-		expect(migrated?.version).toBe(9);
-		expect(migrated?.mapExploration['ruins-core']).toEqual(['0,0', '1,0']);
-	});
-
-	it('migrates a valid v8 save to v9 without resetting existing state', () => {
-		const v8Save = { ...createNewSaveState(), version: 8 };
-		v8Save.mapId = 'blacksmith-interior';
-		v8Save.player = { ...v8Save.player, x: 448, y: 480, facing: 'up' };
-		v8Save.wallet = { coins: 7 };
-		v8Save.shops = {
-			stock: {
-				'guild-quartermaster': {
-					'iron-cap': 0,
-					'grip-wraps': 1,
-					'traveler-vest': 0
-				}
-			}
-		};
-
-		const migrated = parseSaveState(JSON.stringify(v8Save));
-
-		expect(migrated).toEqual({
-			...v8Save,
-			version: 9,
-			shops: {
-				stock: {
-					'guild-quartermaster': {
-						'iron-cap': 0,
-						'grip-wraps': 1,
-						'traveler-vest': 0
-					},
-					'sundrop-forge': {
-						'training-sword': 1,
-						'iron-cap': 1,
-						'grip-wraps': 1,
-						'traveler-vest': 1
-					}
-				}
-			}
-		});
-	});
-
-	it('rejects malformed v8 shop stock instead of silently resetting it', () => {
-		const v8Save = { ...createNewSaveState(), version: 8 };
+	it('rejects malformed shop stock instead of silently resetting it', () => {
+		const v8Save = meadowSaveState();
 		const validLegacyStock = {
 			'guild-quartermaster': {
 				'iron-cap': 1,
@@ -367,9 +254,9 @@ describe('save state', () => {
 
 	it('clamps saved coordinates to the current map bounds and nudges off collision', () => {
 		const outOfBoundsSave = {
-			...createNewSaveState(),
+			...meadowSaveState(),
 			player: {
-				...createNewSaveState().player,
+				...meadowSaveState().player,
 				x: 99_999,
 				y: -50
 			}
@@ -420,7 +307,7 @@ describe('save state', () => {
 			const collision = map.interiorProps?.find((prop) => prop.id === propId)?.collision;
 			expect(collision).toBeDefined();
 
-			const save = createNewSaveState();
+			const save = meadowSaveState();
 			save.mapId = map.id;
 			save.player = {
 				...save.player,
@@ -470,7 +357,7 @@ describe('save state', () => {
 		});
 		if (!collision) return;
 
-		const save = createNewSaveState();
+		const save = meadowSaveState();
 		save.mapId = villagerHouse2Map.id;
 		save.player = { ...save.player, x: collision.x, y: collision.y };
 
@@ -514,9 +401,9 @@ describe('save state', () => {
 			)
 		).toBe(true);
 		const blockedSave = {
-			...createNewSaveState(),
+			...meadowSaveState(),
 			player: {
-				...createNewSaveState().player,
+				...meadowSaveState().player,
 				x: blockedPosition.x,
 				y: blockedPosition.y
 			}
@@ -542,9 +429,9 @@ describe('save state', () => {
 			y: river!.rect.y + river!.rect.height / 2
 		};
 		const blockedSave = {
-			...createNewSaveState(),
+			...meadowSaveState(),
 			player: {
-				...createNewSaveState().player,
+				...meadowSaveState().player,
 				x: blockedPosition.x,
 				y: blockedPosition.y
 			}
@@ -573,9 +460,9 @@ describe('save state', () => {
 			)
 		).toBe(true);
 		const blockedSave = {
-			...createNewSaveState(),
+			...meadowSaveState(),
 			player: {
-				...createNewSaveState().player,
+				...meadowSaveState().player,
 				x: blockedPosition.x,
 				y: blockedPosition.y
 			}
@@ -604,9 +491,9 @@ describe('save state', () => {
 	it('nudges a saved position inside a fence to the nearest walkable tile', () => {
 		// (4020, 5250) is inside coast-approach-west-fence (32x520 at (4020, 5250)).
 		const blockedSave = {
-			...createNewSaveState(),
+			...meadowSaveState(),
 			player: {
-				...createNewSaveState().player,
+				...meadowSaveState().player,
 				x: 4020,
 				y: 5250
 			}
@@ -623,9 +510,9 @@ describe('save state', () => {
 		// The V2 Shrine of Aurora return arrival is two tiles below its exterior
 		// doorway and outside the landmark's padded collision bounds.
 		const doorwaySave = {
-			...createNewSaveState(),
+			...meadowSaveState(),
 			player: {
-				...createNewSaveState().player,
+				...meadowSaveState().player,
 				x: 2272,
 				y: 5920
 			}
@@ -649,9 +536,9 @@ describe('save state', () => {
 			)
 		).toBe(true);
 		const blockedSave = {
-			...createNewSaveState(),
+			...meadowSaveState(),
 			player: {
-				...createNewSaveState().player,
+				...meadowSaveState().player,
 				x: blockedPosition.x,
 				y: blockedPosition.y
 			}
@@ -684,9 +571,9 @@ describe('save state', () => {
 			)
 		).toBe(true);
 		const blockedSave = {
-			...createNewSaveState(),
+			...meadowSaveState(),
 			player: {
-				...createNewSaveState().player,
+				...meadowSaveState().player,
 				x: blockedPosition.x,
 				y: blockedPosition.y
 			}
@@ -710,9 +597,9 @@ describe('save state', () => {
 		['villager-house-3', villagerHouse3Map, villagerHouse3Map.spawn]
 	] as const)('leaves a walkable %s saved position unchanged', (_mapId, map, point) => {
 		const walkableSave = {
-			...createNewSaveState(),
+			...meadowSaveState(),
 			player: {
-				...createNewSaveState().player,
+				...meadowSaveState().player,
 				x: point.x,
 				y: point.y
 			}
@@ -738,7 +625,7 @@ describe('save state', () => {
 	it('round-trips every complete-world map spawn without collision recovery', () => {
 		for (const mapId of COMPLETE_WORLD_MAP_IDS) {
 			const map = maps[mapId];
-			const save = createNewSaveState();
+			const save = meadowSaveState();
 			save.mapId = mapId;
 			save.player = {
 				...save.player,
@@ -782,18 +669,18 @@ describe('save state', () => {
 		expect(parseSaveState('[]')).toBeNull();
 	});
 
-	it('rejects version 4 and accepts version 9', () => {
-		expect(parseSaveState(JSON.stringify({ ...createNewSaveState(), version: 4 }))).toBeNull();
-		expect(parseSaveState(JSON.stringify(createNewSaveState()))?.version).toBe(9);
+	it('rejects older schema versions and accepts version 10', () => {
+		expect(parseSaveState(JSON.stringify({ ...meadowSaveState(), version: 9 }))).toBeNull();
+		expect(parseSaveState(JSON.stringify(meadowSaveState()))?.version).toBe(10);
 	});
 
 	it('rejects a payload with wrong player field types', () => {
 		expect(
 			parseSaveState(
 				JSON.stringify({
-					...createNewSaveState(),
+					...meadowSaveState(),
 					player: {
-						...createNewSaveState().player,
+						...meadowSaveState().player,
 						level: '1'
 					}
 				})
@@ -805,7 +692,7 @@ describe('save state', () => {
 		expect(
 			parseSaveState(
 				JSON.stringify({
-					...createNewSaveState(),
+					...meadowSaveState(),
 					flags: {
 						clearedEncounters: ['slime-scout-1', 7],
 						clearedEncounterUnitCounts: {},
@@ -821,9 +708,9 @@ describe('save state', () => {
 		expect(
 			parseSaveState(
 				JSON.stringify({
-					...createNewSaveState(),
+					...meadowSaveState(),
 					flags: {
-						...createNewSaveState().flags,
+						...meadowSaveState().flags,
 						resolvedEncounterDrops: []
 					}
 				})
@@ -835,9 +722,9 @@ describe('save state', () => {
 		expect(
 			parseSaveState(
 				JSON.stringify({
-					...createNewSaveState(),
+					...meadowSaveState(),
 					flags: {
-						...createNewSaveState().flags,
+						...meadowSaveState().flags,
 						resolvedEncounterDrops: {
 							'slime-scout-1': [{ itemId: 'not-real', quantity: 1 }]
 						}
@@ -848,7 +735,7 @@ describe('save state', () => {
 	});
 
 	it('rejects missing required item state fields', () => {
-		const save = createNewSaveState();
+		const save = meadowSaveState();
 
 		for (const invalidPayload of [
 			{ ...save, inventory: undefined },
@@ -874,7 +761,7 @@ describe('save state', () => {
 	});
 
 	it('rejects invalid item state entries', () => {
-		const save = createNewSaveState();
+		const save = meadowSaveState();
 
 		for (const invalidPayload of [
 			{
@@ -982,7 +869,8 @@ describe('save state', () => {
 	});
 
 	it('rejects invalid quest state entries', () => {
-		const save = createNewSaveState();
+		const save = meadowSaveState();
+		const mainQuestId = 'prologue-proving-morning';
 		const mainEntry = save.quests.entries[mainQuestId]!;
 
 		for (const invalidPayload of [
@@ -1060,16 +948,6 @@ describe('save state', () => {
 					...save.quests,
 					entries: {
 						...save.quests.entries,
-						[mainQuestId]: { ...mainEntry, rewardApplied: 'yes' }
-					}
-				}
-			},
-			{
-				...save,
-				quests: {
-					...save.quests,
-					entries: {
-						...save.quests.entries,
 						[mainQuestId]: { ...mainEntry, countedSourceIds: undefined }
 					}
 				}
@@ -1080,7 +958,7 @@ describe('save state', () => {
 					...save.quests,
 					entries: {
 						...save.quests.entries,
-						[mainQuestId]: { ...mainEntry, countedSourceIds: ['npc:guild-master', 7] }
+						[mainQuestId]: { ...mainEntry, countedSourceIds: ['npc:mott-hearth', 7] }
 					}
 				}
 			},
@@ -1091,11 +969,16 @@ describe('save state', () => {
 					completedObjectives: []
 				}
 			},
+			{ ...save, quests: { ...save.quests, pendingEffects: undefined } },
+			{
+				...save,
+				quests: { ...save.quests, pendingEffects: [{ type: 'play-scene' }] }
+			},
 			{
 				...save,
 				quests: {
 					...save.quests,
-					completedObjectives: { 'not-a-quest': ['talk-to-guild-master'] }
+					completedObjectives: { 'not-a-quest': ['talk-to-mott'] }
 				}
 			},
 			{
@@ -1111,7 +994,7 @@ describe('save state', () => {
 	});
 
 	it('rejects invalid map exploration state', () => {
-		const save = createNewSaveState();
+		const save = meadowSaveState();
 
 		for (const invalidPayload of [
 			{ ...save, mapExploration: undefined },
@@ -1125,10 +1008,10 @@ describe('save state', () => {
 
 	it('preserves player position when the saved map is unknown', () => {
 		const save = {
-			...createNewSaveState(),
+			...meadowSaveState(),
 			mapId: 'unknown-map',
 			player: {
-				...createNewSaveState().player,
+				...meadowSaveState().player,
 				x: 1234,
 				y: 5678
 			}
@@ -1140,7 +1023,7 @@ describe('save state', () => {
 	});
 
 	it('rejects invalid wallet and shop stock state', () => {
-		const save = createNewSaveState();
+		const save = meadowSaveState();
 
 		for (const invalidPayload of [
 			{ ...save, wallet: undefined },
@@ -1180,30 +1063,13 @@ describe('seenDiscoveries', () => {
 	});
 
 	it('round-trips a populated set', () => {
-		const save = { ...createNewSaveState(), seenDiscoveries: ['crossroads-waystone-sign'] };
+		const save = { ...meadowSaveState(), seenDiscoveries: ['crossroads-waystone-sign'] };
 		const parsed = parseSaveState(serializeSaveState(save));
 		expect(parsed?.seenDiscoveries).toEqual(['crossroads-waystone-sign']);
 	});
 
-	it('migrates a v6 payload by defaulting seenDiscoveries to []', () => {
-		const v6 = { ...createNewSaveState(), version: 6 } as Record<string, unknown>;
-		v6.shops = {
-			stock: {
-				'guild-quartermaster': {
-					'iron-cap': 1,
-					'grip-wraps': 1,
-					'traveler-vest': 1
-				}
-			}
-		};
-		delete v6.seenDiscoveries;
-		const parsed = parseSaveState(JSON.stringify(v6));
-		expect(parsed?.version).toBe(9);
-		expect(parsed?.seenDiscoveries).toEqual([]);
-	});
-
 	it('rejects a non-string-array seenDiscoveries', () => {
-		const bad = { ...createNewSaveState(), seenDiscoveries: [1, 2] } as unknown;
+		const bad = { ...meadowSaveState(), seenDiscoveries: [1, 2] } as unknown;
 		expect(parseSaveState(JSON.stringify(bad))).toBeNull();
 	});
 });
