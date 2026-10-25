@@ -96,7 +96,7 @@ const packs: Pack[] = [
 	// Trial three: wolves up the Silverpine trail, the Boar King on the terrace.
 	pack('silverpine-wolves-bridge', 'forest-wolf', { x: 3_500, y: 2_400 }, 3, dayOne),
 	pack('silverpine-wolves-corridor', 'forest-wolf', { x: 2_560, y: 2_000 }, 3, dayOne),
-	pack('silverpine-wolves-falls', 'forest-wolf', { x: 2_760, y: 1_480 }, 3, dayOne),
+	pack('silverpine-wolves-falls', 'forest-wolf', { x: 2_160, y: 1_480 }, 3, dayOne),
 	pack('silverpine-wolves-terrace', 'forest-wolf', { x: 2_560, y: 1_000 }, 3, dayOne),
 	pack('boar-king', 'boar-king', { x: 2_900, y: 800 }, 1, during('defeat-boar-king')),
 	// The raid: soldiers between the house and the gate, the captain on the green.
@@ -143,7 +143,7 @@ export const prologueRegion: RegionFragment = {
 		storyNpc('drogg-crossroads', { x: 3_700, y: 4_160 }, 'drogg', 'fisherNpc', {
 			activeDuring: { objectives: ['meet-drogg-crossroads', 'track-the-boar-king'] }
 		}),
-		storyNpc('drogg-falls', { x: 3_100, y: 1_640 }, 'drogg', 'fisherNpc', {
+		storyNpc('drogg-falls', { x: 2_700, y: 1_180 }, 'drogg', 'fisherNpc', {
 			activeDuring: { objectives: ['talk-to-drogg-falls', 'defeat-boar-king'] }
 		}),
 		storyNpc('borak-gate', { x: 2_720, y: 4_688 }, 'borak', 'guildMasterNpc', {

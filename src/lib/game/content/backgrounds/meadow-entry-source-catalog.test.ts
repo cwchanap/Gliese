@@ -131,7 +131,7 @@ describe('meadow-entry source catalog', () => {
 						.join('')
 				)
 				.digest('hex')
-		).toBe('962c12189b9d77865c6ef72fed741201e0e0b9eb89b44308097c9c262aa164f0');
+		).toBe('e90189194fec9c75f615875a68c4fa059a08d4fc851ef8ebb31b29acbd6c59a8');
 		expect(catalog).toHaveLength(448);
 		expect(
 			resolveMeadowEntrySource({
