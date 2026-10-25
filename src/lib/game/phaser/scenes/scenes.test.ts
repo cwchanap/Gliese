@@ -10476,6 +10476,11 @@ describe('WorldScene', () => {
 			buildSaveState: () => ReturnType<typeof createNewSaveState>;
 		};
 		const save = createNewSaveState();
+		const play = vi.fn();
+		Object.assign(scene, {
+			sound: { play, add: vi.fn(() => ({ play: vi.fn(), destroy: vi.fn() })) },
+			cache: { audio: { exists: (key: string) => key === 'quest-complete' } }
+		});
 
 		scene.create({
 			saveState: {
@@ -10506,6 +10511,7 @@ describe('WorldScene', () => {
 		});
 
 		const built = sceneState.buildSaveState();
+		expect(play).toHaveBeenCalledWith('quest-complete', expect.anything());
 		expect(built.quests.entries['prologue-trial-boar-king']?.status).toBe('completed');
 		expect(built.quests.entries['prologue-hunters-name']).toMatchObject({
 			status: 'active',

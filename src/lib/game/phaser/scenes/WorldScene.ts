@@ -708,6 +708,10 @@ export class WorldScene extends Phaser.Scene {
 		) {
 			this.events?.once?.('render', () => this.writeAutosave(this.buildSaveState()));
 		}
+		// Battles complete quests outside applyQuestProgress; cue it once on the return.
+		if (battleApplication?.summary?.completedQuestIds.length) {
+			playSfx(this, 'quest-complete');
+		}
 		if (reason === 'story-move') {
 			this.cameras.main.fadeIn?.(WorldScene.storyFadeMs, 0, 0, 0);
 		}
