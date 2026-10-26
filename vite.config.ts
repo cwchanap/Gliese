@@ -26,6 +26,11 @@ export default defineConfig({
 		port: 4173,
 		strictPort: true
 	},
+	// Pre-bundle the Tauri modules that only main.ts reaches. Discovering them mid-run makes
+	// Vite reload the browser test page, which flakily fails whichever spec is importing.
+	optimizeDeps: {
+		include: ['@tauri-apps/api/window', '@tauri-apps/plugin-fs']
+	},
 	test: {
 		expect: { requireAssertions: true },
 		projects: [
