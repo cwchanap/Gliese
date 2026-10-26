@@ -225,7 +225,8 @@ a walkable graybox first.
 The continent is being rebuilt as one text-grid map, `overworld` (plan: the Notion page
 「地圖重新設計企劃」). Until it replaces `meadow-entry` it is reachable only through the dev
 link `?startMap=overworld` (e.g. `http://localhost:5173/?startMap=overworld`), which boots a
-fresh save on the map's spawn anchor. The grid code lives in `content/maps/grid/`;
+fresh save on the map's spawn anchor. A dev-link run never writes save slots, so it cannot
+overwrite real progress. The grid code lives in `content/maps/grid/`;
 `content/maps/overworld/world.ts` places the chunks from `overworld/chunks/`.
 
 - **Chunks** (`GridChunkSource`): `terrain` is a text block with one glyph per 32px tile and

@@ -217,6 +217,9 @@ export function compileGridWorld(source: GridWorldSource): CompiledGridWorld {
 		if (chunkIds.has(chunk.id)) fail(`chunk "${chunk.id}" is placed twice`);
 		chunkIds.add(chunk.id);
 		const { col: left, row: top } = placement;
+		if (!Number.isSafeInteger(left) || !Number.isSafeInteger(top)) {
+			fail(`chunk "${chunk.id}" must be placed at whole tiles, got col ${left} row ${top}`);
+		}
 		if (
 			left < 0 ||
 			top < 0 ||

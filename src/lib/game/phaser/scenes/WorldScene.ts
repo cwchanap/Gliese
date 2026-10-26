@@ -2825,7 +2825,13 @@ export class WorldScene extends Phaser.Scene {
 		};
 	}
 
+	/** A `?startMap=` dev run is throwaway: it never overwrites the player's save slots. */
+	private get isDevMapRun(): boolean {
+		return this.renderOptions.startMapId !== null;
+	}
+
 	private writeAutosave(state: SaveState) {
+		if (this.isDevMapRun) return;
 		this.afterNextRenderedFrame(async (canvasOwned) => {
 			try {
 				writeSaveSlot(0, this.buildSlotRecord('autosave', state, canvasOwned));
@@ -2843,6 +2849,10 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private writeManualSlot(slot: 1 | 2) {
+		if (this.isDevMapRun) {
+			this.publishHudState(this.status('status.saveFailed'));
+			return;
+		}
 		const state = this.buildSaveState();
 		this.afterNextRenderedFrame(async (canvasOwned) => {
 			try {
