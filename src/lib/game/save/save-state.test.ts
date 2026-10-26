@@ -13,6 +13,7 @@ import {
 } from '$lib/game/content/maps';
 import { COMPLETE_WORLD_MAP_IDS } from '$lib/game/content/maps/layouts/complete-world-layout-foundation';
 import { MEADOW_ENTRY_V2_RIVER_SEGMENTS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
+import { overworldMap } from '$lib/game/content/maps/overworld/world';
 import { homeBedside, startingPlayer } from '$lib/game/content/player';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { getXpForLevel } from '$lib/game/core/progression';
@@ -250,6 +251,25 @@ describe('save state', () => {
 		for (const stock of invalidStocks) {
 			expect(parseSaveState(JSON.stringify({ ...v8Save, shops: { stock } }))).toBeNull();
 		}
+	});
+
+	it('keeps a saved position on terrain that only blocks in a later story window', () => {
+		// Tile (24, 8) of the overworld sandbox burns only during the raid.
+		const save = createNewSaveState();
+		const onRaidFire = {
+			...save,
+			mapId: overworldMap.id,
+			player: { ...save.player, x: 784, y: 272 }
+		};
+		const raidCell = overworldMap.tileOverlays
+			?.flatMap((overlay) => overlay.cells)
+			.find((cell) => cell.col === 24 && cell.row === 8);
+		expect(raidCell?.glyph).toBe('&');
+
+		expect(parseSaveState(serializeSaveState(onRaidFire))?.player).toMatchObject({
+			x: 784,
+			y: 272
+		});
 	});
 
 	it('clamps saved coordinates to the current map bounds and nudges off collision', () => {
