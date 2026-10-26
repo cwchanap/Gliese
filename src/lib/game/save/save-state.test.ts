@@ -17,7 +17,9 @@ import { overworldMap } from '$lib/game/content/maps/overworld/world';
 import { homeBedside, startingPlayer } from '$lib/game/content/player';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { getXpForLevel } from '$lib/game/core/progression';
-import { createInitialQuestState } from '$lib/game/core/quests';
+import { createInitialQuestState, getStoryProgress } from '$lib/game/core/quests';
+import { questStateAt } from '$lib/game/core/quests.fixtures';
+import { applyStoryGates } from '$lib/game/core/story-gates';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import {
 	buildMapNavigationObstacles,
@@ -270,6 +272,29 @@ describe('save state', () => {
 			x: 784,
 			y: 272
 		});
+	});
+
+	it('nudges a saved position off terrain that blocks in the saved story window', () => {
+		const save = createNewSaveState();
+		const duringRaid = {
+			...save,
+			mapId: overworldMap.id,
+			quests: questStateAt('heed-mott'),
+			player: { ...save.player, x: 784, y: 272 }
+		};
+
+		const player = parseSaveState(serializeSaveState(duringRaid))?.player;
+		expect(player).not.toMatchObject({ x: 784, y: 272 });
+		const raidMap = applyStoryGates(overworldMap, getStoryProgress(duringRaid.quests));
+		expect(
+			isNavigationPositionWalkable(
+				resolveMapNavigationGrid(raidMap),
+				buildMapNavigationObstacles(raidMap, { includeInteractableNpcs: false }),
+				player!,
+				PLAYER_COLLISION_RADIUS,
+				'resting-position'
+			)
+		).toBe(true);
 	});
 
 	it('clamps saved coordinates to the current map bounds and nudges off collision', () => {
