@@ -18,7 +18,7 @@ import {
 	villageDressingAsset,
 	villageHedgeAsset
 } from '$lib/game/content/assets';
-import { maps } from '$lib/game/content/maps';
+import { findMap, maps } from '$lib/game/content/maps';
 import { GRID_TILESET } from '$lib/game/content/maps/grid/tileset';
 import { createNewSaveState } from '$lib/game/save/save-state';
 import {
@@ -51,8 +51,7 @@ export class BootScene extends Phaser.Scene {
 			this.startRequest = request;
 		}
 		// `?startMap=<id>` (dev only) drops a fresh run at that map's spawn.
-		const startMapId = resolveWorldRenderOptions().startMapId;
-		const startMap = startMapId && Object.hasOwn(maps, startMapId) ? maps[startMapId] : undefined;
+		const startMap = findMap(resolveWorldRenderOptions().startMapId);
 		if (startMap) {
 			const saveState = createNewSaveState();
 			this.startRequest = {

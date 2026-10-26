@@ -202,7 +202,40 @@ describe('compileGridWorld', () => {
 					{ chunk: twin, col: 2, row: 0 }
 				]
 			})
-		).toThrow('anchor "west-gate" is defined in more than one chunk');
+		).toThrow('anchor "west-gate" is defined more than once');
+	});
+
+	it('treats anchor names that are Object keys as ordinary names', () => {
+		const named = (id: string, name: string): GridChunkSource => ({
+			id,
+			anchors: { a: name },
+			terrain: 'a'
+		});
+		const world = compileGridWorld({
+			id: 'world',
+			width: 3,
+			height: 1,
+			fill: '^',
+			chunks: [
+				{ chunk: named('one', 'constructor'), col: 0, row: 0 },
+				{ chunk: named('two', '__proto__'), col: 1, row: 0 }
+			]
+		});
+		expect(Object.keys(world.anchors)).toEqual(['constructor', '__proto__']);
+		expect(gridWorldMap(world, '__proto__', 'down').spawn).toEqual({ x: 48, y: 16 });
+		expect(() => gridWorldMap(world, 'toString', 'down')).toThrow('no spawn anchor "toString"');
+		expect(() =>
+			compileGridWorld({
+				id: 'world',
+				width: 3,
+				height: 1,
+				fill: '^',
+				chunks: [
+					{ chunk: named('one', 'constructor'), col: 0, row: 0 },
+					{ chunk: named('two', 'constructor'), col: 1, row: 0 }
+				]
+			})
+		).toThrow('anchor "constructor" is defined more than once');
 	});
 
 	it('builds a playable map that spawns on an anchor', () => {

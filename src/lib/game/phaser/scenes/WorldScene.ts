@@ -42,6 +42,7 @@ import {
 } from '$lib/game/content/backgrounds/map-background-package';
 import { getBlockerRuntimeRenderMode } from '$lib/game/content/maps/blocker-rendering';
 import {
+	findMap,
 	maps,
 	openingMapId,
 	type MapBlocker,
@@ -2825,9 +2826,12 @@ export class WorldScene extends Phaser.Scene {
 		};
 	}
 
-	/** A `?startMap=` dev run is throwaway: it never overwrites the player's save slots. */
+	/**
+	 * A `?startMap=` dev run is throwaway: it never overwrites the player's save slots.
+	 * Uses the same lookup as BootScene, so an unknown id leaves a normal, saving run.
+	 */
 	private get isDevMapRun(): boolean {
-		return this.renderOptions.startMapId !== null;
+		return findMap(this.renderOptions.startMapId) !== undefined;
 	}
 
 	private writeAutosave(state: SaveState) {

@@ -209,7 +209,7 @@ export function compileGridWorld(source: GridWorldSource): CompiledGridWorld {
 	);
 	const buildings: MapGridBuilding[] = [];
 	const overlays: MapTileOverlay[] = [];
-	const anchors: Record<string, GridAnchor> = {};
+	const anchors = new Map<string, GridAnchor>();
 	const chunkIds = new Set<string>();
 
 	for (const placement of source.chunks) {
@@ -250,16 +250,16 @@ export function compileGridWorld(source: GridWorldSource): CompiledGridWorld {
 			});
 		}
 		for (const anchor of chunk.anchors) {
-			if (anchors[anchor.name]) fail(`anchor "${anchor.name}" is defined in more than one chunk`);
+			if (anchors.has(anchor.name)) fail(`anchor "${anchor.name}" is defined more than once`);
 			const col = anchor.col + left;
 			const row = anchor.row + top;
-			anchors[anchor.name] = {
+			anchors.set(anchor.name, {
 				name: anchor.name,
 				col,
 				row,
 				x: col * GRID_TILE_SIZE + GRID_TILE_SIZE / 2,
 				y: row * GRID_TILE_SIZE + GRID_TILE_SIZE / 2
-			};
+			});
 		}
 	}
 
@@ -269,7 +269,8 @@ export function compileGridWorld(source: GridWorldSource): CompiledGridWorld {
 		height: source.height,
 		grid: { terrain: terrain.map((line) => line.join('')), buildings },
 		overlays,
-		anchors
+		// fromEntries defines own properties, so a name like "__proto__" stays an ordinary anchor.
+		anchors: Object.fromEntries(anchors)
 	};
 }
 
@@ -279,7 +280,7 @@ export function gridWorldMap(
 	spawnAnchor: string,
 	spawnDirection: WorldMapDefinition['spawnDirection']
 ): WorldMapDefinition & { readonly tileGrid: MapTileGrid } {
-	const spawn = world.anchors[spawnAnchor];
+	const spawn = Object.hasOwn(world.anchors, spawnAnchor) ? world.anchors[spawnAnchor] : undefined;
 	if (!spawn) throw new Error(`grid world "${world.id}": no spawn anchor "${spawnAnchor}"`);
 	return {
 		id: world.id,
