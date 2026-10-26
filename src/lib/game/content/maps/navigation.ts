@@ -1,4 +1,5 @@
 import { isNpcPackFrameName } from '$lib/game/content/assets';
+import { isGridWorldMap, resolveGridNavigationGrid } from '$lib/game/content/maps/grid/runtime';
 import type {
 	MapRect,
 	NavigationGridOwnedSource,
@@ -19,6 +20,10 @@ const LANDMARK_TRANSITION_RADIUS = 18;
 const openNavigationGrids = new Map<string, NavigationGrid>();
 
 export function resolveMapNavigationGrid(map: WorldMapDefinition): NavigationGrid {
+	if (isGridWorldMap(map)) {
+		return resolveGridNavigationGrid(map);
+	}
+
 	if (map.navigationGrid) {
 		return map.navigationGrid;
 	}

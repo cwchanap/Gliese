@@ -1,5 +1,6 @@
 import type { DefinitionRegistry } from '$lib/game/core/types';
 import { meadowEntryMap, openingMapId } from '$lib/game/content/maps/meadow-entry';
+import { overworldMap } from '$lib/game/content/maps/overworld/world';
 import { VILLAGE_INTERIOR_EXTERIORS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
 import { toMapRect, type NamedLayoutRect } from '$lib/game/content/maps/layouts/layout-rects';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
@@ -1654,7 +1655,9 @@ export const maps: DefinitionRegistry<WorldMapDefinition> = {
 	[villagerHouse3Map.id]: villagerHouse3Map,
 	[shrineOfAuroraInteriorMap.id]: shrineOfAuroraInteriorMap,
 	[ruinsThresholdMap.id]: ruinsThresholdMap,
-	[ruinsCoreMap.id]: ruinsCoreMap
+	[ruinsCoreMap.id]: ruinsCoreMap,
+	// Reached only through the `?startMap=overworld` dev link until it replaces meadow-entry.
+	[overworldMap.id]: overworldMap
 };
 
 // Sundrop's everyday crowd is gone once the raid begins; only story NPCs remain.

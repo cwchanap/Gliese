@@ -15,6 +15,7 @@ import type {
 	villageDressingAsset,
 	VillageDressingFrameName
 } from '$lib/game/content/assets';
+import type { GridBuildingType } from '$lib/game/content/maps/grid/buildings';
 import type { QuestId } from '$lib/game/content/quests';
 import type { MapDefinition } from '$lib/game/core/types';
 import type { NavigationGrid } from '$lib/game/core/navigation';
@@ -233,6 +234,28 @@ export interface MapDiscovery extends StoryGated {
 
 export type NavigationGridOwnedSource = 'blocker' | 'fence' | 'map-decor' | 'interior-prop';
 
+/** A building footprint on a text-grid map, in tiles. */
+export interface MapGridBuilding {
+	readonly id: string;
+	readonly type: GridBuildingType;
+	readonly col: number;
+	readonly row: number;
+	readonly width: number;
+	readonly height: number;
+}
+
+/** A compiled text-grid map: one legend glyph per tile (see `content/maps/grid`). */
+export interface MapTileGrid {
+	readonly terrain: readonly string[];
+	readonly buildings: readonly MapGridBuilding[];
+}
+
+/** Terrain that replaces the grid's tiles while its story window is open. */
+export interface MapTileOverlay extends StoryGated {
+	readonly id: string;
+	readonly cells: readonly { readonly col: number; readonly row: number; readonly glyph: string }[];
+}
+
 export interface WorldMapDefinition extends MapDefinition {
 	spawn: {
 		x: number;
@@ -254,4 +277,7 @@ export interface WorldMapDefinition extends MapDefinition {
 	backgroundImages?: MapBackgroundImage[];
 	readonly navigationGrid?: NavigationGrid;
 	readonly navigationGridOwnedSources?: readonly NavigationGridOwnedSource[];
+	/** Text-grid maps draw and collide from this instead of ground patches and blockers. */
+	readonly tileGrid?: MapTileGrid;
+	tileOverlays?: MapTileOverlay[];
 }

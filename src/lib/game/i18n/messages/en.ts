@@ -640,7 +640,8 @@ export const en = {
 				'villager-house-3': 'Villager House',
 				'shrine-of-aurora-interior': 'Shrine of Aurora',
 				'ruins-threshold': 'Old Tunnel',
-				'ruins-core': 'Old Tunnel Depths'
+				'ruins-core': 'Old Tunnel Depths',
+				overworld: 'The Wilds'
 			}
 		},
 		rewards: {

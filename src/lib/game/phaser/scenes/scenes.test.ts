@@ -35,6 +35,9 @@ import { MAP_BACKGROUND_DEFAULT_SELECTIONS } from '$lib/game/content/backgrounds
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 import * as questRuntime from '$lib/game/core/quests';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
+import { buildGridTileLayers } from '$lib/game/content/maps/grid/layers';
+import { GRID_TILESET } from '$lib/game/content/maps/grid/tileset';
+import { overworld, overworldMap } from '$lib/game/content/maps/overworld/world';
 
 const createQuestStateWithOpening = questRuntime.createInitialQuestState;
 
@@ -1047,6 +1050,33 @@ describe('BootScene', () => {
 		expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, resumeRequest);
 	});
 
+	it('starts a fresh run at the spawn of the ?startMap= dev-link map', async () => {
+		const restoreLocation = installLocationSearch('?startMap=overworld');
+		const { BootScene } = await import('./BootScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new BootScene();
+		Object.assign(scene, { registry: { get: vi.fn(() => undefined) } });
+
+		try {
+			scene.init();
+			scene.create();
+		} finally {
+			restoreLocation();
+		}
+
+		expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, {
+			reason: 'resume',
+			saveState: expect.objectContaining({
+				mapId: overworldMap.id,
+				player: expect.objectContaining({
+					x: overworldMap.spawn.x,
+					y: overworldMap.spawn.y,
+					facing: overworldMap.spawnDirection
+				})
+			})
+		});
+	});
+
 	it('preloads the static and animation sheets', async () => {
 		const {
 			animationPackAsset,
@@ -1090,6 +1120,7 @@ describe('BootScene', () => {
 			environmentDressingAsset.path
 		);
 		expect(scene.load.image).toHaveBeenCalledWith(terrainTilesAsset.key, terrainTilesAsset.path);
+		expect(scene.load.image).toHaveBeenCalledWith(GRID_TILESET.key, GRID_TILESET.path);
 		expect(scene.load.image).toHaveBeenCalledWith(coastDressingAsset.key, coastDressingAsset.path);
 		expect(scene.load.image).toHaveBeenCalledWith(
 			shrineDressingAsset.key,
@@ -4897,6 +4928,39 @@ describe('WorldScene', () => {
 			'stoneStair'
 		);
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
+	});
+
+	it('renders a text-grid map as ground and canopy tile layers with building footprints', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: overworldMap.id });
+
+		const layers = buildGridTileLayers(overworld.grid.terrain);
+		expect(vi.mocked(scene.make.tilemap).mock.calls.map(([config]) => config?.data)).toEqual([
+			layers.ground,
+			layers.canopy
+		]);
+		expect(phaserState.tilemap.addTilesetImage).toHaveBeenCalledWith(
+			GRID_TILESET.key,
+			GRID_TILESET.key,
+			32,
+			32
+		);
+		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
+		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(100);
+		const hut = overworld.grid.buildings[0]!;
+		expect(phaserState.graphicsMarkers.flatMap(({ commands }) => commands)).toContainEqual(
+			expect.objectContaining({
+				kind: 'fillRect',
+				x: hut.col * 32,
+				y: hut.row * 32,
+				width: hut.width * 32,
+				height: hut.height * 32
+			})
+		);
+		expect(phaserState.playerMarker.x).toBe(overworldMap.spawn.x);
+		expect(phaserState.playerMarker.y).toBe(overworldMap.spawn.y);
 	});
 
 	it('renders the rebuilt Shrine and villager house contracts in the live scene', async () => {

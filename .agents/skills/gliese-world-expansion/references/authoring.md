@@ -4,11 +4,23 @@ Select the owning source before designing coordinates or art. All current paths 
 
 ## Source Selection
 
-| Authoring source                   | Use it for                                                         | First stops                                                                                                                                                         |
-| ---------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Direct map literal                 | Current interiors and ruins-style dungeons                         | `src/lib/game/content/maps.ts`, `src/lib/game/content/maps/types.ts`                                                                                                |
-| Hand-authored fragment composition | New or revised Meadow Entry destinations and connectors by default | `src/lib/game/content/maps/regions/types.ts`, the closest file under `src/lib/game/content/maps/regions/`, and `src/lib/game/content/maps/meadow-entry.ts`          |
-| Village layered source             | Existing Sundrop Village tile-level geometry                       | `src/lib/game/content/maps/regions/village-layered.ts`, `src/lib/game/content/maps/layered/types.ts`, `src/lib/game/content/maps/layered/compile-layered-region.ts` |
+| Authoring source                   | Use it for                                                                           | First stops                                                                                                                                                         |
+| ---------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overworld text grid                | The continent that replaces Meadow Entry: terrain, buildings, anchors, story terrain | `CLAUDE.md` ("Overworld grid maps"), `src/lib/game/content/maps/overworld/world.ts`, the closest chunk under `src/lib/game/content/maps/overworld/chunks/`          |
+| Direct map literal                 | Current interiors and ruins-style dungeons                                           | `src/lib/game/content/maps.ts`, `src/lib/game/content/maps/types.ts`                                                                                                |
+| Hand-authored fragment composition | New or revised Meadow Entry destinations and connectors by default                   | `src/lib/game/content/maps/regions/types.ts`, the closest file under `src/lib/game/content/maps/regions/`, and `src/lib/game/content/maps/meadow-entry.ts`          |
+| Village layered source             | Existing Sundrop Village tile-level geometry                                         | `src/lib/game/content/maps/regions/village-layered.ts`, `src/lib/game/content/maps/layered/types.ts`, `src/lib/game/content/maps/layered/compile-layered-region.ts` |
+
+## Overworld Text Grid
+
+The continent is being rebuilt as one text-grid map, `overworld`, chunk by chunk (Sundrop,
+Wildwood, Mistfen, Silverpine). Build new outdoor areas there, not as Meadow Entry fragments.
+The format, legend, anchors, buildings, and story overlays are documented in `CLAUDE.md`;
+the compiler lives in `src/lib/game/content/maps/grid/compile.ts`.
+
+- Edit terrain as text; place spawns, doors, NPCs, and story content on named anchors.
+- Keep corridors at least 2 tiles wide.
+- Run `bun run map:preview` and look at the PNG before calling geometry done.
 
 ## Direct Maps
 

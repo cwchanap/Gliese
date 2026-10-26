@@ -10,7 +10,8 @@ const gatedFields = [
 	'discoveries',
 	'transitions',
 	'blockers',
-	'mapDecor'
+	'mapDecor',
+	'tileOverlays'
 ] as const satisfies readonly (keyof WorldMapDefinition)[];
 
 type GatedEntry = StoryGated & { id: string };
@@ -30,6 +31,7 @@ export function isActiveInStory(entry: StoryGated, progress: StoryProgress): boo
  *
  * Interiors with a generated navigation grid bake their blockers into the grid,
  * so story-gated blockers only take effect on maps without one (meadow-entry).
+ * Text-grid maps change terrain through story-gated `tileOverlays` instead.
  */
 export function applyStoryGates(
 	map: WorldMapDefinition,
