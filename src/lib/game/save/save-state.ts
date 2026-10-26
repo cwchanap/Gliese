@@ -30,9 +30,11 @@ import {
 import { getXpForLevel } from '$lib/game/core/progression';
 import {
 	createInitialQuestState,
+	getStoryProgress,
 	type QuestEntryState,
 	type QuestState
 } from '$lib/game/core/quests';
+import { applyStoryGates } from '$lib/game/core/story-gates';
 import {
 	createInitialShopStockState,
 	type ShopStockState,
@@ -136,7 +138,7 @@ export function parseSaveState(value: string): SaveState | null {
 
 		return {
 			...parsed,
-			player: normalizePlayerPosition(parsed.mapId, parsed.player),
+			player: normalizePlayerPosition(parsed.mapId, parsed.player, parsed.quests),
 			mapExploration: cloneMapExploration(parsed.mapExploration)
 		};
 	} catch {
@@ -330,12 +332,19 @@ function isQuestEntryState(value: unknown, quest: QuestDefinition): value is Que
 	);
 }
 
-function normalizePlayerPosition(mapId: string, player: SaveState['player']): SaveState['player'] {
-	const map = maps[mapId];
+function normalizePlayerPosition(
+	mapId: string,
+	player: SaveState['player'],
+	quests: QuestState
+): SaveState['player'] {
+	const sourceMap = maps[mapId];
 
-	if (!map) {
+	if (!sourceMap) {
 		return player;
 	}
+
+	// Collide against the map as the saved story shows it, like the live world does.
+	const map = applyStoryGates(sourceMap, getStoryProgress(quests));
 
 	const x = clamp(player.x, 0, map.width * 32);
 	const y = clamp(player.y, 0, map.height * 32);
