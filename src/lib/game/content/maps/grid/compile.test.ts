@@ -184,6 +184,9 @@ describe('compileGridWorld', () => {
 				]
 			})
 		).toThrow('chunk "east" is placed twice');
+		expect(() =>
+			compileGridWorld({ ...base, chunks: [{ chunk: east, col: 0.5, row: 0 }] })
+		).toThrow('chunk "east" must be placed at whole tiles, got col 0.5 row 0');
 	});
 
 	it('requires anchor names to be unique across chunks', () => {

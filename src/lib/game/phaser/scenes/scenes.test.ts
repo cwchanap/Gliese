@@ -6588,6 +6588,35 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('never writes save slots during a ?startMap= dev run', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const restoreLocation = installLocationSearch('?startMap=overworld');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({ reason: 'new', saveState: null });
+			scene.events.emit('render');
+			(scene as unknown as { handleHudCommand: (command: HudCommand) => void }).handleHudCommand({
+				type: 'save-slot',
+				slot: 1
+			});
+
+			expect(memoryStorage.setItem).not.toHaveBeenCalled();
+			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+				expect.objectContaining({ status: 'Could not save' })
+			);
+		} finally {
+			emitHudStateSpy.mockRestore();
+			restoreLocation();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
 	it('reports save failure on the HUD when the manual slot write fails', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
