@@ -1660,6 +1660,11 @@ export const maps: DefinitionRegistry<WorldMapDefinition> = {
 	[overworldMap.id]: overworldMap
 };
 
+/** The registered map with this id. Inherited object keys such as "constructor" are not maps. */
+export function findMap(id: string | null | undefined): WorldMapDefinition | undefined {
+	return id && Object.hasOwn(maps, id) ? maps[id] : undefined;
+}
+
 // Sundrop's everyday crowd is gone once the raid begins; only story NPCs remain.
 for (const map of Object.values(maps)) {
 	for (const npc of map.ambientNpcs ?? []) npc.hiddenDuring ??= storyWindows.afterRaid;

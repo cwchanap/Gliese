@@ -6637,6 +6637,34 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('keeps saving when ?startMap= names no registered map', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const restoreLocation = installLocationSearch('?startMap=nowhere');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({ reason: 'new', saveState: null });
+			scene.events.emit('render');
+			(scene as unknown as { handleHudCommand: (command: HudCommand) => void }).handleHudCommand({
+				type: 'save-slot',
+				slot: 1
+			});
+
+			await vi.waitFor(() => {
+				const saved = slots.loadSaveSlots(memoryStorage).slots;
+				expect(saved[0]?.kind).toBe('autosave');
+				expect(saved[1]?.kind).toBe('manual');
+			});
+		} finally {
+			restoreLocation();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
 	it('reports save failure on the HUD when the manual slot write fails', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
