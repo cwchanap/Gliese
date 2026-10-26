@@ -11,6 +11,7 @@ describe('hasRenderOptionOverrides', () => {
 		expect(hasRenderOptionOverrides('?movementDiagnostics=on')).toBe(true);
 		expect(hasRenderOptionOverrides('?mapBackgroundReview=hero-house-review')).toBe(true);
 		expect(hasRenderOptionOverrides('?regionalBackground=off')).toBe(true);
+		expect(hasRenderOptionOverrides('?startMap=overworld')).toBe(true);
 		expect(
 			hasRenderOptionOverrides('?regionalBackgroundFault=sundrop-village-foreground-image:render')
 		).toBe(true);
@@ -29,8 +30,17 @@ describe('world render URL options', () => {
 			mapBackgroundReviewIds: [],
 			collisionDebug: false,
 			movementDiagnostics: false,
+			startMapId: null,
 			regionalBackgroundFault: null
 		});
+	});
+
+	it('accepts a slug-shaped start map and ignores anything else', () => {
+		expect(parseWorldRenderOptions('?startMap=overworld').startMapId).toBe('overworld');
+		expect(parseWorldRenderOptions('?startMap=hero-house').startMapId).toBe('hero-house');
+		for (const search of ['?startMap=', '?startMap=Overworld', '?startMap=../save']) {
+			expect(parseWorldRenderOptions(search).startMapId, search).toBeNull();
+		}
 	});
 
 	it('parses valid repeated generic review package IDs once in first-seen order', () => {

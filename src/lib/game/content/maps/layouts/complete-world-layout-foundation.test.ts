@@ -64,7 +64,8 @@ describe('complete world layout foundation', () => {
 	});
 
 	it('matches the registered map inventory without duplicate stateful ids', () => {
-		expect(Object.keys(maps).sort()).toEqual([...EXPECTED_MAP_IDS].sort());
+		// The text-grid overworld is outside this layout foundation; it replaces meadow-entry.
+		expect(Object.keys(maps).sort()).toEqual([...EXPECTED_MAP_IDS, 'overworld'].sort());
 
 		for (const map of Object.values(maps)) {
 			for (const collection of STATEFUL_COLLECTIONS) {

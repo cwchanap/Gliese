@@ -3,6 +3,8 @@ export interface WorldRenderOptions {
 	mapBackgroundReviewIds: readonly string[];
 	collisionDebug: boolean;
 	movementDiagnostics: boolean;
+	/** Dev link: start a fresh run on this map instead of the opening one. */
+	startMapId: string | null;
 	regionalBackgroundFault: {
 		backgroundId: string;
 		mode: 'render';
@@ -12,6 +14,7 @@ export interface WorldRenderOptions {
 export function parseWorldRenderOptions(search: string): WorldRenderOptions {
 	const parameters = new URLSearchParams(search);
 	const regionalBackgroundFault = parameters.get('regionalBackgroundFault');
+	const startMap = parameters.get('startMap') ?? '';
 	const faultMatch = regionalBackgroundFault?.match(/^([^:]+):render$/);
 	const mapBackgroundReviewIds: string[] = [];
 	const seenMapBackgroundReviewIds = new Set<string>();
@@ -27,6 +30,7 @@ export function parseWorldRenderOptions(search: string): WorldRenderOptions {
 		mapBackgroundReviewIds: Object.freeze(mapBackgroundReviewIds),
 		collisionDebug: parameters.get('mapDebug') === 'collision',
 		movementDiagnostics: parameters.get('movementDiagnostics') === 'on',
+		startMapId: /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(startMap) ? startMap : null,
 		regionalBackgroundFault: faultMatch ? { backgroundId: faultMatch[1]!, mode: 'render' } : null
 	};
 }
@@ -42,7 +46,8 @@ const RENDER_OPTION_KEYS = [
 	'mapBackgroundReview',
 	'mapDebug',
 	'movementDiagnostics',
-	'regionalBackgroundFault'
+	'regionalBackgroundFault',
+	'startMap'
 ] as const;
 
 /**

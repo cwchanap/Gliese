@@ -637,7 +637,8 @@ export const zhHant = {
 				'villager-house-3': '村民家',
 				'shrine-of-aurora-interior': '極光神社',
 				'ruins-threshold': '古老隧道',
-				'ruins-core': '古老隧道深處'
+				'ruins-core': '古老隧道深處',
+				overworld: '荒野'
 			}
 		},
 		rewards: {

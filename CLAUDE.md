@@ -51,6 +51,14 @@ bun run story:check:strict   # strict mode: fails if generated.rs is stale (what
 Run these from the repo root — `story_check` resolves `story/` relative to the current
 directory.
 
+### Overworld grid maps
+
+```sh
+bun run map:preview                    # renders .artifacts/previews/overworld.png, lists unreachable anchors
+bun run map:preview -- --overlay all   # same, with every story overlay applied
+bun run map:tileset                    # regenerates the placeholder grid tileset
+```
+
 ### Rust
 
 CI enforces all three; run them from `src-tauri/`.
@@ -187,7 +195,7 @@ rooms, corridors, walls, doors, routes, transition approaches, and NPC approache
 before generating final art or placing decorative content. Prove the geometry with
 a walkable graybox first.
 
-- **Story gates**: map NPCs, encounters, pickups, discoveries, blockers, and transitions can carry `activeDuring` / `hiddenDuring` (quest ids, objective ids, or the shared `storyWindows` in `content/quests.ts`). `core/story-gates.ts` filters a map by the current story progress, so one Meadow Entry plays the proving day, the raid, and the escape. The prologue's story placements live in `content/maps/regions/prologue.ts`.
+- **Story gates**: map NPCs, encounters, pickups, discoveries, blockers, transitions, and grid-map tile overlays can carry `activeDuring` / `hiddenDuring` (quest ids, objective ids, or the shared `storyWindows` in `content/quests.ts`). `core/story-gates.ts` filters a map by the current story progress, so one Meadow Entry plays the proving day, the raid, and the escape. The prologue's story placements live in `content/maps/regions/prologue.ts`.
 - **Enemies**: prologue beasts `forest-wolf`, `mist-toad`, `thornback-boar`, `tunnel-crawler`; humans `human-soldier`, `sun-crest-captain`; boss `boar-king` (phase-2 enrage at ≤50% HP). Each enemy has its own actor block in `animation-pack.png` and its own battle plate under `heroic-ui/enemies/<enemy-id>.png` (`content/assets.ts`).
 - **Items / shops**: Items are defined in `content/items.ts` (consumables, equipment with `StatModifiers`, key items). Shops in `content/shops.ts` reference item IDs with per-shop stock and pricing. Wallet/coin state lives in `core/shop.ts`.
 - **Dialogue**: NPC **prose and choices live in `story/`, not in TypeScript** (see Story Pipeline). Scripted scenes (`::: scene`) are played by quest effects and discoveries. Runtime traversal/state lives in `core/dialogue.ts` and is surfaced to the HUD as `HudState.dialogue` (modes: `conversation`, `choice`, `system`). The HUD drives it with the `dialogue-advance` / `dialogue-close` / `dialogue-choose` commands.
@@ -211,6 +219,65 @@ a walkable graybox first.
   Each slot's `state` payload is a `SaveState` whose `version` field
   (currently `10`) tracks the schema; bump it and update `isSaveState` in
   `save/save-state.ts` whenever `SaveState` changes shape.
+
+### Overworld grid maps
+
+The continent is being rebuilt as one text-grid map, `overworld` (plan: the Notion page
+「地圖重新設計企劃」). Until it replaces `meadow-entry` it is reachable only through the dev
+link `?startMap=overworld` (e.g. `http://localhost:5173/?startMap=overworld`), which boots a
+fresh save on the map's spawn anchor. The grid code lives in `content/maps/grid/`;
+`content/maps/overworld/world.ts` places the chunks from `overworld/chunks/`.
+
+- **Chunks** (`GridChunkSource`): `terrain` is a text block with one glyph per 32px tile and
+  every row the same width. A chunk is about 64×64 tiles and is placed at a tile offset in
+  `world.ts`; chunks may not overlap, and tiles no chunk covers get the world's `fill`.
+- **Anchors**: a lowercase letter declared in `anchors` (`{ d: 'sundrop-elder-door' }`) marks a
+  named point. It must appear exactly once, and names are unique across the world. The
+  compiler replaces it with the ground around it; `overworldAnchors[name]` gives its tile and
+  pixel centre. Place spawns, transitions, NPCs, and story content on anchors, not on raw
+  pixel coordinates.
+- **Buildings**: a non-terrain, non-lowercase glyph declared in `buildings`
+  (`{ A: 'goblin-hut' }`; types in `grid/buildings.ts`). Each solid rectangle of that glyph is
+  one building whose footprint blocks movement. Put its door anchor just outside it.
+- **Story overlays**: `overlays: [{ id, activeDuring / hiddenDuring, rows }]`, the same size as
+  the terrain. `-` keeps the tile underneath and any legend glyph replaces it (fire during the
+  raid, a gate that opens). `applyStoryGates` decides which overlays are live.
+- **Walkability**: corridors and gaps must be at least 2 tiles wide. A 1-tile gap is closed,
+  because the player keeps 12px of clearance.
+- **Check your work**: run `bun run map:preview` (add `--overlay all` for story terrain) and
+  look at the PNG. Anchors are magenta dots and every 16th tile is labelled `col,row`. It
+  exits non-zero when an anchor is unreachable from spawn; `overworld/world.test.ts` checks
+  the same.
+
+| Glyph | Terrain       | Blocks | Notes                              |
+| ----- | ------------- | ------ | ---------------------------------- |
+| `.`   | grass         | no     | base ground                        |
+| `,`   | dirt path     | no     | autotile, joins `=` and `H`        |
+| `:`   | sand          | no     | autotile                           |
+| `=`   | bridge        | no     | autotile, joins `,`; lay it on `~` |
+| `H`   | stairs        | no     | cuts through `#` cliffs            |
+| `T`   | dense forest  | yes    | autotile, drawn above actors       |
+| `Y`   | lone tree     | yes    | drawn above actors                 |
+| `~`   | water         | yes    | autotile, joins `=`                |
+| `#`   | cliff         | yes    | autotile, joins `H`                |
+| `^`   | mountain      | yes    | autotile; the default world fill   |
+| `P`   | palisade      | yes    | autotile, joins `!`                |
+| `!`   | sealed gate   | yes    | open it with a story overlay       |
+| `%`   | fenced garden | yes    | autotile                           |
+| `R`   | rock          | yes    |                                    |
+| `O`   | well          | yes    | autotile                           |
+| `*`   | fire pit      | yes    |                                    |
+| `I`   | totem         | yes    |                                    |
+| `X`   | drying rack   | yes    |                                    |
+| `&`   | fire          | yes    | for raid overlays                  |
+
+The tileset image is `public/game/assets/overworld/tiles.png` (a generated placeholder until
+art replaces it). `grid/tileset.ts` fixes every tile id: row 0 holds the single tiles, and each
+autotile terrain owns one row of 16 tiles indexed by its N=1/E=2/S=4/W=8 edge mask. Both glyph
+lists are append-only, because art is drawn against those positions. To add a glyph: add it to
+`TERRAIN_LEGEND` in `grid/legend.ts`, append it to one list in `grid/tileset.ts`, give it a
+colour in `tools/generate-grid-tileset.ts`, run `bun run map:tileset`, and add a row to the
+table above (`grid/tileset.test.ts` checks the table).
 
 ### Story Pipeline (Rust-owned)
 

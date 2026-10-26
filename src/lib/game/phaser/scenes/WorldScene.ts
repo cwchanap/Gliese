@@ -63,6 +63,13 @@ import {
 	buildMapNavigationObstacles,
 	resolveMapNavigationGrid
 } from '$lib/game/content/maps/navigation';
+import { GRID_BUILDING_TYPES } from '$lib/game/content/maps/grid/buildings';
+import {
+	isGridWorldMap,
+	resolveGridTileLayers,
+	type GridWorldMap
+} from '$lib/game/content/maps/grid/runtime';
+import { GRID_TILESET } from '$lib/game/content/maps/grid/tileset';
 import { getItem, type EquipmentSlot } from '$lib/game/content/items';
 import { startingPlayer } from '$lib/game/content/player';
 import { isQuestId, type QuestEffect } from '$lib/game/content/quests';
@@ -400,6 +407,8 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly discoveryRevealRadius = 240;
 	// Rendered above all gameplay layers, live hedges, and the baked regional background.
 	private static readonly collisionDebugOverlayDepth = 10_000;
+	/** Grid-map tree crowns draw over actors, like a foreground background plane. */
+	private static readonly gridCanopyDepth = 100;
 	/** Window after a fled battle during which that encounter cannot re-trigger. */
 	private static readonly recentlyFledGraceMs = 1_500;
 	private static readonly storyFadeMs = 600;
@@ -1640,6 +1649,11 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private renderGround(map: WorldMapDefinition) {
+		if (isGridWorldMap(map)) {
+			this.renderTileGrid(map);
+			return;
+		}
+
 		const tilemap = this.make.tilemap({
 			data: this.buildGroundTileData(map),
 			tileWidth: WorldScene.tileSize,
@@ -1658,6 +1672,42 @@ export class WorldScene extends Phaser.Scene {
 
 		const layer = tilemap.createLayer(0, tileset, 0, 0) as TilemapLayer | null;
 		layer?.setDepth?.(-10);
+	}
+
+	private renderTileGrid(map: GridWorldMap) {
+		const layers = resolveGridTileLayers(map);
+		for (const [data, depth] of [
+			[layers.ground, -10],
+			[layers.canopy, WorldScene.gridCanopyDepth]
+		] as const) {
+			const tilemap = this.make.tilemap({
+				data,
+				tileWidth: GRID_TILESET.tileSize,
+				tileHeight: GRID_TILESET.tileSize
+			});
+			const tileset = tilemap.addTilesetImage(
+				GRID_TILESET.key,
+				GRID_TILESET.key,
+				GRID_TILESET.tileSize,
+				GRID_TILESET.tileSize
+			);
+			if (!tileset) continue;
+			const layer = tilemap.createLayer(0, tileset, 0, 0) as TilemapLayer | null;
+			layer?.setDepth?.(depth);
+		}
+
+		// Placeholder footprints until building art exists.
+		const graphics = this.add.graphics();
+		for (const building of map.tileGrid.buildings) {
+			const x = building.col * GRID_TILESET.tileSize;
+			const y = building.row * GRID_TILESET.tileSize;
+			const width = building.width * GRID_TILESET.tileSize;
+			const height = building.height * GRID_TILESET.tileSize;
+			graphics.fillStyle(GRID_BUILDING_TYPES[building.type].color, 1);
+			graphics.fillRect(x, y, width, height);
+			graphics.lineStyle(2, 0x1a1a1a, 1);
+			graphics.strokeRect(x, y, width, height);
+		}
 	}
 
 	/**

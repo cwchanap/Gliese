@@ -638,7 +638,8 @@ export const ja = {
 				'villager-house-3': '民家',
 				'shrine-of-aurora-interior': 'オーロラの社',
 				'ruins-threshold': '古いトンネル',
-				'ruins-core': '古いトンネルの奥'
+				'ruins-core': '古いトンネルの奥',
+				overworld: '荒野'
 			}
 		},
 		rewards: {
