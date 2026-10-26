@@ -51,7 +51,8 @@ export class BootScene extends Phaser.Scene {
 			this.startRequest = request;
 		}
 		// `?startMap=<id>` (dev only) drops a fresh run at that map's spawn.
-		const startMap = maps[resolveWorldRenderOptions().startMapId ?? ''];
+		const startMapId = resolveWorldRenderOptions().startMapId;
+		const startMap = startMapId && Object.hasOwn(maps, startMapId) ? maps[startMapId] : undefined;
 		if (startMap) {
 			const saveState = createNewSaveState();
 			this.startRequest = {

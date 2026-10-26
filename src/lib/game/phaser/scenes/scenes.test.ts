@@ -1050,6 +1050,26 @@ describe('BootScene', () => {
 		expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, resumeRequest);
 	});
 
+	it('ignores ?startMap= values that are not registered maps', async () => {
+		const restoreLocation = installLocationSearch('?startMap=constructor');
+		const { BootScene } = await import('./BootScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new BootScene();
+		Object.assign(scene, { registry: { get: vi.fn(() => undefined) } });
+
+		try {
+			scene.init();
+			scene.create();
+		} finally {
+			restoreLocation();
+		}
+
+		expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, {
+			reason: 'new',
+			saveState: null
+		});
+	});
+
 	it('starts a fresh run at the spawn of the ?startMap= dev-link map', async () => {
 		const restoreLocation = installLocationSearch('?startMap=overworld');
 		const { BootScene } = await import('./BootScene');

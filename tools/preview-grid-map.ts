@@ -9,7 +9,7 @@
  * Output defaults to .artifacts/previews/overworld.png.
  */
 import { mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import sharp from 'sharp';
 
@@ -120,7 +120,7 @@ const svg = [
 	'</svg>'
 ].join('');
 
-const out = join(process.cwd(), values.out);
+const out = resolve(process.cwd(), values.out);
 mkdirSync(dirname(out), { recursive: true });
 await sharp(pixels, { raw: { width, height, channels: 4 } })
 	.composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
