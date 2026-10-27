@@ -64,6 +64,19 @@ describe('overworld', () => {
 		});
 	});
 
+	it('puts every anchor on a tile the player can stand on', () => {
+		// Reachability accepts a walkable cell near the anchor, so a blocked centre would pass it.
+		const navigation = buildGridNavigationGrid(
+			overworld.id,
+			overworld.grid.terrain,
+			overworld.grid.buildings
+		);
+		const blocked = Object.values(overworldAnchors)
+			.filter((anchor) => !isWalkable(navigation, anchor.x, anchor.y))
+			.map((anchor) => anchor.name);
+		expect(blocked).toEqual([]);
+	});
+
 	it('reaches every anchor from spawn by day, including the end of each gate corridor', () => {
 		expect(unreachableFromSpawn([])).toEqual([]);
 	});
