@@ -255,22 +255,24 @@ describe('save state', () => {
 		}
 	});
 
+	// The west gate of Sundrop is open dirt by day and burns during the raid.
+	const raidFire = { col: 132, row: 211, x: 132 * 32 + 16, y: 211 * 32 + 16 };
+
 	it('keeps a saved position on terrain that only blocks in a later story window', () => {
-		// Tile (24, 8) of the overworld sandbox burns only during the raid.
 		const save = createNewSaveState();
 		const onRaidFire = {
 			...save,
 			mapId: overworldMap.id,
-			player: { ...save.player, x: 784, y: 272 }
+			player: { ...save.player, x: raidFire.x, y: raidFire.y }
 		};
 		const raidCell = overworldMap.tileOverlays
 			?.flatMap((overlay) => overlay.cells)
-			.find((cell) => cell.col === 24 && cell.row === 8);
+			.find((cell) => cell.col === raidFire.col && cell.row === raidFire.row);
 		expect(raidCell?.glyph).toBe('&');
 
 		expect(parseSaveState(serializeSaveState(onRaidFire))?.player).toMatchObject({
-			x: 784,
-			y: 272
+			x: raidFire.x,
+			y: raidFire.y
 		});
 	});
 
@@ -280,11 +282,11 @@ describe('save state', () => {
 			...save,
 			mapId: overworldMap.id,
 			quests: questStateAt('heed-mott'),
-			player: { ...save.player, x: 784, y: 272 }
+			player: { ...save.player, x: raidFire.x, y: raidFire.y }
 		};
 
 		const player = parseSaveState(serializeSaveState(duringRaid))?.player;
-		expect(player).not.toMatchObject({ x: 784, y: 272 });
+		expect(player).not.toMatchObject({ x: raidFire.x, y: raidFire.y });
 		const raidMap = applyStoryGates(overworldMap, getStoryProgress(duringRaid.quests));
 		expect(
 			isNavigationPositionWalkable(

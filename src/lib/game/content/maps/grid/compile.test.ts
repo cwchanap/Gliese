@@ -151,6 +151,10 @@ describe('compileGridWorld', () => {
 				{ chunk: east, col: 3, row: 0 }
 			]
 		});
+		expect(world.chunks).toEqual([
+			{ id: 'west', col: 0, row: 1, width: 2, height: 2 },
+			{ id: 'east', col: 3, row: 0, width: 2, height: 2 }
+		]);
 		expect(world.grid.terrain).toEqual(['^^^,,', '..^,,', '..^^^']);
 		expect(world.grid.buildings).toEqual([
 			{ id: 'west-shrine-1', type: 'shrine', col: 0, row: 1, width: 2, height: 1 }

@@ -54,8 +54,8 @@ directory.
 ### Overworld grid maps
 
 ```sh
-bun run map:preview                    # renders .artifacts/previews/overworld.png, lists unreachable anchors
-bun run map:preview -- --overlay all   # same, with every story overlay applied
+bun run map:preview                    # whole continent, 4px tiles → .artifacts/previews/overworld.png
+bun run map:preview -- --chunk sundrop # one chunk at 16px (add --overlay all for story terrain)
 bun run map:tileset                    # regenerates the placeholder grid tileset
 ```
 
@@ -222,12 +222,28 @@ a walkable graybox first.
 
 ### Overworld grid maps
 
-The continent is being rebuilt as one text-grid map, `overworld` (plan: the Notion page
-「地圖重新設計企劃」). Until it replaces `meadow-entry` it is reachable only through the dev
+The continent is being rebuilt as one text-grid map, `overworld`, 384×384 tiles (plan: the Notion
+page 「地圖重新設計企劃」). Until it replaces `meadow-entry` it is reachable only through the dev
 link `?startMap=overworld` (e.g. `http://localhost:5173/?startMap=overworld`), which boots a
-fresh save on the map's spawn anchor. A dev-link run never writes save slots, so it cannot
+fresh save on Grik's door in Sundrop. A dev-link run never writes save slots, so it cannot
 overwrite real progress. The grid code lives in `content/maps/grid/`;
 `content/maps/overworld/world.ts` places the chunks from `overworld/chunks/`.
+
+Only Sundrop is built in detail. Every other chunk is an **outline** (coast, mountains, region
+borders, solid interiors) that a later map PR replaces in place, keeping the same rectangle:
+
+|      | W (cols 0–128) | C (cols 128–256)                             | E (cols 256–384) |
+| ---- | -------------- | -------------------------------------------- | ---------------- |
+| N    | `elven-wood`   | `demon-highlands`                            | `orc-highlands`  |
+| midN | `mistfen`      | `silverpine`                                 | `orc-highlands`  |
+| mid  | `mistfen`      | `wildwood-north`, `sundrop`, `wildwood-east` | `east-mountains` |
+| S    | `west-coast`   | `southern-frontier`                          | `east-coast`     |
+| farS | open sea       | `valcrest`                                   | open sea         |
+
+Sundrop's four gates each lead down a walled corridor to a sealed gate (`gate-silverpine`,
+`gate-mistfen`, `gate-hunting-grounds`, `gate-south-road`). The region behind a gate replaces
+its outline chunk and opens the gate with a story overlay; `overworld/world.test.ts` keeps
+the player inside Sundrop and those corridors until then.
 
 - **Chunks** (`GridChunkSource`): `terrain` is a text block with one glyph per 32px tile and
   every row the same width. A chunk is about 64×64 tiles and is placed at a tile offset in
@@ -236,19 +252,23 @@ overwrite real progress. The grid code lives in `content/maps/grid/`;
   named point. It must appear exactly once, and names are unique across the world. The
   compiler replaces it with the ground around it; `overworldAnchors[name]` gives its tile and
   pixel centre. Place spawns, transitions, NPCs, and story content on anchors, not on raw
-  pixel coordinates.
+  pixel coordinates. Leave one free tile between an anchor and any blocking tile (a building
+  wall, a tree) to its south or east: the collision grid samples the half-tile cell below and
+  right of a tile centre, so an anchor flush against such a wall sits in a blocked cell.
 - **Buildings**: a non-terrain, non-lowercase glyph declared in `buildings`
   (`{ A: 'goblin-hut' }`; types in `grid/buildings.ts`). Each solid rectangle of that glyph is
-  one building whose footprint blocks movement. Put its door anchor just outside it.
+  one building whose footprint blocks movement. Put its door anchor just outside it, with the
+  free tile above.
 - **Story overlays**: `overlays: [{ id, activeDuring / hiddenDuring, rows }]`, the same size as
   the terrain. `-` keeps the tile underneath and any legend glyph replaces it (fire during the
   raid, a gate that opens). `applyStoryGates` decides which overlays are live.
 - **Walkability**: corridors and gaps must be at least 2 tiles wide. A 1-tile gap is closed,
   because the player keeps 12px of clearance.
-- **Check your work**: run `bun run map:preview` (add `--overlay all` for story terrain) and
-  look at the PNG. Anchors are magenta dots and every 16th tile is labelled `col,row`. It
-  exits non-zero when an anchor is unreachable from spawn; `overworld/world.test.ts` checks
-  the same.
+- **Check your work**: run `bun run map:preview` for the continent, or `-- --chunk <id>` for one
+  chunk, and look at the PNG (add `--overlay all` for story terrain). Chunks are outlined and
+  named, anchors are magenta dots, and chunk views label every 16th tile `col,row`. The base
+  map exits non-zero when an anchor is unreachable from spawn; `overworld/world.test.ts`
+  checks the same, plus the raid state.
 
 | Glyph | Terrain       | Blocks | Notes                              |
 | ----- | ------------- | ------ | ---------------------------------- |

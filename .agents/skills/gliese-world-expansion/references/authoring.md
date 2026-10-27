@@ -13,14 +13,16 @@ Select the owning source before designing coordinates or art. All current paths 
 
 ## Overworld Text Grid
 
-The continent is being rebuilt as one text-grid map, `overworld`, chunk by chunk (Sundrop,
-Wildwood, Mistfen, Silverpine). Build new outdoor areas there, not as Meadow Entry fragments.
+The continent is being rebuilt as one text-grid map, `overworld`, chunk by chunk. Sundrop is
+built; Wildwood, Mistfen and Silverpine are outline chunks to replace in place. Build new
+outdoor areas there, not as Meadow Entry fragments.
 The format, legend, anchors, buildings, and story overlays are documented in `CLAUDE.md`;
 the compiler lives in `src/lib/game/content/maps/grid/compile.ts`.
 
 - Edit terrain as text; place spawns, doors, NPCs, and story content on named anchors.
 - Keep corridors at least 2 tiles wide.
-- Run `bun run map:preview` and look at the PNG before calling geometry done.
+- Keep a free tile between an anchor and any blocking tile to its south or east.
+- Run `bun run map:preview` (or `-- --chunk <id>`) and look at the PNG before calling geometry done.
 
 ## Direct Maps
 

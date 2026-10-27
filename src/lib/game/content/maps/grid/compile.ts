@@ -73,10 +73,20 @@ export interface CompiledGridChunk {
 	readonly overlays: readonly MapTileOverlay[];
 }
 
+/** Where a chunk landed in the world, in tiles. */
+export interface PlacedGridChunk {
+	readonly id: string;
+	readonly col: number;
+	readonly row: number;
+	readonly width: number;
+	readonly height: number;
+}
+
 export interface CompiledGridWorld {
 	readonly id: string;
 	readonly width: number;
 	readonly height: number;
+	readonly chunks: readonly PlacedGridChunk[];
 	readonly grid: MapTileGrid;
 	readonly overlays: readonly MapTileOverlay[];
 	readonly anchors: Readonly<Record<string, GridAnchor>>;
@@ -211,6 +221,7 @@ export function compileGridWorld(source: GridWorldSource): CompiledGridWorld {
 	const overlays: MapTileOverlay[] = [];
 	const anchors = new Map<string, GridAnchor>();
 	const chunkIds = new Set<string>();
+	const placed: PlacedGridChunk[] = [];
 
 	for (const placement of source.chunks) {
 		const chunk = compileGridChunk(placement.chunk);
@@ -230,6 +241,7 @@ export function compileGridWorld(source: GridWorldSource): CompiledGridWorld {
 				`chunk "${chunk.id}" (${chunk.width}×${chunk.height} at col ${left} row ${top}) is outside the ${source.width}×${source.height} world`
 			);
 		}
+		placed.push({ id: chunk.id, col: left, row: top, width: chunk.width, height: chunk.height });
 		for (let row = 0; row < chunk.height; row += 1) {
 			for (let col = 0; col < chunk.width; col += 1) {
 				const other = owner[top + row]![left + col];
@@ -267,6 +279,7 @@ export function compileGridWorld(source: GridWorldSource): CompiledGridWorld {
 		id: source.id,
 		width: source.width,
 		height: source.height,
+		chunks: placed,
 		grid: { terrain: terrain.map((line) => line.join('')), buildings },
 		overlays,
 		// fromEntries defines own properties, so a name like "__proto__" stays an ordinary anchor.
