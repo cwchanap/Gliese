@@ -10,7 +10,7 @@ const DIALOGUE_BUSTS: Record<string, string> = {
 	'borak-gate': bust('borak'),
 	'drogg-home': bust('drogg'),
 	'drogg-lodge': bust('drogg'),
-	'drogg-crossroads': bust('drogg'),
+	'drogg-north-gate': bust('drogg'),
 	'drogg-falls': bust('drogg'),
 	'drogg-well': bust('drogg'),
 	'mott-hearth': bust('mott'),

@@ -18,9 +18,9 @@ function emitHudState(state: HudState) {
 function baseHudState(overrides: Partial<HudState> = {}): HudState {
 	return {
 		ready: true,
-		mapId: 'meadow-entry',
+		mapId: 'overworld',
 		areaMap: {
-			mapId: 'meadow-entry',
+			mapId: 'overworld',
 			name: 'Sundrop Meadows',
 			worldWidth: 6_400,
 			worldHeight: 6_400,

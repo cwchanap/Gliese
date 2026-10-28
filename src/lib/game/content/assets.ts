@@ -87,7 +87,7 @@ export const regionalBackgroundAssets: readonly RegionalBackgroundPreloadAsset[]
 export type BattleEnvironmentId = keyof typeof battleBackgroundAssets;
 
 const battleEnvironmentByMapId: Partial<Record<string, BattleEnvironmentId>> = {
-	'meadow-entry': 'meadow',
+	overworld: 'meadow',
 	'ruins-threshold': 'ruins',
 	'ruins-core': 'ruins'
 };
@@ -385,14 +385,6 @@ export type NpcFrameName = StarterPackFrameName | NpcPackFrameName;
 
 export function isNpcPackFrameName(frameName: NpcFrameName): frameName is NpcPackFrameName {
 	return frameName in npcPackAsset.frames;
-}
-
-export function getGroundFrameName(mapId: string): TerrainTileFrameName {
-	if (mapId === 'meadow-entry') {
-		return 'grassTile';
-	}
-
-	return 'ruinsFloorTile';
 }
 
 export const actorAnimationKeys = ['idle', 'walk', 'attack', 'dead'] as const;

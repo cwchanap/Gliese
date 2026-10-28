@@ -1,6 +1,6 @@
 import {
 	maps,
-	meadowEntryMap,
+	overworldMap,
 	type MapDiscovery,
 	type WorldMapDefinition
 } from '$lib/game/content/maps';
@@ -76,8 +76,8 @@ export function buildAreaMapState({
 
 export function buildInitialAreaMapState(locale: Locale): HudAreaMapState {
 	return buildAreaMapState({
-		map: meadowEntryMap,
-		player: meadowEntryMap.spawn,
+		map: overworldMap,
+		player: overworldMap.spawn,
 		revealedCells: [],
 		quests: createInitialQuestState(),
 		locale
@@ -186,7 +186,6 @@ function getObjectiveTargets(
 }
 
 const areaNameKeys = {
-	'meadow-entry': 'content.maps.areas.meadow-entry',
 	'hero-house': 'content.maps.areas.hero-house',
 	'guild-hall': 'content.maps.areas.guild-hall',
 	'item-shop': 'content.maps.areas.item-shop',

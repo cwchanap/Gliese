@@ -149,7 +149,7 @@
             },
             {
               "speaker": "Borak",
-              "text": "Drogg is waiting at the crossroads. Go."
+              "text": "Drogg is waiting at the north gate. Go."
             }
           ],
           "actions": []
@@ -213,7 +213,7 @@
     },
     {
       "npcId": "borak-gate",
-      "mapId": "meadow-entry",
+      "mapId": "overworld",
       "branches": [
         {
           "beatId": "prologue.raid",
@@ -336,71 +336,8 @@
       ]
     },
     {
-      "npcId": "drogg-crossroads",
-      "mapId": "meadow-entry",
-      "branches": [
-        {
-          "beatId": "prologue.trial-boar-king",
-          "condition": {
-            "type": "objective",
-            "id": "meet-drogg-crossroads"
-          },
-          "lines": [
-            {
-              "speaker": "Drogg",
-              "text": "There he is. Father sent me to help carry the meat home. That's all. Not because he's worried."
-            },
-            {
-              "speaker": "Grik",
-              "text": "He's worried."
-            },
-            {
-              "speaker": "Drogg",
-              "text": "He's terrified. Don't tell him I said that either."
-            },
-            {
-              "speaker": "Drogg",
-              "text": "The Boar King roams Silverpine, north across the river. Old, huge, and meaner than Oren before breakfast."
-            },
-            {
-              "speaker": "Drogg",
-              "text": "Its trail starts past the bridge. Go and find it. I'll be right behind you."
-            }
-          ],
-          "actions": []
-        },
-        {
-          "beatId": "prologue.trial-boar-king",
-          "condition": {
-            "type": "objective",
-            "id": "track-the-boar-king"
-          },
-          "lines": [
-            {
-              "speaker": "Drogg",
-              "text": "North, across the bridge into Silverpine. Look for the trail. You can't miss it. Trees don't usually lie down on their own."
-            }
-          ],
-          "actions": []
-        },
-        {
-          "beatId": "prologue.trial-boar-king",
-          "condition": {
-            "type": "always"
-          },
-          "lines": [
-            {
-              "speaker": "Drogg",
-              "text": "Silverpine is that way. The scary way."
-            }
-          ],
-          "actions": []
-        }
-      ]
-    },
-    {
       "npcId": "drogg-falls",
-      "mapId": "meadow-entry",
+      "mapId": "overworld",
       "branches": [
         {
           "beatId": "prologue.trial-boar-king",
@@ -576,8 +513,71 @@
       ]
     },
     {
+      "npcId": "drogg-north-gate",
+      "mapId": "overworld",
+      "branches": [
+        {
+          "beatId": "prologue.trial-boar-king",
+          "condition": {
+            "type": "objective",
+            "id": "meet-drogg-north-gate"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "There he is. Father sent me to help carry the meat home. That's all. Not because he's worried."
+            },
+            {
+              "speaker": "Grik",
+              "text": "He's worried."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "He's terrified. Don't tell him I said that either."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "The Boar King roams Silverpine, up the north trail. Old, huge, and meaner than Oren before breakfast."
+            },
+            {
+              "speaker": "Drogg",
+              "text": "Its trail starts up in the pines. Go and find it. I'll be right behind you."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-boar-king",
+          "condition": {
+            "type": "objective",
+            "id": "track-the-boar-king"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "North, up into Silverpine. Look for the trail. You can't miss it. Trees don't usually lie down on their own."
+            }
+          ],
+          "actions": []
+        },
+        {
+          "beatId": "prologue.trial-boar-king",
+          "condition": {
+            "type": "always"
+          },
+          "lines": [
+            {
+              "speaker": "Drogg",
+              "text": "Silverpine is that way. The scary way."
+            }
+          ],
+          "actions": []
+        }
+      ]
+    },
+    {
       "npcId": "drogg-well",
-      "mapId": "meadow-entry",
+      "mapId": "overworld",
       "branches": [
         {
           "beatId": "prologue.raid",
@@ -648,7 +648,7 @@
     },
     {
       "npcId": "lirra-captive",
-      "mapId": "meadow-entry",
+      "mapId": "overworld",
       "branches": [
         {
           "beatId": "prologue.raid",
@@ -667,7 +667,7 @@
     },
     {
       "npcId": "lirra-forest",
-      "mapId": "meadow-entry",
+      "mapId": "overworld",
       "branches": [
         {
           "beatId": "prologue.trial-tracks",
@@ -813,7 +813,7 @@
     },
     {
       "npcId": "lirra-mistfen",
-      "mapId": "meadow-entry",
+      "mapId": "overworld",
       "branches": [
         {
           "beatId": "prologue.trial-mistfen",
@@ -1022,7 +1022,7 @@
             },
             {
               "speaker": "Mira",
-              "text": "Borak stopped by while you were out. The third trial is the Boar King of Silverpine. Drogg is waiting for you at the crossroads signpost."
+              "text": "Borak stopped by while you were out. The third trial is the Boar King of Silverpine. Drogg is waiting for you at the north gate."
             },
             {
               "speaker": "Mira",
@@ -1349,7 +1349,7 @@
     },
     {
       "npcId": "tikka-captive",
-      "mapId": "meadow-entry",
+      "mapId": "overworld",
       "branches": [
         {
           "beatId": "prologue.raid",

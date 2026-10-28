@@ -449,8 +449,8 @@ export const zhHant = {
 				title: '第三試：野豬王',
 				description: '面對野獸之王。和德洛格一起到銀松林獵殺野豬王。',
 				objectives: {
-					'meet-drogg-crossroads': {
-						description: '在十字路道標與德洛格會合。',
+					'meet-drogg-north-gate': {
+						description: '在北門與德洛格會合。',
 						progressLabel: '已與德洛格會合'
 					},
 					'track-the-boar-king': {
@@ -551,40 +551,7 @@ export const zhHant = {
 			}
 		},
 		maps: {
-			landmarks: {
-				'hero-house-exterior': { label: '格里克的家' },
-				'guild-hall-exterior': { label: '狩獵會所' },
-				'item-shop-exterior': { label: '採藥小屋' },
-				'villager-house-1-exterior': { label: '村民住家' },
-				'villager-house-2-exterior': { label: '村民住家' },
-				'villager-house-3-exterior': { label: '村民住家' },
-				'sundrop-well': { label: '晴滴之井' },
-				'whispering-cave': { label: '低語洞穴' },
-				blacksmith: { label: '鐵匠鋪' },
-				'shrine-of-aurora': { label: '極光神社' },
-				'witchwood-gate': { label: '魔女森之門' },
-				'silver-shrine-gate': { label: '白銀神殿之門' },
-				'ferry-crossing': { label: '渡口' },
-				'castle-gate': { label: '封印城門' },
-				'crossroads-waystone': { label: '十字路道標' }
-			},
 			discoveries: {
-				'crossroads-waystone-sign': {
-					label: '磨損的道標',
-					description: '刻鑿的箭頭向四方延伸——北往神社、南往海岸、西往沼澤、東往洞穴。'
-				},
-				'castle-gate-warning': {
-					label: '城門告示',
-					description: '王道已依詔封閉。節慶結束前，無人得越過白線。'
-				},
-				'ferry-shrine-lore': {
-					label: '渡口神龕',
-					description: '黃昏時敲鐘，渡夫便會應答——只要潮汐與戰事允許。'
-				},
-				'coast-jetty-foreshadow': {
-					label: '棧橋盡頭',
-					description: '木板在開闊水面前終止。此處尚無船隻等候。'
-				},
 				'witchwood-poison-warning': {
 					label: '魔女森標石',
 					description: '過了門要淺呼吸。此處的花朵滲出毒霧。'
@@ -627,7 +594,6 @@ export const zhHant = {
 				'villager-io': { name: '伊歐' }
 			},
 			areas: {
-				'meadow-entry': '晴滴草原',
 				'hero-house': '格里克的家',
 				'guild-hall': '狩獵會所',
 				'item-shop': '採藥小屋',

@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	blacksmithInteriorMap,
-	meadowEntryMap,
 	maps,
+	overworldMap,
 	shrineOfAuroraInteriorMap
 } from '$lib/game/content/maps';
+import { overworldAnchors } from '$lib/game/content/maps/overworld/world';
 import {
 	buildAreaMapState,
 	buildInitialAreaMapState,
@@ -21,36 +22,46 @@ import {
 import { questStateAt } from '$lib/game/core/quests.fixtures';
 import { applyStoryGates } from '$lib/game/core/story-gates';
 
+const revealAround = (point: { x: number; y: number }) =>
+	revealCellsAroundPoint({
+		...point,
+		mapWidth: overworldMap.width * 32,
+		mapHeight: overworldMap.height * 32
+	});
+
+const grikDoor = overworldAnchors['sundrop-grik-home-door']!;
+const lodgeDoor = overworldAnchors['sundrop-lodge-door']!;
+
 describe('area map payload', () => {
-	it('builds the initial area map from meadow entry content', () => {
+	it('builds the initial area map from the overworld', () => {
 		const areaMap = buildInitialAreaMapState('ja');
 
 		expect(areaMap).toMatchObject<Partial<HudAreaMapState>>({
-			mapId: meadowEntryMap.id,
-			name: 'サンドロップ草原',
-			worldWidth: meadowEntryMap.width * 32,
-			worldHeight: meadowEntryMap.height * 32,
-			player: meadowEntryMap.spawn,
+			mapId: overworldMap.id,
+			name: '荒野',
+			worldWidth: overworldMap.width * 32,
+			worldHeight: overworldMap.height * 32,
+			player: overworldMap.spawn,
 			revealedCells: []
 		});
 	});
 
 	it('includes current map dimensions, player position, and revealed cells', () => {
 		const areaMap = buildAreaMapState({
-			map: meadowEntryMap,
-			player: { x: 700, y: 5_600 },
-			revealedCells: ['5,42'],
+			map: overworldMap,
+			player: { x: 4_464, y: 7_024 },
+			revealedCells: ['34,54'],
 			quests: createInitialQuestState(),
 			locale: 'en'
 		});
 
 		expect(areaMap).toMatchObject<Partial<HudAreaMapState>>({
-			mapId: 'meadow-entry',
-			name: 'Sundrop Meadows',
-			worldWidth: meadowEntryMap.width * 32,
-			worldHeight: meadowEntryMap.height * 32,
-			player: { x: 700, y: 5_600 },
-			revealedCells: ['5,42']
+			mapId: 'overworld',
+			name: 'The Wilds',
+			worldWidth: overworldMap.width * 32,
+			worldHeight: overworldMap.height * 32,
+			player: { x: 4_464, y: 7_024 },
+			revealedCells: ['34,54']
 		});
 	});
 
@@ -78,75 +89,50 @@ describe('area map payload', () => {
 		expect(areaMap.name).toBe('Sundrop Forge');
 	});
 
-	it('adds only revealed landmark and exit markers', () => {
+	it('adds only revealed door markers, named after the interior', () => {
 		const areaMap = buildAreaMapState({
-			map: meadowEntryMap,
-			player: { x: 700, y: 5_600 },
-			revealedCells: ['5,44', '17,33', '46,14'],
-			quests: createInitialQuestState(),
-			locale: 'en'
-		});
-
-		expect(areaMap.markers.map((marker) => marker.id)).toContain('hero-house-exterior');
-		expect(areaMap.markers.map((marker) => marker.id)).toContain('guild-hall-exterior');
-		expect(areaMap.markers.map((marker) => marker.id)).toContain(
-			'meadow-to-whispering-cave-ruins-threshold'
-		);
-		expect(areaMap.markers.map((marker) => marker.id)).not.toContain('item-shop-exterior');
-	});
-
-	it('uses current revealed cells to include the player but omit hidden markers', () => {
-		const areaMap = buildAreaMapState({
-			map: meadowEntryMap,
-			player: { x: 700, y: 5_600 },
-			revealedCells: ['5,44'],
-			quests: createInitialQuestState(),
-			locale: 'en'
-		});
-
-		expect(areaMap.player).toEqual({ x: 700, y: 5_600 });
-		expect(areaMap.markers.map((marker) => marker.id)).toContain('hero-house-exterior');
-		expect(areaMap.markers.map((marker) => marker.id)).not.toContain('guild-hall-exterior');
-	});
-
-	it('localizes revealed building marker labels', () => {
-		const areaMap = buildAreaMapState({
-			map: meadowEntryMap,
-			player: { x: 700, y: 5_600 },
-			revealedCells: ['17,33'],
+			map: overworldMap,
+			player: overworldMap.spawn,
+			revealedCells: revealAround(grikDoor),
 			quests: createInitialQuestState(),
 			locale: 'ja'
 		});
 
 		expect(areaMap.markers).toContainEqual(
-			expect.objectContaining({
-				kind: 'building',
-				id: 'guild-hall-exterior',
-				label: '狩人の集会所'
-			})
+			expect.objectContaining({ kind: 'exit', id: 'overworld-to-hero-house', label: 'グリクの家' })
 		);
-		expect(areaMap.markers).not.toContainEqual(
+		expect(areaMap.markers.map((marker) => marker.id)).not.toContain('overworld-to-guild-hall');
+
+		const lodge = buildAreaMapState({
+			map: overworldMap,
+			player: overworldMap.spawn,
+			revealedCells: revealAround(lodgeDoor),
+			quests: createInitialQuestState(),
+			locale: 'ja'
+		});
+		expect(lodge.markers).toContainEqual(
 			expect.objectContaining({
-				kind: 'building',
-				id: 'guild-hall-exterior',
-				label: 'Guild'
+				kind: 'exit',
+				id: 'overworld-to-guild-hall',
+				label: '狩人の集会所'
 			})
 		);
 	});
 
 	it('pins current-objective targets on this map once their cell is revealed', () => {
 		const quests = questStateAt('meet-lirra-forest');
-		const map = applyStoryGates(meadowEntryMap, getStoryProgress(quests));
+		const map = applyStoryGates(overworldMap, getStoryProgress(quests));
+		const lirra = overworldAnchors['wildwood-lirra-forest']!;
 		const build = (revealedCells: string[]) =>
-			buildAreaMapState({ map, player: { x: 700, y: 5_600 }, revealedCells, quests, locale: 'en' })
+			buildAreaMapState({ map, player: overworldMap.spawn, revealedCells, quests, locale: 'en' })
 				.markers;
 
-		expect(build(['38,31'])).toContainEqual(
+		expect(build(revealAround(lirra))).toContainEqual(
 			expect.objectContaining({
 				kind: 'quest',
 				id: 'prologue-trial-tracks:meet-lirra-forest:lirra-forest',
-				x: 4_950,
-				y: 4_000
+				x: lirra.x,
+				y: lirra.y
 			})
 		);
 		expect(build([]).some((marker) => marker.kind === 'quest')).toBe(false);
@@ -165,19 +151,12 @@ describe('area map payload', () => {
 
 	it('drops targets that already counted toward the objective', () => {
 		const quests = questStateAt('read-boar-signs');
-		const map = applyStoryGates(meadowEntryMap, getStoryProgress(quests));
+		const map = applyStoryGates(overworldMap, getStoryProgress(quests));
 		const after = applyQuestEvent({
 			state: quests,
 			event: { type: 'inspect', discoveryId: 'boar-sign-hoofprints' }
 		}).state;
-		const revealedCells = map.discoveries!.flatMap((discovery) =>
-			revealCellsAroundPoint({
-				x: discovery.x,
-				y: discovery.y,
-				mapWidth: map.width * 32,
-				mapHeight: map.height * 32
-			})
-		);
+		const revealedCells = map.discoveries!.flatMap(revealAround);
 		const questTargets = (state: QuestState) =>
 			buildAreaMapState({ map, player: { x: 0, y: 0 }, revealedCells, quests: state, locale: 'en' })
 				.markers.filter((marker) => marker.kind === 'quest')
@@ -193,9 +172,9 @@ describe('area map payload', () => {
 
 	it('returns no quest marker once the prologue is complete', () => {
 		const areaMap = buildAreaMapState({
-			map: meadowEntryMap,
-			player: { x: 700, y: 5_600 },
-			revealedCells: ['38,31'],
+			map: overworldMap,
+			player: overworldMap.spawn,
+			revealedCells: revealAround(overworldAnchors['wildwood-lirra-forest']!),
 			quests: questStateAt(null),
 			locale: 'en'
 		});
@@ -205,21 +184,13 @@ describe('area map payload', () => {
 });
 
 describe('discovery markers', () => {
-	const seen = 'crossroads-waystone-sign';
-	const discovery = (meadowEntryMap.discoveries ?? []).find((d) => d.id === seen);
-	const revealedCells = discovery
-		? revealCellsAroundPoint({
-				x: discovery.x,
-				y: discovery.y,
-				mapWidth: meadowEntryMap.width * 32,
-				mapHeight: meadowEntryMap.height * 32
-			})
-		: [];
+	const seen = 'wildwood-cave-danger';
+	const revealedCells = revealAround(overworldAnchors[seen]!);
 
 	it('shows a revealMarker discovery only after it is seen', () => {
 		const hidden = buildAreaMapState({
-			map: meadowEntryMap,
-			player: meadowEntryMap.spawn,
+			map: overworldMap,
+			player: overworldMap.spawn,
 			revealedCells,
 			quests: createInitialQuestState(),
 			locale: 'en',
@@ -228,8 +199,8 @@ describe('discovery markers', () => {
 		expect(hidden.markers.some((m) => m.id === seen)).toBe(false);
 
 		const shown = buildAreaMapState({
-			map: meadowEntryMap,
-			player: meadowEntryMap.spawn,
+			map: overworldMap,
+			player: overworldMap.spawn,
 			revealedCells,
 			quests: createInitialQuestState(),
 			locale: 'en',

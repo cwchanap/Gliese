@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { boarKing, enemies, forestWolf } from '$lib/game/content/enemies';
-import { maps, meadowEntryMap } from '$lib/game/content/maps';
+import { maps, openingMapId, overworldMap } from '$lib/game/content/maps';
 import { players, startingPlayer } from '$lib/game/content/player';
 
 describe('game content scaffolding', () => {
@@ -18,8 +18,7 @@ describe('game content scaffolding', () => {
 	});
 
 	it('defines the opening map in a registry', () => {
-		expect(meadowEntryMap.id).toBe('meadow-entry');
-		expect(maps['meadow-entry']).toBe(meadowEntryMap);
-		expect(Object.keys(maps)).toContain('meadow-entry');
+		expect(openingMapId).toBe('overworld');
+		expect(maps[openingMapId]).toBe(overworldMap);
 	});
 });

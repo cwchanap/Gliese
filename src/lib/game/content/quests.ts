@@ -167,7 +167,7 @@ const questDefinitions: Record<QuestId, QuestDefinitionSource> = {
 				kind: 'defeat-enemy',
 				target: 1,
 				enemyId: 'thornback-boar',
-				mapIds: ['meadow-entry'],
+				mapIds: ['overworld'],
 				onComplete: [scene('prologue.sun-arrow')]
 			},
 			{ id: 'report-first-trial', kind: 'talk-to-npc', npcIds: ['borak'] }
@@ -184,7 +184,7 @@ const questDefinitions: Record<QuestId, QuestDefinitionSource> = {
 				kind: 'collect-item',
 				target: 4,
 				sources: [1, 2, 3, 4].map((index) => ({
-					mapId: 'meadow-entry',
+					mapId: 'overworld',
 					pickupId: `mistfen-moonmoss-${index}`,
 					itemId: 'moonmoss'
 				}))
@@ -197,7 +197,7 @@ const questDefinitions: Record<QuestId, QuestDefinitionSource> = {
 	'prologue-trial-boar-king': {
 		id: 'prologue-trial-boar-king',
 		objectives: [
-			{ id: 'meet-drogg-crossroads', kind: 'talk-to-npc', npcIds: ['drogg-crossroads'] },
+			{ id: 'meet-drogg-north-gate', kind: 'talk-to-npc', npcIds: ['drogg-north-gate'] },
 			{ id: 'track-the-boar-king', kind: 'inspect', discoveryIds: ['boar-king-trail'] },
 			{ id: 'talk-to-drogg-falls', kind: 'talk-to-npc', npcIds: ['drogg-falls'] },
 			{
@@ -205,7 +205,7 @@ const questDefinitions: Record<QuestId, QuestDefinitionSource> = {
 				kind: 'defeat-enemy',
 				target: 1,
 				enemyId: 'boar-king',
-				mapIds: ['meadow-entry'],
+				mapIds: ['overworld'],
 				onComplete: [
 					scene('prologue.boar-king-felled'),
 					// Drogg carries the boar home: fade to Borak's desk in the lodge.
@@ -255,7 +255,7 @@ const questDefinitions: Record<QuestId, QuestDefinitionSource> = {
 				kind: 'defeat-enemy',
 				target: 6,
 				enemyId: 'human-soldier',
-				mapIds: ['meadow-entry']
+				mapIds: ['overworld']
 			},
 			{ id: 'reach-the-gate', kind: 'talk-to-npc', npcIds: ['borak-gate'] },
 			{ id: 'find-drogg', kind: 'talk-to-npc', npcIds: ['drogg-well'] },

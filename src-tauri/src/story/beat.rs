@@ -375,7 +375,7 @@ map: guild-hall
 npc: lirra-forest-edge
 branch: always
 speaker: Lirra
-map: meadow-entry
+map: overworld
 :::
 
 Took you long enough.
@@ -383,7 +383,7 @@ Took you long enough.
         )
         .expect("beat should parse");
 
-        assert_eq!(beat.dialogues[0].map_id, "meadow-entry");
+        assert_eq!(beat.dialogues[0].map_id, "overworld");
     }
 
     #[test]

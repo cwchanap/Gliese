@@ -256,14 +256,14 @@ mod tests {
         let wrong_map = get_npc_dialogue_from_catalog(
             &catalog(),
             StoryDialogueRequest {
-                map_id: "meadow-entry".to_string(),
+                map_id: "overworld".to_string(),
                 ..request(None, None)
             },
         )
         .expect_err("wrong map");
         assert_eq!(
             wrong_map,
-            "story npc borak is not available on map meadow-entry"
+            "story npc borak is not available on map overworld"
         );
 
         let locale = get_npc_dialogue_from_catalog(

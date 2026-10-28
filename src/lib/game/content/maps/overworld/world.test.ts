@@ -7,14 +7,16 @@ import {
 } from '$lib/game/content/maps/grid/layers';
 import { isWalkable } from '$lib/game/core/navigation';
 
-import { overworld, overworldAnchors, overworldMap } from './world';
+import { overworldMap } from './map';
+import { overworld, overworldAnchors } from './world';
 
 /** Day-only story points on the terrace; the raid seals the terrace off. */
 const TERRACE_ANCHORS = [
 	'sundrop-shrine-door',
 	'sundrop-lodge-door',
 	'sundrop-hidden-chest',
-	'sundrop-drogg-north-gate'
+	'sundrop-drogg-north-gate',
+	'sundrop-pilgrim'
 ] as const;
 
 const sundrop = overworld.chunks.find((chunk) => chunk.id === 'sundrop')!;
@@ -57,17 +59,15 @@ describe('overworld', () => {
 		]);
 	});
 
-	it('spawns on walkable ground at Grik’s door', () => {
+	it('spawns on walkable ground one tile out from Grik’s door', () => {
 		const navigation = buildGridNavigationGrid(
 			overworld.id,
 			overworld.grid.terrain,
 			overworld.grid.buildings
 		);
+		const door = overworldAnchors['sundrop-grik-home-door']!;
 		expect(isWalkable(navigation, overworldMap.spawn.x, overworldMap.spawn.y)).toBe(true);
-		expect(overworldMap.spawn).toEqual({
-			x: overworldAnchors['sundrop-grik-home-door']!.x,
-			y: overworldAnchors['sundrop-grik-home-door']!.y
-		});
+		expect(overworldMap.spawn).toEqual({ x: door.x, y: door.y - 32 });
 	});
 
 	it('puts every anchor on a tile the player can stand on', () => {

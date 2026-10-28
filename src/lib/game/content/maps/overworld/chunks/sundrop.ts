@@ -26,7 +26,12 @@ export const sundropChunk: GridChunkSource = {
 		r: 'sundrop-lirra-captive',
 		h: 'sundrop-raid-soldiers-lane',
 		i: 'sundrop-raid-soldiers-street',
-		j: 'sundrop-raid-soldiers-forge'
+		j: 'sundrop-raid-soldiers-forge',
+		e: 'sundrop-wanderer',
+		n: 'sundrop-woodcutter',
+		o: 'sundrop-pilgrim',
+		u: 'sundrop-crier',
+		w: 'sundrop-market-cache'
 	},
 	buildings: {
 		S: 'shrine',
@@ -51,11 +56,11 @@ TTTTTTTTPP.........Y....NNN..,,,,.......LLLLLLLLLLL...~~TTTTTTTT
 TTTTTTTPPSSSSSSS.Y....k......,,d,.Y..XY.LLLLLLLLLLL...~~PTTTTTTT
 TTTTTTPPYSSSSSSS..YY.,,......,,,,.......LLLLLLLLLLL.X.~~PPTTTTTT
 TTTTTPP..SSSSSSSY.YY.,.......,,,....RX..LLLLLLLLLLL...~~.PPTTTTT
-TTTTTP.Y.SSSSSSS..Y..,...R...,,,........LLLLLLLLLLL..Y~~..PTTTTT
+TTTTTP.Y.SSSSSSS..Yo.,...R...,,,........LLLLLLLLLLL..Y~~..PTTTTT
 TTTTTP..RSSSSSSS.....,.......,,,,............l.....Y..~~..PTTTTT
 TTTTPP......s,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.......~~..PPTTTT
 TTTTP...Y.......,,,,,,,,,,,,..,,,,,,,,...............~~....PTTTT
-TTTTP########,,,,,,.......,,,,,,,..............Y.####~~####PTTTT
+TTTTP#######,,,,,,,.......,,,,,,,..............Y.####~~####PTTTT
 TTTTP.......#...,,,...........,,,.............R..#...~~....PTTTT
 TTTTP.NNN...####HHH#######....,,,.....############..~~..Y.YPTTTT
 TTTTP.NNN.......,.,......#####HHH######.............~~.....PTTTT
@@ -64,8 +69,8 @@ TTTTPR....Y.....,,.%%%%.......,,,..YNNN..RTTTTT..RR.~~.....PTTTT
 TTTTP..MMMMMM..,,,.%%%%.Y.....,,,...NNN..YTTTTTY....~~.....PTTTT
 TTTTP..MMMMMM..,,..%%%%.......,,,,..NNN...TTTTT.YYTT~~..R..PTTTT
 TTTTP..MMMMMM.,,,..%%%%.....,,,v,,,,..........Y...TT~~.YYY.PTTTT
-TTTTPWWMMMMMM.,.,..........,,t,,,,r,,......R......TT~~.....PTTTT
-TTTTPWWMMMMMM.,.,..........,,,,,,,,,,.....Y.......TT~~.Y...PTTTT
+TTTTPWWMMMMMM.,.,..........,,t,,,,r,,......R..u...TT~~.....PTTTT
+TTTTPWWMMMMMM.,.,.......w..,,,,,,,,,,...e.Y.......TT~~.Y...PTTTT
 TTTTP..,,,m,,,,.,..,,,,,,,,,,,,OO,,,,.....Y.Y.....TT~~.....PTTTT
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,OO,,,,,,,.....Y....Y.~~.....PTTTT
 ,,,,,,,,,,,,,,,,,,,i,,,,,,,,,,,,,q,,,,,,,,,..........~~..Y.PTTTT
@@ -85,7 +90,7 @@ TTTTP...GGGGGGG...,,,,,,,,,,,,,,,,.Y...22222.......Y..~~WW.PTTTT
 TTTTP.Y.GGGGGGG.....,,,.,..,,,,,,,......b.....Y.....Y~~.WW.PTTTT
 TTTTPYR.GGGGGGG.......,,,,,,,.,,,,....,,........Y...Y~~....PTTTT
 TTTTPP..............Y...,......,,,..,,,....Y......Y..~~...PPTTTT
-TTTTTP.................c...NNN.,,,,,.................~~Y..PTTTTT
+TTTTTP..........n......c...NNN.,,,,,.................~~Y..PTTTTT
 TTTTTP.................,...NNN.,,,,...NNN.Y......Y..~~....PTTTTT
 TTTTTPP.....NNN.....333333.NNN.,,,,...NNN.R......Y.~~.Y..PPTTTTT
 TTTTTTPP....NNN.....333333......,,,.R.NNN.........~~....PPTTTTTT

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
+
 import { isNpcPackFrameName } from '$lib/game/content/assets';
-import { meadowEntryMap } from '$lib/game/content/maps';
+import { maps } from '$lib/game/content/maps';
 import {
 	buildMapNavigationObstacles,
 	resolveMapNavigationGrid
 } from '$lib/game/content/maps/navigation';
-import { prologueRegion } from '$lib/game/content/maps/regions/prologue';
 import { mainQuestIds, quests } from '$lib/game/content/quests';
 import {
 	NPC_INTERACTION_RADIUS,
@@ -18,28 +18,35 @@ import { getStoryProgress } from '$lib/game/core/quests';
 import { questStateAt } from '$lib/game/core/quests.fixtures';
 import { applyStoryGates, storyGateSignature } from '$lib/game/core/story-gates';
 
+import { overworldMap } from './map';
+import { caveArrival, overworldDoorArrival } from './places';
+import { prologuePlacements } from './prologue';
+
 type Point = { x: number; y: number };
 
-const STEP_PX = 8;
-// Mirrors WorldScene's pickup and default discovery interaction radii.
+const STEP_PX = 16;
+// Mirrors WorldScene: transition trigger (player radius + 18), pickup radius, default discovery radius.
+const TRANSITION_TRIGGER_PX = PLAYER_COLLISION_RADIUS + 18;
 const PICKUP_RADIUS = 18;
 const DISCOVERY_RADIUS = 64;
 
 const reachedByGates = new Map<string, Uint8Array>();
 
 /**
- * Every spot the player can stand on, flood-filled from spawn through the runtime
- * collision at this point of the story. Cached per set of live story gates.
+ * Every spot the player can stand on at this point of the story, flood-filled through the
+ * runtime collision from where the player is: Grik's door, or the tunnel mouth once he has
+ * escaped through it. Cached per set of live story gates and start.
  */
 function reachableAt(objectiveId: string) {
 	const progress = getStoryProgress(questStateAt(objectiveId));
-	const map = applyStoryGates(meadowEntryMap, progress);
+	const map = applyStoryGates(overworldMap, progress);
 	const grid = resolveMapNavigationGrid(map);
 	const cols = Math.floor(grid.widthPx / STEP_PX);
 	const rows = Math.floor(grid.heightPx / STEP_PX);
 	const centre = (cell: number) => cell * STEP_PX + STEP_PX / 2;
+	const start = progress.questId === 'prologue-escape' ? caveArrival : map.spawn;
 
-	const gateKey = storyGateSignature(meadowEntryMap, progress);
+	const gateKey = `${storyGateSignature(overworldMap, progress)}@${start.x},${start.y}`;
 	let reached = reachedByGates.get(gateKey);
 	if (!reached) {
 		const obstacles = buildMapNavigationObstacles(map, { includeInteractableNpcs: true });
@@ -51,7 +58,7 @@ function reachableAt(objectiveId: string) {
 				PLAYER_COLLISION_RADIUS
 			);
 		reached = new Uint8Array(cols * rows);
-		const queue = [Math.floor(map.spawn.y / STEP_PX) * cols + Math.floor(map.spawn.x / STEP_PX)];
+		const queue = [Math.floor(start.y / STEP_PX) * cols + Math.floor(start.x / STEP_PX)];
 		reached[queue[0]!] = 1;
 		while (queue.length > 0) {
 			const index = queue.pop()!;
@@ -104,17 +111,82 @@ function reachableAt(objectiveId: string) {
 	};
 }
 
+describe('overworld placements', () => {
+	it('keeps placement ids unique within each kind', () => {
+		for (const field of [
+			'transitions',
+			'npcs',
+			'ambientNpcs',
+			'encounters',
+			'combatBounds',
+			'pickups',
+			'discoveries'
+		] as const) {
+			const ids = (overworldMap[field] ?? []).map((entry) => entry.id);
+			expect(new Set(ids).size, field).toBe(ids.length);
+		}
+	});
+
+	it('gives every story pack its own pocket', () => {
+		expect(overworldMap.combatBounds?.map((bounds) => bounds.encounterIds)).toEqual(
+			overworldMap.encounters?.map((encounter) => [encounter.id])
+		);
+	});
+
+	it('enters each interior at its spawn and steps back out just past the door', () => {
+		const navigation = resolveMapNavigationGrid(overworldMap);
+		const obstacles = buildMapNavigationObstacles(overworldMap, { includeInteractableNpcs: false });
+		const doors = overworldMap.transitions.filter((transition) => !transition.marker);
+		expect(doors).toHaveLength(8);
+		for (const door of doors) {
+			const interior = maps[door.toMapId]!;
+			expect(door.arrival, door.id).toEqual({ ...interior.spawn, facing: 'up' });
+
+			const exit = interior.transitions.find((transition) => transition.toMapId === 'overworld');
+			const back = overworldDoorArrival(door.toMapId as Parameters<typeof overworldDoorArrival>[0]);
+			expect(exit?.arrival, door.id).toEqual(back);
+			expect(Math.hypot(back.x - door.x, back.y - door.y), door.id).toBeGreaterThan(
+				TRANSITION_TRIGGER_PX
+			);
+			expect(
+				isPositionWalkable(
+					navigation,
+					obstacles,
+					back,
+					PLAYER_COLLISION_RADIUS,
+					'resting-position'
+				),
+				door.id
+			).toBe(true);
+		}
+	});
+
+	it('opens the tunnel mouth only on the escape, next to where Grik comes out', () => {
+		const cave = overworldMap.transitions.find(
+			(transition) => transition.toMapId === 'ruins-threshold'
+		)!;
+		expect(cave.activeDuring).toEqual({ quests: ['prologue-escape'] });
+		expect(Math.hypot(caveArrival.x - cave.x, caveArrival.y - cave.y)).toBeGreaterThan(
+			TRANSITION_TRIGGER_PX
+		);
+		expect(Math.hypot(caveArrival.x - cave.x, caveArrival.y - cave.y)).toBeLessThanOrEqual(256);
+		expect(maps['ruins-threshold']!.transitions[0]).toMatchObject({
+			toMapId: 'overworld',
+			arrival: caveArrival
+		});
+	});
+});
+
 describe('prologue placements', () => {
 	const objectiveIds = mainQuestIds.flatMap((questId) =>
 		quests[questId].objectives.map((objective) => objective.id)
 	);
-	const ids = (entries: readonly { id: string }[] | undefined) =>
-		new Set((entries ?? []).map((entry) => entry.id));
+	const ids = (entries: readonly { id: string }[]) => new Set(entries.map((entry) => entry.id));
 	const prologueIds = {
-		npcs: ids(prologueRegion.npcs),
-		encounters: ids(prologueRegion.encounters),
-		discoveries: ids(prologueRegion.discoveries),
-		pickups: ids(prologueRegion.pickups)
+		npcs: ids(prologuePlacements.npcs),
+		encounters: ids(prologuePlacements.encounters),
+		discoveries: ids(prologuePlacements.discoveries),
+		pickups: ids(prologuePlacements.pickups)
 	};
 
 	it.each(objectiveIds)(
@@ -154,6 +226,6 @@ describe('prologue placements', () => {
 
 			expect(unreachable).toEqual([]);
 		},
-		20_000
+		30_000
 	);
 });

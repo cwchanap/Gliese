@@ -1,17 +1,17 @@
 # Quest 4: The Third Trial, the Boar King
 
-Drogg joins Grik at the crossroads, "to carry the meat". At the Silverpine
+Drogg joins Grik at the north gate, "to carry the meat". At the Silverpine
 falls his jokes turn into real advice, and the brothers bring down the Boar King.
 
 ::: story
 id: prologue.trial-boar-king
 chapter: prologue
-map: meadow-entry
+map: overworld
 :::
 
 ::: dialogue
-npc: drogg-crossroads
-branch: objective:meet-drogg-crossroads
+npc: drogg-north-gate
+branch: objective:meet-drogg-north-gate
 speaker: Drogg
 :::
 
@@ -21,20 +21,20 @@ There he is. Father sent me to help carry the meat home. That's all. Not because
 
 He's terrified. Don't tell him I said that either.
 
-The Boar King roams Silverpine, north across the river. Old, huge, and meaner than Oren before breakfast.
+The Boar King roams Silverpine, up the north trail. Old, huge, and meaner than Oren before breakfast.
 
-Its trail starts past the bridge. Go and find it. I'll be right behind you.
+Its trail starts up in the pines. Go and find it. I'll be right behind you.
 
 ::: dialogue
-npc: drogg-crossroads
+npc: drogg-north-gate
 branch: objective:track-the-boar-king
 speaker: Drogg
 :::
 
-North, across the bridge into Silverpine. Look for the trail. You can't miss it. Trees don't usually lie down on their own.
+North, up into Silverpine. Look for the trail. You can't miss it. Trees don't usually lie down on their own.
 
 ::: dialogue
-npc: drogg-crossroads
+npc: drogg-north-gate
 branch: always
 speaker: Drogg
 :::
@@ -110,4 +110,4 @@ speaker: Borak
 
 The Boar King of Silverpine. My father faced it, and I faced it. Now it is your turn.
 
-Drogg is waiting at the crossroads. Go.
+Drogg is waiting at the north gate. Go.

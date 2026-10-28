@@ -7,7 +7,7 @@ charges the captain and loses.
 ::: story
 id: prologue.raid
 chapter: prologue
-map: meadow-entry
+map: overworld
 :::
 
 ::: scene

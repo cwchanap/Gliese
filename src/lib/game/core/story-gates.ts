@@ -30,7 +30,7 @@ export function isActiveInStory(entry: StoryGated, progress: StoryProgress): boo
  * cached per source map and story position, so per-frame callers stay cheap.
  *
  * Interiors with a generated navigation grid bake their blockers into the grid,
- * so story-gated blockers only take effect on maps without one (meadow-entry).
+ * so story-gated blockers only take effect on maps without one (the ruins).
  * Text-grid maps change terrain through story-gated `tileOverlays` instead.
  */
 export function applyStoryGates(
