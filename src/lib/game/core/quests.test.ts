@@ -118,7 +118,7 @@ describe('quest core', () => {
 		}
 		const soldier = (sourceId: string): QuestEvent => ({
 			type: 'defeat-enemy',
-			mapId: 'meadow-entry',
+			mapId: 'overworld',
 			encounterId: 'raid-soldiers-lane',
 			enemyId: 'human-soldier',
 			sourceId

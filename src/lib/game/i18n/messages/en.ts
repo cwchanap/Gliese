@@ -448,8 +448,8 @@ export const en = {
 				title: 'Third Trial: The Boar King',
 				description: 'Face the king of beasts. Hunt the Boar King in Silverpine with Drogg.',
 				objectives: {
-					'meet-drogg-crossroads': {
-						description: 'Meet Drogg at the crossroads waystone.',
+					'meet-drogg-north-gate': {
+						description: 'Meet Drogg at the north gate.',
 						progressLabel: 'Met Drogg'
 					},
 					'track-the-boar-king': {
@@ -550,42 +550,7 @@ export const en = {
 			}
 		},
 		maps: {
-			landmarks: {
-				'hero-house-exterior': { label: "Grik's House" },
-				'guild-hall-exterior': { label: "Hunters' Lodge" },
-				'item-shop-exterior': { label: 'Herb Hut' },
-				'villager-house-1-exterior': { label: 'Villager Home' },
-				'villager-house-2-exterior': { label: 'Villager Home' },
-				'villager-house-3-exterior': { label: 'Villager Home' },
-				'sundrop-well': { label: 'Sundrop Well' },
-				'whispering-cave': { label: 'Whispering Cave' },
-				blacksmith: { label: 'Blacksmith' },
-				'shrine-of-aurora': { label: 'Shrine of Aurora' },
-				'witchwood-gate': { label: 'Witchwood Gate' },
-				'silver-shrine-gate': { label: 'Silver Shrine Gate' },
-				'ferry-crossing': { label: 'Ferry Crossing' },
-				'castle-gate': { label: 'Sealed Castle Gate' },
-				'crossroads-waystone': { label: 'Crossroads Waystone' }
-			},
 			discoveries: {
-				'crossroads-waystone-sign': {
-					label: 'Worn Waystone',
-					description: 'Carved arrows fan out: shrine north, coast south, marsh west, cave east.'
-				},
-				'castle-gate-warning': {
-					label: 'Castle Gate Notice',
-					description:
-						'The royal road is sealed by decree. None pass the white line until the festival ends.'
-				},
-				'ferry-shrine-lore': {
-					label: 'Ferry Shrine',
-					description:
-						'Ring the bell at dusk and the ferryman answers — when the tide and the war allow.'
-				},
-				'coast-jetty-foreshadow': {
-					label: "Jetty's End",
-					description: 'The planks stop at open water. No boat waits here yet.'
-				},
 				'witchwood-poison-warning': {
 					label: 'Witchwood Marker',
 					description: 'Breathe shallow past the gate. The blooms here weep a poison mist.'
@@ -630,7 +595,6 @@ export const en = {
 				'villager-io': { name: 'Io' }
 			},
 			areas: {
-				'meadow-entry': 'Sundrop Meadows',
 				'hero-house': "Grik's House",
 				'guild-hall': "Hunters' Lodge",
 				'item-shop': 'Herb Hut',

@@ -145,7 +145,7 @@ pub fn story_catalog() -> StoryCatalog {
                             },
                             StoryLine {
                                 speaker: "Borak".to_string(),
-                                text: "Drogg is waiting at the crossroads. Go.".to_string(),
+                                text: "Drogg is waiting at the north gate. Go.".to_string(),
                             },
                         ],
                         actions: vec![
@@ -207,7 +207,7 @@ pub fn story_catalog() -> StoryCatalog {
             },
             NpcStoryDialogue {
                 npc_id: "borak-gate".to_string(),
-                map_id: "meadow-entry".to_string(),
+                map_id: "overworld".to_string(),
                 branches: vec![
                     StoryDialogueBranch {
                         beat_id: "prologue.raid".to_string(),
@@ -322,66 +322,8 @@ pub fn story_catalog() -> StoryCatalog {
                 ],
             },
             NpcStoryDialogue {
-                npc_id: "drogg-crossroads".to_string(),
-                map_id: "meadow-entry".to_string(),
-                branches: vec![
-                    StoryDialogueBranch {
-                        beat_id: "prologue.trial-boar-king".to_string(),
-                        condition: StoryBranchCondition::Objective("meet-drogg-crossroads".to_string()),
-                        lines: vec![
-                            StoryLine {
-                                speaker: "Drogg".to_string(),
-                                text: "There he is. Father sent me to help carry the meat home. That's all. Not because he's worried.".to_string(),
-                            },
-                            StoryLine {
-                                speaker: "Grik".to_string(),
-                                text: "He's worried.".to_string(),
-                            },
-                            StoryLine {
-                                speaker: "Drogg".to_string(),
-                                text: "He's terrified. Don't tell him I said that either.".to_string(),
-                            },
-                            StoryLine {
-                                speaker: "Drogg".to_string(),
-                                text: "The Boar King roams Silverpine, north across the river. Old, huge, and meaner than Oren before breakfast.".to_string(),
-                            },
-                            StoryLine {
-                                speaker: "Drogg".to_string(),
-                                text: "Its trail starts past the bridge. Go and find it. I'll be right behind you.".to_string(),
-                            },
-                        ],
-                        actions: vec![
-                        ],
-                    },
-                    StoryDialogueBranch {
-                        beat_id: "prologue.trial-boar-king".to_string(),
-                        condition: StoryBranchCondition::Objective("track-the-boar-king".to_string()),
-                        lines: vec![
-                            StoryLine {
-                                speaker: "Drogg".to_string(),
-                                text: "North, across the bridge into Silverpine. Look for the trail. You can't miss it. Trees don't usually lie down on their own.".to_string(),
-                            },
-                        ],
-                        actions: vec![
-                        ],
-                    },
-                    StoryDialogueBranch {
-                        beat_id: "prologue.trial-boar-king".to_string(),
-                        condition: StoryBranchCondition::Always,
-                        lines: vec![
-                            StoryLine {
-                                speaker: "Drogg".to_string(),
-                                text: "Silverpine is that way. The scary way.".to_string(),
-                            },
-                        ],
-                        actions: vec![
-                        ],
-                    },
-                ],
-            },
-            NpcStoryDialogue {
                 npc_id: "drogg-falls".to_string(),
-                map_id: "meadow-entry".to_string(),
+                map_id: "overworld".to_string(),
                 branches: vec![
                     StoryDialogueBranch {
                         beat_id: "prologue.trial-boar-king".to_string(),
@@ -542,8 +484,66 @@ pub fn story_catalog() -> StoryCatalog {
                 ],
             },
             NpcStoryDialogue {
+                npc_id: "drogg-north-gate".to_string(),
+                map_id: "overworld".to_string(),
+                branches: vec![
+                    StoryDialogueBranch {
+                        beat_id: "prologue.trial-boar-king".to_string(),
+                        condition: StoryBranchCondition::Objective("meet-drogg-north-gate".to_string()),
+                        lines: vec![
+                            StoryLine {
+                                speaker: "Drogg".to_string(),
+                                text: "There he is. Father sent me to help carry the meat home. That's all. Not because he's worried.".to_string(),
+                            },
+                            StoryLine {
+                                speaker: "Grik".to_string(),
+                                text: "He's worried.".to_string(),
+                            },
+                            StoryLine {
+                                speaker: "Drogg".to_string(),
+                                text: "He's terrified. Don't tell him I said that either.".to_string(),
+                            },
+                            StoryLine {
+                                speaker: "Drogg".to_string(),
+                                text: "The Boar King roams Silverpine, up the north trail. Old, huge, and meaner than Oren before breakfast.".to_string(),
+                            },
+                            StoryLine {
+                                speaker: "Drogg".to_string(),
+                                text: "Its trail starts up in the pines. Go and find it. I'll be right behind you.".to_string(),
+                            },
+                        ],
+                        actions: vec![
+                        ],
+                    },
+                    StoryDialogueBranch {
+                        beat_id: "prologue.trial-boar-king".to_string(),
+                        condition: StoryBranchCondition::Objective("track-the-boar-king".to_string()),
+                        lines: vec![
+                            StoryLine {
+                                speaker: "Drogg".to_string(),
+                                text: "North, up into Silverpine. Look for the trail. You can't miss it. Trees don't usually lie down on their own.".to_string(),
+                            },
+                        ],
+                        actions: vec![
+                        ],
+                    },
+                    StoryDialogueBranch {
+                        beat_id: "prologue.trial-boar-king".to_string(),
+                        condition: StoryBranchCondition::Always,
+                        lines: vec![
+                            StoryLine {
+                                speaker: "Drogg".to_string(),
+                                text: "Silverpine is that way. The scary way.".to_string(),
+                            },
+                        ],
+                        actions: vec![
+                        ],
+                    },
+                ],
+            },
+            NpcStoryDialogue {
                 npc_id: "drogg-well".to_string(),
-                map_id: "meadow-entry".to_string(),
+                map_id: "overworld".to_string(),
                 branches: vec![
                     StoryDialogueBranch {
                         beat_id: "prologue.raid".to_string(),
@@ -609,7 +609,7 @@ pub fn story_catalog() -> StoryCatalog {
             },
             NpcStoryDialogue {
                 npc_id: "lirra-captive".to_string(),
-                map_id: "meadow-entry".to_string(),
+                map_id: "overworld".to_string(),
                 branches: vec![
                     StoryDialogueBranch {
                         beat_id: "prologue.raid".to_string(),
@@ -627,7 +627,7 @@ pub fn story_catalog() -> StoryCatalog {
             },
             NpcStoryDialogue {
                 npc_id: "lirra-forest".to_string(),
-                map_id: "meadow-entry".to_string(),
+                map_id: "overworld".to_string(),
                 branches: vec![
                     StoryDialogueBranch {
                         beat_id: "prologue.trial-tracks".to_string(),
@@ -763,7 +763,7 @@ pub fn story_catalog() -> StoryCatalog {
             },
             NpcStoryDialogue {
                 npc_id: "lirra-mistfen".to_string(),
-                map_id: "meadow-entry".to_string(),
+                map_id: "overworld".to_string(),
                 branches: vec![
                     StoryDialogueBranch {
                         beat_id: "prologue.trial-mistfen".to_string(),
@@ -947,7 +947,7 @@ pub fn story_catalog() -> StoryCatalog {
                             },
                             StoryLine {
                                 speaker: "Mira".to_string(),
-                                text: "Borak stopped by while you were out. The third trial is the Boar King of Silverpine. Drogg is waiting for you at the crossroads signpost.".to_string(),
+                                text: "Borak stopped by while you were out. The third trial is the Boar King of Silverpine. Drogg is waiting for you at the north gate.".to_string(),
                             },
                             StoryLine {
                                 speaker: "Mira".to_string(),
@@ -1251,7 +1251,7 @@ pub fn story_catalog() -> StoryCatalog {
             },
             NpcStoryDialogue {
                 npc_id: "tikka-captive".to_string(),
-                map_id: "meadow-entry".to_string(),
+                map_id: "overworld".to_string(),
                 branches: vec![
                     StoryDialogueBranch {
                         beat_id: "prologue.raid".to_string(),

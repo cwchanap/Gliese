@@ -115,10 +115,10 @@ describe('battle contracts', () => {
 	function soldierVictory(saveState: SaveState, count: number): BattleResult {
 		return {
 			outcome: 'victory',
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'raid-soldiers-lane',
 			sourceEnemyId: 'human-soldier',
-			returnPosition: { mapId: 'meadow-entry', x: 1_200, y: 5_440, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 1_200, y: 5_440, facing: 'down' },
 			finalHeroHp: 14,
 			inventory: saveState.inventory,
 			defeatedUnits: soldierUnits(count)
@@ -216,10 +216,10 @@ describe('battle contracts', () => {
 
 		const application = applyBattleResultToSaveState(saveState, {
 			outcome: 'defeat',
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'sun-crest-captain',
 			sourceEnemyId: 'sun-crest-captain',
-			returnPosition: { mapId: 'meadow-entry', x: 1_504, y: 4_860, facing: 'up' },
+			returnPosition: { mapId: 'overworld', x: 1_504, y: 4_860, facing: 'up' },
 			finalHeroHp: 0,
 			inventory: saveState.inventory,
 			defeatedUnits: []

@@ -13,10 +13,11 @@ bun run test:unit -- --run src/lib/game/content/agent-skills.test.ts
 Map definitions, transitions, encounters, or map-owned content IDs:
 
 ```sh
-bun run test:unit -- --run src/lib/game/content/maps.test.ts
+bun run test:unit -- --run src/lib/game/content/maps.test.ts src/lib/game/content/maps/overworld
+bun run map:preview
 ```
 
-`maps.test.ts` covers map integration only. When a content registry is changed, also
+`maps.test.ts` and the overworld tests cover map integration only. When a content registry is changed, also
 run that registry's focused test — it owns invariants `maps.test.ts` does not, such as
 shop stock and localization, and quest objectives and rewards. Run each one that
 matches the touched registry:
@@ -67,7 +68,6 @@ Derive one shortest route from the Expansion Brief. Cover only relevant behavior
 - Story text, beat metadata, or generated references: story owner.
 - Route, blocker, transition, or collision mismatch: map geometry owner.
 - Loading, depth, fallback, or scene behavior: runtime renderer owner.
-- Meadow Entry crop/master/export mismatch: Meadow Entry art-package owner.
 - Generic sprite alpha, sheet layout, frame metadata, or preload mismatch: `2d-game-asset-workflow` owner.
 
 Fix the defect at its owner. Do not add a translation layer, duplicate source, or broad framework to hide it.

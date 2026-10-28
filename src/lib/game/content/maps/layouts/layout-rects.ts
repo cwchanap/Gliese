@@ -60,23 +60,6 @@ export function rectsOverlap(left: LayoutRect, right: LayoutRect): boolean {
 	);
 }
 
-export function rectsConnect(left: LayoutRect, right: LayoutRect): boolean {
-	if (rectsOverlap(left, right)) return true;
-	const sharedVerticalEdge =
-		(left.x + left.width === right.x || right.x + right.width === left.x) &&
-		Math.max(left.y, right.y) < Math.min(left.y + left.height, right.y + right.height);
-	const sharedHorizontalEdge =
-		(left.y + left.height === right.y || right.y + right.height === left.y) &&
-		Math.max(left.x, right.x) < Math.min(left.x + left.width, right.x + right.width);
-	return sharedVerticalEdge || sharedHorizontalEdge;
-}
-
-export function rectClearance(left: LayoutRect, right: LayoutRect): number {
-	const gapX = Math.max(left.x - (right.x + right.width), right.x - (left.x + left.width), 0);
-	const gapY = Math.max(left.y - (right.y + right.height), right.y - (left.y + left.height), 0);
-	return Math.hypot(gapX, gapY);
-}
-
 export function layoutRectContainsPoint(value: LayoutRect, candidate: LayoutPoint): boolean {
 	return (
 		candidate.x >= value.x &&

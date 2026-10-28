@@ -139,10 +139,12 @@ keys not in the table stay cache-only. In a plain browser each key lands in
 
 ```
 content/     Static game definitions (assets, dialogue, enemies, items, player, quests, shops)
-  maps.ts    direct maps (interiors and ruins WorldMapDefinition literals)
-  maps/      the meadow-entry composition
-    regions/ hand-authored RegionFragment modules; village.ts alone wraps village-layered.ts
-    layered/ the village tile-layer compiler and related authoring helpers
+  maps.ts    direct maps (interiors and ruins WorldMapDefinition literals) and the registry
+  maps/
+    grid/      the text-grid compiler, legend, tileset, and collision layers
+    overworld/ the continent: chunks, world.ts (compile + anchors), places.ts and prologue.ts
+               (placements on anchors), map.ts (the playable overworld map)
+    layouts/   interior room layouts (village-interiors-v2.ts) and rect helpers
 core/        Pure TS game logic — no Phaser, no DOM
              (combat, battle, boss, progression, input, types, inventory, equipment, shop,
               stats, loot, dialogue runtime, quests, area-map, map-exploration)
@@ -178,15 +180,7 @@ Phaser and Svelte communicate exclusively through custom `window` events (define
 
 ### Content / Data Model
 
-- **Maps**: `meadow-entry` is the hub, with interior maps (`hero-house`, `guild-hall`, `item-shop`, `villager-house-1/2/3`, `shrine-of-aurora-interior`) and the old tunnel `ruins-threshold` → `ruins-core` (the prologue's escape route). Interiors and ruins are direct `WorldMapDefinition` literals in `src/lib/game/content/maps.ts`. Most Meadow Entry destinations and connectors are hand-authored `RegionFragment` modules under `content/maps/regions/` and become active only when imported and included in `mergeRegions(...)` in `content/maps/meadow-entry.ts`. Sundrop Village is the one layered exception: `village-layered.ts` owns terrain, path, collision, neutral region-label, and tile-decor grids; `village.ts` composes those with pixel-positioned landmarks, transitions, pickups, ambient NPCs, and eventual background planes from shared coordinate constants. Do not force pixel-positioned objects through the layered compiler's tile-centre object contract.
-
-## Sundrop Village Ownership
-
-`village-layered.ts` owns Sundrop terrain, path, collision, neutral region-label,
-and tile-decor grids. `village.ts` composes the resulting fragment with
-pixel-positioned landmarks, transitions, pickups, ambient NPCs, and eventual
-background planes from shared coordinate constants. Do not force pixel-positioned
-objects through the layered compiler's tile-centre object contract.
+- **Maps**: `overworld` is the one outdoor map and the opening map (see "Overworld grid maps" below), with interior maps (`hero-house`, `guild-hall`, `item-shop`, `blacksmith-interior`, `villager-house-1/2/3`, `shrine-of-aurora-interior`) behind Sundrop's doors and the old tunnel `ruins-threshold` → `ruins-core` (the prologue's escape route) behind the Whispering Cave. Interiors and ruins are direct `WorldMapDefinition` literals in `src/lib/game/content/maps.ts`; their exits return through `overworldDoorArrival(...)` and `caveArrival` in `content/maps/overworld/places.ts`. Everything on the overworld stands on a named anchor: doors, caches, ambient NPCs, and signs in `places.ts`, story placements in `prologue.ts`, composed in `overworld/map.ts`.
 
 ## Structure Before Art
 
@@ -195,7 +189,7 @@ rooms, corridors, walls, doors, routes, transition approaches, and NPC approache
 before generating final art or placing decorative content. Prove the geometry with
 a walkable graybox first.
 
-- **Story gates**: map NPCs, encounters, pickups, discoveries, blockers, transitions, and grid-map tile overlays can carry `activeDuring` / `hiddenDuring` (quest ids, objective ids, or the shared `storyWindows` in `content/quests.ts`). `core/story-gates.ts` filters a map by the current story progress, so one Meadow Entry plays the proving day, the raid, and the escape. The prologue's story placements live in `content/maps/regions/prologue.ts`.
+- **Story gates**: map NPCs, encounters, pickups, discoveries, blockers, transitions, and grid-map tile overlays can carry `activeDuring` / `hiddenDuring` (quest ids, objective ids, or the shared `storyWindows` in `content/quests.ts`). `core/story-gates.ts` filters a map by the current story progress, so one overworld plays the proving day, the raid, and the escape. The prologue's story placements live in `content/maps/overworld/prologue.ts`.
 - **Enemies**: prologue beasts `forest-wolf`, `mist-toad`, `thornback-boar`, `tunnel-crawler`; humans `human-soldier`, `sun-crest-captain`; boss `boar-king` (phase-2 enrage at ≤50% HP). Each enemy has its own actor block in `animation-pack.png` and its own battle plate under `heroic-ui/enemies/<enemy-id>.png` (`content/assets.ts`).
 - **Items / shops**: Items are defined in `content/items.ts` (consumables, equipment with `StatModifiers`, key items). Shops in `content/shops.ts` reference item IDs with per-shop stock and pricing. Wallet/coin state lives in `core/shop.ts`.
 - **Dialogue**: NPC **prose and choices live in `story/`, not in TypeScript** (see Story Pipeline). Scripted scenes (`::: scene`) are played by quest effects and discoveries. Runtime traversal/state lives in `core/dialogue.ts` and is surfaced to the HUD as `HudState.dialogue` (modes: `conversation`, `choice`, `system`). The HUD drives it with the `dialogue-advance` / `dialogue-close` / `dialogue-choose` commands.
@@ -222,11 +216,11 @@ a walkable graybox first.
 
 ### Overworld grid maps
 
-The continent is being rebuilt as one text-grid map, `overworld`, 384×384 tiles (plan: the Notion
-page 「地圖重新設計企劃」). Until it replaces `meadow-entry` it is reachable only through the dev
-link `?startMap=overworld` (e.g. `http://localhost:5173/?startMap=overworld`), which boots a
-fresh save on Grik's door in Sundrop. A dev-link run never writes save slots, so it cannot
-overwrite real progress. The grid code lives in `content/maps/grid/`;
+The continent is one text-grid map, `overworld`, 384×384 tiles (plan: the Notion page
+「地圖重新設計企劃」). A new run wakes in Grik's house and walks out onto it. The dev link
+`?startMap=<map-id>` (e.g. `http://localhost:5173/?startMap=overworld`) boots a fresh save at
+that map's spawn (for the overworld, just outside Grik's door); a dev-link run never writes save
+slots, so it cannot overwrite real progress. The grid code lives in `content/maps/grid/`;
 `content/maps/overworld/world.ts` places the chunks from `overworld/chunks/`.
 
 Sundrop, the Wildwood (`wildwood-north`, `wildwood-east`), Silverpine (`silverpine`), and the

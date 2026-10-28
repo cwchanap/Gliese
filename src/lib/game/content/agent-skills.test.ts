@@ -166,9 +166,10 @@ describe('project agent skills', () => {
 	it('documents the actual map authoring sources in CLAUDE.md', () => {
 		const guidance = readRepositoryFile('CLAUDE.md');
 
-		expect(guidance).toContain('hand-authored `RegionFragment`');
-		expect(guidance).toContain('`mergeRegions(...)`');
-		expect(guidance).toContain('`village-layered.ts`');
+		expect(guidance).toContain('`content/maps/overworld/world.ts`');
+		expect(guidance).toContain('`content/maps/overworld/prologue.ts`');
+		expect(guidance).not.toContain('RegionFragment');
+		expect(guidance).not.toContain('meadow-entry');
 		expect(guidance).toContain('`gliese-world-expansion`');
 		expect(guidance).toContain('`2d-game-asset-workflow`');
 		expect(guidance).not.toContain('regions/ (layered overworld) built');

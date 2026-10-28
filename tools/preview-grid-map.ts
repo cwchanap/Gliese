@@ -23,7 +23,8 @@ import {
 	findUnreachablePoints
 } from '$lib/game/content/maps/grid/layers';
 import { GRID_TILESET } from '$lib/game/content/maps/grid/tileset';
-import { overworld, overworldMap } from '$lib/game/content/maps/overworld/world';
+import { overworldMap } from '$lib/game/content/maps/overworld/map';
+import { overworld } from '$lib/game/content/maps/overworld/world';
 
 const { values } = parseArgs({
 	options: {

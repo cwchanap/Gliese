@@ -5,15 +5,14 @@ import {
 	guildHallMap,
 	itemShopMap,
 	maps,
-	meadowEntryMap,
+	overworldMap,
 	shrineOfAuroraInteriorMap,
 	villagerHouse1Map,
 	villagerHouse2Map,
 	villagerHouse3Map
 } from '$lib/game/content/maps';
-import { COMPLETE_WORLD_MAP_IDS } from '$lib/game/content/maps/layouts/complete-world-layout-foundation';
-import { MEADOW_ENTRY_V2_RIVER_SEGMENTS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
-import { overworldMap } from '$lib/game/content/maps/overworld/world';
+import { overworldDoorArrival } from '$lib/game/content/maps/overworld/places';
+import { overworld } from '$lib/game/content/maps/overworld/world';
 import { homeBedside, startingPlayer } from '$lib/game/content/player';
 import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { getXpForLevel } from '$lib/game/core/progression';
@@ -30,20 +29,28 @@ import {
 	collectLandmarkRects,
 	collectStrictCollisionRects,
 	createNewSaveState,
-	findLandmarkDoorway,
 	isInsideAnyCollisionRect,
 	parseSaveState,
 	serializeSaveState,
 	type SaveState
 } from '$lib/game/save/save-state';
 
-/** A new run moved onto Meadow Entry, for position and normalization checks. */
-function meadowSaveState(): SaveState {
+/** A new run moved onto the overworld, for position and normalization checks. */
+function overworldSaveState(): SaveState {
 	const save = createNewSaveState();
 	return {
 		...save,
-		mapId: meadowEntryMap.id,
-		player: { ...save.player, x: meadowEntryMap.spawn.x, y: meadowEntryMap.spawn.y }
+		mapId: overworldMap.id,
+		player: { ...save.player, x: overworldMap.spawn.x, y: overworldMap.spawn.y }
+	};
+}
+
+/** The centre of the first building of this type, in world pixels. */
+function buildingCentre(type: string) {
+	const building = overworld.grid.buildings.find((candidate) => candidate.type === type)!;
+	return {
+		x: (building.col + building.width / 2) * 32,
+		y: (building.row + building.height / 2) * 32
 	};
 }
 
@@ -103,7 +110,7 @@ describe('save state', () => {
 	});
 
 	it('round-trips an Item Shop save at Mira approach without moving the player', () => {
-		const save = meadowSaveState();
+		const save = overworldSaveState();
 		save.mapId = itemShopMap.id;
 		save.player = {
 			...save.player,
@@ -131,7 +138,7 @@ describe('save state', () => {
 	});
 
 	it('round-trips a Blacksmith save at Oren approach without moving the player', () => {
-		const save = meadowSaveState();
+		const save = overworldSaveState();
 		save.mapId = blacksmithInteriorMap.id;
 		save.player = {
 			...save.player,
@@ -158,45 +165,16 @@ describe('save state', () => {
 		).toBe(false);
 	});
 
-	it('keeps legacy collision geometry aligned with shared map navigation', () => {
-		const blocker = meadowEntryMap.blockers?.find(({ id }) => id === 'castle-gate-block');
-		const landmark = meadowEntryMap.landmarks?.find(({ id }) => id === 'hero-house-exterior');
-		const doorway = meadowEntryMap.transitions.find(({ id }) => id.includes('hero-house'));
-
-		expect(blocker).toBeDefined();
-		expect(landmark).toBeDefined();
-		expect(doorway).toBeDefined();
-		expect(collectStrictCollisionRects(meadowEntryMap)).toContainEqual(blocker);
-		expect(collectLandmarkRects(meadowEntryMap)).toContainEqual({
-			x: 3_776,
-			y: 4_224,
-			width: 120,
-			height: 150
-		});
-		expect(
-			findLandmarkDoorway(
-				landmark!,
-				{
-					left: landmark!.x - landmark!.width / 2,
-					right: landmark!.x + landmark!.width / 2,
-					top: landmark!.y - landmark!.height / 2,
-					bottom: landmark!.y + landmark!.height / 2
-				},
-				meadowEntryMap.transitions
-			)
-		).toEqual(doorway);
-	});
-
 	it('round-trips map exploration cells with cloned arrays', () => {
 		const save = {
-			...meadowSaveState(),
-			mapExploration: { 'meadow-entry': ['0,0', '1,0'] }
+			...overworldSaveState(),
+			mapExploration: { overworld: ['0,0', '1,0'] }
 		};
 
 		const parsed = parseSaveState(JSON.stringify(save));
 
-		expect(parsed?.mapExploration['meadow-entry']).toEqual(['0,0', '1,0']);
-		expect(parsed?.mapExploration['meadow-entry']).not.toBe(save.mapExploration['meadow-entry']);
+		expect(parsed?.mapExploration.overworld).toEqual(['0,0', '1,0']);
+		expect(parsed?.mapExploration.overworld).not.toBe(save.mapExploration.overworld);
 	});
 
 	it('rejects malformed map exploration cell keys', () => {
@@ -204,8 +182,8 @@ describe('save state', () => {
 			expect(
 				parseSaveState(
 					JSON.stringify({
-						...meadowSaveState(),
-						mapExploration: { 'meadow-entry': [cell] }
+						...overworldSaveState(),
+						mapExploration: { overworld: [cell] }
 					})
 				)
 			).toBeNull();
@@ -214,7 +192,7 @@ describe('save state', () => {
 
 	it('rejects legacy v1 save payloads instead of migrating them', () => {
 		const legacySave = {
-			...meadowSaveState(),
+			...overworldSaveState(),
 			version: 1,
 			flags: { clearedEncounters: [] },
 			consumables: { heals: 1 }
@@ -224,7 +202,7 @@ describe('save state', () => {
 	});
 
 	it('rejects malformed shop stock instead of silently resetting it', () => {
-		const v8Save = meadowSaveState();
+		const v8Save = overworldSaveState();
 		const validLegacyStock = {
 			'guild-quartermaster': {
 				'iron-cap': 1,
@@ -301,9 +279,9 @@ describe('save state', () => {
 
 	it('clamps saved coordinates to the current map bounds and nudges off collision', () => {
 		const outOfBoundsSave = {
-			...meadowSaveState(),
+			...overworldSaveState(),
 			player: {
-				...meadowSaveState().player,
+				...overworldSaveState().player,
 				x: 99_999,
 				y: -50
 			}
@@ -313,31 +291,22 @@ describe('save state', () => {
 		expect(parsed).not.toBeNull();
 		// Position must be within map bounds
 		expect(parsed!.player.x).toBeGreaterThanOrEqual(0);
-		expect(parsed!.player.x).toBeLessThanOrEqual(meadowEntryMap.width * 32);
+		expect(parsed!.player.x).toBeLessThanOrEqual(overworldMap.width * 32);
 		expect(parsed!.player.y).toBeGreaterThanOrEqual(0);
-		expect(parsed!.player.y).toBeLessThanOrEqual(meadowEntryMap.height * 32);
+		expect(parsed!.player.y).toBeLessThanOrEqual(overworldMap.height * 32);
 		// Position must not be inside any collision rect (corner walls get nudged)
 		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
 	});
 
 	/**
-	 * Collision-aware normalization: after the layered village refactor, old
-	 * saves can have player positions that now land inside a wall blocker,
-	 * fence, or decor collision rect. Blockers and fences use strict-rect
-	 * collision (isMovementBlockedByStrictRect), which traps the player —
-	 * every small step keeps the target inside the padded rect, so no
-	 * movement is possible. normalizePlayerPosition must nudge such
-	 * positions to the nearest walkable tile.
-	 *
-	 * The padded check mirrors WorldScene.isMovementBlockedByStrictRect,
-	 * which expands every strict rect by playerRadius (12px) before testing
-	 * containment. A tile center outside the raw rect but inside the padded
-	 * rect still traps the player, so walkability is tested with padding.
+	 * Collision-aware normalization: a saved position that now lands on blocking
+	 * terrain or a building footprint traps the player, so normalizePlayerPosition
+	 * must nudge it to the nearest walkable spot.
 	 */
 	function isPositionWalkable(px: number, py: number): boolean {
 		return isNavigationPositionWalkable(
-			resolveMapNavigationGrid(meadowEntryMap),
-			buildMapNavigationObstacles(meadowEntryMap, { includeInteractableNpcs: false }),
+			resolveMapNavigationGrid(overworldMap),
+			buildMapNavigationObstacles(overworldMap, { includeInteractableNpcs: false }),
 			{ x: px, y: py },
 			PLAYER_COLLISION_RADIUS,
 			'resting-position'
@@ -354,7 +323,7 @@ describe('save state', () => {
 			const collision = map.interiorProps?.find((prop) => prop.id === propId)?.collision;
 			expect(collision).toBeDefined();
 
-			const save = meadowSaveState();
+			const save = overworldSaveState();
 			save.mapId = map.id;
 			save.player = {
 				...save.player,
@@ -404,7 +373,7 @@ describe('save state', () => {
 		});
 		if (!collision) return;
 
-		const save = meadowSaveState();
+		const save = overworldSaveState();
 		save.mapId = villagerHouse2Map.id;
 		save.player = { ...save.player, x: collision.x, y: collision.y };
 
@@ -434,219 +403,47 @@ describe('save state', () => {
 		expect(parsed.player.x !== collision.x || parsed.player.y !== collision.y).toBe(true);
 	});
 
-	it('nudges a saved position inside a wall blocker to the nearest walkable tile', () => {
-		// The reauthored Crossroads gate is strict movement collision: its padded
-		// bounds trap the player, so a loaded position at the gate center must be
-		// rescued.
-		const blockedPosition = { x: 4_176, y: 2_836 };
-		expect(
-			isInsideAnyCollisionRect(
-				blockedPosition.x,
-				blockedPosition.y,
-				collectStrictCollisionRects(meadowEntryMap),
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(true);
+	it.each([
+		['a building footprint', buildingCentre('home')],
+		['the Sundrop river', { x: 180 * 32 + 16, y: 204 * 32 + 16 }]
+	] as const)('nudges a saved position on %s to nearby walkable ground', (_label, blocked) => {
+		expect(isPositionWalkable(blocked.x, blocked.y)).toBe(false);
 		const blockedSave = {
-			...meadowSaveState(),
-			player: {
-				...meadowSaveState().player,
-				x: blockedPosition.x,
-				y: blockedPosition.y
-			}
+			...overworldSaveState(),
+			player: { ...overworldSaveState().player, x: blocked.x, y: blocked.y }
 		};
 
 		const parsed = parseSaveState(JSON.stringify(blockedSave));
 		expect(parsed).not.toBeNull();
 		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
-		expect(parsed!.player.x !== blockedPosition.x || parsed!.player.y !== blockedPosition.y).toBe(
-			true
-		);
-		expect(parsed!.player.x).toBe(4112);
-		expect(parsed!.player.y).toBe(2768);
-		expect(Math.abs(parsed!.player.x - blockedPosition.x)).toBeLessThanOrEqual(96);
-		expect(Math.abs(parsed!.player.y - blockedPosition.y)).toBeLessThanOrEqual(96);
+		expect(Math.abs(parsed!.player.x - blocked.x)).toBeLessThanOrEqual(128);
+		expect(Math.abs(parsed!.player.y - blocked.y)).toBeLessThanOrEqual(128);
 	});
 
-	it('nudges a saved position inside the new watershed to the nearest walkable tile', () => {
-		const river = MEADOW_ENTRY_V2_RIVER_SEGMENTS.find(({ id }) => id === 'north-river');
-		expect(river).toBeDefined();
-		const blockedPosition = {
-			x: river!.rect.x + river!.rect.width / 2,
-			y: river!.rect.y + river!.rect.height / 2
-		};
-		const blockedSave = {
-			...meadowSaveState(),
-			player: {
-				...meadowSaveState().player,
-				x: blockedPosition.x,
-				y: blockedPosition.y
-			}
-		};
-
-		const parsed = parseSaveState(JSON.stringify(blockedSave));
-		expect(parsed).not.toBeNull();
-		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
-		expect(parsed!.player.x !== blockedPosition.x || parsed!.player.y !== blockedPosition.y).toBe(
-			true
-		);
-		expect(parsed!.player.x).toBe(3376);
-		expect(parsed!.player.y).toBe(1936);
-	});
-
-	it('does not rescue a saved position into a landmark building', () => {
-		// The V2 Hero House center is opaque landmark geometry. Landmark collision
-		// is escape-aware during movement, but a loaded position there is invalid.
-		const blockedPosition = { x: 704, y: 5_712 };
-		expect(
-			isInsideAnyCollisionRect(
-				blockedPosition.x,
-				blockedPosition.y,
-				collectLandmarkRects(meadowEntryMap),
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(true);
-		const blockedSave = {
-			...meadowSaveState(),
-			player: {
-				...meadowSaveState().player,
-				x: blockedPosition.x,
-				y: blockedPosition.y
-			}
-		};
-
-		const parsed = parseSaveState(JSON.stringify(blockedSave));
-		expect(parsed).not.toBeNull();
-		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
-		expect(parsed!.player.x !== blockedPosition.x || parsed!.player.y !== blockedPosition.y).toBe(
-			true
-		);
-		for (const landmark of meadowEntryMap.landmarks ?? []) {
-			const left = landmark.x - landmark.width / 2;
-			const right = landmark.x + landmark.width / 2;
-			const top = landmark.y - landmark.height / 2;
-			const bottom = landmark.y + landmark.height / 2;
-			const inside =
-				parsed!.player.x >= left &&
-				parsed!.player.x <= right &&
-				parsed!.player.y >= top &&
-				parsed!.player.y <= bottom;
-			expect(inside, `rescued position inside landmark ${landmark.id}`).toBe(false);
-		}
-	});
-
-	it('nudges a saved position inside a fence to the nearest walkable tile', () => {
-		// (4020, 5250) is inside coast-approach-west-fence (32x520 at (4020, 5250)).
-		const blockedSave = {
-			...meadowSaveState(),
-			player: {
-				...meadowSaveState().player,
-				x: 4020,
-				y: 5250
-			}
-		};
-
-		const parsed = parseSaveState(JSON.stringify(blockedSave));
-		expect(parsed).not.toBeNull();
-		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
-		expect(Math.abs(parsed!.player.x - 4020)).toBeLessThanOrEqual(96);
-		expect(Math.abs(parsed!.player.y - 5250)).toBeLessThanOrEqual(96);
-	});
-
-	it('preserves a saved position at a landmark doorway opening', () => {
-		// The V2 Shrine of Aurora return arrival is two tiles below its exterior
-		// doorway and outside the landmark's padded collision bounds.
+	it('preserves a saved position at a door arrival', () => {
+		const arrival = overworldDoorArrival('shrine-of-aurora-interior');
 		const doorwaySave = {
-			...meadowSaveState(),
-			player: {
-				...meadowSaveState().player,
-				x: 2272,
-				y: 5920
-			}
+			...overworldSaveState(),
+			player: { ...overworldSaveState().player, x: arrival.x, y: arrival.y }
 		};
 
 		const parsed = parseSaveState(JSON.stringify(doorwaySave));
 		expect(parsed).not.toBeNull();
-		expect(parsed!.player.x).toBe(2272);
-		expect(parsed!.player.y).toBe(5920);
-	});
-
-	it('nudges a saved position inside a decor collision rect to the nearest walkable tile', () => {
-		// This V2 pole-lantern anchor compiles to a strict collision rect.
-		const blockedPosition = { x: 1_072, y: 4_950 };
-		expect(
-			isInsideAnyCollisionRect(
-				blockedPosition.x,
-				blockedPosition.y,
-				collectStrictCollisionRects(meadowEntryMap),
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(true);
-		const blockedSave = {
-			...meadowSaveState(),
-			player: {
-				...meadowSaveState().player,
-				x: blockedPosition.x,
-				y: blockedPosition.y
-			}
-		};
-
-		const parsed = parseSaveState(JSON.stringify(blockedSave));
-		expect(parsed).not.toBeNull();
-		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
-		expect(parsed!.player.x !== blockedPosition.x || parsed!.player.y !== blockedPosition.y).toBe(
-			true
-		);
-		expect(Math.abs(parsed!.player.x - blockedPosition.x)).toBeLessThanOrEqual(96);
-		expect(Math.abs(parsed!.player.y - blockedPosition.y)).toBeLessThanOrEqual(96);
-	});
-
-	it('nudges a saved position to a tile center outside the padded collision bounds', () => {
-		// This point is outside the raw Crossroads gate blocker but inside its
-		// player-radius padding. The normalizer must reject the padded-trapped
-		// position and keep searching outward.
-		const blockedPosition = { x: 3_928, y: 2_836 };
-		const wall = meadowEntryMap.blockers?.find((rect) => rect.id === 'castle-gate-block');
-		expect(wall).toBeDefined();
-		expect(isInsideAnyCollisionRect(blockedPosition.x, blockedPosition.y, [wall!], 0)).toBe(false);
-		expect(
-			isInsideAnyCollisionRect(
-				blockedPosition.x,
-				blockedPosition.y,
-				[wall!],
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(true);
-		const blockedSave = {
-			...meadowSaveState(),
-			player: {
-				...meadowSaveState().player,
-				x: blockedPosition.x,
-				y: blockedPosition.y
-			}
-		};
-
-		const parsed = parseSaveState(JSON.stringify(blockedSave));
-		expect(parsed).not.toBeNull();
-		expect(isPositionWalkable(parsed!.player.x, parsed!.player.y)).toBe(true);
-		expect(parsed!.player.x !== blockedPosition.x || parsed!.player.y !== blockedPosition.y).toBe(
-			true
-		);
-		expect(Math.abs(parsed!.player.x - blockedPosition.x)).toBeLessThanOrEqual(128);
-		expect(Math.abs(parsed!.player.y - blockedPosition.y)).toBeLessThanOrEqual(128);
+		expect(parsed!.player.x).toBe(arrival.x);
+		expect(parsed!.player.y).toBe(arrival.y);
 	});
 
 	it.each([
-		['meadow-entry', meadowEntryMap, meadowEntryMap.spawn],
+		['overworld', overworldMap, overworldMap.spawn],
 		['shrine-of-aurora-interior', shrineOfAuroraInteriorMap, shrineOfAuroraInteriorMap.spawn],
 		['villager-house-1', villagerHouse1Map, villagerHouse1Map.spawn],
 		['villager-house-2', villagerHouse2Map, villagerHouse2Map.spawn],
 		['villager-house-3', villagerHouse3Map, villagerHouse3Map.spawn]
 	] as const)('leaves a walkable %s saved position unchanged', (_mapId, map, point) => {
 		const walkableSave = {
-			...meadowSaveState(),
+			...overworldSaveState(),
 			player: {
-				...meadowSaveState().player,
+				...overworldSaveState().player,
 				x: point.x,
 				y: point.y
 			}
@@ -669,10 +466,10 @@ describe('save state', () => {
 		).toBe(true);
 	});
 
-	it('round-trips every complete-world map spawn without collision recovery', () => {
-		for (const mapId of COMPLETE_WORLD_MAP_IDS) {
+	it('round-trips every map spawn without collision recovery', () => {
+		for (const mapId of Object.keys(maps)) {
 			const map = maps[mapId];
-			const save = meadowSaveState();
+			const save = overworldSaveState();
 			save.mapId = mapId;
 			save.player = {
 				...save.player,
@@ -717,17 +514,17 @@ describe('save state', () => {
 	});
 
 	it('rejects older schema versions and accepts version 10', () => {
-		expect(parseSaveState(JSON.stringify({ ...meadowSaveState(), version: 9 }))).toBeNull();
-		expect(parseSaveState(JSON.stringify(meadowSaveState()))?.version).toBe(10);
+		expect(parseSaveState(JSON.stringify({ ...overworldSaveState(), version: 9 }))).toBeNull();
+		expect(parseSaveState(JSON.stringify(overworldSaveState()))?.version).toBe(10);
 	});
 
 	it('rejects a payload with wrong player field types', () => {
 		expect(
 			parseSaveState(
 				JSON.stringify({
-					...meadowSaveState(),
+					...overworldSaveState(),
 					player: {
-						...meadowSaveState().player,
+						...overworldSaveState().player,
 						level: '1'
 					}
 				})
@@ -739,7 +536,7 @@ describe('save state', () => {
 		expect(
 			parseSaveState(
 				JSON.stringify({
-					...meadowSaveState(),
+					...overworldSaveState(),
 					flags: {
 						clearedEncounters: ['slime-scout-1', 7],
 						clearedEncounterUnitCounts: {},
@@ -755,9 +552,9 @@ describe('save state', () => {
 		expect(
 			parseSaveState(
 				JSON.stringify({
-					...meadowSaveState(),
+					...overworldSaveState(),
 					flags: {
-						...meadowSaveState().flags,
+						...overworldSaveState().flags,
 						resolvedEncounterDrops: []
 					}
 				})
@@ -769,9 +566,9 @@ describe('save state', () => {
 		expect(
 			parseSaveState(
 				JSON.stringify({
-					...meadowSaveState(),
+					...overworldSaveState(),
 					flags: {
-						...meadowSaveState().flags,
+						...overworldSaveState().flags,
 						resolvedEncounterDrops: {
 							'slime-scout-1': [{ itemId: 'not-real', quantity: 1 }]
 						}
@@ -782,7 +579,7 @@ describe('save state', () => {
 	});
 
 	it('rejects missing required item state fields', () => {
-		const save = meadowSaveState();
+		const save = overworldSaveState();
 
 		for (const invalidPayload of [
 			{ ...save, inventory: undefined },
@@ -808,7 +605,7 @@ describe('save state', () => {
 	});
 
 	it('rejects invalid item state entries', () => {
-		const save = meadowSaveState();
+		const save = overworldSaveState();
 
 		for (const invalidPayload of [
 			{
@@ -916,7 +713,7 @@ describe('save state', () => {
 	});
 
 	it('rejects invalid quest state entries', () => {
-		const save = meadowSaveState();
+		const save = overworldSaveState();
 		const mainQuestId = 'prologue-proving-morning';
 		const mainEntry = save.quests.entries[mainQuestId]!;
 
@@ -1041,13 +838,13 @@ describe('save state', () => {
 	});
 
 	it('rejects invalid map exploration state', () => {
-		const save = meadowSaveState();
+		const save = overworldSaveState();
 
 		for (const invalidPayload of [
 			{ ...save, mapExploration: undefined },
 			{ ...save, mapExploration: [] },
-			{ ...save, mapExploration: { 'meadow-entry': '0,0' } },
-			{ ...save, mapExploration: { 'meadow-entry': ['0,0', 7] } }
+			{ ...save, mapExploration: { overworld: '0,0' } },
+			{ ...save, mapExploration: { overworld: ['0,0', 7] } }
 		]) {
 			expect(parseSaveState(JSON.stringify(invalidPayload))).toBeNull();
 		}
@@ -1055,10 +852,10 @@ describe('save state', () => {
 
 	it('preserves player position when the saved map is unknown', () => {
 		const save = {
-			...meadowSaveState(),
+			...overworldSaveState(),
 			mapId: 'unknown-map',
 			player: {
-				...meadowSaveState().player,
+				...overworldSaveState().player,
 				x: 1234,
 				y: 5678
 			}
@@ -1070,7 +867,7 @@ describe('save state', () => {
 	});
 
 	it('rejects invalid wallet and shop stock state', () => {
-		const save = meadowSaveState();
+		const save = overworldSaveState();
 
 		for (const invalidPayload of [
 			{ ...save, wallet: undefined },
@@ -1110,13 +907,13 @@ describe('seenDiscoveries', () => {
 	});
 
 	it('round-trips a populated set', () => {
-		const save = { ...meadowSaveState(), seenDiscoveries: ['crossroads-waystone-sign'] };
+		const save = { ...overworldSaveState(), seenDiscoveries: ['crossroads-waystone-sign'] };
 		const parsed = parseSaveState(serializeSaveState(save));
 		expect(parsed?.seenDiscoveries).toEqual(['crossroads-waystone-sign']);
 	});
 
 	it('rejects a non-string-array seenDiscoveries', () => {
-		const bad = { ...meadowSaveState(), seenDiscoveries: [1, 2] } as unknown;
+		const bad = { ...overworldSaveState(), seenDiscoveries: [1, 2] } as unknown;
 		expect(parseSaveState(JSON.stringify(bad))).toBeNull();
 	});
 });

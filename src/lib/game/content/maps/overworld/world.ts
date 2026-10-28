@@ -1,4 +1,4 @@
-import { compileGridWorld, gridWorldMap } from '$lib/game/content/maps/grid/compile';
+import { compileGridWorld } from '$lib/game/content/maps/grid/compile';
 
 import { demonHighlandsChunk } from './chunks/demon-highlands';
 import { eastCoastChunk } from './chunks/east-coast';
@@ -55,5 +55,9 @@ export const overworld = compileGridWorld({
 /** Named points on the overworld, for transitions, spawns, and story placements. */
 export const overworldAnchors = overworld.anchors;
 
-/** Grik's door is the dev-link spawn until the opening switches to the overworld. */
-export const overworldMap = gridWorldMap(overworld, 'sundrop-grik-home-door', 'down');
+/** The pixel centre of a named anchor. A typo throws instead of placing anything at 0,0. */
+export function anchorPoint(name: string): { x: number; y: number } {
+	const anchor = Object.hasOwn(overworldAnchors, name) ? overworldAnchors[name] : undefined;
+	if (!anchor) throw new Error(`overworld: no anchor "${name}"`);
+	return { x: anchor.x, y: anchor.y };
+}

@@ -46,6 +46,6 @@ export function ambienceFor(mapId: string, progress: StoryProgress): AmbienceKey
 	if (mapId.startsWith('ruins-')) return 'amb-tunnel';
 	if (isActiveInStory({ activeDuring: storyWindows.afterRaid }, progress)) return 'amb-raid';
 	const daytime = { activeDuring: storyWindows.dayOne, hiddenDuring: storyWindows.evening };
-	if (mapId === 'meadow-entry' && isActiveInStory(daytime, progress)) return 'amb-village';
+	if (mapId === 'overworld' && isActiveInStory(daytime, progress)) return 'amb-village';
 	return null;
 }

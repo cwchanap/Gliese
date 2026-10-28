@@ -30,41 +30,11 @@ import {
 	type ActorAnimationId,
 	type ActorAnimationKey,
 	type FenceDressingFrameName,
-	type InteriorPropFrameName,
-	type VillageBuildingFrameName
+	type InteriorPropFrameName
 } from '$lib/game/content/assets';
-import { meadowEntryMap } from '$lib/game/content/maps';
 
 const requiredActors: ActorAnimationId[] = [...actorAnimationIds];
 const requiredClips: ActorAnimationKey[] = ['idle', 'walk', 'attack', 'dead'];
-const requiredBuildingFrames: VillageBuildingFrameName[] = [
-	'heroHouse',
-	'guildHall',
-	'itemShop',
-	'villagerHouse',
-	'blacksmith',
-	'shrineOfAurora',
-	'whisperingCave',
-	'sundropWell'
-];
-/**
- * Allow-list of landmark ids that are genuinely village-BUILDING landmarks (the
- * ids `getVillageBuildingFrameName` resolves to a frame). New region gates and
- * non-building landmarks (e.g. `witchwood-gate`, future region gates) are simply
- * absent here, so future regions require zero edits to the building-frame test.
- */
-const BUILDING_LANDMARK_IDS = new Set([
-	'hero-house-exterior',
-	'guild-hall-exterior',
-	'item-shop-exterior',
-	'villager-house-1-exterior',
-	'villager-house-2-exterior',
-	'villager-house-3-exterior',
-	'blacksmith',
-	'shrine-of-aurora',
-	'whispering-cave',
-	'sundrop-well'
-]);
 const requiredFenceFrames: FenceDressingFrameName[] = [
 	'horizontalFence',
 	'verticalFence',
@@ -131,7 +101,7 @@ describe('battle background asset metadata', () => {
 	});
 
 	it('maps source maps to battle environments with a neutral fallback', () => {
-		expect(getBattleEnvironmentId('meadow-entry')).toBe('meadow');
+		expect(getBattleEnvironmentId('overworld')).toBe('meadow');
 		expect(getBattleEnvironmentId('ruins-threshold')).toBe('ruins');
 		expect(getBattleEnvironmentId('ruins-core')).toBe('ruins');
 		expect(getBattleEnvironmentId('hero-house')).toBe('neutral');
@@ -189,15 +159,6 @@ describe('village building asset metadata', () => {
 	it('keeps every frame inside the sheet bounds', () => {
 		assertFramesInsideSheetBounds(villageBuildingAsset);
 	});
-
-	it('maps every authored village building landmark to a building frame', () => {
-		const villageBuildingLandmarks = (meadowEntryMap.landmarks ?? []).filter((landmark) =>
-			BUILDING_LANDMARK_IDS.has(landmark.id)
-		);
-		for (const landmark of villageBuildingLandmarks) {
-			expect(requiredBuildingFrames).toContain(getVillageBuildingFrameName(landmark.id));
-		}
-	});
 });
 
 describe('forest dressing asset metadata', () => {
@@ -216,14 +177,6 @@ describe('forest dressing asset metadata', () => {
 			forestFloor: { x: 0, y: 256, w: 256, h: 256 },
 			forestEntrance: { x: 256, y: 256, w: 256, h: 256 }
 		});
-	});
-
-	it('covers every meadow forest decor frame reference', () => {
-		for (const decor of meadowEntryMap.mapDecor ?? []) {
-			if (decor.textureKey === forestDressingAsset.key) {
-				expect(forestDressingAsset.frames).toHaveProperty(decor.frameName);
-			}
-		}
 	});
 
 	it('keeps every frame inside the sheet bounds', () => {

@@ -74,9 +74,9 @@ function setDialogueLabels(close: string, next: string) {
 function createReadyHudState(overrides: Partial<HudState> = {}): HudState {
 	return {
 		ready: true,
-		mapId: 'meadow-entry',
+		mapId: 'overworld',
 		areaMap: {
-			mapId: 'meadow-entry',
+			mapId: 'overworld',
 			name: 'Sundrop Meadows',
 			worldWidth: 6_400,
 			worldHeight: 6_400,
@@ -92,7 +92,7 @@ function createReadyHudState(overrides: Partial<HudState> = {}): HudState {
 					label: "Hero's House"
 				},
 				{
-					id: 'investigate-the-ruins:talk-to-guild-master:meadow-entry',
+					id: 'investigate-the-ruins:talk-to-guild-master:overworld',
 					kind: 'quest',
 					x: 2_048,
 					y: 5_869,

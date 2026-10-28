@@ -8,7 +8,6 @@
 		"build": "vite build",
 		"build:tauri": "bun run story:check:strict && vite build --mode tauri && bun run story:assert-no-frontend-prose",
 		"preview": "vite preview",
-		"preview:village": "bun tools/preview-layered-region.ts",
 		"map:preview": "bun tools/preview-grid-map.ts",
 		"map:tileset": "bun tools/generate-grid-tileset.ts",
 		"world:generate:navigation": "bun tools/generate-navigation-runtime.ts",

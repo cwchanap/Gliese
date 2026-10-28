@@ -81,7 +81,7 @@ describe('story content reference generation', () => {
 				...FIXTURE,
 				npcPlacements: [
 					['guild-hall', 'borak'],
-					['meadow-entry', 'borak']
+					['overworld', 'borak']
 				]
 			})
 		).toThrow(
@@ -137,7 +137,7 @@ describe('story content reference generation', () => {
 		expect(references.sceneIds).toContain('prologue.opening');
 		expect(references.sceneIds).toContain('prologue.boar-sign-sapling');
 		expect(references.npcPlacements).toContainEqual(['guild-hall', 'borak']);
-		expect(references.npcPlacements).toContainEqual(['meadow-entry', 'lirra-forest']);
+		expect(references.npcPlacements).toContainEqual(['overworld', 'lirra-forest']);
 	});
 
 	it('writes current references through the zero-argument CLI', () => {

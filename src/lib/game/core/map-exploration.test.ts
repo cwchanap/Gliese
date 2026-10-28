@@ -96,10 +96,10 @@ describe('map exploration', () => {
 	});
 
 	it('reveals per map without mutating the previous exploration state', () => {
-		const previous = { 'meadow-entry': ['0,0'] };
+		const previous = { overworld: ['0,0'] };
 		const result = revealMapArea({
 			exploration: previous,
-			mapId: 'meadow-entry',
+			mapId: 'overworld',
 			x: 256,
 			y: 256,
 			mapWidth: 1024,
@@ -108,8 +108,8 @@ describe('map exploration', () => {
 
 		expect(result.changed).toBe(true);
 		expect(result.exploration).not.toBe(previous);
-		expect(result.exploration['meadow-entry']).toContain('2,2');
-		expect(previous['meadow-entry']).toEqual(['0,0']);
+		expect(result.exploration['overworld']).toContain('2,2');
+		expect(previous['overworld']).toEqual(['0,0']);
 	});
 
 	it('checks whether marker positions are revealed', () => {

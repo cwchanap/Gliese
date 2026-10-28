@@ -17,7 +17,7 @@ describe('browser fixture', () => {
 		expect(() =>
 			getBrowserNpcDialogue({
 				npcId: 'unknown-npc',
-				mapId: 'meadow-entry',
+				mapId: 'overworld',
 				locale: 'en',
 				progress: progress(null)
 			})

@@ -37,14 +37,21 @@ import * as questRuntime from '$lib/game/core/quests';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import { buildGridTileLayers } from '$lib/game/content/maps/grid/layers';
 import { GRID_TILESET } from '$lib/game/content/maps/grid/tileset';
-import { overworld, overworldMap } from '$lib/game/content/maps/overworld/world';
+import { overworldMap } from '$lib/game/content/maps/overworld/map';
+import { caveArrival, overworldDoorArrival } from '$lib/game/content/maps/overworld/places';
+import { anchorPoint, overworld } from '$lib/game/content/maps/overworld/world';
 
 const createQuestStateWithOpening = questRuntime.createInitialQuestState;
 
 const borakApproach = { x: 800, y: 184 };
 const mottApproach = { x: 128, y: 392 };
-// Just east of the first Wildwood wolf pack, inside its engagement range.
-const wolvesMouthApproach = { x: 4_732, y: 3_200 };
+// The first Wildwood wolf pack stands on the east trail; open path runs west of it to the bridge.
+const wolvesMouth = anchorPoint('wildwood-wolves-mouth');
+// Just east of the pack, inside its engagement range.
+const wolvesMouthApproach = { x: wolvesMouth.x + 32, y: wolvesMouth.y };
+// Open Sundrop ground with nothing to bump into for a few tiles in every direction.
+const openGround = { x: 4_336, y: 7_856 };
+const boarKingHome = anchorPoint('silverpine-boar-king');
 // The Boar King's pocket with the Silverpine wolves above it already cleared.
 const boarKingFlags = {
 	clearedEncounters: ['silverpine-wolves-falls', 'silverpine-wolves-terrace'],
@@ -1017,7 +1024,7 @@ describe('BootScene', () => {
 	});
 
 	it('uses the generic map-keyed default registry for approved maps', () => {
-		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['meadow-entry']).toBeUndefined();
+		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['overworld']).toBeUndefined();
 		expect(MAP_BACKGROUND_DEFAULT_SELECTIONS['hero-house']).toEqual({
 			packageId: 'hero-house-painted',
 			mode: 'production'
@@ -1532,10 +1539,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState,
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 4,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -1573,10 +1580,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -1594,10 +1601,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -1637,10 +1644,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -1666,10 +1673,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 4,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -1690,10 +1697,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState,
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 2,
 			hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
 		});
@@ -1713,10 +1720,10 @@ describe('BattleScene', () => {
 
 		expect(state.pendingResult).toMatchObject({
 			outcome: 'victory',
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			finalHeroHp: 17,
 			inventory: saveState.inventory,
 			defeatedUnits: [
@@ -1747,7 +1754,7 @@ describe('BattleScene', () => {
 		const { BattleScene } = await import('./BattleScene');
 		const scene = new BattleScene();
 		const saveState = createNewSaveState();
-		saveState.mapId = 'meadow-entry';
+		saveState.mapId = 'overworld';
 		saveState.player = {
 			...saveState.player,
 			level: 1,
@@ -1770,10 +1777,10 @@ describe('BattleScene', () => {
 		try {
 			scene.create({
 				saveState,
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'boar-king',
 				sourceEnemyId: 'boar-king',
-				returnPosition: { mapId: 'meadow-entry', x: 2_900, y: 800, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 2_900, y: 800, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 90, defense: 0 }
 			});
@@ -1841,10 +1848,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState,
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 1, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -1862,10 +1869,10 @@ describe('BattleScene', () => {
 
 		expect(state.pendingResult).toMatchObject({
 			outcome: 'defeat',
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			finalHeroHp: 0,
 			inventory: saveState.inventory,
 			defeatedUnits: []
@@ -1879,10 +1886,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -1910,10 +1917,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -1943,10 +1950,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -1980,10 +1987,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -2010,10 +2017,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -2060,10 +2067,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -2092,10 +2099,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -2124,10 +2131,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
 		});
@@ -2164,10 +2171,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -2218,10 +2225,10 @@ describe('BattleScene', () => {
 			const scene = new BattleScene();
 			scene.create({
 				saveState: createNewSaveState(),
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 			});
@@ -2252,10 +2259,10 @@ describe('BattleScene', () => {
 		try {
 			scene.create({
 				saveState,
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 4, maxHp: 20, attack: 8, defense: 0 }
 			});
@@ -2302,10 +2309,10 @@ describe('BattleScene', () => {
 		try {
 			scene.create({
 				saveState: createNewSaveState(),
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
 			});
@@ -2336,10 +2343,10 @@ describe('BattleScene', () => {
 		try {
 			scene.create({
 				saveState,
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
 			});
@@ -2376,10 +2383,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState,
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
 		});
@@ -2423,10 +2430,10 @@ describe('BattleScene', () => {
 		try {
 			scene.create({
 				saveState,
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
 			});
@@ -2453,10 +2460,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState,
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'boar-king',
 			sourceEnemyId: 'boar-king',
-			returnPosition: { mapId: 'meadow-entry', x: 2_900, y: 800, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 2_900, y: 800, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 41, defense: 0 }
 		});
@@ -2501,10 +2508,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState,
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'boar-king',
 			sourceEnemyId: 'boar-king',
-			returnPosition: { mapId: 'meadow-entry', x: 2_900, y: 800, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 2_900, y: 800, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 41, defense: 0 }
 		});
@@ -2547,10 +2554,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			// Spawn ring: unit:0 lands at (448, 74) — distance 178 — and units 1/2
 			// tie at ~309, so unit:0 is nearest to the hero at center.
 			enemyCount: 2,
@@ -2571,10 +2578,10 @@ describe('BattleScene', () => {
 		try {
 			scene.create({
 				saveState: createNewSaveState(),
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 3,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 			});
@@ -2608,10 +2615,10 @@ describe('BattleScene', () => {
 		try {
 			scene.create({
 				saveState: createNewSaveState(),
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 3,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 			});
@@ -2641,10 +2648,10 @@ describe('BattleScene', () => {
 
 		scene.create({
 			saveState: createNewSaveState(),
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 2,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -2683,10 +2690,10 @@ describe('BattleScene', () => {
 		try {
 			scene.create({
 				saveState,
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 5, defense: 0 }
 			});
@@ -2733,10 +2740,10 @@ describe('BattleScene', () => {
 		try {
 			scene.create({
 				saveState: createNewSaveState(),
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 3,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 			});
@@ -2785,10 +2792,10 @@ describe('BattleScene', () => {
 		try {
 			scene.create({
 				saveState: createNewSaveState(),
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 			});
@@ -2824,10 +2831,10 @@ describe('BattleScene', () => {
 		try {
 			scene.create({
 				saveState: createNewSaveState(),
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 			});
@@ -2858,10 +2865,10 @@ describe('BattleScene', () => {
 		try {
 			scene.create({
 				saveState: createNewSaveState(),
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 			});
@@ -2899,10 +2906,10 @@ describe('BattleScene', () => {
 		try {
 			scene.create({
 				saveState,
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 13, maxHp: 20, attack: 1, defense: 0 }
 			});
@@ -2955,10 +2962,10 @@ describe('BattleScene', () => {
 
 			scene.create({
 				saveState,
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 13, maxHp: 20, attack: 1, defense: 0 }
 			});
@@ -4898,10 +4905,10 @@ describe('WorldScene', () => {
 
 	it('renders tilemap ground, a hero sprite, and encounter art for the resolved map', async () => {
 		const { WorldScene } = await import('./WorldScene');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
+		const { ruinsThresholdMap } = await import('$lib/game/content/maps');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: meadowEntryMap.id });
+		scene.create({ mapId: ruinsThresholdMap.id });
 
 		expect(scene.make.tilemap).toHaveBeenCalledWith({
 			data: expect.any(Array),
@@ -4910,8 +4917,8 @@ describe('WorldScene', () => {
 		});
 		const tilemapCall = vi.mocked(scene.make.tilemap).mock.calls[0]![0]!;
 		const tilemapData = tilemapCall.data as number[][];
-		expect(tilemapData).toHaveLength(meadowEntryMap.height);
-		expect(tilemapData[0]).toHaveLength(meadowEntryMap.width);
+		expect(tilemapData).toHaveLength(ruinsThresholdMap.height);
+		expect(tilemapData[0]).toHaveLength(ruinsThresholdMap.width);
 		expect(phaserState.tilemap.addTilesetImage).toHaveBeenCalledWith(
 			'starter-ground-tiles',
 			'starter-ground-tiles',
@@ -4920,33 +4927,20 @@ describe('WorldScene', () => {
 		);
 		expect(phaserState.tilemap.createLayer).toHaveBeenCalledWith(0, expect.anything(), 0, 0);
 		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
-		expect(tilemapData[0][0]).toBe(0);
-		const tileAt = (x: number, y: number) => tilemapData[Math.floor(y / 32)]?.[Math.floor(x / 32)];
-		expect(tileAt(3_040, 4_688)).toBeGreaterThan(0);
-		expect(tileAt(3_776, 4_224)).toBeGreaterThan(0);
 		expect(scene.add.sprite).toHaveBeenCalledWith(
-			meadowEntryMap.spawn.x,
-			meadowEntryMap.spawn.y,
+			ruinsThresholdMap.spawn.x,
+			ruinsThresholdMap.spawn.y,
 			'animation-pack',
 			'heroIdle0'
 		);
-		const openingEncounters = openingView(meadowEntryMap).encounters ?? [];
-		const firstPack = openingEncounters[0]!;
+		const pack = ruinsThresholdMap.encounters![0]!;
 		expect(scene.add.sprite).toHaveBeenCalledWith(
-			firstPack.x,
-			firstPack.y,
+			pack.x,
+			pack.y,
 			'animation-pack',
-			'forestWolfIdle0'
+			'tunnelCrawlerIdle0'
 		);
-		expect(phaserState.enemyMarkers).toHaveLength(openingEncounters.length);
-		// The cave stair stays hidden until the escape opens it.
-		expect(scene.add.image).not.toHaveBeenCalledWith(5_960, 1_868, 'starter-pack', 'doorwayTile');
-		expect(scene.add.image).not.toHaveBeenCalledWith(
-			5_960,
-			1_868,
-			'environment-dressing',
-			'stoneStair'
-		);
+		expect(phaserState.enemyMarkers).toHaveLength(ruinsThresholdMap.encounters!.length);
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
 	});
 
@@ -4981,6 +4975,14 @@ describe('WorldScene', () => {
 		);
 		expect(phaserState.playerMarker.x).toBe(overworldMap.spawn.x);
 		expect(phaserState.playerMarker.y).toBe(overworldMap.spawn.y);
+		// The cave stair stays hidden until the escape opens it.
+		const cave = overworldMap.transitions.find(({ toMapId }) => toMapId === 'ruins-threshold')!;
+		expect(scene.add.image).not.toHaveBeenCalledWith(
+			cave.x,
+			cave.y,
+			'environment-dressing',
+			'stoneStair'
+		);
 	});
 
 	it('renders the rebuilt Shrine and villager house contracts in the live scene', async () => {
@@ -5749,7 +5751,7 @@ describe('WorldScene', () => {
 				y: 320,
 				width: 96,
 				height: 96,
-				labelKey: 'content.maps.landmarks.hero-house-exterior.label',
+				labelKey: 'content.maps.areas.hero-house',
 				label: 'Test house'
 			}
 		];
@@ -5882,8 +5884,8 @@ describe('WorldScene', () => {
 				id: 'scene-support-discovery',
 				x: 100,
 				y: 300,
-				labelKey: 'content.maps.discoveries.ferry-shrine-lore.label',
-				descriptionKey: 'content.maps.discoveries.ferry-shrine-lore.description'
+				labelKey: 'content.maps.discoveries.wildwood-cave-danger.label',
+				descriptionKey: 'content.maps.discoveries.wildwood-cave-danger.description'
 			}
 		];
 		const restoreLocation = installLocationSearch('?mapDebug=collision');
@@ -5992,12 +5994,13 @@ describe('WorldScene', () => {
 
 	it('reveals a discovery marker only when the hero is within range', async () => {
 		const { WorldScene } = await import('./WorldScene');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: meadowEntryMap.id });
+		scene.create({ mapId: overworldMap.id });
 
-		const discovery = (meadowEntryMap.discoveries ?? []).find((d) => d.id === 'ferry-shrine-lore');
+		const discovery = (overworldMap.discoveries ?? []).find(
+			(entry) => entry.id === 'wildwood-cave-danger'
+		);
 		expect(discovery).toBeDefined();
 		const state = scene as unknown as {
 			discoveryMarkers: Map<string, { visible: boolean }>;
@@ -6080,35 +6083,6 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(spawn.y);
 	});
 
-	it('blocks the bottom-left meadow ocean patch without rendering a visual blocker', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 114, y: 6_260 });
-		phaserState.cursorKeys.down.isDown = true;
-
-		scene.update(0, 250);
-
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(114, 6_311, 100, 50, 0x1d5f9f, 0.92);
-		expect(phaserState.playerMarker.x).toBe(114);
-		expect(phaserState.playerMarker.y).toBe(6_260);
-	});
-
-	it('blocks ocean from the west (lateral approach)', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 51, y: 6_311 });
-		phaserState.cursorKeys.right.isDown = true;
-
-		scene.update(0, 250);
-
-		expect(phaserState.playerMarker.x).toBe(51);
-		expect(phaserState.playerMarker.y).toBe(6_311);
-	});
-
 	it('registers and renders environment blocker and stair art', async () => {
 		const { environmentDressingAsset, forestDressingAsset } =
 			await import('$lib/game/content/assets');
@@ -6166,175 +6140,20 @@ describe('WorldScene', () => {
 		expect(phaserState.enemyMarker.y).toBe(320);
 	});
 
-	it('keeps the authored outer west map-boundary tree wall', async () => {
-		const { forestDressingAsset } = await import('$lib/game/content/assets');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: meadowEntryMap.id });
-
-		const westBoundaryTrees = phaserState.imageMarkers
-			.filter(
-				(marker) =>
-					marker.x === 32 &&
-					marker.texture === forestDressingAsset.key &&
-					marker.frame === 'treeCluster'
-			)
-			.sort((a, b) => a.y - b.y);
-
-		expect(westBoundaryTrees).toHaveLength(134);
-		expect(westBoundaryTrees[0]?.y).toBe(8);
-		expect(westBoundaryTrees.at(-1)?.y).toBe(6_392);
-		for (const tree of westBoundaryTrees) {
-			expect(tree.setDisplaySize).toHaveBeenCalledWith(64, 48);
-		}
-	});
-
-	it('renders village building landmarks without doorway markers for compact interiors', async () => {
-		const { villageBuildingAsset } = await import('$lib/game/content/assets');
-		const { WorldScene } = await import('./WorldScene');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: meadowEntryMap.id });
-
-		expect(scene.textures.get).toHaveBeenCalledWith(villageBuildingAsset.key);
-		for (const [frameName, frame] of Object.entries(villageBuildingAsset.frames)) {
-			expect(phaserState.textureMock.add).toHaveBeenCalledWith(
-				frameName,
-				0,
-				frame.x,
-				frame.y,
-				frame.w,
-				frame.h
-			);
-		}
-
-		expect(scene.add.image).toHaveBeenCalledWith(704, 5_712, 'village-buildings', 'heroHouse');
-		expect(scene.add.image).toHaveBeenCalledWith(2_272, 4_224, 'village-buildings', 'guildHall');
-		expect(scene.add.image).toHaveBeenCalledWith(704, 5_024, 'village-buildings', 'itemShop');
-		expect(scene.add.image).toHaveBeenCalledWith(672, 4_240, 'village-buildings', 'villagerHouse');
-		expect(scene.add.image).toHaveBeenCalledWith(
-			1_376,
-			4_240,
-			'village-buildings',
-			'villagerHouse'
-		);
-		expect(scene.add.image).toHaveBeenCalledWith(
-			1_472,
-			5_712,
-			'village-buildings',
-			'villagerHouse'
-		);
-		expect(scene.add.image).toHaveBeenCalledWith(2_272, 5_024, 'village-buildings', 'blacksmith');
-		expect(scene.add.image).toHaveBeenCalledWith(
-			2_272,
-			5_696,
-			'village-buildings',
-			'shrineOfAurora'
-		);
-		expect(scene.add.image).toHaveBeenCalledWith(
-			5_960,
-			1_800,
-			'village-buildings',
-			'whisperingCave'
-		);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(704, 5_712, 235, 246, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(2_272, 5_024, 235, 226, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(2_272, 5_696, 246, 333, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(5_960, 1_800, 256, 224, 0x5b4636, 0.9);
-		expect(scene.add.text).toHaveBeenCalledWith(704, 5_572, "Grik's House", {
-			color: '#f8fafc',
-			fontSize: '12px'
-		});
-		expect(
-			phaserState.imageMarkers.filter((marker) => marker.frame === 'doorwayTile')
-		).toHaveLength(0);
-
-		const heroHouseMarker = phaserState.imageMarkers.find(
-			(marker) => marker.x === 704 && marker.y === 5_712 && marker.frame === 'heroHouse'
-		);
-		const guildHallMarker = phaserState.imageMarkers.find(
-			(marker) => marker.x === 2_272 && marker.y === 4_224 && marker.frame === 'guildHall'
-		);
-		const itemShopMarker = phaserState.imageMarkers.find(
-			(marker) => marker.x === 704 && marker.y === 5_024 && marker.frame === 'itemShop'
-		);
-		const villagerHouseMarkers = phaserState.imageMarkers.filter(
-			(marker) => marker.frame === 'villagerHouse'
-		);
-		expect(heroHouseMarker?.setDisplaySize).toHaveBeenCalledWith(256, 288);
-		expect(guildHallMarker?.setDisplaySize).toHaveBeenCalledWith(448, 384);
-		expect(itemShopMarker?.setDisplaySize).toHaveBeenCalledWith(320, 320);
-		expect(villagerHouseMarkers).toHaveLength(3);
-		expect(
-			villagerHouseMarkers.every((marker) =>
-				[256].includes(marker.setDisplaySize.mock.calls[0]![0] as number)
-			)
-		).toBe(true);
-		expect(
-			villagerHouseMarkers.every((marker) =>
-				[288].includes(marker.setDisplaySize.mock.calls[0]![1] as number)
-			)
-		).toBe(true);
-
-		const imageCalls = vi.mocked(scene.add.image).mock.calls;
-		const firstLandmarkCallIndex = imageCalls.findIndex(
-			([x, y, texture, frame]) =>
-				x === 704 && y === 5_712 && texture === 'village-buildings' && frame === 'heroHouse'
-		);
-		const firstLandmarkCallOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
-			firstLandmarkCallIndex
-		];
-		const firstEnemyCallOrder = vi.mocked(scene.add.sprite).mock.invocationCallOrder[1];
-		expect(firstLandmarkCallOrder).toBeLessThan(firstEnemyCallOrder);
-	});
-
-	it('skips the opaque fallback for landmarks backed by a co-located mapDecor sprite', async () => {
-		const { crossroadsDressingAsset } = await import('$lib/game/content/assets');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: meadowEntryMap.id });
-
-		// Decor-backed landmarks (no village building frame, but a paired sprite
-		// at the same anchor) must not draw the opaque placeholder rectangle…
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(4_176, 2_976, 480, 320, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(1_200, 620, 360, 300, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(3_000, 480, 420, 320, 0x5b4636, 0.9);
-		expect(scene.add.rectangle).not.toHaveBeenCalledWith(3_600, 5_720, 360, 320, 0x5b4636, 0.9);
-
-		// …while their artwork is still emitted by renderMapDecor.
-		expect(scene.add.image).toHaveBeenCalledWith(
-			4_176,
-			2_976,
-			crossroadsDressingAsset.key,
-			'castleGate'
-		);
-		// The label is still rendered for every landmark.
-		expect(scene.add.text).toHaveBeenCalledWith(4_176, 2_976 - 320 / 2 + 4, expect.any(String), {
-			color: '#f8fafc',
-			fontSize: '12px'
-		});
-	});
-
 	it('registers animation pack frames and creates animated hero and enemy sprites', async () => {
 		const { animationPackAsset } = await import('$lib/game/content/assets');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: 'meadow-entry' });
+		scene.create({ mapId: 'overworld' });
 
 		expect(scene.add.sprite).toHaveBeenCalledWith(
-			meadowEntryMap.spawn.x,
-			meadowEntryMap.spawn.y,
+			overworldMap.spawn.x,
+			overworldMap.spawn.y,
 			'animation-pack',
 			'heroIdle0'
 		);
-		const firstPack = openingView(meadowEntryMap).encounters![0]!;
+		const firstPack = openingView(overworldMap).encounters![0]!;
 		expect(scene.add.sprite).toHaveBeenCalledWith(
 			firstPack.x,
 			firstPack.y,
@@ -6342,7 +6161,7 @@ describe('WorldScene', () => {
 			'forestWolfIdle0'
 		);
 		expect(phaserState.enemyMarkers).toHaveLength(
-			openingView(meadowEntryMap).encounters?.length ?? 0
+			openingView(overworldMap).encounters?.length ?? 0
 		);
 		expect(phaserState.textureMock.add).toHaveBeenCalledWith(
 			'heroIdle0',
@@ -6381,14 +6200,13 @@ describe('WorldScene', () => {
 
 	it('sets up camera follow and keyboard controls for the player marker', async () => {
 		const { WorldScene } = await import('./WorldScene');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: meadowEntryMap.id });
+		scene.create({ mapId: overworldMap.id });
 
-		expect(meadowEntryMap.width).toBe(200);
-		expect(meadowEntryMap.height).toBe(200);
-		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(0, 0, 6_400, 6_400);
+		expect(overworldMap.width).toBe(384);
+		expect(overworldMap.height).toBe(384);
+		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(0, 0, 12_288, 12_288);
 		expect(scene.cameras.main.startFollow).toHaveBeenCalledWith(
 			phaserState.playerMarker,
 			true,
@@ -6419,13 +6237,13 @@ describe('WorldScene', () => {
 		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(0, 0, 6_400, 6_400);
 		expect(ruinsThresholdMap.transitions).toEqual([
 			expect.objectContaining({
-				id: 'threshold-to-meadow',
+				id: 'threshold-to-overworld',
 				x: 256,
 				y: 3_200,
-				toMapId: 'meadow-entry',
+				toMapId: 'overworld',
 				requiresClear: true,
 				marker: 'stair',
-				arrival: { x: 5_760, y: 1_868, facing: 'left' }
+				arrival: caveArrival
 			}),
 			expect.objectContaining({
 				id: 'threshold-to-core',
@@ -6455,20 +6273,16 @@ describe('WorldScene', () => {
 
 	it('moves the player marker using the current input state', async () => {
 		const { WorldScene } = await import('./WorldScene');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: meadowEntryMap.id });
-		Object.assign(phaserState.playerMarker, {
-			x: 880,
-			y: 5_520
-		});
+		scene.create({ mapId: overworldMap.id });
+		Object.assign(phaserState.playerMarker, openGround);
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 1000);
 
-		expect(phaserState.playerMarker.x).toBe(940);
-		expect(phaserState.playerMarker.y).toBe(5_520);
+		expect(phaserState.playerMarker.x).toBe(openGround.x + 60);
+		expect(phaserState.playerMarker.y).toBe(openGround.y);
 	});
 
 	it('mutates fog exploration in memory on movement but writes no save', async () => {
@@ -6934,19 +6748,18 @@ describe('WorldScene', () => {
 
 	it('writes Slot 0 when a discovery is newly seen', async () => {
 		const slots = await import('$lib/game/save/slots');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const memoryStorage = createSlotCaptureStorage();
-		const discovery = (meadowEntryMap.discoveries ?? []).find(
-			(candidate) => candidate.id === 'ferry-shrine-lore'
+		const discovery = (overworldMap.discoveries ?? []).find(
+			(candidate) => candidate.id === 'wildwood-cave-danger'
 		);
 		expect(discovery).toBeDefined();
 
 		const storage = await import('$lib/game/save/storage');
 		storage.setSaveStorage(memoryStorage);
 		try {
-			scene.create({ mapId: 'meadow-entry' });
+			scene.create({ mapId: 'overworld' });
 			memoryStorage.setItem.mockClear();
 
 			Object.assign(phaserState.playerMarker, { x: discovery!.x, y: discovery!.y });
@@ -6955,7 +6768,7 @@ describe('WorldScene', () => {
 
 			expect(memoryStorage.setItem).toHaveBeenCalledTimes(1);
 			const autosave = slots.loadSaveSlots(memoryStorage).slots[0];
-			expect(autosave?.state.seenDiscoveries).toContain('ferry-shrine-lore');
+			expect(autosave?.state.seenDiscoveries).toContain('wildwood-cave-danger');
 		} finally {
 			storage.setSaveStorage(undefined);
 		}
@@ -7011,7 +6824,7 @@ describe('WorldScene', () => {
 			scene.create({
 				saveState: {
 					...createNewSaveState(),
-					mapId: 'meadow-entry',
+					mapId: 'overworld',
 					quests: {
 						...questStateAt('report-boar-king'),
 						pendingEffects: [{ type: 'play-scene', sceneId: 'prologue.boar-king-felled' }]
@@ -7033,20 +6846,16 @@ describe('WorldScene', () => {
 
 	it('moves the player marker using WASD input state', async () => {
 		const { WorldScene } = await import('./WorldScene');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: meadowEntryMap.id });
-		Object.assign(phaserState.playerMarker, {
-			x: 880,
-			y: 5_520
-		});
+		scene.create({ mapId: overworldMap.id });
+		Object.assign(phaserState.playerMarker, openGround);
 		phaserState.wasdKeys.down.isDown = true;
 
 		scene.update(0, 1000);
 
-		expect(phaserState.playerMarker.x).toBe(880);
-		expect(phaserState.playerMarker.y).toBe(5_580);
+		expect(phaserState.playerMarker.x).toBe(openGround.x);
+		expect(phaserState.playerMarker.y).toBe(openGround.y + 60);
 	});
 
 	it('clamps the player marker within the world bounds during movement', async () => {
@@ -7195,7 +7004,7 @@ describe('WorldScene', () => {
 				y: 320,
 				width: 96,
 				height: 96,
-				labelKey: 'content.maps.landmarks.hero-house-exterior.label',
+				labelKey: 'content.maps.areas.hero-house',
 				label: 'Test house'
 			}
 		];
@@ -7363,7 +7172,7 @@ describe('WorldScene', () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: 'meadow-entry' });
+		scene.create({ mapId: 'overworld' });
 		Object.assign(phaserState.playerMarker, { x: 520, y: 4_240 });
 		phaserState.cursorKeys.right.isDown = true;
 
@@ -7373,101 +7182,28 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(4_240);
 	});
 
-	it('blocks player movement through village building side windows', async () => {
+	it('blocks player movement into a grid building footprint', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
+		// Grik's house, entered from the door above it; stand above its west end, clear of the door.
+		const home = overworld.grid.buildings.find(({ id }) => id === 'sundrop-home-1')!;
+		const aboveWall = { x: (home.col + 1) * 32 + 16, y: home.row * 32 - 24 };
 
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 560, y: 5_740 });
-		phaserState.cursorKeys.right.isDown = true;
-
-		scene.update(0, 50);
-
-		expect(phaserState.playerMarker.x).toBe(560);
-		expect(phaserState.playerMarker.y).toBe(5_740);
-	});
-
-	it('blocks player movement through coast approach fence segments', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 3_990, y: 5_250 });
-		phaserState.cursorKeys.right.isDown = true;
+		scene.create({ mapId: 'overworld' });
+		Object.assign(phaserState.playerMarker, aboveWall);
+		phaserState.cursorKeys.down.isDown = true;
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBe(3_990);
-		expect(phaserState.playerMarker.y).toBe(5_250);
-	});
+		expect(phaserState.playerMarker.x).toBe(aboveWall.x);
+		expect(phaserState.playerMarker.y).toBe(aboveWall.y);
 
-	it('blocks player movement through outskirts tree clusters', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 5_360, y: 452 });
+		// Walking away from the wall is free, so it was the footprint that stopped him.
+		phaserState.cursorKeys.down.isDown = false;
 		phaserState.cursorKeys.up.isDown = true;
-
-		scene.update(0, 250);
-
-		expect(phaserState.playerMarker.x).toBe(5_360);
-		expect(phaserState.playerMarker.y).toBe(452);
-	});
-
-	it('keeps the plaza road passable between combat pockets', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'meadow-entry' });
-		// Just east of the village outer boundary (x≈1912) in the open field — the
-		// village room-and-lane layout now occupies the old (1700,5347) road point.
-		Object.assign(phaserState.playerMarker, { x: 1_940, y: 5_347 });
-		phaserState.cursorKeys.right.isDown = true;
-
-		scene.update(0, 250);
-
-		expect(phaserState.playerMarker.x).toBeGreaterThan(1_940);
-		expect(phaserState.playerMarker.y).toBe(5_347);
-	});
-
-	it('keeps the forest road open toward the Whispering Cave road', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 5_600, y: 3_200 });
-		phaserState.cursorKeys.up.isDown = true;
-
-		scene.update(0, 250);
-
-		expect(phaserState.playerMarker.x).toBe(5_600);
-		expect(phaserState.playerMarker.y).toBeLessThan(3_200);
-	});
-
-	it('blocks map edge tree lines while leaving the village lanes usable', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(phaserState.playerMarker, { x: 6_320, y: 1_024 });
-		phaserState.cursorKeys.right.isDown = true;
-
-		scene.update(0, 250);
-
-		expect(phaserState.playerMarker.x).toBe(6_320);
-		expect(phaserState.playerMarker.y).toBe(1_024);
-
-		// Village-lane-usability check remains in the open south lane, away from
-		// authored building footprints and route seams.
-		Object.assign(phaserState.playerMarker, { x: 1_250, y: 5_250 });
-		phaserState.cursorKeys.right.isDown = false;
-		phaserState.cursorKeys.up.isDown = true;
-
 		scene.update(250, 250);
 
-		expect(phaserState.playerMarker.x).toBe(1_250);
-		expect(phaserState.playerMarker.y).toBeLessThan(5_250);
+		expect(phaserState.playerMarker.y).toBeLessThan(aboveWall.y);
 	});
 
 	it('blocks movement through ruin walls and future gates', async () => {
@@ -7493,53 +7229,25 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(2_816);
 	});
 
-	it('keeps the hero house exterior doorway reachable in the plaza village', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'meadow-entry' });
-		// Approach the authored hero-house doorway from the south-west within
-		// playerRadius (12) + transitionRadius (18) = 30px of the door.
-		Object.assign(phaserState.playerMarker, { x: 684, y: 5_877 });
-
-		scene.update(0, 80);
-
-		expect(scene.scene.restart).toHaveBeenCalledWith({
-			reason: 'transition',
-			saveState: expect.objectContaining({
-				mapId: 'hero-house',
-				player: expect.objectContaining({
-					x: 352,
-					y: 480,
-					facing: 'up'
-				})
-			})
-		});
-	});
-
 	it('limits large frame deltas before applying movement distance', async () => {
 		const { WorldScene } = await import('./WorldScene');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: meadowEntryMap.id });
-		Object.assign(phaserState.playerMarker, {
-			x: 880,
-			y: 5_520
-		});
+		scene.create({ mapId: overworldMap.id });
+		Object.assign(phaserState.playerMarker, openGround);
 		phaserState.cursorKeys.right.isDown = true;
 
 		scene.update(0, 10_000);
 
-		expect(phaserState.playerMarker.x).toBe(940);
-		expect(phaserState.playerMarker.y).toBe(5_520);
+		expect(phaserState.playerMarker.x).toBe(openGround.x + 60);
+		expect(phaserState.playerMarker.y).toBe(openGround.y);
 	});
 
 	it('plays hero walk while moving and idle after stopping', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: 'meadow-entry' });
+		scene.create({ mapId: 'overworld' });
 		phaserState.playerMarker.play.mockClear();
 		phaserState.cursorKeys.right.isDown = true;
 
@@ -7566,7 +7274,7 @@ describe('WorldScene', () => {
 			scene.create({
 				saveState: {
 					...save,
-					mapId: 'meadow-entry',
+					mapId: 'overworld',
 					player: { ...save.player, hp: 12, facing: 'down' },
 					inventory: {
 						stacks: save.inventory.stacks,
@@ -7587,13 +7295,18 @@ describe('WorldScene', () => {
 				BattleScene.key,
 				expect.objectContaining({
 					saveState: expect.objectContaining({
-						mapId: 'meadow-entry',
+						mapId: 'overworld',
 						flags: expect.objectContaining({ clearedEncounters: [] })
 					}),
-					sourceMapId: 'meadow-entry',
+					sourceMapId: 'overworld',
 					sourceEncounterId: 'wildwood-wolves-mouth',
 					sourceEnemyId: 'forest-wolf',
-					returnPosition: { mapId: 'meadow-entry', x: 4_700, y: 3_264, facing: 'down' },
+					returnPosition: {
+						mapId: 'overworld',
+						x: wolvesMouth.x,
+						y: wolvesMouth.y + 64,
+						facing: 'down'
+					},
 					enemyCount: 2,
 					hero: { hp: 12, maxHp: 26, attack: 5, defense: 1 }
 				})
@@ -7611,7 +7324,7 @@ describe('WorldScene', () => {
 		clearedScene.create({
 			saveState: {
 				...save,
-				mapId: 'meadow-entry',
+				mapId: 'overworld',
 				flags: {
 					...save.flags,
 					clearedEncounters: ['wildwood-wolves-mouth']
@@ -7629,7 +7342,7 @@ describe('WorldScene', () => {
 		const defeatedState = defeatedScene as unknown as {
 			enemies: Array<{ defeated: boolean; hp: number }>;
 		};
-		defeatedScene.create({ mapId: 'meadow-entry' });
+		defeatedScene.create({ mapId: 'overworld' });
 		Object.assign(phaserState.playerMarker, wolvesMouthApproach);
 		Object.assign(defeatedState.enemies[0]!, { defeated: true, hp: 0 });
 
@@ -7660,10 +7373,10 @@ describe('WorldScene', () => {
 				reason: 'battle-result',
 				battleResult: {
 					outcome: 'victory',
-					sourceMapId: 'meadow-entry',
+					sourceMapId: 'overworld',
 					sourceEncounterId: 'wildwood-wolves-mouth',
 					sourceEnemyId: 'forest-wolf',
-					returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+					returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 					finalHeroHp: 16,
 					inventory: saveState.inventory,
 					defeatedUnits: [
@@ -7706,7 +7419,7 @@ describe('WorldScene', () => {
 				flags: expect.objectContaining({ clearedEncounters: ['wildwood-wolves-mouth'] }),
 				player: expect.objectContaining({ x: 4_928, y: 1_024, hp: 20 }),
 				mapExploration: expect.objectContaining({
-					'meadow-entry': expect.arrayContaining(['38,7'])
+					overworld: expect.arrayContaining(['38,7'])
 				}),
 				wallet: { coins: 8 }
 			});
@@ -7725,7 +7438,7 @@ describe('WorldScene', () => {
 			handleHudCommand: (command: HudCommand) => void;
 		};
 
-		scene.create({ mapId: 'meadow-entry' });
+		scene.create({ mapId: 'overworld' });
 		emitHudStateSpy.mockClear();
 
 		sceneState.handleHudCommand({ type: 'dismiss-battle-summary' });
@@ -7856,7 +7569,7 @@ describe('WorldScene', () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: 'meadow-entry' });
+		scene.create({ mapId: 'overworld' });
 		Object.assign(phaserState.playerMarker, wolvesMouthApproach);
 
 		scene.update(0, 16);
@@ -7876,7 +7589,7 @@ describe('WorldScene', () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: 'meadow-entry' });
+		scene.create({ mapId: 'overworld' });
 		Object.assign(phaserState.playerMarker, wolvesMouthApproach);
 		phaserState.enemyMarker.setTint.mockClear();
 		phaserState.enemyMarker.clearTint.mockClear();
@@ -7894,29 +7607,25 @@ describe('WorldScene', () => {
 
 	it('stops world movement while the gameplay menu is open', async () => {
 		const { WorldScene } = await import('./WorldScene');
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
 			handleHudCommand: (command: HudCommand) => void;
 		};
 
-		scene.create({ mapId: meadowEntryMap.id });
-		Object.assign(phaserState.playerMarker, {
-			x: 880,
-			y: 5_520
-		});
+		scene.create({ mapId: overworldMap.id });
+		Object.assign(phaserState.playerMarker, openGround);
 		phaserState.cursorKeys.right.isDown = true;
 		sceneState.handleHudCommand({ type: 'pause-game' });
 
 		scene.update(0, 1000);
 
-		expect(phaserState.playerMarker.x).toBe(880);
-		expect(phaserState.playerMarker.y).toBe(5_520);
+		expect(phaserState.playerMarker.x).toBe(openGround.x);
+		expect(phaserState.playerMarker.y).toBe(openGround.y);
 
 		sceneState.handleHudCommand({ type: 'resume-game' });
 		scene.update(1000, 1000);
 
-		expect(phaserState.playerMarker.x).toBe(940);
+		expect(phaserState.playerMarker.x).toBe(openGround.x + 60);
 	});
 
 	it('uses a field potion command to heal and publish the updated inventory', async () => {
@@ -8222,7 +7931,7 @@ describe('WorldScene', () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
-		scene.create({ mapId: 'meadow-entry' });
+		scene.create({ mapId: 'overworld' });
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
@@ -9283,10 +8992,10 @@ describe('WorldScene', () => {
 			reason: 'battle-result',
 			battleResult: {
 				outcome: 'victory',
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				finalHeroHp: 20,
 				inventory: save.inventory,
 				defeatedUnits: [
@@ -9476,7 +9185,7 @@ describe('WorldScene', () => {
 			playerProgress: { level: number; xp: number };
 		};
 
-		scene.create({ mapId: 'meadow-entry' });
+		scene.create({ mapId: 'overworld' });
 		Object.assign(phaserState.playerMarker, wolvesMouthApproach);
 		sceneState.enemies[0]!.hp = 3;
 
@@ -9607,10 +9316,10 @@ describe('WorldScene', () => {
 			reason: 'battle-result',
 			battleResult: {
 				outcome: 'victory',
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				finalHeroHp: 20,
 				inventory: save.inventory,
 				defeatedUnits: [
@@ -9650,10 +9359,10 @@ describe('WorldScene', () => {
 			reason: 'battle-result',
 			battleResult: {
 				outcome: 'victory',
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				finalHeroHp: 20,
 				inventory: save.inventory,
 				defeatedUnits: [
@@ -9698,7 +9407,7 @@ describe('WorldScene', () => {
 			scene.create({
 				saveState: {
 					...save,
-					mapId: 'meadow-entry',
+					mapId: 'overworld',
 					flags: {
 						clearedEncounters: [],
 						clearedEncounterUnitCounts: {},
@@ -9715,10 +9424,10 @@ describe('WorldScene', () => {
 				reason: 'battle-result',
 				battleResult: {
 					outcome: 'victory',
-					sourceMapId: 'meadow-entry',
+					sourceMapId: 'overworld',
 					sourceEncounterId: 'wildwood-wolves-mouth',
 					sourceEnemyId: 'forest-wolf',
-					returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+					returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 					finalHeroHp: 20,
 					inventory: { stacks: [], equipment: ['training-sword'] },
 					defeatedUnits: [
@@ -9756,7 +9465,7 @@ describe('WorldScene', () => {
 			enemies: Array<{ hp: number }>;
 		};
 
-		scene.create({ mapId: 'meadow-entry' });
+		scene.create({ mapId: 'overworld' });
 		Object.assign(phaserState.playerMarker, wolvesMouthApproach);
 
 		scene.update(0, 16);
@@ -9776,7 +9485,7 @@ describe('WorldScene', () => {
 			playerAttackCooldownUntil: number;
 		};
 
-		scene.create({ mapId: 'meadow-entry' });
+		scene.create({ mapId: 'overworld' });
 		Object.assign(phaserState.playerMarker, wolvesMouthApproach);
 		sceneState.playerAttackCooldownUntil = 500;
 
@@ -9812,10 +9521,10 @@ describe('WorldScene', () => {
 				reason: 'battle-result',
 				battleResult: {
 					outcome: 'victory',
-					sourceMapId: 'meadow-entry',
+					sourceMapId: 'overworld',
 					sourceEncounterId: 'wildwood-wolves-mouth',
 					sourceEnemyId: 'forest-wolf',
-					returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+					returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 					finalHeroHp: 24,
 					inventory: save.inventory,
 					defeatedUnits: [
@@ -9857,16 +9566,21 @@ describe('WorldScene', () => {
 		scene.create({
 			saveState: {
 				...save,
-				mapId: 'meadow-entry',
+				mapId: 'overworld',
 				quests: questStateAt('defeat-boar-king')
 			},
 			reason: 'battle-result',
 			battleResult: {
 				outcome: 'victory',
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'boar-king',
 				sourceEnemyId: 'boar-king',
-				returnPosition: { mapId: 'meadow-entry', x: 2_900, y: 860, facing: 'down' },
+				returnPosition: {
+					mapId: 'overworld',
+					x: boarKingHome.x,
+					y: boarKingHome.y + 60,
+					facing: 'down'
+				},
 				finalHeroHp: 20,
 				inventory: save.inventory,
 				defeatedUnits: [
@@ -9904,8 +9618,8 @@ describe('WorldScene', () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
-		scene.create({ saveState: { ...createNewSaveState(), mapId: 'meadow-entry' } });
-		Object.assign(phaserState.playerMarker, { x: 5_960, y: 1_868 });
+		scene.create({ saveState: { ...createNewSaveState(), mapId: 'overworld' } });
+		Object.assign(phaserState.playerMarker, anchorPoint('wildwood-whispering-cave'));
 
 		scene.update(0, 16);
 
@@ -9921,12 +9635,12 @@ describe('WorldScene', () => {
 		scene.create({
 			saveState: {
 				...createNewSaveState(),
-				mapId: 'meadow-entry',
+				mapId: 'overworld',
 				quests: questStateAt('climb-to-the-ridge')
 			}
 		});
 
-		Object.assign(phaserState.playerMarker, { x: 5_960, y: 1_868 });
+		Object.assign(phaserState.playerMarker, anchorPoint('wildwood-whispering-cave'));
 		scene.update(0, 16);
 
 		expect(scene.scene.restart).toHaveBeenCalledWith({
@@ -9950,7 +9664,7 @@ describe('WorldScene', () => {
 		scene.create({
 			saveState: {
 				...createNewSaveState(),
-				mapId: 'meadow-entry',
+				mapId: 'overworld',
 				flags: {
 					clearedEncounters: [],
 					clearedEncounterUnitCounts: {},
@@ -9959,9 +9673,8 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		// Approach the authored hero-house doorway from the south-west within the
-		// runtime transition radius while leaving the building footprint untouched.
-		Object.assign(phaserState.playerMarker, { x: 684, y: 5_877 });
+		// Stand on Grik's doorway.
+		Object.assign(phaserState.playerMarker, anchorPoint('sundrop-grik-home-door'));
 
 		scene.update(0, 16);
 
@@ -9978,7 +9691,7 @@ describe('WorldScene', () => {
 		});
 	});
 
-	it('returns from the hero house to a safe point below the exterior doorway', async () => {
+	it('returns from the hero house to a safe point outside the exterior doorway', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -9996,17 +9709,13 @@ describe('WorldScene', () => {
 		expect(scene.scene.restart).toHaveBeenCalledWith({
 			reason: 'transition',
 			saveState: expect.objectContaining({
-				mapId: 'meadow-entry',
-				player: expect.objectContaining({
-					x: 704,
-					y: 5_920,
-					facing: 'down'
-				})
+				mapId: 'overworld',
+				player: expect.objectContaining(overworldDoorArrival('hero-house'))
 			})
 		});
 	});
 
-	it('enters the Shrine of Aurora from the meadow and exits below the Shrine doorway', async () => {
+	it('enters the Shrine of Aurora from the overworld and exits outside the Shrine doorway', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -10014,7 +9723,7 @@ describe('WorldScene', () => {
 		scene.create({
 			saveState: {
 				...createNewSaveState(),
-				mapId: 'meadow-entry',
+				mapId: 'overworld',
 				flags: {
 					clearedEncounters: [],
 					clearedEncounterUnitCounts: {},
@@ -10023,9 +9732,7 @@ describe('WorldScene', () => {
 				}
 			}
 		});
-		// Approach the authored Shrine doorway from the south-west within the
-		// runtime transition radius.
-		Object.assign(phaserState.playerMarker, { x: 2_252, y: 5_872 });
+		Object.assign(phaserState.playerMarker, anchorPoint('sundrop-shrine-door'));
 		scene.update(0, 16);
 
 		expect(scene.scene.restart).toHaveBeenCalledWith({
@@ -10050,13 +9757,13 @@ describe('WorldScene', () => {
 		expect(shrineScene.scene.restart).toHaveBeenCalledWith({
 			reason: 'transition',
 			saveState: expect.objectContaining({
-				mapId: 'meadow-entry',
-				player: expect.objectContaining({ x: 2_272, y: 5_920, facing: 'down' })
+				mapId: 'overworld',
+				player: expect.objectContaining(overworldDoorArrival('shrine-of-aurora-interior'))
 			})
 		});
 	});
 
-	it('returns from the ruins to a spawn point near the meadow entrance', async () => {
+	it('returns from the ruins to the Whispering Cave mouth', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -10080,12 +9787,8 @@ describe('WorldScene', () => {
 		expect(scene.scene.restart).toHaveBeenCalledWith({
 			reason: 'transition',
 			saveState: expect.objectContaining({
-				mapId: 'meadow-entry',
-				player: expect.objectContaining({
-					x: 5_760,
-					y: 1_868,
-					facing: 'left'
-				})
+				mapId: 'overworld',
+				player: expect.objectContaining(caveArrival)
 			})
 		});
 	});
@@ -10229,21 +9932,20 @@ describe('WorldScene', () => {
 		});
 	});
 
-	it('keeps meadow wolves inside their forest combat pockets while chasing', async () => {
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
+	it('keeps Wildwood wolves inside their forest combat pockets while chasing', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
 			enemies: Array<{ id: string; x: number; y: number; movementMode: string }>;
 		};
 
-		scene.create({ mapId: meadowEntryMap.id });
-		Object.assign(phaserState.playerMarker, { x: 4_816, y: 3_200 });
+		scene.create({ mapId: overworldMap.id });
+		Object.assign(phaserState.playerMarker, { x: wolvesMouth.x - 116, y: wolvesMouth.y });
 
 		scene.update(0, 1_000);
 
 		const boundsByEncounterId = new Map(
-			(meadowEntryMap.combatBounds ?? []).flatMap((bounds) =>
+			(overworldMap.combatBounds ?? []).flatMap((bounds) =>
 				bounds.encounterIds.map((encounterId) => [encounterId, bounds])
 			)
 		);
@@ -10257,47 +9959,50 @@ describe('WorldScene', () => {
 		expect(sceneState.enemies[0]!.movementMode).toBe('chase');
 	});
 
-	it('keeps an engaged meadow wolf chasing inside the forest pocket leash beyond aggro range', async () => {
+	it('keeps an engaged Wildwood wolf chasing inside the forest pocket leash beyond aggro range', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
 			enemies: Array<{ x: number; y: number; movementMode: string }>;
 		};
 
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(sceneState.enemies[0]!, { x: 4_640, y: 3_200, movementMode: 'chase' });
-		Object.assign(phaserState.playerMarker, { x: 4_960, y: 3_200 });
+		scene.create({ mapId: 'overworld' });
+		Object.assign(sceneState.enemies[0]!, {
+			x: wolvesMouth.x + 60,
+			y: wolvesMouth.y,
+			movementMode: 'chase'
+		});
+		Object.assign(phaserState.playerMarker, { x: wolvesMouth.x - 260, y: wolvesMouth.y });
 		const startX = sceneState.enemies[0]!.x;
 
 		scene.update(0, 1_000);
 
 		expect(sceneState.enemies[0]!.movementMode).toBe('chase');
-		expect(sceneState.enemies[0]!.x).toBeGreaterThan(startX);
+		expect(sceneState.enemies[0]!.x).toBeLessThan(startX);
 	});
 
-	it('returns meadow wolves home after the hero leaves the forest combat pocket', async () => {
-		const { meadowEntryMap } = await import('$lib/game/content/maps');
+	it('returns Wildwood wolves home after the hero leaves the forest combat pocket', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
 			enemies: Array<{ x: number; y: number; homeX: number; homeY: number; movementMode: string }>;
 		};
 
-		scene.create({ mapId: meadowEntryMap.id });
-		Object.assign(phaserState.playerMarker, { x: 4_816, y: 3_200 });
+		scene.create({ mapId: overworldMap.id });
+		Object.assign(phaserState.playerMarker, { x: wolvesMouth.x - 116, y: wolvesMouth.y });
 		scene.update(0, 1_000);
 
 		const chasedX = sceneState.enemies[0]!.x;
-		Object.assign(phaserState.playerMarker, { x: 5_300, y: 3_200 });
+		Object.assign(phaserState.playerMarker, { x: wolvesMouth.x - 600, y: wolvesMouth.y });
 		scene.update(1_000, 1_000);
 
 		expect(sceneState.enemies[0]!.movementMode).toBe('return');
-		expect(sceneState.enemies[0]!.x).toBeLessThan(chasedX);
-		expect(sceneState.enemies[0]!.x).toBeGreaterThanOrEqual(sceneState.enemies[0]!.homeX);
+		expect(sceneState.enemies[0]!.x).toBeGreaterThan(chasedX);
+		expect(sceneState.enemies[0]!.x).toBeLessThanOrEqual(sceneState.enemies[0]!.homeX);
 		expect(sceneState.enemies[0]!.y).toBe(sceneState.enemies[0]!.homeY);
 	});
 
-	it('prevents returning meadow wolves from attacking after the hero leaves the forest pocket', async () => {
+	it('prevents returning Wildwood wolves from attacking after the hero leaves the forest pocket', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -10305,9 +10010,13 @@ describe('WorldScene', () => {
 			playerProgress: { hp: number };
 		};
 
-		scene.create({ mapId: 'meadow-entry' });
-		Object.assign(sceneState.enemies[0]!, { x: 5_260, y: 3_200, movementMode: 'chase' });
-		Object.assign(phaserState.playerMarker, { x: 5_400, y: 3_200 });
+		scene.create({ mapId: 'overworld' });
+		Object.assign(sceneState.enemies[0]!, {
+			x: wolvesMouth.x - 560,
+			y: wolvesMouth.y,
+			movementMode: 'chase'
+		});
+		Object.assign(phaserState.playerMarker, { x: wolvesMouth.x - 700, y: wolvesMouth.y });
 		const hpBeforeReturn = sceneState.playerProgress.hp;
 
 		scene.update(1_000, 16);
@@ -10351,17 +10060,17 @@ describe('WorldScene', () => {
 		scene.create({
 			saveState: {
 				...createNewSaveState(),
-				mapId: 'meadow-entry',
+				mapId: 'overworld',
 				flags: boarKingFlags,
 				quests: questStateAt('defeat-boar-king')
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 2_708, y: 800 });
+		Object.assign(phaserState.playerMarker, { x: boarKingHome.x - 192, y: boarKingHome.y });
 
 		scene.update(0, 1000);
 
 		const boarKing = sceneState.enemies.find(({ id }) => id === 'boar-king')!;
-		expect(boarKing.x).toBeLessThan(2_900);
+		expect(boarKing.x).toBeLessThan(boarKingHome.x);
 		expect(sceneState.playerProgress.hp).toBe(20);
 		expect(scene.scene.start).not.toHaveBeenCalled();
 
@@ -10384,19 +10093,19 @@ describe('WorldScene', () => {
 		scene.create({
 			saveState: {
 				...createNewSaveState(),
-				mapId: 'meadow-entry',
+				mapId: 'overworld',
 				flags: boarKingFlags,
 				quests: questStateAt('defeat-boar-king')
 			}
 		});
-		Object.assign(phaserState.playerMarker, { x: 2_900, y: 800 });
+		Object.assign(phaserState.playerMarker, boarKingHome);
 
 		scene.update(0, 16);
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
 			BattleScene.key,
 			expect.objectContaining({
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'boar-king',
 				sourceEnemyId: 'boar-king',
 				enemyCount: 1
@@ -10416,7 +10125,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 		const save = {
 			...createNewSaveState(),
-			mapId: 'meadow-entry',
+			mapId: 'overworld',
 			flags: boarKingFlags,
 			quests: questStateAt('defeat-boar-king')
 		};
@@ -10426,17 +10135,22 @@ describe('WorldScene', () => {
 			reason: 'battle-result',
 			battleResult: {
 				outcome: 'fled',
-				sourceMapId: 'meadow-entry',
+				sourceMapId: 'overworld',
 				sourceEncounterId: 'boar-king',
 				sourceEnemyId: 'boar-king',
-				returnPosition: { mapId: 'meadow-entry', x: 2_900, y: 860, facing: 'down' },
+				returnPosition: {
+					mapId: 'overworld',
+					x: boarKingHome.x,
+					y: boarKingHome.y + 60,
+					facing: 'down'
+				},
 				finalHeroHp: 12,
 				inventory: save.inventory,
 				defeatedUnits: []
 			},
 			recentlyFled: { encounterId: 'boar-king', fledAt: 0 }
 		});
-		Object.assign(phaserState.playerMarker, { x: 2_900, y: 860 });
+		Object.assign(phaserState.playerMarker, { x: boarKingHome.x, y: boarKingHome.y + 60 });
 
 		// The live Boar King is already in battle range (60px < 62px) but the
 		// recently-fled grace suppresses the restart.
@@ -10462,10 +10176,10 @@ describe('WorldScene', () => {
 
 		scene.create({
 			saveState,
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'meadow-entry', x: 4_928, y: 1_024, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -10494,10 +10208,10 @@ describe('WorldScene', () => {
 
 		scene.create({
 			saveState,
-			sourceMapId: 'meadow-entry',
+			sourceMapId: 'overworld',
 			sourceEncounterId: 'boar-king',
 			sourceEnemyId: 'boar-king',
-			returnPosition: { mapId: 'meadow-entry', x: 2_900, y: 800, facing: 'down' },
+			returnPosition: { mapId: 'overworld', x: 2_900, y: 800, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 41, defense: 0 }
 		});

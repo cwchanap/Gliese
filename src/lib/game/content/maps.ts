@@ -1,7 +1,6 @@
 import type { DefinitionRegistry } from '$lib/game/core/types';
-import { meadowEntryMap, openingMapId } from '$lib/game/content/maps/meadow-entry';
-import { overworldMap } from '$lib/game/content/maps/overworld/world';
-import { VILLAGE_INTERIOR_EXTERIORS } from '$lib/game/content/maps/layouts/meadow-entry-v2';
+import { overworldMap } from '$lib/game/content/maps/overworld/map';
+import { caveArrival, overworldDoorArrival } from '$lib/game/content/maps/overworld/places';
 import { toMapRect, type NamedLayoutRect } from '$lib/game/content/maps/layouts/layout-rects';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import { addEnglishMapText } from '$lib/game/content/maps/text';
@@ -37,10 +36,10 @@ export type {
 import type { StoryGated, WorldMapDefinition } from '$lib/game/content/maps/types';
 import { storyWindows } from '$lib/game/content/quests';
 
-export { meadowEntryMap, openingMapId };
+export { overworldMap };
 
-const returnArrival = (mapId: keyof typeof VILLAGE_INTERIOR_EXTERIORS) =>
-	VILLAGE_INTERIOR_EXTERIORS[mapId].returnArrival;
+/** Every outdoor area is the overworld; a new run leaves Grik's house onto it. */
+export const openingMapId = overworldMap.id;
 
 function interiorWallBlockers(walls: readonly NamedLayoutRect[]) {
 	return walls.map((wall) => ({ ...toMapRect(wall.id, wall), kind: 'ruin-wall' as const }));
@@ -594,10 +593,10 @@ export const heroHouseMap: WorldMapDefinition = addEnglishMapText({
 	blockers: heroHouseBlockers,
 	transitions: [
 		{
-			id: 'hero-house-to-meadow',
+			id: 'hero-house-to-overworld',
 			...heroHouseLayout.exit,
 			toMapId: openingMapId,
-			arrival: returnArrival('hero-house')
+			arrival: overworldDoorArrival('hero-house')
 		}
 	],
 	interiorProps: [
@@ -693,10 +692,10 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 	blockers: guildHallBlockers,
 	transitions: [
 		{
-			id: 'guild-hall-to-meadow',
+			id: 'guild-hall-to-overworld',
 			...guildHallLayout.exit,
 			toMapId: openingMapId,
-			arrival: returnArrival('guild-hall')
+			arrival: overworldDoorArrival('guild-hall')
 		}
 	],
 	npcs: [
@@ -823,10 +822,10 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 	blockers: itemShopBlockers,
 	transitions: [
 		{
-			id: 'item-shop-to-meadow',
+			id: 'item-shop-to-overworld',
 			...itemShopLayout.exit,
 			toMapId: openingMapId,
-			arrival: returnArrival('item-shop')
+			arrival: overworldDoorArrival('item-shop')
 		}
 	],
 	npcs: [
@@ -914,10 +913,10 @@ export const blacksmithInteriorMap: WorldMapDefinition = addEnglishMapText({
 	blockers: blacksmithBlockers,
 	transitions: [
 		{
-			id: 'blacksmith-to-meadow',
+			id: 'blacksmith-to-overworld',
 			...blacksmithLayout.exit,
 			toMapId: openingMapId,
-			arrival: returnArrival('blacksmith-interior')
+			arrival: overworldDoorArrival('blacksmith-interior')
 		}
 	],
 	npcs: [
@@ -990,10 +989,10 @@ export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 	blockers: villagerHouse1Blockers,
 	transitions: [
 		{
-			id: 'villager-house-1-to-meadow',
+			id: 'villager-house-1-to-overworld',
 			...villagerHouse1Layout.exit,
 			toMapId: openingMapId,
-			arrival: returnArrival('villager-house-1')
+			arrival: overworldDoorArrival('villager-house-1')
 		}
 	],
 	interiorProps: [
@@ -1063,10 +1062,10 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 	blockers: villagerHouse2Blockers,
 	transitions: [
 		{
-			id: 'villager-house-2-to-meadow',
+			id: 'villager-house-2-to-overworld',
 			...villagerHouse2Layout.exit,
 			toMapId: openingMapId,
-			arrival: returnArrival('villager-house-2')
+			arrival: overworldDoorArrival('villager-house-2')
 		}
 	],
 	interiorProps: [
@@ -1141,10 +1140,10 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 	blockers: villagerHouse3Blockers,
 	transitions: [
 		{
-			id: 'villager-house-3-to-meadow',
+			id: 'villager-house-3-to-overworld',
 			...villagerHouse3Layout.exit,
 			toMapId: openingMapId,
-			arrival: returnArrival('villager-house-3')
+			arrival: overworldDoorArrival('villager-house-3')
 		}
 	],
 	interiorProps: [
@@ -1227,10 +1226,10 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = addEnglishMapText({
 	blockers: shrineOfAuroraBlockers,
 	transitions: [
 		{
-			id: 'shrine-of-aurora-to-meadow',
+			id: 'shrine-of-aurora-to-overworld',
 			...shrineOfAuroraLayout.exit,
 			toMapId: openingMapId,
-			arrival: returnArrival('shrine-of-aurora-interior')
+			arrival: overworldDoorArrival('shrine-of-aurora-interior')
 		}
 	],
 	interiorProps: [
@@ -1306,13 +1305,13 @@ export const ruinsThresholdMap: WorldMapDefinition = {
 	spawn: { x: 512, y: 3_200 },
 	transitions: [
 		{
-			id: 'threshold-to-meadow',
+			id: 'threshold-to-overworld',
 			x: 256,
 			y: 3_200,
 			toMapId: openingMapId,
 			requiresClear: true,
 			marker: 'stair',
-			arrival: { x: 5_760, y: 1_868, facing: 'left' }
+			arrival: caveArrival
 		},
 		{
 			id: 'threshold-to-core',
@@ -1645,7 +1644,7 @@ export const ruinsCoreMap: WorldMapDefinition = {
 };
 
 export const maps: DefinitionRegistry<WorldMapDefinition> = {
-	[meadowEntryMap.id]: meadowEntryMap,
+	[overworldMap.id]: overworldMap,
 	[heroHouseMap.id]: heroHouseMap,
 	[guildHallMap.id]: guildHallMap,
 	[itemShopMap.id]: itemShopMap,
@@ -1655,9 +1654,7 @@ export const maps: DefinitionRegistry<WorldMapDefinition> = {
 	[villagerHouse3Map.id]: villagerHouse3Map,
 	[shrineOfAuroraInteriorMap.id]: shrineOfAuroraInteriorMap,
 	[ruinsThresholdMap.id]: ruinsThresholdMap,
-	[ruinsCoreMap.id]: ruinsCoreMap,
-	// Reached only through the `?startMap=overworld` dev link until it replaces meadow-entry.
-	[overworldMap.id]: overworldMap
+	[ruinsCoreMap.id]: ruinsCoreMap
 };
 
 /** The registered map with this id. Inherited object keys such as "constructor" are not maps. */

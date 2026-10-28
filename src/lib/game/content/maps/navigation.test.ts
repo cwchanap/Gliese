@@ -68,7 +68,7 @@ const map: WorldMapDefinition = {
 			y: 128,
 			width: 160,
 			height: 96,
-			labelKey: 'content.maps.landmarks.hero-house-exterior.label',
+			labelKey: 'content.maps.areas.hero-house',
 			label: 'House'
 		},
 		{
@@ -77,7 +77,7 @@ const map: WorldMapDefinition = {
 			y: 128,
 			width: 96,
 			height: 96,
-			labelKey: 'content.maps.landmarks.hero-house-exterior.label',
+			labelKey: 'content.maps.areas.hero-house',
 			label: 'Missing'
 		}
 	],

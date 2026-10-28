@@ -6,7 +6,7 @@ bridge, and by the pond in the fog she asks him to come to the river tomorrow.
 ::: story
 id: prologue.trial-mistfen
 chapter: prologue
-map: meadow-entry
+map: overworld
 :::
 
 ::: dialogue
@@ -122,6 +122,6 @@ Four clumps, and not a leaf bruised. The village will sleep easier this winter.
 
 And Lirra came back smiling, which she does not do for moss.
 
-Borak stopped by while you were out. The third trial is the Boar King of Silverpine. Drogg is waiting for you at the crossroads signpost.
+Borak stopped by while you were out. The third trial is the Boar King of Silverpine. Drogg is waiting for you at the north gate.
 
 He told me to say it plainly, so I will: be careful, Grik.

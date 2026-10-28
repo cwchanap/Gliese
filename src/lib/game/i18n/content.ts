@@ -87,15 +87,6 @@ export function getNpcText(locale: Locale, npcId: string): { name: string } | nu
 	return null;
 }
 
-export function getMapLandmarkText(locale: Locale, landmarkId: string): { label: string } | null {
-	for (const map of Object.values(maps)) {
-		const landmark = (map.landmarks ?? []).find((candidate) => candidate.id === landmarkId);
-		if (landmark) return { label: t(locale, landmark.labelKey) };
-	}
-
-	return null;
-}
-
 export function formatRewardSummary(locale: Locale, reward: QuestReward): string {
 	const parts = [
 		reward.xp ? t(locale, 'content.rewards.xp', { xp: reward.xp }) : '',

@@ -449,8 +449,8 @@ export const ja = {
 				title: '第三の試練：イノシシ王',
 				description: '獣の王に挑む。ドロッグと共に銀松林でイノシシ王を狩る。',
 				objectives: {
-					'meet-drogg-crossroads': {
-						description: '辻の道標でドロッグと合流する。',
+					'meet-drogg-north-gate': {
+						description: '北門でドロッグと合流する。',
 						progressLabel: 'ドロッグと合流した'
 					},
 					'track-the-boar-king': {
@@ -551,40 +551,7 @@ export const ja = {
 			}
 		},
 		maps: {
-			landmarks: {
-				'hero-house-exterior': { label: 'グリクの家' },
-				'guild-hall-exterior': { label: '狩人の集会所' },
-				'item-shop-exterior': { label: '薬草小屋' },
-				'villager-house-1-exterior': { label: '民家' },
-				'villager-house-2-exterior': { label: '民家' },
-				'villager-house-3-exterior': { label: '民家' },
-				'sundrop-well': { label: 'サンドロップの井戸' },
-				'whispering-cave': { label: 'ささやきの洞窟' },
-				blacksmith: { label: '鍛冶屋' },
-				'shrine-of-aurora': { label: 'オーロラの社' },
-				'witchwood-gate': { label: '魔女の森の門' },
-				'silver-shrine-gate': { label: '白銀神殿の門' },
-				'ferry-crossing': { label: '渡し場' },
-				'castle-gate': { label: '封印された城門' },
-				'crossroads-waystone': { label: '辻の道標' }
-			},
 			discoveries: {
-				'crossroads-waystone-sign': {
-					label: '古い道標',
-					description: '刻まれた矢印が四方を指す——北に社、南に海岸、西に湿地、東に洞窟。'
-				},
-				'castle-gate-warning': {
-					label: '城門の告示',
-					description: '王道は勅命により封じられている。祭が終わるまで白線を越える者はいない。'
-				},
-				'ferry-shrine-lore': {
-					label: '渡し場の祠',
-					description: '夕暮れに鐘を鳴らせば渡し守が答える——潮と戦の許す限りにおいて。'
-				},
-				'coast-jetty-foreshadow': {
-					label: '桟橋の突端',
-					description: '板は開けた水面で途絶える。まだ舟は待っていない。'
-				},
 				'witchwood-poison-warning': {
 					label: '魔女の森の標石',
 					description: '門を過ぎたら浅く息をせよ。この花は毒の霧を流す。'
@@ -628,7 +595,6 @@ export const ja = {
 				'villager-io': { name: 'イオ' }
 			},
 			areas: {
-				'meadow-entry': 'サンドロップ草原',
 				'hero-house': 'グリクの家',
 				'guild-hall': '狩人の集会所',
 				'item-shop': '薬草小屋',

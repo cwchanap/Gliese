@@ -6,7 +6,6 @@ import {
 	formatRewardSummary,
 	getEnemyText,
 	getItemText,
-	getMapLandmarkText,
 	getNpcText,
 	getQuestObjectiveText,
 	getQuestText,
@@ -22,11 +21,10 @@ describe('localized content helpers', () => {
 		expect(getItemText('ja', 'field-potion')?.name).toBe('フィールドポーション');
 	});
 
-	it('resolves shop, NPC, enemy, map landmark, and quest text', () => {
+	it('resolves shop, NPC, enemy, and quest text', () => {
 		expect(getShopText('en', 'miras-item-shop')?.name).toBe("Mira's Herb Hut");
 		expect(getNpcText('en', 'mott-hearth')?.name).toBe('Old Mott');
 		expect(getEnemyText('en', 'boar-king')?.name).toBeTruthy();
-		expect(getMapLandmarkText('en', 'hero-house-exterior')?.label).toBe("Grik's House");
 		expect(getQuestText('zh-Hant', 'prologue-proving-morning')?.title).toBe('試煉之晨');
 	});
 
@@ -63,6 +61,5 @@ describe('localized content helpers', () => {
 		expect(getQuestObjectiveText('en', 'prologue-proving-morning', 'not-an-objective')).toBeNull();
 		expect(getEnemyText('en', 'not-an-enemy')).toBeNull();
 		expect(getNpcText('en', 'not-an-npc')).toBeNull();
-		expect(getMapLandmarkText('en', 'not-a-landmark')).toBeNull();
 	});
 });

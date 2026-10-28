@@ -6,7 +6,7 @@ signs, bring it down, and find a broken iron arrow stamped with a sun.
 ::: story
 id: prologue.trial-tracks
 chapter: prologue
-map: meadow-entry
+map: overworld
 :::
 
 ::: dialogue

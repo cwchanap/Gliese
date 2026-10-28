@@ -13,7 +13,6 @@ import {
 	forestDressingAsset,
 	getActorAnimationAsset,
 	getEnemyActorId,
-	getGroundFrameName,
 	getVillageBuildingFrameName,
 	interiorPropAsset,
 	isNpcPackFrameName,
@@ -2129,11 +2128,10 @@ export class WorldScene extends Phaser.Scene {
 		return undefined;
 	}
 
+	/** Interiors and the tunnel: authored ground patches on a ruins floor inside a stone rim. */
 	private buildGroundTileData(map: WorldMapDefinition) {
-		const baseTile = WorldScene.terrainTileIndexes[getGroundFrameName(map.id)];
-		const pathTile = WorldScene.terrainTileIndexes.pathTile;
+		const baseTile = WorldScene.terrainTileIndexes.ruinsFloorTile;
 		const stoneTile = WorldScene.terrainTileIndexes.stoneWallTile;
-		const centerRow = Math.floor(map.height / 2);
 
 		return Array.from({ length: map.height }, (_, row) =>
 			Array.from({ length: map.width }, (_, column) => {
@@ -2143,14 +2141,7 @@ export class WorldScene extends Phaser.Scene {
 					return patchTile;
 				}
 
-				if (map.id === openingMapId && Math.abs(row - centerRow) <= 1) {
-					return pathTile;
-				}
-
-				if (
-					map.id !== openingMapId &&
-					(row === 0 || column === 0 || row === map.height - 1 || column === map.width - 1)
-				) {
+				if (row === 0 || column === 0 || row === map.height - 1 || column === map.width - 1) {
 					return stoneTile;
 				}
 
