@@ -102,7 +102,7 @@ describe('overworld', () => {
 		expect(unreachable).not.toContain('wildwood-ridge-overlook');
 	});
 
-	it('keeps the player inside Sundrop, the Wildwood, and the corridors to the sealed gates', () => {
+	it('keeps the player inside the built regions and the corridor to the sealed south gate', () => {
 		const navigation = buildGridNavigationGrid(
 			overworld.id,
 			overworld.grid.terrain,
@@ -131,14 +131,15 @@ describe('overworld', () => {
 		const unreachable = new Set(findUnreachablePoints(navigation, overworldMap.spawn, outside));
 		const reachable = outside.filter((tile) => !unreachable.has(tile.name));
 
-		// Tile boxes around the corridors that still end at a sealed gate in an outline region.
-		const corridors = [
-			{ name: 'west', cols: [98, 127], rows: [201, 214] },
-			{ name: 'south', cols: [158, 170], rows: [240, 273] }
+		// Built areas inside outline chunks: the Mistfen basin with its reed ring, and the
+		// corridor that still ends at a sealed gate.
+		const builtBoxes = [
+			{ name: 'mistfen-basin', cols: [52, 127], rows: [156, 237] },
+			{ name: 'south-road', cols: [158, 170], rows: [240, 273] }
 		];
 		const strays = reachable.filter(
 			(tile) =>
-				!corridors.some(
+				!builtBoxes.some(
 					(box) =>
 						tile.col >= box.cols[0]! &&
 						tile.col <= box.cols[1]! &&
