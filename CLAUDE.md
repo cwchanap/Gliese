@@ -229,8 +229,9 @@ fresh save on Grik's door in Sundrop. A dev-link run never writes save slots, so
 overwrite real progress. The grid code lives in `content/maps/grid/`;
 `content/maps/overworld/world.ts` places the chunks from `overworld/chunks/`.
 
-Sundrop, the Wildwood (`wildwood-north`, `wildwood-east`), and the Mistfen basin (the
-south-east corner of `mistfen`, ringed by reed thicket) are built in detail. Every other chunk,
+Sundrop, the Wildwood (`wildwood-north`, `wildwood-east`), Silverpine (`silverpine`), and the
+Mistfen basin (the south-east corner of `mistfen`, ringed by reed thicket) are built in detail.
+Every other chunk,
 and the rest of `mistfen`, is an **outline** (coast, mountains, region borders, solid interiors)
 that a later map PR replaces in place, keeping the same rectangle:
 
@@ -243,10 +244,12 @@ that a later map PR replaces in place, keeping the same rectangle:
 | farS | open sea       | `valcrest`                                   | open sea         |
 
 Sundrop's east gate opens into the Wildwood hunting grounds, which climb north to the Whispering
-Cave and the ridge and loop back to the north gate's corridor. The west gate crosses Lirra's
-bridge into the Mistfen basin, which loops through the reeds past the pond. The other routes end
-at a sealed gate (`gate-silverpine`, `gate-south-road`, `gate-east-mountains` off the hunting
-grounds, and `gate-witchwood` at the north end of the Mistfen basin). The region PR behind a gate replaces its outline chunk and removes the gate,
+Cave and the ridge and loop back to the north gate's corridor. That corridor climbs on into
+Silverpine, three tiers split by cliff bands, up past the falls to the boar king's clearing. The
+west gate crosses Lirra's bridge into the Mistfen basin, which loops through the reeds past the
+pond. The other routes end at a sealed gate (`gate-south-road`, `gate-east-mountains` off the
+hunting grounds, `gate-witchwood` at the north end of the Mistfen basin, and `gate-silver-shrine`
+at the top of Silverpine). The region PR behind a gate replaces its outline chunk and removes the gate,
 or opens it with a story overlay if the story keeps it shut for a while;
 `overworld/world.test.ts` keeps the player inside the built regions and those corridors.
 

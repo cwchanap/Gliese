@@ -18,7 +18,7 @@ import { wildwoodNorthChunk } from './chunks/wildwood-north';
  * The continent: one text-grid map for every outdoor area, 384×384 tiles. Each
  * chunk is placed at a tile offset; tiles no chunk covers are open sea.
  *
- * Sundrop, the Wildwood, and the Mistfen basin are built in detail. Every other
+ * Sundrop, the Wildwood, Silverpine, and the Mistfen basin are built in detail. Every other
  * chunk is an outline (coast, mountains, region borders) that a later map PR
  * replaces in place; the routes toward them end at sealed gates, where the
  * matching region will open.
