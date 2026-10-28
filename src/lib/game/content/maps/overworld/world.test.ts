@@ -108,7 +108,7 @@ describe('overworld', () => {
 			overworld.grid.terrain,
 			overworld.grid.buildings
 		);
-		const open = ['sundrop', 'wildwood-north', 'wildwood-east'].map(
+		const open = ['sundrop', 'wildwood-north', 'wildwood-east', 'silverpine'].map(
 			(id) => overworld.chunks.find((chunk) => chunk.id === id)!
 		);
 		const outside = [];

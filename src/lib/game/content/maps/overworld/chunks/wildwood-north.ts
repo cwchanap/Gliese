@@ -1,15 +1,14 @@
 import type { GridChunkSource } from '$lib/game/content/maps/grid/compile';
 
 /**
- * The north Wildwood (野林北端): the corridor from Sundrop's north gate to the sealed Silverpine
- * gate, the river from the northern springs, the thornback boar's clearing beyond the brook,
+ * The north Wildwood (野林北端): the corridor from Sundrop's north gate to the Silverpine gate,
+ * the river down from the Silverpine falls, the thornback boar's clearing beyond the brook,
  * the Whispering Cave under the rim, and the ridge plateau that overlooks Sundrop. The bridge and
  * the west trail close the loop back to the corridor.
  */
 export const wildwoodNorthChunk: GridChunkSource = {
 	id: 'wildwood-north',
 	anchors: {
-		g: 'gate-silverpine',
 		c: 'wildwood-whispering-cave',
 		a: 'wildwood-cave-arrival',
 		d: 'wildwood-cave-danger',
@@ -21,11 +20,11 @@ export const wildwoodNorthChunk: GridChunkSource = {
 		j: 'wildwood-woodcutter'
 	},
 	terrain: `
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^PP!!!PP^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^PP!!!PP^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^PP,,,PP^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^PP,,,PP^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ^^TTTT...TTTTTTTTTTTTTTTTTTT,,,,,,,.TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTT###########,,,###########^^
 ^^TTT.....TTTTTTTTTTTTTTTTTT,,,,,,,TTTTT##########################TTTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTT###########,c,###########^^
-^^TTTT...T...TTTTTTTTTTTTTTT,,,g,,,TTTTT##########################TTTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTT###########,,,###########^^
+^^TTTT...T...TTTTTTTTTTTTTTT,,,,,,,TTTTT##########################TTTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTT###########,,,###########^^
 ^^TTTTTTT.....TTTTTTTTTTTTTT,,,,,,,.TTTT##......................##TTTTTTTTTT~~TTTTTTTTTTTTTTTTT.TTTTTTTTTTTTTT..,,,.TTTTTTTTTT^^
 ^^TTTTTTTT...TTTTTTTTTTTTTT,,,,,,TTTTTTT##......................##TTTTTTTTTT~~TTTTTTTTTTTTTT.T...TTTTTTTTTTT.TT,,,,TTTTTTTTTTT^^
 ^^TTTTTTTTTTTTTTTTTTTTTT..,,,,,,TTTTTTTT##......................##TTT.TTTT.T~~TTT.TTTTT.TT...........TTTTTTTT,,,,a,TTTTTTTTTTT^^
