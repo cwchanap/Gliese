@@ -64,7 +64,7 @@ describe('overworld', () => {
 		);
 		const door = overworldAnchors['sundrop-grik-home-door']!;
 		expect(isWalkable(navigation, overworldMap.spawn.x, overworldMap.spawn.y)).toBe(true);
-		expect(overworldMap.spawn).toEqual({ x: door.x, y: door.y - 32 });
+		expect(overworldMap.spawn).toEqual({ x: door.x, y: door.y + 32 });
 	});
 
 	it('puts every anchor on a tile the player can stand on', () => {

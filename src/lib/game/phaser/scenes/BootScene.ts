@@ -19,6 +19,7 @@ import {
 	villageHedgeAsset
 } from '$lib/game/content/assets';
 import { findMap, maps } from '$lib/game/content/maps';
+import { GRID_OBJECT_SHEET } from '$lib/game/content/maps/grid/objects';
 import { GRID_TILESET } from '$lib/game/content/maps/grid/tileset';
 import { createNewSaveState } from '$lib/game/save/save-state';
 import {
@@ -152,6 +153,7 @@ export class BootScene extends Phaser.Scene {
 		this.load.image(starterPackAsset.key, starterPackAsset.path);
 		this.load.image(terrainTilesAsset.key, terrainTilesAsset.path);
 		this.load.image(GRID_TILESET.key, GRID_TILESET.path);
+		this.load.image(GRID_OBJECT_SHEET.key, GRID_OBJECT_SHEET.path);
 		this.load.image(animationPackAsset.key, animationPackAsset.path);
 		this.load.image(npcPackAsset.key, npcPackAsset.path);
 		this.load.image(villageBuildingAsset.key, villageBuildingAsset.path);

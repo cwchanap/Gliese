@@ -260,8 +260,9 @@ or opens it with a story overlay if the story keeps it shut for a while;
   right of a tile centre, so an anchor flush against such a wall sits in a blocked cell.
 - **Buildings**: a non-terrain, non-lowercase glyph declared in `buildings`
   (`{ A: 'goblin-hut' }`; types in `grid/buildings.ts`). Each solid rectangle of that glyph is
-  one building whose footprint blocks movement. Put its door anchor just outside it, with the
-  free tile above.
+  one building whose footprint blocks movement, drawn as a sprite standing on it. The art
+  puts every door on the south face, so put the door anchor on the row just below the
+  footprint and keep the two tiles below the anchor free: the player arrives on the first.
 - **Story overlays**: `overlays: [{ id, activeDuring / hiddenDuring, rows }]`, the same size as
   the terrain. `-` keeps the tile underneath and any legend glyph replaces it (fire during the
   raid, a gate that opens). `applyStoryGates` decides which overlays are live.
@@ -276,30 +277,30 @@ or opens it with a story overlay if the story keeps it shut for a while;
 | Glyph | Terrain       | Blocks | Notes                              |
 | ----- | ------------- | ------ | ---------------------------------- |
 | `.`   | grass         | no     | base ground                        |
-| `,`   | dirt path     | no     | autotile, joins `=` and `H`        |
+| `,`   | dirt path     | no     | autotile, joins `=`, `H`, `*`, `O` |
 | `:`   | sand          | no     | autotile, joins `~`                |
 | `=`   | bridge        | no     | autotile, joins `,`; lay it on `~` |
 | `H`   | stairs        | no     | cuts through `#` cliffs            |
 | `T`   | dense forest  | yes    | autotile, drawn above actors       |
-| `Y`   | lone tree     | yes    | drawn above actors                 |
+| `Y`   | lone tree     | yes    | sprite; a 2×2 clump: sacred tree   |
 | `~`   | water         | yes    | autotile, joins `=`                |
 | `#`   | cliff         | yes    | autotile, joins `H`                |
 | `^`   | mountain      | yes    | autotile; the default world fill   |
-| `P`   | palisade      | yes    | autotile, joins `!`                |
-| `!`   | sealed gate   | yes    | open it with a story overlay       |
-| `%`   | fenced garden | yes    | autotile                           |
-| `R`   | rock          | yes    |                                    |
-| `O`   | well          | yes    | autotile                           |
-| `*`   | fire pit      | yes    |                                    |
-| `I`   | totem         | yes    |                                    |
-| `X`   | drying rack   | yes    |                                    |
-| `&`   | fire          | yes    | for raid overlays                  |
+| `P`   | palisade      | yes    | sprite                             |
+| `!`   | sealed gate   | yes    | sprite; open it with an overlay    |
+| `%`   | fenced garden | yes    | sprite over the whole patch        |
+| `R`   | rock          | yes    | sprite                             |
+| `O`   | well          | yes    | sprite over the whole patch        |
+| `*`   | fire pit      | yes    | sprite                             |
+| `I`   | totem         | yes    | sprite                             |
+| `X`   | drying rack   | yes    | sprite                             |
+| `&`   | fire          | yes    | for raid overlays; placeholder     |
 
 The tileset image is `public/game/assets/overworld/tiles.png`, baked by `bun run map:tileset`
 (`tools/generate-grid-tileset.ts`) from the tile-ready pieces in `art/overworld/`: 256px seamless
 textures, the cliff and mountain-foot strips, and 32px sprites cut from the approved Codex art
-(briefs in `docs/art/`). Terrain without art yet (palisade, sealed gate and the village props)
-bakes as flat placeholder colours. `grid/tileset.ts` fixes
+(briefs in `docs/art/`). The raid fire has no art yet and bakes as a flat placeholder colour.
+`grid/tileset.ts` fixes
 the layout as a sheet of slots: row 0 holds the single tiles, and each autotile terrain owns one
 row of 16 slots indexed by its N=1/E=2/S=4/W=8 edge mask. Each slot is 8×8 tiles cut from one
 piece of art, and the map tile at (col, row) draws variant (col % 8, row % 8), so textures repeat
@@ -307,6 +308,15 @@ every 8 tiles instead of every tile. Both glyph lists are append-only, because a
 against those positions. To add a glyph: add it to `TERRAIN_LEGEND` in `grid/legend.ts`, append
 it to one list in `grid/tileset.ts`, give it art or a placeholder colour in the bake, run
 `bun run map:tileset`, and add a row to the table above (`grid/tileset.test.ts` checks the table).
+
+Buildings and the props marked "sprite" above stand taller than a tile, so the tileset bakes
+plain ground under them and `grid/objects.ts` draws them as sprites from a second sheet,
+`public/game/assets/overworld/objects.png`, which the same `bun run map:tileset` packs from
+`art/overworld/objects/` (one PNG per frame, at the size it is drawn). A building's art comes
+from its type's `frames` in `grid/buildings.ts`. Each sprite stands on the bottom edge of its
+footprint; the part above the footprint's top edge draws over actors, so Grik walks behind
+roofs and treetops, and the rest draws under them. To add object art: drop the PNG in
+`art/overworld/objects/`, add its size to `GRID_OBJECT_SIZES`, and rebake.
 
 ### Story Pipeline (Rust-owned)
 

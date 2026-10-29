@@ -2,9 +2,11 @@
  * The global terrain legend for text-grid maps. One glyph is one 32px tile, and
  * the glyph alone decides both what is drawn and whether it blocks movement.
  *
- * `layer: 'canopy'` tiles draw above actors (tree crowns); everything else draws
- * on the ground layer. `autotile` terrains pick one of 16 edge tiles from their
- * N/E/S/W neighbours (see `tileset.ts`); the rest use a single tile.
+ * `layer: 'canopy'` tiles draw above actors (the forest canopy); everything else
+ * draws on the ground layer. `autotile` terrains pick one of 16 edge tiles from
+ * their N/E/S/W neighbours (see `tileset.ts`); the rest use a single tile. Props
+ * taller than a tile (trees, rocks, the palisade) bake as plain ground and are drawn
+ * as sprites over it (see `objects.ts`).
  *
  * Keep the table in CLAUDE.md ("Overworld grid maps") in sync when adding a glyph.
  */
@@ -19,12 +21,12 @@ export interface TerrainDefinition {
 
 export const TERRAIN_LEGEND = {
 	'.': { name: 'grass', blocks: false, layer: 'ground', autotile: false },
-	',': { name: 'dirt path', blocks: false, layer: 'ground', autotile: true, connects: '=H' },
+	',': { name: 'dirt path', blocks: false, layer: 'ground', autotile: true, connects: '=H*O' },
 	':': { name: 'sand', blocks: false, layer: 'ground', autotile: true, connects: '~' },
 	'=': { name: 'bridge', blocks: false, layer: 'ground', autotile: true, connects: ',' },
 	H: { name: 'stairs', blocks: false, layer: 'ground', autotile: false },
 	T: { name: 'dense forest', blocks: true, layer: 'canopy', autotile: true },
-	Y: { name: 'lone tree', blocks: true, layer: 'canopy', autotile: false },
+	Y: { name: 'lone tree', blocks: true, layer: 'ground', autotile: false },
 	'~': { name: 'water', blocks: true, layer: 'ground', autotile: true, connects: '=' },
 	'#': { name: 'cliff', blocks: true, layer: 'ground', autotile: true, connects: 'H' },
 	'^': { name: 'mountain', blocks: true, layer: 'ground', autotile: true },

@@ -1,19 +1,26 @@
 /**
  * Building types a grid chunk can stamp. A building is a solid rectangle of one
  * glyph in the chunk's terrain; its footprint blocks movement and its door is an
- * anchor next to it. Until building art exists, the world and the preview tool
- * draw each footprint as a flat box in its placeholder colour.
+ * anchor next to it.
+ *
+ * Each building is drawn as a sprite standing on its footprint (see `objects.ts`):
+ * `frames` are the art variants, given out in turn to the buildings of that type;
+ * `scale` is the sprite's width over the footprint's; `drop` is how far in px the
+ * art's ground reaches below the footprint.
  */
 export const GRID_BUILDING_TYPES = {
-	home: { color: 0xc98b5e },
-	'goblin-hut': { color: 0xa0764f },
-	'small-hut': { color: 0x8a6a4a },
-	'hunters-lodge': { color: 0x7a5636 },
-	'herb-hut': { color: 0x6f8f4f },
-	forge: { color: 0x5c5c66 },
-	shrine: { color: 0xd98ca5 },
-	watchtower: { color: 0x9a8a6a }
-} as const satisfies Record<string, { readonly color: number }>;
+	home: { frames: ['grik-home'], scale: 1.12, drop: 10 },
+	'goblin-hut': { frames: ['hut-a', 'hut-b', 'hut-c'], scale: 1.12, drop: 10 },
+	'small-hut': { frames: ['small-hut-b', 'small-hut-a'], scale: 1.2, drop: 6 },
+	'hunters-lodge': { frames: ['lodge'], scale: 1.12, drop: 10 },
+	'herb-hut': { frames: ['herb-hut'], scale: 1.12, drop: 10 },
+	forge: { frames: ['forge'], scale: 1.12, drop: 10 },
+	shrine: { frames: ['shrine'], scale: 1.12, drop: 10 },
+	watchtower: { frames: ['watchtower'], scale: 1.5, drop: 4 }
+} as const satisfies Record<
+	string,
+	{ readonly frames: readonly string[]; readonly scale: number; readonly drop: number }
+>;
 
 export type GridBuildingType = keyof typeof GRID_BUILDING_TYPES;
 
