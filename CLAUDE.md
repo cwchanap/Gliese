@@ -277,7 +277,7 @@ or opens it with a story overlay if the story keeps it shut for a while;
 | ----- | ------------- | ------ | ---------------------------------- |
 | `.`   | grass         | no     | base ground                        |
 | `,`   | dirt path     | no     | autotile, joins `=` and `H`        |
-| `:`   | sand          | no     | autotile                           |
+| `:`   | sand          | no     | autotile, joins `~`                |
 | `=`   | bridge        | no     | autotile, joins `,`; lay it on `~` |
 | `H`   | stairs        | no     | cuts through `#` cliffs            |
 | `T`   | dense forest  | yes    | autotile, drawn above actors       |
@@ -297,8 +297,9 @@ or opens it with a story overlay if the story keeps it shut for a while;
 
 The tileset image is `public/game/assets/overworld/tiles.png`, baked by `bun run map:tileset`
 (`tools/generate-grid-tileset.ts`) from the tile-ready pieces in `art/overworld/`: 256px seamless
-textures and 32px sprites cut from the approved Codex art. Terrain without art yet (mountain,
-sand, palisade and the village props) bakes as flat placeholder colours. `grid/tileset.ts` fixes
+textures, the cliff and mountain-foot strips, and 32px sprites cut from the approved Codex art
+(briefs in `docs/art/`). Terrain without art yet (palisade, sealed gate and the village props)
+bakes as flat placeholder colours. `grid/tileset.ts` fixes
 the layout as a sheet of slots: row 0 holds the single tiles, and each autotile terrain owns one
 row of 16 slots indexed by its N=1/E=2/S=4/W=8 edge mask. Each slot is 8×8 tiles cut from one
 piece of art, and the map tile at (col, row) draws variant (col % 8, row % 8), so textures repeat

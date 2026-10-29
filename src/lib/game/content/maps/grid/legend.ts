@@ -20,7 +20,7 @@ export interface TerrainDefinition {
 export const TERRAIN_LEGEND = {
 	'.': { name: 'grass', blocks: false, layer: 'ground', autotile: false },
 	',': { name: 'dirt path', blocks: false, layer: 'ground', autotile: true, connects: '=H' },
-	':': { name: 'sand', blocks: false, layer: 'ground', autotile: true },
+	':': { name: 'sand', blocks: false, layer: 'ground', autotile: true, connects: '~' },
 	'=': { name: 'bridge', blocks: false, layer: 'ground', autotile: true, connects: ',' },
 	H: { name: 'stairs', blocks: false, layer: 'ground', autotile: false },
 	T: { name: 'dense forest', blocks: true, layer: 'canopy', autotile: true },
