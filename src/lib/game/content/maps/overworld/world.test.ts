@@ -10,14 +10,11 @@ import { isWalkable } from '$lib/game/core/navigation';
 import { overworldMap } from './map';
 import { overworld, overworldAnchors } from './world';
 
-/** Day-only story points on the terrace; the raid seals the terrace off. */
-const TERRACE_ANCHORS = [
-	'sundrop-shrine-door',
-	'sundrop-lodge-door',
-	'sundrop-hidden-chest',
-	'sundrop-drogg-north-gate',
-	'sundrop-pilgrim'
-] as const;
+/**
+ * The raid's fire seals the terrace east of the chest: the lodge and the north gate road. The
+ * shrine side stays open, because a lost fight wakes Grik in the shrine.
+ */
+const EAST_TERRACE_ANCHORS = ['sundrop-lodge-door', 'sundrop-drogg-north-gate'] as const;
 
 const sundrop = overworld.chunks.find((chunk) => chunk.id === 'sundrop')!;
 const inSundrop = (tile: { col: number; row: number }) =>
@@ -87,12 +84,12 @@ describe('overworld', () => {
 		expect(unreachableFromSpawn([])).toEqual([]);
 	});
 
-	it('keeps the raid route open while fire seals the village exits and the terrace', () => {
+	it('keeps the raid route open while fire seals the village exits and the east terrace', () => {
 		const sealed = unreachableFromSpawn(overworld.overlays);
 		const outside = Object.values(overworldAnchors)
 			.filter((anchor) => !inSundrop(anchor))
 			.map((anchor) => anchor.name);
-		expect(sealed.sort()).toEqual([...outside, ...TERRACE_ANCHORS].sort());
+		expect(sealed.sort()).toEqual([...outside, ...EAST_TERRACE_ANCHORS].sort());
 	});
 
 	it('walks from the Whispering Cave to the ridge during the escape', () => {
