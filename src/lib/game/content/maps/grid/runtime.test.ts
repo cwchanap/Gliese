@@ -48,8 +48,8 @@ describe('grid map runtime', () => {
 	});
 
 	it('applies only the story overlays that are live', () => {
-		expect(resolveGridTileLayers(before).ground[0]![2]).toBe(tileIdFor('.'));
-		expect(resolveGridTileLayers(during).ground[0]![2]).toBe(tileIdFor('&'));
+		expect(resolveGridTileLayers(before).ground[0]![2]).toBe(tileIdFor('.', 0, 2, 0));
+		expect(resolveGridTileLayers(during).ground[0]![2]).toBe(tileIdFor('&', 0, 2, 0));
 		expect(isWalkable(resolveGridNavigationGrid(before), fire.x, fire.y)).toBe(true);
 		expect(isWalkable(resolveGridNavigationGrid(during), fire.x, fire.y)).toBe(false);
 	});

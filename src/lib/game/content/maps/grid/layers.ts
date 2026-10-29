@@ -40,7 +40,6 @@ export function applyTileOverlays(
 }
 
 export function buildGridTileLayers(terrain: readonly string[]): GridTileLayers {
-	const baseTile = tileIdFor(BASE_GLYPH);
 	const ground: number[][] = [];
 	const canopy: number[][] = [];
 	for (const [row, line] of terrain.entries()) {
@@ -49,9 +48,10 @@ export function buildGridTileLayers(terrain: readonly string[]): GridTileLayers 
 		for (let col = 0; col < line.length; col += 1) {
 			const glyph = terrainGlyphAt(terrain, col, row);
 			const definition = TERRAIN_LEGEND[glyph];
-			const tile = tileIdFor(glyph, definition.autotile ? edgeMask(terrain, col, row, glyph) : 0);
+			const mask = definition.autotile ? edgeMask(terrain, col, row, glyph) : 0;
+			const tile = tileIdFor(glyph, mask, col, row);
 			if (definition.layer === 'canopy') {
-				groundRow.push(baseTile);
+				groundRow.push(tileIdFor(BASE_GLYPH, 0, col, row));
 				canopyRow.push(tile);
 			} else {
 				groundRow.push(tile);
