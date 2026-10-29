@@ -33,13 +33,19 @@ describe('buildGridTileLayers', () => {
 	it('puts canopy terrain above grass and leaves the rest of the canopy empty', () => {
 		const layers = buildGridTileLayers(['.T', 'R~']);
 		expect(layers.ground).toEqual([
-			[tileIdFor('.'), tileIdFor('.')],
-			[tileIdFor('R'), tileIdFor('~', EDGE_E | EDGE_S)]
+			[tileIdFor('.', 0, 0, 0), tileIdFor('.', 0, 1, 0)],
+			[tileIdFor('R', 0, 0, 1), tileIdFor('~', EDGE_E | EDGE_S, 1, 1)]
 		]);
 		expect(layers.canopy).toEqual([
-			[-1, tileIdFor('T', EDGE_N | EDGE_E)],
+			[-1, tileIdFor('T', EDGE_N | EDGE_E, 1, 0)],
 			[-1, -1]
 		]);
+	});
+
+	it('draws the same terrain with a different variant on each tile', () => {
+		const layers = buildGridTileLayers(['.'.repeat(9)]);
+		expect(new Set(layers.ground[0]!.slice(0, 8)).size).toBe(8);
+		expect(layers.ground[0]![8]).toBe(layers.ground[0]![0]);
 	});
 });
 

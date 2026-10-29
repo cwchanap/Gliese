@@ -4,7 +4,14 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { TERRAIN_LEGEND, type TerrainGlyph } from './legend';
-import { AUTOTILE_GLYPHS, GRID_TILESET, SINGLE_TILE_GLYPHS, tileIdFor } from './tileset';
+import {
+	AUTOTILE_GLYPHS,
+	GRID_TILESET,
+	SINGLE_TILE_GLYPHS,
+	TILE_VARIANTS,
+	slotFor,
+	tileIdFor
+} from './tileset';
 
 const legendGlyphs = Object.keys(TERRAIN_LEGEND) as TerrainGlyph[];
 
@@ -16,14 +23,23 @@ describe('grid tileset', () => {
 		for (const glyph of AUTOTILE_GLYPHS) expect(TERRAIN_LEGEND[glyph].autotile, glyph).toBe(true);
 		for (const glyph of SINGLE_TILE_GLYPHS)
 			expect(TERRAIN_LEGEND[glyph].autotile, glyph).toBe(false);
-		expect(SINGLE_TILE_GLYPHS.length).toBeLessThanOrEqual(GRID_TILESET.columns);
+		expect(SINGLE_TILE_GLYPHS.length).toBeLessThanOrEqual(GRID_TILESET.slotColumns);
 	});
 
-	it('keeps tile ids fixed: singles on row 0, one row per autotile with the mask as column', () => {
-		expect(tileIdFor('.')).toBe(0);
-		expect(tileIdFor(',', 0)).toBe(16);
-		expect(tileIdFor(',', 15)).toBe(31);
-		expect(tileIdFor('O', 5)).toBe(GRID_TILESET.columns * AUTOTILE_GLYPHS.length + 5);
+	it('keeps slots fixed: singles on row 0, one row per autotile with the mask as column', () => {
+		expect(slotFor('.')).toBe(0);
+		expect(slotFor(',', 0)).toBe(16);
+		expect(slotFor(',', 15)).toBe(31);
+		expect(slotFor('O', 5)).toBe(GRID_TILESET.slotColumns * AUTOTILE_GLYPHS.length + 5);
+	});
+
+	it('picks the variant inside a slot from the map position', () => {
+		const { columns } = GRID_TILESET;
+		expect(tileIdFor('.', 0, 0, 0)).toBe(0);
+		expect(tileIdFor('.', 0, 3, 2)).toBe(2 * columns + 3);
+		expect(tileIdFor('.', 0, TILE_VARIANTS + 3, TILE_VARIANTS * 5 + 2)).toBe(2 * columns + 3);
+		// The dirt slot with mask 15 is slot row 1, slot column 15.
+		expect(tileIdFor(',', 15, 1, 1)).toBe((TILE_VARIANTS + 1) * columns + 15 * TILE_VARIANTS + 1);
 	});
 
 	it('ships a tileset image with the declared grid', () => {

@@ -56,7 +56,7 @@ directory.
 ```sh
 bun run map:preview                    # whole continent, 4px tiles → .artifacts/previews/overworld.png
 bun run map:preview -- --chunk sundrop # one chunk at 16px (add --overlay all for story terrain)
-bun run map:tileset                    # regenerates the placeholder grid tileset
+bun run map:tileset                    # bakes the grid tileset from art/overworld/
 ```
 
 ### Rust
@@ -104,7 +104,8 @@ src/
   lib/                 Game code — see below
 src-tauri/             Rust shell: fs plugin, window config, packaging, story pipeline
 story/                 Story source: manifest.yaml + Markdown beats — see Story Pipeline below
-tools/                 Build-time guards (assert-no-frontend-story-prose.ts)
+tools/                 Build-time guards (assert-no-frontend-story-prose.ts) and asset tools
+art/overworld/         Tile-ready source art that `bun run map:tileset` bakes into the tileset
 public/                Static assets served at root (sprite sheets, etc.)
 tests/e2e/             Playwright e2e suite
 ```
@@ -294,13 +295,17 @@ or opens it with a story overlay if the story keeps it shut for a while;
 | `X`   | drying rack   | yes    |                                    |
 | `&`   | fire          | yes    | for raid overlays                  |
 
-The tileset image is `public/game/assets/overworld/tiles.png` (a generated placeholder until
-art replaces it). `grid/tileset.ts` fixes every tile id: row 0 holds the single tiles, and each
-autotile terrain owns one row of 16 tiles indexed by its N=1/E=2/S=4/W=8 edge mask. Both glyph
-lists are append-only, because art is drawn against those positions. To add a glyph: add it to
-`TERRAIN_LEGEND` in `grid/legend.ts`, append it to one list in `grid/tileset.ts`, give it a
-colour in `tools/generate-grid-tileset.ts`, run `bun run map:tileset`, and add a row to the
-table above (`grid/tileset.test.ts` checks the table).
+The tileset image is `public/game/assets/overworld/tiles.png`, baked by `bun run map:tileset`
+(`tools/generate-grid-tileset.ts`) from the tile-ready pieces in `art/overworld/`: 256px seamless
+textures and 32px sprites cut from the approved Codex art. Terrain without art yet (mountain,
+sand, palisade and the village props) bakes as flat placeholder colours. `grid/tileset.ts` fixes
+the layout as a sheet of slots: row 0 holds the single tiles, and each autotile terrain owns one
+row of 16 slots indexed by its N=1/E=2/S=4/W=8 edge mask. Each slot is 8×8 tiles cut from one
+piece of art, and the map tile at (col, row) draws variant (col % 8, row % 8), so textures repeat
+every 8 tiles instead of every tile. Both glyph lists are append-only, because art is drawn
+against those positions. To add a glyph: add it to `TERRAIN_LEGEND` in `grid/legend.ts`, append
+it to one list in `grid/tileset.ts`, give it art or a placeholder colour in the bake, run
+`bun run map:tileset`, and add a row to the table above (`grid/tileset.test.ts` checks the table).
 
 ### Story Pipeline (Rust-owned)
 
