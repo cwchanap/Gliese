@@ -282,7 +282,7 @@ or opens it with a story overlay if the story keeps it shut for a while;
 | `=`   | bridge        | no     | autotile, joins `,`; lay it on `~` |
 | `H`   | stairs        | no     | cuts through `#` cliffs            |
 | `T`   | dense forest  | yes    | autotile, drawn above actors       |
-| `Y`   | lone tree     | yes    | sprite; a 2×2 clump: sacred tree   |
+| `Y`   | lone tree     | yes    | sprite                             |
 | `~`   | water         | yes    | autotile, joins `=`                |
 | `#`   | cliff         | yes    | autotile, joins `H`                |
 | `^`   | mountain      | yes    | autotile; the default world fill   |

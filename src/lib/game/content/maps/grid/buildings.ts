@@ -7,6 +7,9 @@
  * `frames` are the art variants, given out in turn to the buildings of that type;
  * `scale` is the sprite's width over the footprint's; `drop` is how far in px the
  * art's ground reaches below the footprint.
+ *
+ * Sundrop's sacred tree is stamped like a building, so it is the only tree that
+ * gets the landmark art.
  */
 export const GRID_BUILDING_TYPES = {
 	home: { frames: ['grik-home'], scale: 1.12, drop: 10 },
@@ -16,7 +19,8 @@ export const GRID_BUILDING_TYPES = {
 	'herb-hut': { frames: ['herb-hut'], scale: 1.12, drop: 10 },
 	forge: { frames: ['forge'], scale: 1.12, drop: 10 },
 	shrine: { frames: ['shrine'], scale: 1.12, drop: 10 },
-	watchtower: { frames: ['watchtower'], scale: 1.5, drop: 4 }
+	watchtower: { frames: ['watchtower'], scale: 1.5, drop: 4 },
+	'sacred-tree': { frames: ['sacred-tree'], scale: 2.66, drop: 6 }
 } as const satisfies Record<
 	string,
 	{ readonly frames: readonly string[]; readonly scale: number; readonly drop: number }

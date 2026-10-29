@@ -43,7 +43,8 @@ export const sundropChunk: GridChunkSource = {
 		'2': 'goblin-hut',
 		'3': 'goblin-hut',
 		N: 'small-hut',
-		W: 'watchtower'
+		W: 'watchtower',
+		E: 'sacred-tree'
 	},
 	terrain: `
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT,,,TTTTTTTTTTTTTTTTTTTT~~TTTTTTTTT
@@ -54,9 +55,9 @@ TTTTTTTTTTTPPPP...Y.YYY.NNN...,,,..WW.....R......PPPPT~~TTTTTTTT
 TTTTTTTTTPPP....Y.......NNN.I.,,,.IWW...LLLLLLLLLLL.PP~~TTTTTTTT
 TTTTTTTTPP.........Y....NNN..,,,,.......LLLLLLLLLLL...~~TTTTTTTT
 TTTTTTTPPSSSSSSS.Y....k......,,d,.Y..XY.LLLLLLLLLLL...~~PTTTTTTT
-TTTTTTPPYSSSSSSS..YY.,,......,,,,.......LLLLLLLLLLL.X.~~PPTTTTTT
-TTTTTPP..SSSSSSSY.YY.,.......,,,....RX..LLLLLLLLLLL...~~.PPTTTTT
-TTTTTP.Y.SSSSSSS..Yo.,...R...,,,........LLLLLLLLLLL..Y~~..PTTTTT
+TTTTTTPPYSSSSSSS..EE.,,......,,,,.......LLLLLLLLLLL.X.~~PPTTTTTT
+TTTTTPP..SSSSSSSY.EE.,.......,,,....RX..LLLLLLLLLLL...~~.PPTTTTT
+TTTTTP.Y.SSSSSSS...o.,...R...,,,........LLLLLLLLLLL..Y~~..PTTTTT
 TTTTTP..RSSSSSSS.....,.......,,,,............l.....Y..~~..PTTTTT
 TTTTPP......s,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.......~~..PPTTTT
 TTTTP...Y.......,,,,,,,,,,,,..,,,,,,,,...............~~....PTTTT

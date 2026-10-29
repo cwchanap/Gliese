@@ -77,7 +77,6 @@ interface Box {
 	readonly row: number;
 	readonly width: number;
 	readonly height: number;
-	readonly cells: readonly (readonly [number, number])[];
 }
 
 /** Every object on the map, sorted from north to south so later ones draw in front. */
@@ -110,14 +109,6 @@ export function buildGridObjects(
 		);
 	}
 
-	// A clump of lone trees at least 2×2 is the village's sacred tree.
-	const sacred = new Set<string>();
-	for (const box of components(terrain, 'Y')) {
-		if (box.width < 2 || box.height < 2) continue;
-		objects.push(standing('sacred-tree', box, 6));
-		for (const [col, row] of box.cells) sacred.add(`${col},${row}`);
-	}
-
 	for (const [row, line] of terrain.entries()) {
 		for (let col = 0; col < line.length; col += 1) {
 			const glyph = line[col]!;
@@ -128,7 +119,7 @@ export function buildGridObjects(
 				continue;
 			}
 			const prop = TILE_PROPS[glyph];
-			if (!prop || sacred.has(`${col},${row}`)) continue;
+			if (!prop) continue;
 			objects.push(
 				standing(prop.frames[variantIndex(col, row, prop.frames.length)]!, tile, prop.drop)
 			);
@@ -204,8 +195,7 @@ function components(terrain: readonly string[], glyph: string): Box[] {
 				col: left,
 				row: top,
 				width: Math.max(...cols) - left + 1,
-				height: Math.max(...rows) - top + 1,
-				cells
+				height: Math.max(...rows) - top + 1
 			});
 		}
 	}

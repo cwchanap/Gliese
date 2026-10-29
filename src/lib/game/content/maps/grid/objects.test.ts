@@ -17,11 +17,19 @@ describe('grid objects', () => {
 		expect(hut!.width).toBe(Math.round(4 * 32 * 1.12));
 	});
 
-	it('draws a lone tree per tile and one sacred tree for a 2×2 clump', () => {
-		const objects = buildGridObjects(['Y...', '..YY', '..YY'], []);
-		expect(objects).toHaveLength(2);
-		expect(GRID_OBJECT_SIZES[objects[0]!.frame]).toBeDefined();
-		expect(objects[1]).toMatchObject({ frame: 'sacred-tree', x: 96, y: 102 });
+	it('draws a lone tree on every tile of a clump', () => {
+		const frames = buildGridObjects(['Y...', '..YY', '..YY'], []).map((object) => object.frame);
+		expect(frames).toHaveLength(5);
+		expect(frames).not.toContain('sacred-tree');
+	});
+
+	it('draws the sacred tree only where a chunk stamps one', () => {
+		const sacred = buildGridObjects(overworld.grid.terrain, overworld.grid.buildings).filter(
+			(object) => object.frame === 'sacred-tree'
+		);
+		expect(sacred).toHaveLength(1);
+		const tree = overworld.grid.buildings.find((building) => building.type === 'sacred-tree')!;
+		expect(tree.id).toMatch(/^sundrop-/);
 	});
 
 	it('runs palisade slices consecutively along a row', () => {
