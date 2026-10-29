@@ -53,13 +53,16 @@ const art = {
 	dirt: await load('tex-dirt'),
 	water: await load('tex-water'),
 	forest: await load('tex-forest'),
+	mountain: await load('tex-mountain'),
+	sand: await load('tex-sand'),
 	cliffFace: await load('cliff-face'),
+	mountainFoot: await load('mountain-foot'),
 	bridgeDeck: await load('bridge-deck'),
 	stairs: await load('stairs'),
 	trees: [await load('tree-1'), await load('tree-2'), await load('tree-3')],
 	rocks: [await load('rock-1'), await load('rock-2')]
 };
-for (const name of ['grass', 'dirt', 'water', 'forest'] as const) {
+for (const name of ['grass', 'dirt', 'water', 'forest', 'mountain', 'sand'] as const) {
 	if (art[name].width !== PERIOD || art[name].height !== PERIOD) {
 		throw new Error(`art/overworld/tex-${name}.png must be ${PERIOD}×${PERIOD}`);
 	}
@@ -145,6 +148,9 @@ const PATH_EDGE: EdgeStyle = { inset: 3, soft: 4, wobble: 2.5, radius: 10 };
 const BANK_EDGE: EdgeStyle = { inset: 1, soft: 3, wobble: 2, radius: 10 };
 const WATER_EDGE: EdgeStyle = { inset: 4, soft: 2, wobble: 2, radius: 10 };
 const FOREST_EDGE: EdgeStyle = { inset: 1, soft: 3, wobble: 3, radius: 12 };
+const MOUNTAIN_EDGE: EdgeStyle = { inset: 1, soft: 3, wobble: 3, radius: 12 };
+/** Under the mountain foot the rock stops halfway down the tile, so grass shows below the scree. */
+const MOUNTAIN_FOOT_EDGE: EdgeStyle = { inset: 16, soft: 6, wobble: 3, radius: 12 };
 const CLIFF_END: EdgeStyle = { inset: 0, soft: 3, wobble: 1.5, radius: 0 };
 const STRAIGHT_EDGE: EdgeStyle = { inset: 0, soft: 1, wobble: 0, radius: 0 };
 
@@ -155,8 +161,6 @@ const RAIL_TOP: Rgba = [140, 98, 58, 1];
 
 /** Placeholder colours for terrain that has no art yet. */
 const PLACEHOLDER: Partial<Record<TerrainGlyph, Rgb>> = {
-	':': [222, 204, 150],
-	'^': [110, 110, 120],
 	P: [112, 78, 48],
 	'!': [150, 60, 40],
 	'%': [96, 120, 52],
@@ -217,6 +221,16 @@ function paintAutotile(
 	switch (glyph) {
 		case ',':
 			return over(grass(x, y), sample(art.dirt, x, y), coverage(mask, x, y, PATH_EDGE));
+		case ':':
+			return over(grass(x, y), sample(art.sand, x, y), coverage(mask, x, y, PATH_EDGE));
+		case '^': {
+			const rock = sample(art.mountain, x, y);
+			if (mask & EDGE_S) return over(grass(x, y), rock, coverage(mask, x, y, MOUNTAIN_EDGE));
+			// The open south side is the foot of the mountain: a rock face standing on the grass.
+			const ground = over(grass(x, y), rock, coverage(mask, x, y, MOUNTAIN_FOOT_EDGE));
+			const ends = coverage(mask | EDGE_N | EDGE_S, x, y, CLIFF_END);
+			return over(ground, sample(art.mountainFoot, x, y % TILE), ends);
+		}
 		case '~': {
 			const bank = over(grass(x, y), BANK, coverage(mask, x, y, BANK_EDGE));
 			return over(bank, sample(art.water, x, y), coverage(mask, x, y, WATER_EDGE));
