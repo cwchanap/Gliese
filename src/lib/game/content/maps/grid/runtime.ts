@@ -7,17 +7,19 @@ import {
 	buildGridTileLayers,
 	type GridTileLayers
 } from './layers';
+import { buildGridObjects, type GridObject } from './objects';
 
 export type GridWorldMap = WorldMapDefinition & { readonly tileGrid: MapTileGrid };
 
 interface ResolvedGrid {
 	readonly terrain: readonly string[];
 	layers?: GridTileLayers;
+	objects?: GridObject[];
 	navigation?: NavigationGrid;
 }
 
 // Keyed by the compiled grid, then by which story overlays are live, so a map
-// compiles its tiles and collision once per story state.
+// compiles its tiles, objects and collision once per story state.
 const resolvedGrids = new WeakMap<MapTileGrid, Map<string, ResolvedGrid>>();
 
 export function isGridWorldMap(map: WorldMapDefinition): map is GridWorldMap {
@@ -28,6 +30,12 @@ export function resolveGridTileLayers(map: GridWorldMap): GridTileLayers {
 	const resolved = resolveGrid(map);
 	resolved.layers ??= buildGridTileLayers(resolved.terrain);
 	return resolved.layers;
+}
+
+export function resolveGridObjects(map: GridWorldMap): readonly GridObject[] {
+	const resolved = resolveGrid(map);
+	resolved.objects ??= buildGridObjects(resolved.terrain, map.tileGrid.buildings);
+	return resolved.objects;
 }
 
 export function resolveGridNavigationGrid(map: GridWorldMap): NavigationGrid {

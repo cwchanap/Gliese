@@ -1,5 +1,5 @@
 /**
- * Renders the overworld to a PNG with the grid tileset, building footprints,
+ * Renders the overworld to a PNG with the grid tileset, buildings and props,
  * chunk borders and labelled anchors, then reports anchors the player cannot
  * reach from spawn (an error for the base map, a note when overlays are applied).
  *
@@ -15,13 +15,13 @@ import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import sharp from 'sharp';
 
-import { GRID_BUILDING_TYPES } from '$lib/game/content/maps/grid/buildings';
 import {
 	applyTileOverlays,
 	buildGridNavigationGrid,
 	buildGridTileLayers,
 	findUnreachablePoints
 } from '$lib/game/content/maps/grid/layers';
+import { buildGridObjects } from '$lib/game/content/maps/grid/objects';
 import { GRID_TILESET } from '$lib/game/content/maps/grid/tileset';
 import { overworldMap } from '$lib/game/content/maps/overworld/map';
 import { overworld } from '$lib/game/content/maps/overworld/world';
@@ -103,7 +103,45 @@ for (let row = view.row; row < view.row + view.height; row += 1) {
 	}
 }
 
-const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
+// Buildings and props, north to south, at the preview's scale.
+const scale = tile / GRID_TILESET.tileSize;
+const objectArtCache = new Map<string, Promise<Buffer>>();
+function objectArt(frame: string, width: number, height: number): Promise<Buffer> {
+	const key = `${frame}@${width}x${height}`;
+	let art = objectArtCache.get(key);
+	if (!art) {
+		art = sharp(join(process.cwd(), 'art', 'overworld', 'objects', `${frame}.png`))
+			.resize(width, height, { fit: 'fill' })
+			.ensureAlpha()
+			.raw()
+			.toBuffer();
+		objectArtCache.set(key, art);
+	}
+	return art;
+}
+for (const object of buildGridObjects(terrain, overworld.grid.buildings)) {
+	const objectWidth = Math.max(1, Math.round(object.width * scale));
+	const objectHeight = Math.max(1, Math.round(object.height * scale));
+	const left = Math.round((object.x - object.width / 2) * scale) - view.col * tile;
+	const top = Math.round((object.y - object.height) * scale) - view.row * tile;
+	if (left >= width || top >= height || left + objectWidth <= 0 || top + objectHeight <= 0)
+		continue;
+	const art = await objectArt(object.frame, objectWidth, objectHeight);
+	for (let y = Math.max(0, -top); y < objectHeight && top + y < height; y += 1) {
+		for (let x = Math.max(0, -left); x < objectWidth && left + x < width; x += 1) {
+			const source = (y * objectWidth + x) * 4;
+			const alpha = art[source + 3]! / 255;
+			if (alpha === 0) continue;
+			const target = ((top + y) * width + left + x) * 4;
+			for (let channel = 0; channel < 3; channel += 1) {
+				pixels[target + channel] = Math.round(
+					art[source + channel]! * alpha + pixels[target + channel]! * (1 - alpha)
+				);
+			}
+		}
+	}
+}
+
 const fontSize = Math.max(8, Math.round(tile * 0.6));
 const inView = (col: number, row: number) =>
 	col >= view.col && col < view.col + view.width && row >= view.row && row < view.row + view.height;
@@ -139,15 +177,6 @@ const svg = [
 			`<text x="${px(chunk.col) + 4}" y="${py(chunk.row) + size + 2}" font-size="${size}" font-family="sans-serif" font-weight="bold" fill="#fff" stroke="#000" stroke-width="3" paint-order="stroke">${label}</text>`
 		);
 	}),
-	...overworld.grid.buildings
-		.filter((building) => inView(building.col, building.row))
-		.map(
-			(building) =>
-				`<rect x="${px(building.col)}" y="${py(building.row)}" width="${building.width * tile}" height="${building.height * tile}" fill="${hex(GRID_BUILDING_TYPES[building.type].color)}" stroke="#1a1a1a" stroke-width="${detailed ? 2 : 1}"/>` +
-				(detailed
-					? `<text x="${px(building.col) + 3}" y="${py(building.row) + fontSize + 2}" font-size="${fontSize}" font-family="sans-serif" fill="#fff">${building.type}</text>`
-					: '')
-		),
 	...Object.values(overworld.anchors)
 		.filter((anchor) => inView(anchor.col, anchor.row))
 		.map(

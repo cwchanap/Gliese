@@ -36,6 +36,7 @@ import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
 import * as questRuntime from '$lib/game/core/quests';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import { buildGridTileLayers } from '$lib/game/content/maps/grid/layers';
+import { buildGridObjects, GRID_OBJECT_SHEET } from '$lib/game/content/maps/grid/objects';
 import { GRID_TILESET } from '$lib/game/content/maps/grid/tileset';
 import { overworldMap } from '$lib/game/content/maps/overworld/map';
 import { caveArrival, overworldDoorArrival } from '$lib/game/content/maps/overworld/places';
@@ -386,6 +387,7 @@ const phaserState = vi.hoisted(() => {
 		setDepth: ReturnType<typeof vi.fn>;
 		setDisplaySize: ReturnType<typeof vi.fn>;
 		setOrigin: ReturnType<typeof vi.fn>;
+		setCrop: ReturnType<typeof vi.fn>;
 		setVisible: ReturnType<typeof vi.fn>;
 		destroy: ReturnType<typeof vi.fn>;
 	}> = [];
@@ -601,6 +603,7 @@ const phaserState = vi.hoisted(() => {
 			}),
 			setDisplaySize: vi.fn(() => marker),
 			setOrigin: vi.fn(() => marker),
+			setCrop: vi.fn(() => marker),
 			setVisible: vi.fn((visible: boolean) => {
 				marker.visible = visible;
 				return marker;
@@ -4944,7 +4947,7 @@ describe('WorldScene', () => {
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
 	});
 
-	it('renders a text-grid map as ground and canopy tile layers with building footprints', async () => {
+	it('renders a text-grid map as ground and canopy tile layers with building sprites', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
@@ -4963,16 +4966,19 @@ describe('WorldScene', () => {
 		);
 		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
 		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(100);
-		const hut = overworld.grid.buildings[0]!;
-		expect(phaserState.graphicsMarkers.flatMap(({ commands }) => commands)).toContainEqual(
-			expect.objectContaining({
-				kind: 'fillRect',
-				x: hut.col * 32,
-				y: hut.row * 32,
-				width: hut.width * 32,
-				height: hut.height * 32
-			})
+		const building = overworld.grid.buildings[0]!;
+		const sprite = buildGridObjects(overworld.grid.terrain, overworld.grid.buildings).find(
+			({ x, overheadY }) =>
+				x === (building.col + building.width / 2) * 32 && overheadY === building.row * 32
+		)!;
+		const parts = phaserState.imageMarkers.filter(
+			({ texture, frame, x }) =>
+				texture === GRID_OBJECT_SHEET.key &&
+				frame === sprite.frame &&
+				x === sprite.x - sprite.width / 2
 		);
+		// Split at the top of the footprint: the roof covers actors, the rest draws under them.
+		expect(parts.map(({ setDepth }) => setDepth.mock.calls[0]?.[0])).toEqual([100, -5]);
 		expect(phaserState.playerMarker.x).toBe(overworldMap.spawn.x);
 		expect(phaserState.playerMarker.y).toBe(overworldMap.spawn.y);
 		// The cave stair stays hidden until the escape opens it.

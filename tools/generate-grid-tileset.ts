@@ -5,8 +5,11 @@
  * Every slot is one square of TILE_VARIANTS × TILE_VARIANTS tiles, painted as a
  * single piece: textures are seamless at that size, and terrain edges fade to
  * the grass underneath along a wobble that is also periodic at that size, so a
- * tile always lines up with its neighbours. Terrains without art yet keep flat
- * placeholder colours.
+ * tile always lines up with its neighbours. Raid fire has no art yet and keeps
+ * a flat placeholder colour.
+ *
+ * It also packs the sprite art in `art/overworld/objects/` into the object sheet
+ * (`GRID_OBJECT_SHEET` in `content/maps/grid/objects.ts`).
  *
  *   bun run map:tileset
  */
@@ -14,7 +17,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import sharp from 'sharp';
 
-import type { TerrainGlyph } from '$lib/game/content/maps/grid/legend';
+import { GRID_OBJECT_SHEET } from '$lib/game/content/maps/grid/objects';
 import {
 	AUTOTILE_GLYPHS,
 	EDGE_E,
@@ -28,7 +31,6 @@ import {
 } from '$lib/game/content/maps/grid/tileset';
 
 type Rgba = readonly [number, number, number, number];
-type Rgb = readonly [number, number, number];
 
 interface Picture {
 	readonly width: number;
@@ -58,9 +60,7 @@ const art = {
 	cliffFace: await load('cliff-face'),
 	mountainFoot: await load('mountain-foot'),
 	bridgeDeck: await load('bridge-deck'),
-	stairs: await load('stairs'),
-	trees: [await load('tree-1'), await load('tree-2'), await load('tree-3')],
-	rocks: [await load('rock-1'), await load('rock-2')]
+	stairs: await load('stairs')
 };
 for (const name of ['grass', 'dirt', 'water', 'forest', 'mountain', 'sand'] as const) {
 	if (art[name].width !== PERIOD || art[name].height !== PERIOD) {
@@ -88,7 +88,6 @@ function over(bottom: Rgba, top: Rgba, amount = 1): Rgba {
 	];
 }
 
-const solid = ([r, g, b]: Rgb): Rgba => [r, g, b, 1];
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
 /** Smooth noise in [-1, 1], periodic over one slot, so edges run on across tiles and slots. */
@@ -159,56 +158,25 @@ const CLIFF_TOP: Rgba = [70, 58, 34, 1];
 const RAIL: Rgba = [74, 48, 26, 1];
 const RAIL_TOP: Rgba = [140, 98, 58, 1];
 
-/** Placeholder colours for terrain that has no art yet. */
-const PLACEHOLDER: Partial<Record<TerrainGlyph, Rgb>> = {
-	P: [112, 78, 48],
-	'!': [150, 60, 40],
-	'%': [96, 120, 52],
-	O: [90, 100, 120],
-	'*': [70, 60, 56],
-	I: [176, 120, 70],
-	X: [160, 128, 84],
-	'&': [236, 110, 30]
-};
+/** Raid fire has no art yet: a flat placeholder until the raid art task. */
+const FIRE: Rgba = [236, 110, 30, 1];
 
 const grass = (x: number, y: number) => sample(art.grass, x, y);
+const dirt = (x: number, y: number) => sample(art.dirt, x, y);
 
-/** Which of `count` sprites the tile holding slot pixel (x, y) draws, varied across the slot. */
-const pick = (x: number, y: number, count: number) =>
-	(Math.floor(x / TILE) * 3 + Math.floor(y / TILE) * 5) % count;
-
+/** Props drawn as sprites over their tile (see `objects.ts`) bake as the ground they stand on. */
 function paintSingle(glyph: (typeof SINGLE_TILE_GLYPHS)[number], x: number, y: number): Rgba {
 	const lx = x % TILE;
 	const ly = y % TILE;
 	switch (glyph) {
-		case '.':
-			return grass(x, y);
-		case 'Y': // canopy layer: the tree alone, over the grass ground tile
-			return sample(art.trees[pick(x, y, art.trees.length)]!, lx, ly);
-		case 'R':
-			return over(grass(x, y), sample(art.rocks[pick(x, y, art.rocks.length)]!, lx, ly));
 		case 'H':
 			return over(grass(x, y), sample(art.stairs, lx, ly));
-	}
-	return over(grass(x, y), placeholderSingle(glyph, lx, ly));
-}
-
-function placeholderSingle(glyph: TerrainGlyph, lx: number, ly: number): Rgba {
-	const color = solid(PLACEHOLDER[glyph]!);
-	const clear: Rgba = [0, 0, 0, 0];
-	const inRect = (x: number, y: number, w: number, h: number) =>
-		lx >= x && lx < x + w && ly >= y && ly < y + h;
-	const radius = Math.hypot(lx + 0.5 - TILE / 2, ly + 0.5 - TILE / 2);
-	switch (glyph) {
 		case '*':
-			if (radius <= 6) return solid(PLACEHOLDER['&']!);
-			return radius <= 12 ? color : clear;
-		case 'I':
-			return inRect(11, 2, 10, 28) ? color : clear;
-		case 'X':
-			return inRect(4, 6, 4, 24) || inRect(24, 6, 4, 24) || inRect(4, 8, 24, 4) ? color : clear;
+			return dirt(x, y);
+		case '&':
+			return lx >= 2 && lx < TILE - 2 && ly >= 2 && ly < TILE - 2 ? FIRE : grass(x, y);
 		default:
-			return inRect(2, 2, TILE - 4, TILE - 4) ? color : clear;
+			return grass(x, y);
 	}
 }
 
@@ -220,7 +188,7 @@ function paintAutotile(
 ): Rgba {
 	switch (glyph) {
 		case ',':
-			return over(grass(x, y), sample(art.dirt, x, y), coverage(mask, x, y, PATH_EDGE));
+			return over(grass(x, y), dirt(x, y), coverage(mask, x, y, PATH_EDGE));
 		case ':':
 			return over(grass(x, y), sample(art.sand, x, y), coverage(mask, x, y, PATH_EDGE));
 		case '^': {
@@ -259,19 +227,12 @@ function paintAutotile(
 			if (toSide < 3) return RAIL;
 			return over(sample(art.water, x, y), planks);
 		}
+		case 'O': // the well stands in the dirt of the village square
+			return dirt(x, y);
+		case 'P':
+		case '%':
+			return grass(x, y);
 	}
-	return placeholderAutotile(PLACEHOLDER[glyph]!, mask, x % TILE, y % TILE);
-}
-
-function placeholderAutotile(color: Rgb, mask: number, lx: number, ly: number): Rgba {
-	const band = 4;
-	const onEdge =
-		(!(mask & EDGE_N) && ly < band) ||
-		(!(mask & EDGE_S) && ly >= TILE - band) ||
-		(!(mask & EDGE_W) && lx < band) ||
-		(!(mask & EDGE_E) && lx >= TILE - band);
-	const [r, g, b] = color;
-	return onEdge ? [r * 0.62, g * 0.62, b * 0.62, 1] : [r, g, b, 1];
 }
 
 const width = GRID_TILESET.columns * TILE;
@@ -308,3 +269,28 @@ await sharp(pixels, { raw: { width, height, channels: 4 } })
 	.png({ compressionLevel: 9 })
 	.toFile(out);
 console.log(`wrote ${out} (${width}×${height})`);
+
+// The object sheet: every piece of object art, at the position `GRID_OBJECT_SHEET` gives it.
+const sheetOut = join(process.cwd(), 'public', GRID_OBJECT_SHEET.path);
+const pieces = await Promise.all(
+	Object.entries(GRID_OBJECT_SHEET.frames).map(async ([frame, { x, y, w, h }]) => {
+		const input = join(ART, 'objects', `${frame}.png`);
+		const { width: actualWidth, height: actualHeight } = await sharp(input).metadata();
+		if (actualWidth !== w || actualHeight !== h) {
+			throw new Error(`art/overworld/objects/${frame}.png must be ${w}×${h}`);
+		}
+		return { input, left: x, top: y };
+	})
+);
+await sharp({
+	create: {
+		width: GRID_OBJECT_SHEET.width,
+		height: GRID_OBJECT_SHEET.height,
+		channels: 4,
+		background: { r: 0, g: 0, b: 0, alpha: 0 }
+	}
+})
+	.composite(pieces)
+	.png({ compressionLevel: 9 })
+	.toFile(sheetOut);
+console.log(`wrote ${sheetOut} (${GRID_OBJECT_SHEET.width}×${GRID_OBJECT_SHEET.height})`);

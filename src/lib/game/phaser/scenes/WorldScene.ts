@@ -63,9 +63,10 @@ import {
 	buildMapNavigationObstacles,
 	resolveMapNavigationGrid
 } from '$lib/game/content/maps/navigation';
-import { GRID_BUILDING_TYPES } from '$lib/game/content/maps/grid/buildings';
+import { GRID_OBJECT_SHEET, type GridObject } from '$lib/game/content/maps/grid/objects';
 import {
 	isGridWorldMap,
+	resolveGridObjects,
 	resolveGridTileLayers,
 	type GridWorldMap
 } from '$lib/game/content/maps/grid/runtime';
@@ -409,6 +410,8 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly collisionDebugOverlayDepth = 10_000;
 	/** Grid-map tree crowns draw over actors, like a foreground background plane. */
 	private static readonly gridCanopyDepth = 100;
+	/** Grid-map buildings and props, between the ground and the actors. */
+	private static readonly gridObjectDepth = -5;
 	/** Window after a fled battle during which that encounter cannot re-trigger. */
 	private static readonly recentlyFledGraceMs = 1_500;
 	private static readonly storyFadeMs = 600;
@@ -1696,17 +1699,31 @@ export class WorldScene extends Phaser.Scene {
 			layer?.setDepth?.(depth);
 		}
 
-		// Placeholder footprints until building art exists.
-		const graphics = this.add.graphics();
-		for (const building of map.tileGrid.buildings) {
-			const x = building.col * GRID_TILESET.tileSize;
-			const y = building.row * GRID_TILESET.tileSize;
-			const width = building.width * GRID_TILESET.tileSize;
-			const height = building.height * GRID_TILESET.tileSize;
-			graphics.fillStyle(GRID_BUILDING_TYPES[building.type].color, 1);
-			graphics.fillRect(x, y, width, height);
-			graphics.lineStyle(2, 0x1a1a1a, 1);
-			graphics.strokeRect(x, y, width, height);
+		this.registerAssetFrames(GRID_OBJECT_SHEET);
+		for (const object of resolveGridObjects(map)) this.renderGridObject(object);
+	}
+
+	/**
+	 * Draws a building or prop in two parts split at the top of its footprint: the
+	 * part above covers actors (Grik walks behind the roof), the rest stays under them.
+	 */
+	private renderGridObject(object: GridObject) {
+		const frame = GRID_OBJECT_SHEET.frames[object.frame]!;
+		const left = object.x - object.width / 2;
+		const top = object.y - object.height;
+		const scale = frame.h / object.height;
+		const split = Math.min(Math.max(Math.round((object.overheadY - top) * scale), 0), frame.h);
+		for (const [cropTop, cropHeight, depth] of [
+			[0, split, WorldScene.gridCanopyDepth],
+			[split, frame.h - split, WorldScene.gridObjectDepth]
+		] as const) {
+			if (cropHeight <= 0) continue;
+			this.add
+				.image(left, top, GRID_OBJECT_SHEET.key, object.frame)
+				.setOrigin(0, 0)
+				.setDisplaySize(object.width, object.height)
+				.setCrop(0, cropTop, frame.w, cropHeight)
+				.setDepth(depth);
 		}
 	}
 
@@ -2599,6 +2616,9 @@ export class WorldScene extends Phaser.Scene {
 				this.renderStairTransition(transition.x, transition.y);
 				continue;
 			}
+
+			// On a grid map the building art draws the door.
+			if (isGridWorldMap(map)) continue;
 
 			this.add
 				.image(transition.x, transition.y, starterPackAsset.key, 'doorwayTile')
