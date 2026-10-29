@@ -34,17 +34,17 @@ const reachedByGates = new Map<string, Uint8Array>();
 
 /**
  * Every spot the player can stand on at this point of the story, flood-filled through the
- * runtime collision from where the player is: Grik's door, or the tunnel mouth once he has
- * escaped through it. Cached per set of live story gates and start.
+ * runtime collision from `from`, or else from where the player is: Grik's door, or the tunnel
+ * mouth once he has escaped through it. Cached per set of live story gates and start.
  */
-function reachableAt(objectiveId: string) {
+function reachableAt(objectiveId: string, from?: Point) {
 	const progress = getStoryProgress(questStateAt(objectiveId));
 	const map = applyStoryGates(overworldMap, progress);
 	const grid = resolveMapNavigationGrid(map);
 	const cols = Math.floor(grid.widthPx / STEP_PX);
 	const rows = Math.floor(grid.heightPx / STEP_PX);
 	const centre = (cell: number) => cell * STEP_PX + STEP_PX / 2;
-	const start = progress.questId === 'prologue-escape' ? caveArrival : map.spawn;
+	const start = from ?? (progress.questId === 'prologue-escape' ? caveArrival : map.spawn);
 
 	const gateKey = `${storyGateSignature(overworldMap, progress)}@${start.x},${start.y}`;
 	let reached = reachedByGates.get(gateKey);
@@ -189,42 +189,56 @@ describe('prologue placements', () => {
 		pickups: ids(prologuePlacements.pickups)
 	};
 
+	function unreachablePlacements(objectiveId: string, from?: Point): string[] {
+		const { map, withinReach } = reachableAt(objectiveId, from);
+		const unreachable: string[] = [];
+		const check = (kind: string, entry: Point & { id: string }, limit: number) => {
+			if (!withinReach(entry, limit))
+				unreachable.push(`${kind} ${entry.id} (${entry.x}, ${entry.y})`);
+		};
+
+		for (const npc of map.npcs ?? []) {
+			if (!prologueIds.npcs.has(npc.id)) continue;
+			const npcRadius = isNpcPackFrameName(npc.frameName)
+				? NPC_PACK_COLLISION_RADIUS
+				: STARTER_NPC_COLLISION_RADIUS;
+			check('npc', npc, PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + npcRadius);
+		}
+		for (const discovery of map.discoveries ?? []) {
+			if (!prologueIds.discoveries.has(discovery.id)) continue;
+			check(
+				'discovery',
+				discovery,
+				PLAYER_COLLISION_RADIUS + (discovery.radius ?? DISCOVERY_RADIUS)
+			);
+		}
+		for (const pickup of map.pickups ?? []) {
+			if (!prologueIds.pickups.has(pickup.id)) continue;
+			check('pickup', pickup, PLAYER_COLLISION_RADIUS + PICKUP_RADIUS);
+		}
+		// A pack stands on ground the player can walk onto.
+		for (const encounter of map.encounters ?? []) {
+			if (!prologueIds.encounters.has(encounter.id)) continue;
+			check('encounter', encounter, STEP_PX);
+		}
+		return unreachable;
+	}
+
 	it.each(objectiveIds)(
 		'keeps every live prologue placement within reach at %s',
 		(objectiveId) => {
-			const { map, withinReach } = reachableAt(objectiveId);
-			const unreachable: string[] = [];
-			const check = (kind: string, entry: Point & { id: string }, limit: number) => {
-				if (!withinReach(entry, limit))
-					unreachable.push(`${kind} ${entry.id} (${entry.x}, ${entry.y})`);
-			};
+			expect(unreachablePlacements(objectiveId)).toEqual([]);
+		},
+		30_000
+	);
 
-			for (const npc of map.npcs ?? []) {
-				if (!prologueIds.npcs.has(npc.id)) continue;
-				const npcRadius = isNpcPackFrameName(npc.frameName)
-					? NPC_PACK_COLLISION_RADIUS
-					: STARTER_NPC_COLLISION_RADIUS;
-				check('npc', npc, PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + npcRadius);
-			}
-			for (const discovery of map.discoveries ?? []) {
-				if (!prologueIds.discoveries.has(discovery.id)) continue;
-				check(
-					'discovery',
-					discovery,
-					PLAYER_COLLISION_RADIUS + (discovery.radius ?? DISCOVERY_RADIUS)
-				);
-			}
-			for (const pickup of map.pickups ?? []) {
-				if (!prologueIds.pickups.has(pickup.id)) continue;
-				check('pickup', pickup, PLAYER_COLLISION_RADIUS + PICKUP_RADIUS);
-			}
-			// A pack stands on ground the player can walk onto.
-			for (const encounter of map.encounters ?? []) {
-				if (!prologueIds.encounters.has(encounter.id)) continue;
-				check('encounter', encounter, STEP_PX);
-			}
-
-			expect(unreachable).toEqual([]);
+	// A lost raid fight wakes Grik in the shrine (core/battle.ts): its door must lead back to
+	// the soldiers, Borak and the captain through the burning village.
+	it.each(quests['prologue-raid'].objectives.map((objective) => objective.id))(
+		'walks from the shrine door back to every live prologue placement at %s',
+		(objectiveId) => {
+			const shrineDoor = overworldDoorArrival('shrine-of-aurora-interior');
+			expect(unreachablePlacements(objectiveId, shrineDoor)).toEqual([]);
 		},
 		30_000
 	);

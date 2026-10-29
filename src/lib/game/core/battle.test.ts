@@ -236,6 +236,58 @@ describe('battle contracts', () => {
 		]);
 	});
 
+	it('wakes the hero in the shrine after an ordinary raid loss, without advancing the raid', () => {
+		const saveState = raidSaveState();
+
+		const application = applyBattleResultToSaveState(saveState, {
+			outcome: 'defeat',
+			sourceMapId: 'overworld',
+			sourceEncounterId: 'raid-soldiers-lane',
+			sourceEnemyId: 'human-soldier',
+			returnPosition: {
+				mapId: 'overworld',
+				x: saveState.player.x,
+				y: saveState.player.y,
+				facing: 'up'
+			},
+			finalHeroHp: 0,
+			inventory: saveState.inventory,
+			defeatedUnits: []
+		});
+
+		expect(application.saveState.mapId).toBe(shrineOfAuroraInteriorMap.id);
+		expect(getStoryProgress(application.saveState.quests)).toEqual(
+			getStoryProgress(saveState.quests)
+		);
+	});
+
+	it('wakes the hero at the tunnel end after a loss on the escape, clear of the burning village', () => {
+		const saveState = {
+			...createNewSaveState(),
+			mapId: 'ruins-threshold',
+			quests: questStateAt('climb-to-the-ridge')
+		};
+
+		const application = applyBattleResultToSaveState(saveState, {
+			outcome: 'defeat',
+			sourceMapId: 'ruins-threshold',
+			sourceEncounterId: 'threshold-crawlers',
+			sourceEnemyId: 'tunnel-crawler',
+			returnPosition: { mapId: 'ruins-threshold', x: 512, y: 3_200, facing: 'right' },
+			finalHeroHp: 0,
+			inventory: saveState.inventory,
+			defeatedUnits: []
+		});
+
+		expect(application.saveState.mapId).toBe('ruins-core');
+		expect(application.saveState.player).toMatchObject({
+			hp: 1,
+			x: 5_376,
+			y: 3_200,
+			facing: 'left'
+		});
+	});
+
 	it('applies a fled result by restoring the hero at the return position with no rewards', () => {
 		const baseState = createNewSaveState();
 		const saveState = {

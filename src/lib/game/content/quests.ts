@@ -64,6 +64,8 @@ type ObjectiveBase = {
 	target: number;
 	reward?: QuestReward;
 	onComplete?: QuestEffect[];
+	/** Where the hero wakes after losing a fight during this objective; the shrine by default. */
+	respawn?: { mapId: string; x: number; y: number; facing: Direction };
 };
 
 /** Talk to every listed NPC placement (by dialogue id), in any order. */
@@ -125,6 +127,9 @@ type QuestDefinitionSource = Omit<
 };
 
 const scene = (sceneId: string): QuestEffect => ({ type: 'play-scene', sceneId });
+
+/** The far end of the old tunnel, where Grik comes to after it collapses behind him. */
+const tunnelEnd = { mapId: 'ruins-core', x: 5_376, y: 3_200, facing: 'left' } as const;
 
 const questDefinitions: Record<QuestId, QuestDefinitionSource> = {
 	'prologue-proving-morning': {
@@ -278,13 +283,15 @@ const questDefinitions: Record<QuestId, QuestDefinitionSource> = {
 				onComplete: [
 					scene('prologue.tunnel-seals'),
 					// The tunnel collapses behind Grik: he comes to at its far end.
-					{ type: 'move-player', mapId: 'ruins-core', x: 5_376, y: 3_200, facing: 'left' }
+					{ type: 'move-player', ...tunnelEnd }
 				]
 			},
 			{
 				id: 'climb-to-the-ridge',
 				kind: 'inspect',
 				discoveryIds: ['ridge-overlook'],
+				// The burning village is cut off now, so a lost fight ends back at the tunnel's end.
+				respawn: tunnelEnd,
 				onComplete: [scene('prologue.the-vow'), scene('prologue.chapter-one')]
 			}
 		],

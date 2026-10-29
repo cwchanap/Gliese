@@ -22,9 +22,10 @@ import {
 import { questStateAt } from '$lib/game/core/quests.fixtures';
 import { applyStoryGates } from '$lib/game/core/story-gates';
 
-const revealAround = (point: { x: number; y: number }) =>
+const revealAround = ({ x, y }: { x: number; y: number }) =>
 	revealCellsAroundPoint({
-		...point,
+		x,
+		y,
 		mapWidth: overworldMap.width * 32,
 		mapHeight: overworldMap.height * 32
 	});

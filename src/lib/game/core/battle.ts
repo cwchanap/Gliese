@@ -6,6 +6,7 @@ import type { ItemDrop } from '$lib/game/core/loot';
 import { applyExperienceGain } from '$lib/game/core/progression';
 import {
 	applyQuestEvent,
+	getCurrentObjective,
 	type QuestProgressUpdate,
 	type QuestRewardGrant
 } from '$lib/game/core/quests';
@@ -332,8 +333,9 @@ function normalizeBattleEnemyCount(count: number): number {
 }
 
 /**
- * The hero falls and wakes in the Shrine of Aurora at 1 HP. A fall can also be
- * the story's own beat: it reports `lose-battle` so a scripted loss completes.
+ * The hero falls and wakes at 1 HP in the Shrine of Aurora, or where the current
+ * objective's `respawn` says. A fall can also be the story's own beat: it reports
+ * `lose-battle` so a scripted loss completes.
  */
 function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleApplication {
 	const shrine = shrineOfAuroraInteriorMap;
@@ -341,6 +343,11 @@ function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleAp
 		state: saveState.quests,
 		event: { type: 'lose-battle', enemyId: result.sourceEnemyId }
 	});
+	const wake = getCurrentObjective(questResult.state)?.respawn ?? {
+		mapId: shrine.id,
+		...shrine.spawn,
+		facing: shrine.spawnDirection
+	};
 	let inventory = result.inventory;
 	for (const item of questResult.rewards.flatMap((grant) => grant.reward.items ?? [])) {
 		inventory = addItem(inventory, item.itemId, item.quantity);
@@ -349,13 +356,13 @@ function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleAp
 	return {
 		saveState: {
 			...saveState,
-			mapId: shrine.id,
+			mapId: wake.mapId,
 			player: {
 				...saveState.player,
 				hp: 1,
-				x: shrine.spawn.x,
-				y: shrine.spawn.y,
-				facing: shrine.spawnDirection
+				x: wake.x,
+				y: wake.y,
+				facing: wake.facing
 			},
 			inventory,
 			quests: questResult.state
