@@ -57,12 +57,23 @@ const art = {
 	forest: await load('tex-forest'),
 	mountain: await load('tex-mountain'),
 	sand: await load('tex-sand'),
+	marsh: await load('tex-marsh'),
+	reeds: await load('tex-reeds'),
 	cliffFace: await load('cliff-face'),
 	mountainFoot: await load('mountain-foot'),
 	bridgeDeck: await load('bridge-deck'),
 	stairs: await load('stairs')
 };
-for (const name of ['grass', 'dirt', 'water', 'forest', 'mountain', 'sand'] as const) {
+for (const name of [
+	'grass',
+	'dirt',
+	'water',
+	'forest',
+	'mountain',
+	'sand',
+	'marsh',
+	'reeds'
+] as const) {
 	if (art[name].width !== PERIOD || art[name].height !== PERIOD) {
 		throw new Error(`art/overworld/tex-${name}.png must be ${PERIOD}×${PERIOD}`);
 	}
@@ -163,6 +174,7 @@ const FIRE: Rgba = [236, 110, 30, 1];
 
 const grass = (x: number, y: number) => sample(art.grass, x, y);
 const dirt = (x: number, y: number) => sample(art.dirt, x, y);
+const marsh = (x: number, y: number) => sample(art.marsh, x, y);
 
 /** Props drawn as sprites over their tile (see `objects.ts`) bake as the ground they stand on. */
 function paintSingle(glyph: (typeof SINGLE_TILE_GLYPHS)[number], x: number, y: number): Rgba {
@@ -173,6 +185,8 @@ function paintSingle(glyph: (typeof SINGLE_TILE_GLYPHS)[number], x: number, y: n
 			return over(grass(x, y), sample(art.stairs, lx, ly));
 		case '*':
 			return dirt(x, y);
+		case 'D': // a dead tree stands in the marsh, which joins it on every side
+			return marsh(x, y);
 		case '&':
 			return lx >= 2 && lx < TILE - 2 && ly >= 2 && ly < TILE - 2 ? FIRE : grass(x, y);
 		default:
@@ -199,13 +213,16 @@ function paintAutotile(
 			const ends = coverage(mask | EDGE_N | EDGE_S, x, y, CLIFF_END);
 			return over(ground, sample(art.mountainFoot, x, y % TILE), ends);
 		}
-		case '~': {
+		case '~':
+		case ';': {
+			const water = glyph === '~' ? sample(art.water, x, y) : marsh(x, y);
 			const bank = over(grass(x, y), BANK, coverage(mask, x, y, BANK_EDGE));
-			return over(bank, sample(art.water, x, y), coverage(mask, x, y, WATER_EDGE));
+			return over(bank, water, coverage(mask, x, y, WATER_EDGE));
 		}
-		case 'T': {
-			// Canopy layer: the forest alone, fading out over the grass ground tile.
-			const [r, g, b] = sample(art.forest, x, y);
+		case 'T':
+		case '"': {
+			// Canopy layer: the forest or reeds alone, fading out over the grass ground tile.
+			const [r, g, b] = sample(glyph === 'T' ? art.forest : art.reeds, x, y);
 			return [r, g, b, coverage(mask, x, y, FOREST_EDGE)];
 		}
 		case '#': {

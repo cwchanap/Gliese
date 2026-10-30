@@ -295,6 +295,9 @@ or opens it with a story overlay if the story keeps it shut for a while;
 | `I`   | totem         | yes    | sprite                             |
 | `X`   | drying rack   | yes    | sprite                             |
 | `&`   | fire          | yes    | for raid overlays; placeholder     |
+| `;`   | marsh water   | yes    | autotile, joins `=` and `D`        |
+| `"`   | reeds         | yes    | autotile, drawn above actors       |
+| `D`   | dead tree     | yes    | sprite standing in `;`             |
 
 The tileset image is `public/game/assets/overworld/tiles.png`, baked by `bun run map:tileset`
 (`tools/generate-grid-tileset.ts`) from the tile-ready pieces in `art/overworld/`: 256px seamless
