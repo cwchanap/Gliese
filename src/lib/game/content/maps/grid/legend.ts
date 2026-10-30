@@ -2,7 +2,7 @@
  * The global terrain legend for text-grid maps. One glyph is one 32px tile, and
  * the glyph alone decides both what is drawn and whether it blocks movement.
  *
- * `layer: 'canopy'` tiles draw above actors (the forest canopy); everything else
+ * `layer: 'canopy'` tiles draw above actors (forest and reeds); everything else
  * draws on the ground layer. `autotile` terrains pick one of 16 edge tiles from
  * their N/E/S/W neighbours (see `tileset.ts`); the rest use a single tile. Props
  * taller than a tile (trees, rocks, the palisade) bake as plain ground and are drawn
@@ -38,7 +38,10 @@ export const TERRAIN_LEGEND = {
 	'*': { name: 'fire pit', blocks: true, layer: 'ground', autotile: false },
 	I: { name: 'totem', blocks: true, layer: 'ground', autotile: false },
 	X: { name: 'drying rack', blocks: true, layer: 'ground', autotile: false },
-	'&': { name: 'fire', blocks: true, layer: 'ground', autotile: false }
+	'&': { name: 'fire', blocks: true, layer: 'ground', autotile: false },
+	';': { name: 'marsh water', blocks: true, layer: 'ground', autotile: true, connects: '=D' },
+	'"': { name: 'reeds', blocks: true, layer: 'canopy', autotile: true },
+	D: { name: 'dead tree', blocks: true, layer: 'ground', autotile: false }
 } as const satisfies Record<string, TerrainDefinition>;
 
 export type TerrainGlyph = keyof typeof TERRAIN_LEGEND;

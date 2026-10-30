@@ -30,7 +30,7 @@ describe('grid tileset', () => {
 		expect(slotFor('.')).toBe(0);
 		expect(slotFor(',', 0)).toBe(16);
 		expect(slotFor(',', 15)).toBe(31);
-		expect(slotFor('O', 5)).toBe(GRID_TILESET.slotColumns * AUTOTILE_GLYPHS.length + 5);
+		expect(slotFor('O', 5)).toBe(10 * GRID_TILESET.slotColumns + 5);
 	});
 
 	it('picks the variant inside a slot from the map position', () => {
