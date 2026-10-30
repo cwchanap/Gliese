@@ -2,7 +2,7 @@
  * The global terrain legend for text-grid maps. One glyph is one 32px tile, and
  * the glyph alone decides both what is drawn and whether it blocks movement.
  *
- * `layer: 'canopy'` tiles draw above actors (forest and reeds); everything else
+ * `layer: 'canopy'` tiles draw above actors (forest, pines and reeds); everything else
  * draws on the ground layer. `autotile` terrains pick one of 16 edge tiles from
  * their N/E/S/W neighbours (see `tileset.ts`); the rest use a single tile. Props
  * taller than a tile (trees, rocks, the palisade) bake as plain ground and are drawn
@@ -27,7 +27,7 @@ export const TERRAIN_LEGEND = {
 	H: { name: 'stairs', blocks: false, layer: 'ground', autotile: false },
 	T: { name: 'dense forest', blocks: true, layer: 'canopy', autotile: true },
 	Y: { name: 'lone tree', blocks: true, layer: 'ground', autotile: false },
-	'~': { name: 'water', blocks: true, layer: 'ground', autotile: true, connects: '=' },
+	'~': { name: 'water', blocks: true, layer: 'ground', autotile: true, connects: '=V' },
 	'#': { name: 'cliff', blocks: true, layer: 'ground', autotile: true, connects: 'H' },
 	'^': { name: 'mountain', blocks: true, layer: 'ground', autotile: true },
 	P: { name: 'palisade', blocks: true, layer: 'ground', autotile: true, connects: '!' },
@@ -41,7 +41,10 @@ export const TERRAIN_LEGEND = {
 	'&': { name: 'fire', blocks: true, layer: 'ground', autotile: false },
 	';': { name: 'marsh water', blocks: true, layer: 'ground', autotile: true, connects: '=D' },
 	'"': { name: 'reeds', blocks: true, layer: 'canopy', autotile: true },
-	D: { name: 'dead tree', blocks: true, layer: 'ground', autotile: false }
+	D: { name: 'dead tree', blocks: true, layer: 'ground', autotile: false },
+	A: { name: 'pine forest', blocks: true, layer: 'canopy', autotile: true },
+	_: { name: 'rock terrace', blocks: false, layer: 'ground', autotile: true },
+	V: { name: 'waterfall', blocks: true, layer: 'ground', autotile: false }
 } as const satisfies Record<string, TerrainDefinition>;
 
 export type TerrainGlyph = keyof typeof TERRAIN_LEGEND;

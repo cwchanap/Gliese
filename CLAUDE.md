@@ -259,7 +259,7 @@ or opens it with a story overlay if the story keeps it shut for a while;
   wall, a tree) to its south or east: the collision grid samples the half-tile cell below and
   right of a tile centre, so an anchor flush against such a wall sits in a blocked cell.
 - **Buildings**: a non-terrain, non-lowercase glyph declared in `buildings`
-  (`{ A: 'goblin-hut' }`; types in `grid/buildings.ts`). Each solid rectangle of that glyph is
+  (`{ B: 'goblin-hut' }`; types in `grid/buildings.ts`). Each solid rectangle of that glyph is
   one building whose footprint blocks movement, drawn as a sprite standing on it. The art
   puts every door on the south face, so put the door anchor on the row just below the
   footprint and keep the two tiles below the anchor free: the player arrives on the first.
@@ -283,7 +283,7 @@ or opens it with a story overlay if the story keeps it shut for a while;
 | `H`   | stairs        | no     | cuts through `#` cliffs            |
 | `T`   | dense forest  | yes    | autotile, drawn above actors       |
 | `Y`   | lone tree     | yes    | sprite                             |
-| `~`   | water         | yes    | autotile, joins `=`                |
+| `~`   | water         | yes    | autotile, joins `=` and `V`        |
 | `#`   | cliff         | yes    | autotile, joins `H`                |
 | `^`   | mountain      | yes    | autotile; the default world fill   |
 | `P`   | palisade      | yes    | sprite                             |
@@ -298,6 +298,9 @@ or opens it with a story overlay if the story keeps it shut for a while;
 | `;`   | marsh water   | yes    | autotile, joins `=` and `D`        |
 | `"`   | reeds         | yes    | autotile, drawn above actors       |
 | `D`   | dead tree     | yes    | sprite standing in `;`             |
+| `A`   | pine forest   | yes    | autotile, drawn above actors       |
+| `_`   | rock terrace  | no     | autotile                           |
+| `V`   | waterfall     | yes    | sprite over the whole patch        |
 
 The tileset image is `public/game/assets/overworld/tiles.png`, baked by `bun run map:tileset`
 (`tools/generate-grid-tileset.ts`) from the tile-ready pieces in `art/overworld/`: 256px seamless

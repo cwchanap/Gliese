@@ -59,6 +59,8 @@ const art = {
 	sand: await load('tex-sand'),
 	marsh: await load('tex-marsh'),
 	reeds: await load('tex-reeds'),
+	pines: await load('tex-pines'),
+	ledge: await load('tex-ledge'),
 	cliffFace: await load('cliff-face'),
 	mountainFoot: await load('mountain-foot'),
 	bridgeDeck: await load('bridge-deck'),
@@ -72,7 +74,9 @@ for (const name of [
 	'mountain',
 	'sand',
 	'marsh',
-	'reeds'
+	'reeds',
+	'pines',
+	'ledge'
 ] as const) {
 	if (art[name].width !== PERIOD || art[name].height !== PERIOD) {
 		throw new Error(`art/overworld/tex-${name}.png must be ${PERIOD}×${PERIOD}`);
@@ -187,6 +191,8 @@ function paintSingle(glyph: (typeof SINGLE_TILE_GLYPHS)[number], x: number, y: n
 			return dirt(x, y);
 		case 'D': // a dead tree stands in the marsh, which joins it on every side
 			return marsh(x, y);
+		case 'V': // the waterfall sprite covers its patch; the river runs on under it
+			return sample(art.water, x, y);
 		case '&':
 			return lx >= 2 && lx < TILE - 2 && ly >= 2 && ly < TILE - 2 ? FIRE : grass(x, y);
 		default:
@@ -205,6 +211,8 @@ function paintAutotile(
 			return over(grass(x, y), dirt(x, y), coverage(mask, x, y, PATH_EDGE));
 		case ':':
 			return over(grass(x, y), sample(art.sand, x, y), coverage(mask, x, y, PATH_EDGE));
+		case '_':
+			return over(grass(x, y), sample(art.ledge, x, y), coverage(mask, x, y, PATH_EDGE));
 		case '^': {
 			const rock = sample(art.mountain, x, y);
 			if (mask & EDGE_S) return over(grass(x, y), rock, coverage(mask, x, y, MOUNTAIN_EDGE));
@@ -220,9 +228,11 @@ function paintAutotile(
 			return over(bank, water, coverage(mask, x, y, WATER_EDGE));
 		}
 		case 'T':
+		case 'A':
 		case '"': {
-			// Canopy layer: the forest or reeds alone, fading out over the grass ground tile.
-			const [r, g, b] = sample(glyph === 'T' ? art.forest : art.reeds, x, y);
+			// Canopy layer: the forest, pines or reeds alone, fading out over the grass ground tile.
+			const canopy = { T: art.forest, A: art.pines, '"': art.reeds }[glyph];
+			const [r, g, b] = sample(canopy, x, y);
 			return [r, g, b, coverage(mask, x, y, FOREST_EDGE)];
 		}
 		case '#': {
