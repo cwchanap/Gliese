@@ -105,6 +105,15 @@ export function buildGridObjects(
 	for (const box of components(terrain, 'O')) {
 		objects.push(standing('well', box, 6, { width: box.width * GRID_TILE_SIZE + 14 }));
 	}
+	for (const box of components(terrain, 'V')) {
+		// The falls pour over the cliff band and splash into the river below it.
+		objects.push(
+			standing('waterfall', box, 12, {
+				width: box.width * GRID_TILE_SIZE + 16,
+				height: box.height * GRID_TILE_SIZE + 28
+			})
+		);
+	}
 	for (const box of components(terrain, '%')) {
 		objects.push(
 			standing('garden', box, 4, {

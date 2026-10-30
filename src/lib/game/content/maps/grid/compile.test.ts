@@ -56,11 +56,11 @@ describe('compileGridChunk', () => {
 	it('collects each block of a building glyph as one building on grass', () => {
 		const compiled = compileGridChunk(
 			chunk({
-				buildings: { A: 'goblin-hut' },
+				buildings: { B: 'goblin-hut' },
 				terrain: `
-,AA..
-,AA.A
-,,,,A
+,BB..
+,BB.B
+,,,,B
 `
 			})
 		);
@@ -73,8 +73,8 @@ describe('compileGridChunk', () => {
 
 	it('rejects non-rectangular buildings and bad building glyphs', () => {
 		expect(() =>
-			compileGridChunk(chunk({ buildings: { A: 'forge' }, terrain: 'AA.\nA..' }))
-		).toThrow('building "A" at row 0 col 0 is not a solid rectangle');
+			compileGridChunk(chunk({ buildings: { B: 'forge' }, terrain: 'BB.\nB..' }))
+		).toThrow('building "B" at row 0 col 0 is not a solid rectangle');
 		expect(() => compileGridChunk(chunk({ buildings: { T: 'forge' }, terrain: 'T' }))).toThrow(
 			'building glyph "T" is already a terrain glyph'
 		);
@@ -82,8 +82,8 @@ describe('compileGridChunk', () => {
 			'building glyph "a" must be one character'
 		);
 		expect(() =>
-			compileGridChunk(chunk({ buildings: { A: 'castle' as 'forge' }, terrain: 'A' }))
-		).toThrow('building glyph "A" has unknown type "castle"');
+			compileGridChunk(chunk({ buildings: { B: 'castle' as 'forge' }, terrain: 'B' }))
+		).toThrow('building glyph "B" has unknown type "castle"');
 	});
 
 	it('keeps only the replaced cells of an overlay, with its story gate', () => {
@@ -134,8 +134,8 @@ describe('compileGridWorld', () => {
 	const west: GridChunkSource = {
 		id: 'west',
 		anchors: { w: 'west-gate' },
-		buildings: { A: 'shrine' },
-		terrain: 'AA\n.w',
+		buildings: { B: 'shrine' },
+		terrain: 'BB\n.w',
 		overlays: [{ id: 'flood', rows: '--\n~-' }]
 	};
 	const east: GridChunkSource = { id: 'east', terrain: ',,\n,,' };
