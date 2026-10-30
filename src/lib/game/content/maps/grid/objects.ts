@@ -38,6 +38,10 @@ export const GRID_OBJECT_SIZES: Readonly<Record<string, readonly [number, number
 	well: [78, 83],
 	'fire-pit': [50, 36],
 	garden: [132, 105],
+	'dead-tree-a': [89, 104],
+	'dead-tree-b': [72, 104],
+	'dead-tree-c': [83, 96],
+	'dead-tree-d': [63, 84],
 	...Object.fromEntries(
 		Array.from({ length: 14 }, (_, index) => [`palisade-${index}`, [32, 66] as const])
 	)
@@ -55,7 +59,8 @@ const TILE_PROPS: Readonly<Record<string, { frames: readonly string[]; drop: num
 	R: { frames: ['boulder', 'rocks'], drop: 0 },
 	I: { frames: ['totem'], drop: 2 },
 	X: { frames: ['drying-rack'], drop: 2 },
-	'*': { frames: ['fire-pit'], drop: 6 }
+	'*': { frames: ['fire-pit'], drop: 6 },
+	D: { frames: ['dead-tree-a', 'dead-tree-b', 'dead-tree-c', 'dead-tree-d'], drop: 4 }
 };
 
 /** The palisade, and the sealed gates in it until gate art exists. */
