@@ -5,8 +5,7 @@
  * Every slot is one square of TILE_VARIANTS × TILE_VARIANTS tiles, painted as a
  * single piece: textures are seamless at that size, and terrain edges fade to
  * the grass underneath along a wobble that is also periodic at that size, so a
- * tile always lines up with its neighbours. Raid fire has no art yet and keeps
- * a flat placeholder colour.
+ * tile always lines up with its neighbours.
  *
  * It also packs the sprite art in `art/overworld/objects/` into the object sheet
  * (`GRID_OBJECT_SHEET` in `content/maps/grid/objects.ts`).
@@ -173,8 +172,8 @@ const CLIFF_TOP: Rgba = [70, 58, 34, 1];
 const RAIL: Rgba = [74, 48, 26, 1];
 const RAIL_TOP: Rgba = [140, 98, 58, 1];
 
-/** Raid fire has no art yet: a flat placeholder until the raid art task. */
-const FIRE: Rgba = [236, 110, 30, 1];
+/** Soot over the dirt where the raid burns. */
+const SOOT: Rgba = [34, 24, 20, 1];
 
 const grass = (x: number, y: number) => sample(art.grass, x, y);
 const dirt = (x: number, y: number) => sample(art.dirt, x, y);
@@ -193,8 +192,9 @@ function paintSingle(glyph: (typeof SINGLE_TILE_GLYPHS)[number], x: number, y: n
 			return marsh(x, y);
 		case 'V': // the waterfall sprite covers its patch; the river runs on under it
 			return sample(art.water, x, y);
-		case '&':
-			return lx >= 2 && lx < TILE - 2 && ly >= 2 && ly < TILE - 2 ? FIRE : grass(x, y);
+		case '&': // flames and the broken palisade stand on scorched earth, darkest in the middle
+		case '/':
+			return over(dirt(x, y), SOOT, 0.5 * Math.max(0, 1 - Math.hypot(lx - 15.5, ly - 15.5) / 22));
 		default:
 			return grass(x, y);
 	}

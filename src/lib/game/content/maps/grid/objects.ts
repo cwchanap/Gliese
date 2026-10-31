@@ -1,6 +1,6 @@
 import type { MapGridBuilding } from '$lib/game/content/maps/types';
 
-import { GRID_BUILDING_TYPES, type GridBuildingType } from './buildings';
+import { GRID_BUILDING_TYPES, type GridBuildingArt, type GridBuildingType } from './buildings';
 import { GRID_TILE_SIZE } from './compile';
 
 /**
@@ -43,16 +43,28 @@ export const GRID_OBJECT_SIZES: Readonly<Record<string, readonly [number, number
 	'dead-tree-c': [83, 96],
 	'dead-tree-d': [63, 84],
 	waterfall: [144, 132],
+	'fire-a': [44, 55],
+	'fire-b': [44, 55],
+	'fire-c': [44, 47],
+	'fire-d': [44, 47],
+	'smoke-a': [140, 229],
+	'smoke-b': [160, 216],
+	'hut-burning': [215, 236],
 	...Object.fromEntries(
 		Array.from({ length: 14 }, (_, index) => [`palisade-${index}`, [32, 66] as const])
+	),
+	...Object.fromEntries(
+		Array.from({ length: 14 }, (_, index) => [`palisade-broken-${index}`, [32, 78] as const])
 	)
 };
 
-/** The palisade strip repeats every 14 tiles, one slice per tile. */
-const PALISADE_SLICES = 14;
-
-/** Props drawn on every tile of a glyph: art variants (picked by map position) and drop in px. */
-const TILE_PROPS: Readonly<Record<string, { frames: readonly string[]; drop: number }>> = {
+/**
+ * Props drawn on every tile of a glyph: art variants (picked by map position), drop in px,
+ * and how far in px each one may shift off the tile centre, so a patch is not a grid.
+ */
+const TILE_PROPS: Readonly<
+	Record<string, { frames: readonly string[]; drop: number; jitter?: number }>
+> = {
 	Y: {
 		frames: ['tree-broad', 'tree-broad', 'tree-pine', 'tree-pine', 'tree-twisted', 'bush'],
 		drop: 4
@@ -61,11 +73,19 @@ const TILE_PROPS: Readonly<Record<string, { frames: readonly string[]; drop: num
 	I: { frames: ['totem'], drop: 2 },
 	X: { frames: ['drying-rack'], drop: 2 },
 	'*': { frames: ['fire-pit'], drop: 6 },
-	D: { frames: ['dead-tree-a', 'dead-tree-b', 'dead-tree-c', 'dead-tree-d'], drop: 4 }
+	D: { frames: ['dead-tree-a', 'dead-tree-b', 'dead-tree-c', 'dead-tree-d'], drop: 4 },
+	'&': { frames: ['fire-a', 'fire-b', 'fire-c', 'fire-d'], drop: 4, jitter: 5 }
 };
 
-/** The palisade, and the sealed gates in it until gate art exists. */
-const PALISADE_GLYPHS = 'P!';
+/**
+ * Walls cut from a seamless strip, one slice per tile (`slices` per repeat): the palisade, the
+ * sealed gates in it until gate art exists, and the palisade the raid broke through.
+ */
+const STRIPS: Readonly<Record<string, { frame: string; slices: number; drop: number }>> = {
+	P: { frame: 'palisade', slices: 14, drop: 4 },
+	'!': { frame: 'palisade', slices: 14, drop: 4 },
+	'/': { frame: 'palisade-broken', slices: 14, drop: 0 }
+};
 
 export interface GridObject {
 	readonly frame: string;
@@ -92,15 +112,27 @@ export function buildGridObjects(
 ): GridObject[] {
 	const objects: GridObject[] = [];
 	const variants = new Map<GridBuildingType, number>();
+	// Tiles under a burning building: its own art shows the flames.
+	const burnt = new Set<string>();
 	for (const building of buildings) {
-		const art = GRID_BUILDING_TYPES[building.type];
+		const art: GridBuildingArt = GRID_BUILDING_TYPES[building.type];
 		const index = variants.get(building.type) ?? 0;
 		variants.set(building.type, index + 1);
-		objects.push(
-			standing(art.frames[index % art.frames.length]!, building, art.drop, {
-				width: building.width * GRID_TILE_SIZE * art.scale
-			})
+		const burning = art.burning !== undefined && covers(terrain, building, '&');
+		const sprite = standing(
+			burning ? art.burning! : art.frames[index % art.frames.length]!,
+			building,
+			art.drop,
+			{ width: building.width * GRID_TILE_SIZE * art.scale }
 		);
+		objects.push(sprite);
+		if (!burning) continue;
+		objects.push(smokeRising(sprite, index));
+		for (let row = building.row; row < building.row + building.height; row += 1) {
+			for (let col = building.col; col < building.col + building.width; col += 1) {
+				burnt.add(`${col},${row}`);
+			}
+		}
 	}
 
 	for (const box of components(terrain, 'O')) {
@@ -123,16 +155,26 @@ export function buildGridObjects(
 		for (let col = 0; col < line.length; col += 1) {
 			const glyph = line[col]!;
 			const tile = { col, row, width: 1, height: 1 };
-			if (PALISADE_GLYPHS.includes(glyph)) {
+			const strip = STRIPS[glyph];
+			if (strip) {
 				// Consecutive slices along a row, so a wall reads as one strip.
-				objects.push(standing(`palisade-${(col + 3 * row) % PALISADE_SLICES}`, tile, 4));
+				const slice = (col + 3 * row) % strip.slices;
+				objects.push(standing(`${strip.frame}-${slice}`, tile, strip.drop));
 				continue;
 			}
 			const prop = TILE_PROPS[glyph];
-			if (!prop) continue;
-			objects.push(
-				standing(prop.frames[variantIndex(col, row, prop.frames.length)]!, tile, prop.drop)
+			if (!prop || burnt.has(`${col},${row}`)) continue;
+			const object = standing(
+				prop.frames[variantIndex(col, row, prop.frames.length)]!,
+				tile,
+				prop.drop
 			);
+			const jitter = prop.jitter ?? 0;
+			objects.push({
+				...object,
+				x: object.x + (variantIndex(row, col, 2 * jitter + 1) - jitter),
+				y: object.y + (variantIndex(col + 7, row, jitter + 1) - jitter)
+			});
 		}
 	}
 
@@ -166,6 +208,29 @@ function standing(
 		height: Math.round(size.height ?? (width * art[1]) / art[0]),
 		overheadY: footprint.row * GRID_TILE_SIZE
 	};
+}
+
+/** True when every tile of a footprint is `glyph` (a story overlay painted over it). */
+function covers(terrain: readonly string[], box: Box, glyph: string): boolean {
+	for (let row = box.row; row < box.row + box.height; row += 1) {
+		for (let col = box.col; col < box.col + box.width; col += 1) {
+			if (terrain[row]?.[col] !== glyph) return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * A smoke plume rising from behind a burning roof. It stands well above the roof's
+ * base, so the roof draws in front of its foot. All of it draws under actors, so it
+ * never hides Grik or the soldiers in the street north of the hut.
+ */
+function smokeRising(roof: GridObject, variant: number): GridObject {
+	const frame = variant % 2 === 0 ? 'smoke-a' : 'smoke-b';
+	const [width, height] = GRID_OBJECT_SIZES[frame]!;
+	const y = Math.round(roof.y - roof.height * 0.7);
+	const x = roof.x + Math.round(roof.width * 0.1);
+	return { frame, x, y, width, height, overheadY: y - height };
 }
 
 /** A stable pseudo-random variant for a tile, so neighbouring props differ. */

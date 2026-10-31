@@ -5,7 +5,7 @@
  * `layer: 'canopy'` tiles draw above actors (forest, pines and reeds); everything else
  * draws on the ground layer. `autotile` terrains pick one of 16 edge tiles from
  * their N/E/S/W neighbours (see `tileset.ts`); the rest use a single tile. Props
- * taller than a tile (trees, rocks, the palisade) bake as plain ground and are drawn
+ * taller than a tile (trees, rocks, the palisade, fire) bake as plain ground and are drawn
  * as sprites over it (see `objects.ts`).
  *
  * Keep the table in CLAUDE.md ("Overworld grid maps") in sync when adding a glyph.
@@ -44,7 +44,8 @@ export const TERRAIN_LEGEND = {
 	D: { name: 'dead tree', blocks: true, layer: 'ground', autotile: false },
 	A: { name: 'pine forest', blocks: true, layer: 'canopy', autotile: true },
 	_: { name: 'rock terrace', blocks: false, layer: 'ground', autotile: true },
-	V: { name: 'waterfall', blocks: true, layer: 'ground', autotile: false }
+	V: { name: 'waterfall', blocks: true, layer: 'ground', autotile: false },
+	'/': { name: 'broken palisade', blocks: true, layer: 'ground', autotile: false }
 } as const satisfies Record<string, TerrainDefinition>;
 
 export type TerrainGlyph = keyof typeof TERRAIN_LEGEND;

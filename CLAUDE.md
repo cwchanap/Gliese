@@ -274,52 +274,53 @@ or opens it with a story overlay if the story keeps it shut for a while;
   map exits non-zero when an anchor is unreachable from spawn; `overworld/world.test.ts`
   checks the same, plus the raid state.
 
-| Glyph | Terrain       | Blocks | Notes                              |
-| ----- | ------------- | ------ | ---------------------------------- |
-| `.`   | grass         | no     | base ground                        |
-| `,`   | dirt path     | no     | autotile, joins `=`, `H`, `*`, `O` |
-| `:`   | sand          | no     | autotile, joins `~`                |
-| `=`   | bridge        | no     | autotile, joins `,`; lay it on `~` |
-| `H`   | stairs        | no     | cuts through `#` cliffs            |
-| `T`   | dense forest  | yes    | autotile, drawn above actors       |
-| `Y`   | lone tree     | yes    | sprite                             |
-| `~`   | water         | yes    | autotile, joins `=` and `V`        |
-| `#`   | cliff         | yes    | autotile, joins `H`                |
-| `^`   | mountain      | yes    | autotile; the default world fill   |
-| `P`   | palisade      | yes    | sprite                             |
-| `!`   | sealed gate   | yes    | sprite; open it with an overlay    |
-| `%`   | fenced garden | yes    | sprite over the whole patch        |
-| `R`   | rock          | yes    | sprite                             |
-| `O`   | well          | yes    | sprite over the whole patch        |
-| `*`   | fire pit      | yes    | sprite                             |
-| `I`   | totem         | yes    | sprite                             |
-| `X`   | drying rack   | yes    | sprite                             |
-| `&`   | fire          | yes    | for raid overlays; placeholder     |
-| `;`   | marsh water   | yes    | autotile, joins `=` and `D`        |
-| `"`   | reeds         | yes    | autotile, drawn above actors       |
-| `D`   | dead tree     | yes    | sprite standing in `;`             |
-| `A`   | pine forest   | yes    | autotile, drawn above actors       |
-| `_`   | rock terrace  | no     | autotile                           |
-| `V`   | waterfall     | yes    | sprite over the whole patch        |
+| Glyph | Terrain         | Blocks | Notes                              |
+| ----- | --------------- | ------ | ---------------------------------- |
+| `.`   | grass           | no     | base ground                        |
+| `,`   | dirt path       | no     | autotile, joins `=`, `H`, `*`, `O` |
+| `:`   | sand            | no     | autotile, joins `~`                |
+| `=`   | bridge          | no     | autotile, joins `,`; lay it on `~` |
+| `H`   | stairs          | no     | cuts through `#` cliffs            |
+| `T`   | dense forest    | yes    | autotile, drawn above actors       |
+| `Y`   | lone tree       | yes    | sprite                             |
+| `~`   | water           | yes    | autotile, joins `=` and `V`        |
+| `#`   | cliff           | yes    | autotile, joins `H`                |
+| `^`   | mountain        | yes    | autotile; the default world fill   |
+| `P`   | palisade        | yes    | sprite                             |
+| `!`   | sealed gate     | yes    | sprite; open it with an overlay    |
+| `%`   | fenced garden   | yes    | sprite over the whole patch        |
+| `R`   | rock            | yes    | sprite                             |
+| `O`   | well            | yes    | sprite over the whole patch        |
+| `*`   | fire pit        | yes    | sprite                             |
+| `I`   | totem           | yes    | sprite                             |
+| `X`   | drying rack     | yes    | sprite                             |
+| `&`   | fire            | yes    | sprite; for raid overlays          |
+| `;`   | marsh water     | yes    | autotile, joins `=` and `D`        |
+| `"`   | reeds           | yes    | autotile, drawn above actors       |
+| `D`   | dead tree       | yes    | sprite standing in `;`             |
+| `A`   | pine forest     | yes    | autotile, drawn above actors       |
+| `_`   | rock terrace    | no     | autotile                           |
+| `V`   | waterfall       | yes    | sprite over the whole patch        |
+| `/`   | broken palisade | yes    | sprite; for raid overlays          |
 
 The tileset image is `public/game/assets/overworld/tiles.png`, baked by `bun run map:tileset`
 (`tools/generate-grid-tileset.ts`) from the tile-ready pieces in `art/overworld/`: 256px seamless
 textures, the cliff and mountain-foot strips, and 32px sprites cut from the approved Codex art
-(briefs in `docs/art/`). The raid fire has no art yet and bakes as a flat placeholder colour.
-`grid/tileset.ts` fixes
-the layout as a sheet of slots: row 0 holds the single tiles, and each autotile terrain owns one
-row of 16 slots indexed by its N=1/E=2/S=4/W=8 edge mask. Each slot is 8×8 tiles cut from one
-piece of art, and the map tile at (col, row) draws variant (col % 8, row % 8), so textures repeat
-every 8 tiles instead of every tile. Both glyph lists are append-only, because art is drawn
-against those positions. To add a glyph: add it to `TERRAIN_LEGEND` in `grid/legend.ts`, append
-it to one list in `grid/tileset.ts`, give it art or a placeholder colour in the bake, run
-`bun run map:tileset`, and add a row to the table above (`grid/tileset.test.ts` checks the table).
+(briefs in `docs/art/`). `grid/tileset.ts` fixes the layout as a sheet of slots: row 0 holds the
+single tiles, and each autotile terrain owns one row of 16 slots indexed by its N=1/E=2/S=4/W=8 edge
+mask. Each slot is 8×8 tiles cut from one piece of art, and the map tile at (col, row) draws variant
+(col % 8, row % 8), so textures repeat every 8 tiles instead of every tile. Both glyph lists are
+append-only, because art is drawn against those positions. To add a glyph: add it to
+`TERRAIN_LEGEND` in `grid/legend.ts`, append it to one list in `grid/tileset.ts`, give it art or a
+placeholder colour in the bake, run `bun run map:tileset`, and add a row to the table above
+(`grid/tileset.test.ts` checks the table).
 
 Buildings and the props marked "sprite" above stand taller than a tile, so the tileset bakes
 plain ground under them and `grid/objects.ts` draws them as sprites from a second sheet,
 `public/game/assets/overworld/objects.png`, which the same `bun run map:tileset` packs from
 `art/overworld/objects/` (one PNG per frame, at the size it is drawn). A building's art comes
-from its type's `frames` in `grid/buildings.ts`. Each sprite stands on the bottom edge of its
+from its type's `frames` in `grid/buildings.ts`; while a story overlay covers its whole footprint
+with fire (`&`), a type with `burning` art draws that instead, with a smoke plume over the roof. Each sprite stands on the bottom edge of its
 footprint; the part above the footprint's top edge draws over actors, so Grik walks behind
 roofs and treetops, and the rest draws under them. To add object art: drop the PNG in
 `art/overworld/objects/`, add its size to `GRID_OBJECT_SIZES`, and rebake.

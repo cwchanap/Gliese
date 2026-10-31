@@ -29,7 +29,8 @@ export const SINGLE_TILE_GLYPHS = [
 	'X',
 	'&',
 	'D',
-	'V'
+	'V',
+	'/'
 ] as const satisfies readonly TerrainGlyph[];
 
 export const AUTOTILE_GLYPHS = [
