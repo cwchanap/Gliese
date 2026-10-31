@@ -42,6 +42,7 @@ export const GRID_OBJECT_SIZES: Readonly<Record<string, readonly [number, number
 	'dead-tree-b': [72, 104],
 	'dead-tree-c': [83, 96],
 	'dead-tree-d': [63, 84],
+	waterfall: [144, 132],
 	...Object.fromEntries(
 		Array.from({ length: 14 }, (_, index) => [`palisade-${index}`, [32, 66] as const])
 	)
@@ -107,12 +108,7 @@ export function buildGridObjects(
 	}
 	for (const box of components(terrain, 'V')) {
 		// The falls pour over the cliff band and splash into the river below it.
-		objects.push(
-			standing('waterfall', box, 12, {
-				width: box.width * GRID_TILE_SIZE + 16,
-				height: box.height * GRID_TILE_SIZE + 28
-			})
-		);
+		objects.push(standing('waterfall', box, 12, { width: box.width * GRID_TILE_SIZE * 1.5 }));
 	}
 	for (const box of components(terrain, '%')) {
 		objects.push(
