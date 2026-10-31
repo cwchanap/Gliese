@@ -17,6 +17,17 @@ describe('grid objects', () => {
 		expect(hut!.width).toBe(Math.round(4 * 32 * 1.12));
 	});
 
+	it('draws a hut the raid fire covers as burning, with smoke instead of fire tiles', () => {
+		const frames = buildGridObjects(
+			['&&&&', '&&&&', '...&'],
+			[{ id: 'hut', type: 'goblin-hut', col: 0, row: 0, width: 4, height: 2 }]
+		).map((object) => object.frame);
+		expect(frames).toContain('hut-burning');
+		expect(frames.filter((frame) => frame.startsWith('smoke-'))).toHaveLength(1);
+		// Only the fire tile outside the footprint gets flames of its own.
+		expect(frames.filter((frame) => frame.startsWith('fire-'))).toHaveLength(1);
+	});
+
 	it('draws a lone tree on every tile of a clump', () => {
 		const frames = buildGridObjects(['Y...', '..YY', '..YY'], []).map((object) => object.frame);
 		expect(frames).toHaveLength(5);
