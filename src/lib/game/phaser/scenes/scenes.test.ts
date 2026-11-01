@@ -10170,7 +10170,7 @@ describe('WorldScene', () => {
 		});
 	});
 
-	it('suppresses the fled encounter until the re-engage grace period expires', async () => {
+	it('keeps a fled bounded pack disengaged until the player leaves its acquisition zone', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
 		const { BattleScene } = await import('./BattleScene');
@@ -10204,18 +10204,162 @@ describe('WorldScene', () => {
 			recentlyFled: { encounterId: 'boar-king', fledAt: 0 }
 		});
 		Object.assign(phaserState.playerMarker, { x: boarKingHome.x, y: boarKingHome.y + 60 });
+		const sceneState = scene as unknown as {
+			enemies: Array<{ id: string; x: number; y: number; movementMode: string }>;
+		};
 
-		// The live Boar King is already in battle range (60px < 62px) but the
-		// recently-fled grace suppresses the restart.
+		// Grik stays put, in battle range and inside the pocket: five seconds on,
+		// the Boar King neither restarts the fight nor closes the distance.
 		scene.update(100, 16);
-		scene.update(1_499, 16);
+		scene.update(5_000, 16);
+		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+		const boarKing = sceneState.enemies.find(({ id }) => id === 'boar-king')!;
+		expect(boarKing.x).toBe(boarKingHome.x);
+		expect(boarKing.y).toBe(boarKingHome.y);
+		expect(boarKing.movementMode).toBe('idle');
+
+		// Walking out of the acquisition zone (beyond the 360px leash) and back
+		// after grace lifts the disengagement: the fight re-engages normally.
+		Object.assign(phaserState.playerMarker, { x: boarKingHome.x + 480, y: boarKingHome.y });
+		scene.update(5_050, 16);
 		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
 
-		// Once the grace expires the same encounter starts normally again.
-		scene.update(1_500, 16);
+		Object.assign(phaserState.playerMarker, { x: boarKingHome.x, y: boarKingHome.y + 60 });
+		scene.update(5_100, 16);
 		expect(scene.scene.start).toHaveBeenCalledWith(
 			BattleScene.key,
 			expect.objectContaining({ sourceEncounterId: 'boar-king' })
+		);
+
+		// A plain map/scene reset clears the transient flee state: the same
+		// standing player position re-engages immediately on the next create.
+		scene.create({ saveState: { ...save }, reason: 'resume' });
+		Object.assign(phaserState.playerMarker, { x: boarKingHome.x, y: boarKingHome.y + 60 });
+		scene.update(0, 16);
+		expect(scene.scene.start).toHaveBeenCalledTimes(2);
+	});
+
+	it('leaves other packs engaging and updating while the fled pack is protected', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const save = {
+			...createNewSaveState(),
+			mapId: 'overworld',
+			// The terrace pack above the clearing stays alive; only the falls pack
+			// is cleared, so a second bounded pack shares the clearing's edge.
+			flags: { ...boarKingFlags, clearedEncounters: ['silverpine-wolves-falls'] },
+			quests: questStateAt('defeat-boar-king')
+		};
+
+		scene.create({
+			saveState: save,
+			reason: 'battle-result',
+			battleResult: {
+				outcome: 'fled',
+				sourceMapId: 'overworld',
+				sourceEncounterId: 'boar-king',
+				sourceEnemyId: 'boar-king',
+				returnPosition: {
+					mapId: 'overworld',
+					x: boarKingHome.x,
+					y: boarKingHome.y - 20,
+					facing: 'up'
+				},
+				finalHeroHp: 12,
+				inventory: save.inventory,
+				defeatedUnits: []
+			},
+			recentlyFled: { encounterId: 'boar-king', fledAt: 0 }
+		});
+		// Inside both pockets: 20px from the protected Boar King, ~150px from a
+		// wolf pulled toward the clearing (it spawns at its own anchor).
+		Object.assign(phaserState.playerMarker, { x: boarKingHome.x, y: boarKingHome.y - 20 });
+		const sceneState = scene as unknown as {
+			enemies: Array<{
+				id: string;
+				x: number;
+				y: number;
+				movementMode: string;
+				marker: { x: number; y: number };
+			}>;
+		};
+		const wolf = sceneState.enemies.find(({ id }) => id === 'silverpine-wolves-terrace')!;
+		wolf.x = boarKingHome.x - 112;
+		wolf.y = boarKingHome.y - 120;
+		wolf.marker.x = wolf.x;
+		wolf.marker.y = wolf.y;
+
+		// Past grace the protected pack idles while the unprotected wolf still
+		// chases: one protected closest target must not skip other enemy updates.
+		scene.update(5_000, 250);
+		const boarKing = sceneState.enemies.find(({ id }) => id === 'boar-king')!;
+		expect(boarKing.x).toBe(boarKingHome.x);
+		expect(boarKing.y).toBe(boarKingHome.y);
+		expect(wolf.y).toBeGreaterThan(boarKingHome.y - 120);
+		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+
+		// The wolf closes in and starts its own battle; the fled pack stays out.
+		for (let time = 5_250; time <= 6_000; time += 250) {
+			scene.update(time, 250);
+		}
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({ sourceEncounterId: 'silverpine-wolves-terrace' })
+		);
+		expect(scene.scene.start).not.toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({ sourceEncounterId: 'boar-king' })
+		);
+	});
+
+	it('shields an unbounded ruins pack for the grace window only', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const save = { ...createNewSaveState(), mapId: 'ruins-core' };
+
+		scene.create({
+			saveState: save,
+			reason: 'battle-result',
+			battleResult: {
+				outcome: 'fled',
+				sourceMapId: 'ruins-core',
+				sourceEncounterId: 'core-crawlers',
+				sourceEnemyId: 'tunnel-crawler',
+				returnPosition: { mapId: 'ruins-core', x: 2_880, y: 3_300, facing: 'up' },
+				finalHeroHp: 12,
+				inventory: save.inventory,
+				defeatedUnits: []
+			},
+			recentlyFled: { encounterId: 'core-crawlers', fledAt: 0 }
+		});
+		// 100px south of the crawlers: outside battle range (62px), inside the
+		// ruins' unrestricted chase.
+		Object.assign(phaserState.playerMarker, { x: 2_880, y: 3_300 });
+		const sceneState = scene as unknown as {
+			enemies: Array<{ id: string; y: number; movementMode: string }>;
+		};
+
+		// During grace the crawler neither chases nor attacks, even though the
+		// unbounded canEnemyAttackPlayer policy is otherwise always true.
+		scene.update(3_999, 16);
+		const crawler = sceneState.enemies.find(({ id }) => id === 'core-crawlers')!;
+		expect(crawler.y).toBe(3_200);
+		expect(crawler.movementMode).toBe('idle');
+		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+
+		// Grace only: afterwards the crawler follows its existing unrestricted
+		// chase policy and re-engages.
+		for (let time = 4_000; time <= 4_600; time += 250) {
+			scene.update(time, 250);
+		}
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({ sourceEncounterId: 'core-crawlers' })
 		);
 	});
 
