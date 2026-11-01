@@ -972,16 +972,19 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		const effectiveStats = this.getEffectiveStats();
+		const saveState = this.buildSaveState();
 
 		this.scene.start(BattleScene.key, {
-			saveState: this.buildSaveState(),
+			saveState,
 			sourceMapId: this.mapId,
 			sourceEncounterId: enemy.id,
 			sourceEnemyId: enemy.definition.id,
+			// Grik returns to where he stood when the fight broke out; an enemy-home
+			// offset can land inside blocking terrain (Mistfen pond, cliff bands).
 			returnPosition: {
 				mapId: this.mapId,
-				x: enemy.homeX,
-				y: enemy.homeY + WorldScene.tileSize * 2,
+				x: this.player.x,
+				y: this.player.y,
 				facing: this.facing
 			},
 			enemyCount: enemy.definition.boss ? 1 : (enemy.count ?? rollBattleEnemyCount()),

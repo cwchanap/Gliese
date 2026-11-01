@@ -332,7 +332,12 @@ function isQuestEntryState(value: unknown, quest: QuestDefinition): value is Que
 	);
 }
 
-function normalizePlayerPosition(
+/**
+ * Clamps a saved player position to the map and nudges it onto walkable ground
+ * against the story-gated geometry. Also the battle-result owner's final check,
+ * so every post-battle return point is validated before it is saved.
+ */
+export function normalizePlayerPosition(
 	mapId: string,
 	player: SaveState['player'],
 	quests: QuestState
