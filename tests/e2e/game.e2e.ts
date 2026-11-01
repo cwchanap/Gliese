@@ -209,15 +209,15 @@ function fieldStatus(page: Page) {
 function createQuestFixture() {
 	return {
 		entries: {
-			'investigate-the-ruins': {
+			'prologue-trial-mistfen': {
 				status: 'active',
-				currentObjectiveId: 'talk-to-guild-master',
+				currentObjectiveId: 'gather-moonmoss',
 				progress: 0,
-				rewardApplied: false,
 				countedSourceIds: []
 			}
 		},
-		completedObjectives: {}
+		completedObjectives: {},
+		pendingEffects: []
 	};
 }
 
@@ -256,7 +256,7 @@ type SaveFixtureOverrides = Partial<{
 // kept local (not imported) so the Playwright Node worker doesn't have to
 // resolve the game's `$lib` alias. addInitScript callbacks run in the browser
 // and cannot close over Node bindings, so the key is passed to them as an arg.
-const SAVE_VERSION = 9;
+const SAVE_VERSION = 10;
 const SAVES_STORAGE_KEY = 'gliese.saves.v1';
 
 // addInitScript serializes its callback to the browser and accepts only one
@@ -11686,8 +11686,8 @@ test('encounter opens battle scene and returns through battle summary', async ({
 			xp: 0,
 			hp: 200,
 			attack: 50,
-			x: 4_960,
-			y: 960,
+			x: 2_896,
+			y: 5_904,
 			facing: 'down'
 		}
 	});
