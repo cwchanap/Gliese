@@ -74,7 +74,9 @@ type DirectionKey = { isDown: boolean };
 type ActorMarker = {
 	x: number;
 	y: number;
+	displayHeight: number;
 	clearTint: () => unknown;
+	setDepth: (depth: number) => unknown;
 	setDisplaySize: (width: number, height: number) => unknown;
 	setTint: (color: number) => unknown;
 	setVisible: (visible: boolean) => unknown;
@@ -84,6 +86,7 @@ type ActorMarker = {
 
 type OverlayMarker = {
 	destroy: () => unknown;
+	setDepth: (depth: number) => unknown;
 	setPosition: (x: number, y: number) => unknown;
 	setAlpha: (alpha: number) => unknown;
 	setOrigin: (x: number, y?: number) => unknown;
@@ -133,6 +136,11 @@ export class BattleScene extends Phaser.Scene {
 	private static readonly heroMoveSpeed = 140;
 	private static readonly bossPhaseTwoSpeedMultiplier = 1.5;
 	private static readonly enemyHealthBarOffsetY = 34;
+	/** Tallest authored battle actor (boar king); drives the fixed overlay depth. */
+	private static readonly maxActorDisplayHeight = 168;
+	/** Fixed overlay depth above the deepest feet possible in the 504 px arena. */
+	private static readonly overlayDepth =
+		BattleScene.arena.height + BattleScene.maxActorDisplayHeight / 2;
 
 	private cursorKeys?: Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
 	private defeatedUnits: BattleDefeatedUnit[] = [];
@@ -221,6 +229,8 @@ export class BattleScene extends Phaser.Scene {
 		if (!this.player || !this.payload || this.pendingResult) {
 			return;
 		}
+
+		this.syncActorDepths();
 
 		if (this.updateFleeChannel(time)) {
 			return;
@@ -372,22 +382,19 @@ export class BattleScene extends Phaser.Scene {
 				animationPackAsset.key,
 				actorAnimation.clips.idle.frames[0]
 			) as ActorMarker;
-			const healthBarBg = this.add.rectangle(
-				position.x,
-				position.y - BattleScene.enemyHealthBarOffsetY,
-				34,
-				4,
-				0x0f172a,
-				0.92
-			) as OverlayMarker;
-			const healthBarFill = this.add.rectangle(
-				position.x,
-				position.y - BattleScene.enemyHealthBarOffsetY,
-				30,
-				2,
-				0xff5d8f,
-				1
-			) as OverlayMarker;
+			const healthBarBg = this.add
+				.rectangle(
+					position.x,
+					position.y - BattleScene.enemyHealthBarOffsetY,
+					34,
+					4,
+					0x0f172a,
+					0.92
+				)
+				.setDepth(BattleScene.overlayDepth) as OverlayMarker;
+			const healthBarFill = this.add
+				.rectangle(position.x, position.y - BattleScene.enemyHealthBarOffsetY, 30, 2, 0xff5d8f, 1)
+				.setDepth(BattleScene.overlayDepth) as OverlayMarker;
 
 			marker.setDisplaySize(actorAnimation.displaySize.width, actorAnimation.displaySize.height);
 			marker.play(actorAnimation.clips.idle.key, true);
@@ -426,6 +433,22 @@ export class BattleScene extends Phaser.Scene {
 				y: centerY + Math.round(Math.sin(angle) * radiusY)
 			};
 		});
+	}
+
+	/**
+	 * Sorts actors by displayed foot (y + displayHeight / 2) every frame, so taller
+	 * actors (boar king) overlap the hero naturally — including tweened lunge Y.
+	 */
+	private syncActorDepths() {
+		if (!this.player) {
+			return;
+		}
+
+		this.player.setDepth(this.player.y + this.player.displayHeight / 2);
+
+		for (const enemy of this.enemies) {
+			enemy.marker.setDepth(enemy.marker.y + enemy.marker.displayHeight / 2);
+		}
 	}
 
 	private updateHeroMovement(time: number, delta: number) {
@@ -941,27 +964,13 @@ export class BattleScene extends Phaser.Scene {
 			this.player.y + ((target.y - this.player.y) / distance) * BattleScene.heroLungeDistance;
 		const midpointX = (this.player.x + target.x) / 2;
 		const midpointY = (this.player.y + target.y) / 2;
-		const slash = this.add.arc(
-			midpointX,
-			midpointY,
-			24,
-			-55,
-			55,
-			false,
-			0xffd166,
-			0.88
-		) as OverlayMarker;
+		const slash = this.add
+			.arc(midpointX, midpointY, 24, -55, 55, false, 0xffd166, 0.88)
+			.setDepth(BattleScene.overlayDepth) as OverlayMarker;
 		slash.setOrigin(0.5);
-		const impact = this.add.arc(
-			target.x,
-			target.y,
-			16,
-			0,
-			360,
-			false,
-			0xffffff,
-			0.72
-		) as OverlayMarker;
+		const impact = this.add
+			.arc(target.x, target.y, 16, 0, 360, false, 0xffffff, 0.72)
+			.setDepth(BattleScene.overlayDepth) as OverlayMarker;
 		impact.setOrigin(0.5);
 
 		this.tweens.add({
@@ -1002,16 +1011,9 @@ export class BattleScene extends Phaser.Scene {
 			return;
 		}
 
-		const impact = this.add.arc(
-			this.player.x,
-			this.player.y,
-			12,
-			0,
-			360,
-			false,
-			0xff6b6b,
-			0.65
-		) as OverlayMarker;
+		const impact = this.add
+			.arc(this.player.x, this.player.y, 12, 0, 360, false, 0xff6b6b, 0.65)
+			.setDepth(BattleScene.overlayDepth) as OverlayMarker;
 		impact.setOrigin(0.5);
 
 		this.tweens.add({

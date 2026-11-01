@@ -309,9 +309,13 @@ const phaserState = vi.hoisted(() => {
 		const marker: {
 			x: number;
 			y: number;
+			depth: number;
+			displayWidth: number;
+			displayHeight: number;
 			frame: string | undefined;
 			visible: boolean;
 			clearTint: ReturnType<typeof vi.fn>;
+			setDepth: ReturnType<typeof vi.fn>;
 			setDisplaySize: ReturnType<typeof vi.fn>;
 			setTint: ReturnType<typeof vi.fn>;
 			setVisible: ReturnType<typeof vi.fn>;
@@ -320,10 +324,21 @@ const phaserState = vi.hoisted(() => {
 		} = {
 			x: 0,
 			y: 0,
+			depth: 0,
+			displayWidth: 0,
+			displayHeight: 0,
 			frame: undefined as string | undefined,
 			visible: true,
 			clearTint: vi.fn(() => marker),
-			setDisplaySize: vi.fn(() => marker),
+			setDepth: vi.fn((depth: number) => {
+				marker.depth = depth;
+				return marker;
+			}),
+			setDisplaySize: vi.fn((width: number, height: number) => {
+				marker.displayWidth = width;
+				marker.displayHeight = height;
+				return marker;
+			}),
 			setTint: vi.fn(() => marker),
 			setVisible: vi.fn((visible: boolean) => {
 				marker.visible = visible;
@@ -510,10 +525,15 @@ const phaserState = vi.hoisted(() => {
 		const marker = {
 			x: 0,
 			y: 0,
+			depth: 0,
 			alpha: 1,
 			scaleX: 1,
 			scaleY: 1,
 			visible: true,
+			setDepth: vi.fn((depth: number) => {
+				marker.depth = depth;
+				return marker;
+			}),
 			setPosition: vi.fn((x: number, y: number) => {
 				marker.x = x;
 				marker.y = y;
@@ -845,8 +865,24 @@ const phaserState = vi.hoisted(() => {
 			mainCamera.setBounds.mockClear();
 			mainCamera.setZoom.mockClear();
 			mainCamera.startFollow.mockClear();
-			Object.assign(playerMarker, { x: 0, y: 0, frame: undefined, visible: true });
-			Object.assign(enemyMarker, { x: 0, y: 0, frame: undefined, visible: true });
+			Object.assign(playerMarker, {
+				x: 0,
+				y: 0,
+				depth: 0,
+				displayWidth: 0,
+				displayHeight: 0,
+				frame: undefined,
+				visible: true
+			});
+			Object.assign(enemyMarker, {
+				x: 0,
+				y: 0,
+				depth: 0,
+				displayWidth: 0,
+				displayHeight: 0,
+				frame: undefined,
+				visible: true
+			});
 			enemyMarkers.splice(0, enemyMarkers.length);
 			enemyHealthBarBgs.splice(0, enemyHealthBarBgs.length);
 			enemyHealthBarFills.splice(0, enemyHealthBarFills.length);
@@ -855,12 +891,14 @@ const phaserState = vi.hoisted(() => {
 			graphicsMarkers.splice(0, graphicsMarkers.length);
 			nextHitImpactMarkerIndex = 0;
 			playerMarker.setDisplaySize.mockClear();
+			playerMarker.setDepth.mockClear();
 			playerMarker.clearTint.mockClear();
 			playerMarker.setTint.mockClear();
 			playerMarker.setVisible.mockReset();
 			playerMarker.play.mockReset();
 			playerMarker.once.mockReset();
 			enemyMarker.setDisplaySize.mockClear();
+			enemyMarker.setDepth.mockClear();
 			enemyMarker.clearTint.mockClear();
 			enemyMarker.setVisible.mockReset();
 			enemyMarker.setTint.mockReset();
@@ -870,21 +908,32 @@ const phaserState = vi.hoisted(() => {
 			Object.assign(enemyHealthBarFill, { x: 0, y: 0, scaleX: 1, scaleY: 1, visible: true });
 			Object.assign(attackFlash, { x: 0, y: 0, scaleX: 1, scaleY: 1, visible: true });
 			for (const marker of hitImpactMarkers) {
-				Object.assign(marker, { x: 0, y: 0, alpha: 1, scaleX: 1, scaleY: 1, visible: true });
+				Object.assign(marker, {
+					x: 0,
+					y: 0,
+					depth: 0,
+					alpha: 1,
+					scaleX: 1,
+					scaleY: 1,
+					visible: true
+				});
 				marker.setPosition.mockReset();
 				marker.setScale.mockReset();
 				marker.setOrigin.mockReset();
 				marker.setAlpha.mockReset();
+				marker.setDepth.mockClear();
 				marker.setVisible.mockReset();
 				marker.destroy.mockReset();
 			}
 			enemyHealthBarBg.setPosition.mockReset();
 			enemyHealthBarBg.setScale.mockReset();
 			enemyHealthBarBg.setOrigin.mockReset();
+			enemyHealthBarBg.setDepth.mockClear();
 			enemyHealthBarBg.setVisible.mockReset();
 			enemyHealthBarFill.setPosition.mockReset();
 			enemyHealthBarFill.setScale.mockReset();
 			enemyHealthBarFill.setOrigin.mockReset();
+			enemyHealthBarFill.setDepth.mockClear();
 			enemyHealthBarFill.setVisible.mockReset();
 			attackFlash.setPosition.mockReset();
 			attackFlash.setScale.mockReset();
@@ -2063,6 +2112,182 @@ describe('BattleScene', () => {
 		expect(state.hero.hp).toBe(hpAtStrike);
 	});
 
+	it('sorts battle actors by displayed foot even when center-Y sorting disagrees', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'ruins-core',
+			sourceEncounterId: 'boar-king',
+			sourceEnemyId: 'boar-king',
+			returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+		});
+		const state = scene as unknown as { hitStopUntil: number };
+		// Authored display heights come from content/assets.ts: hero 90, boar king 168.
+		expect(phaserState.playerMarker.displayHeight).toBe(90);
+		expect(phaserState.enemyMarker.displayHeight).toBe(168);
+		// Freeze movement and AI so only the depth sync runs.
+		state.hitStopUntil = 10_000;
+
+		// Center-Y sorting would put Grik in front (300 > 280), but the boar
+		// king's foot (280 + 168 / 2) is below Grik's (300 + 90 / 2).
+		Object.assign(phaserState.playerMarker, { x: 448, y: 300 });
+		Object.assign(phaserState.enemyMarker, { x: 448, y: 280 });
+
+		scene.update(0, 16);
+
+		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(345);
+		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(364);
+		expect(phaserState.enemyMarker.depth).toBeGreaterThan(phaserState.playerMarker.depth);
+
+		// Reverse the arrangement so Grik's foot is lower: the front actor flips.
+		Object.assign(phaserState.playerMarker, { x: 448, y: 380 });
+		Object.assign(phaserState.enemyMarker, { x: 448, y: 300 });
+		phaserState.playerMarker.setDepth.mockClear();
+		phaserState.enemyMarker.setDepth.mockClear();
+
+		scene.update(20, 16);
+
+		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(425);
+		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(384);
+		expect(phaserState.playerMarker.depth).toBeGreaterThan(phaserState.enemyMarker.depth);
+	});
+
+	it('sorts the taller thornback boar ahead of the hero by displayed foot', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'overworld',
+			sourceEncounterId: 'wildwood-thornback-boar',
+			sourceEnemyId: 'thornback-boar',
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+		});
+		const state = scene as unknown as { hitStopUntil: number };
+		expect(phaserState.enemyMarker.displayHeight).toBe(108);
+		state.hitStopUntil = 10_000;
+
+		// Only 5 px of center Y separate them; the boar's foot is 4 px lower.
+		Object.assign(phaserState.playerMarker, { x: 448, y: 300 });
+		Object.assign(phaserState.enemyMarker, { x: 448, y: 295 });
+
+		scene.update(0, 16);
+
+		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(345); // 300 + 90 / 2
+		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(349); // 295 + 108 / 2
+		expect(phaserState.enemyMarker.depth).toBeGreaterThan(phaserState.playerMarker.depth);
+
+		// Reverse the arrangement: the hero's foot is lower, so the hero leads.
+		Object.assign(phaserState.playerMarker, { x: 448, y: 320 });
+		Object.assign(phaserState.enemyMarker, { x: 448, y: 300 });
+		phaserState.playerMarker.setDepth.mockClear();
+		phaserState.enemyMarker.setDepth.mockClear();
+
+		scene.update(20, 16);
+
+		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(365); // 320 + 90 / 2
+		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(354); // 300 + 108 / 2
+		expect(phaserState.playerMarker.depth).toBeGreaterThan(phaserState.enemyMarker.depth);
+	});
+
+	it('follows regular hero movement with re-synced depths', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'overworld',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
+		// The wolf stays out of reach on its spawn ring (448, 74).
+		phaserState.cursorKeys.down.isDown = true;
+
+		scene.update(0, 250); // hero walks 35 px down to y = 287
+		scene.update(250, 250);
+
+		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(332); // 287 + 90 / 2
+	});
+
+	it('re-syncs depths during hit stop so lunged frames stay sorted', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'overworld',
+			sourceEncounterId: 'wildwood-wolves-mouth',
+			sourceEnemyId: 'forest-wolf',
+			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
+		const state = scene as unknown as {
+			enemies: Array<{ x: number; y: number }>;
+			hitStopUntil: number;
+		};
+		state.enemies[0]!.x = 458;
+		state.enemies[0]!.y = 252;
+
+		scene.update(0, 16); // hero strikes: hit stop runs to t = 110
+		expect(state.hitStopUntil).toBe(110);
+
+		// Simulate the lunge tween having pushed the sprite toward the enemy.
+		Object.assign(phaserState.playerMarker, { y: 244 });
+		phaserState.playerMarker.setDepth.mockClear();
+
+		scene.update(20, 16); // movement and AI are frozen; depth sync is not
+
+		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(289); // 244 + 90 / 2
+	});
+
+	it('draws health bars and strike arcs at a fixed depth above every actor foot', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const { overlayDepth } = BattleScene as unknown as { overlayDepth: number };
+		// Deepest feet possible in the 504 px arena: 504 - 48 padding + 168 / 2 (boar king).
+		expect(overlayDepth).toBeGreaterThan(540);
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'ruins-core',
+			sourceEncounterId: 'boar-king',
+			sourceEnemyId: 'boar-king',
+			returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+		});
+
+		expect(phaserState.enemyHealthBarBg.setDepth).toHaveBeenCalledWith(overlayDepth);
+		expect(phaserState.enemyHealthBarFill.setDepth).toHaveBeenCalledWith(overlayDepth);
+
+		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
+		const state = scene as unknown as { enemies: Array<{ x: number; y: number }> };
+		state.enemies[0]!.x = 458;
+		state.enemies[0]!.y = 252;
+
+		scene.update(0, 16);
+
+		expect(phaserState.hitImpactMarkers[0]!.setDepth).toHaveBeenCalledWith(overlayDepth);
+		expect(phaserState.hitImpactMarkers[1]!.setDepth).toHaveBeenCalledWith(overlayDepth);
+	});
+
 	it('keeps enemy attack animation locked briefly after striking the hero', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { BattleScene } = await import('./BattleScene');
@@ -2124,6 +2349,8 @@ describe('BattleScene', () => {
 
 		expect(scene.add.arc).toHaveBeenCalledWith(448, 252, 12, 0, 360, false, 0xff6b6b, 0.65);
 		expect(phaserState.hitImpactMarkers[2]!.destroy).toHaveBeenCalled();
+		const { overlayDepth } = BattleScene as unknown as { overlayDepth: number };
+		expect(phaserState.hitImpactMarkers[2]!.setDepth).toHaveBeenCalledWith(overlayDepth);
 		expect(phaserState.mainCamera.shake).toHaveBeenCalledWith(60, 0.003);
 	});
 
