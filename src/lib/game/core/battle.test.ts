@@ -154,14 +154,19 @@ describe('battle contracts', () => {
 			15
 		);
 
+		const { x, y } = application.saveState.player;
 		expect(application.saveState.player).toMatchObject({
 			...expected,
-			// The input return point is blocked terrain, so final normalization nudges
-			// it to the nearest walkable spot before it is saved.
-			x: 1_144,
-			y: 5_352,
 			facing: 'down'
 		});
+		// The input return point is blocked raid terrain, so final normalization
+		// nudges it to the nearest walkable spot (checked against the resulting
+		// story-gated geometry, like the fled-result regressions below).
+		expect(isOverworldRestingWalkable({ x: 1_200, y: 5_440 }, application.saveState.quests)).toBe(
+			false
+		);
+		expect(isOverworldRestingWalkable({ x, y }, application.saveState.quests)).toBe(true);
+		expect(Math.hypot(x - 1_200, y - 5_440)).toBeLessThanOrEqual(128);
 		expect(application.saveState.wallet.coins).toBe(saveState.wallet.coins + 18);
 		expect(application.saveState.flags.clearedEncounters).toEqual(['raid-soldiers-lane']);
 		expect(application.saveState.flags.clearedEncounterUnitCounts).toEqual({

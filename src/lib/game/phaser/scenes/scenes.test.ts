@@ -10591,6 +10591,44 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('never lets an in-range unbounded crawler attack during the flee grace', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const save = { ...createNewSaveState(), mapId: 'ruins-core' };
+
+		scene.create({
+			saveState: save,
+			reason: 'battle-result',
+			battleResult: {
+				outcome: 'fled',
+				sourceMapId: 'ruins-core',
+				sourceEncounterId: 'core-crawlers',
+				sourceEnemyId: 'tunnel-crawler',
+				returnPosition: { mapId: 'ruins-core', x: 2_880, y: 3_300, facing: 'up' },
+				finalHeroHp: 12,
+				inventory: save.inventory,
+				defeatedUnits: []
+			},
+			recentlyFled: { encounterId: 'core-crawlers', fledAt: 0 }
+		});
+		const sceneState = scene as unknown as {
+			enemies: Array<{ id: string; x: number; y: number }>;
+			canEnemyAttackPlayer: (enemy: { id: string; x: number; y: number }, time: number) => boolean;
+		};
+		const crawler = sceneState.enemies.find(({ id }) => id === 'core-crawlers')!;
+		// Inside the 62px attack range: the unbounded attack policy is otherwise
+		// always true, so only the fled-pack guard can hold the hit back. The
+		// scene-level chase test above can never reach this branch because a
+		// protected enemy has no movement target.
+		Object.assign(phaserState.playerMarker, { x: crawler.x, y: crawler.y + 40 });
+
+		expect(sceneState.canEnemyAttackPlayer(crawler, 3_999)).toBe(false);
+		scene.update(3_999, 16);
+		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+	});
+
 	it('publishes HUD state after a non-lethal enemy hit in BattleScene', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const { createNewSaveState } = await import('$lib/game/save/save-state');

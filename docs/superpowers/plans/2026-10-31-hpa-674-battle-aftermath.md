@@ -118,4 +118,4 @@ Run after `bun run build`. If the bundled test-probe regex fails due to source c
 - [ ] Unit, type/lint/build, navigation, targeted Playwright, and manual UAT results recorded
 - [ ] Exactly one HPA-674 PR; no unrelated UAT fixes, art, or audio
 
-**Current status:** Reviewed plan only; no runtime code or tests were changed by this documentation update.
+**Current status:** Implemented and tested on this PR (commits `b4c603a`–`a5acd08`, plus test-harness `711d225`); automated checks, targeted Playwright, and manual UAT results are recorded in `.superpowers/sdd/2026-10-31-hpa-674-battle-aftermath/task-*-report.md`. Final-review minor findings were addressed in the fix wave that followed.
