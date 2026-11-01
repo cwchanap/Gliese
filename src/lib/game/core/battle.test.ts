@@ -5,6 +5,8 @@ import { shrineOfAuroraInteriorMap } from '$lib/game/content/maps';
 import { overworldMap } from '$lib/game/content/maps/overworld/map';
 import { anchorPoint } from '$lib/game/content/maps/overworld/world';
 import { applyExperienceGain } from '$lib/game/core/progression';
+import { createEmptyEquipment } from '$lib/game/core/equipment';
+import { deriveEffectiveStats, getHeroBaseStats } from '$lib/game/core/stats';
 import { getStoryProgress, type QuestState } from '$lib/game/core/quests';
 import { questStateAt } from '$lib/game/core/quests.fixtures';
 import {
@@ -292,7 +294,7 @@ describe('battle contracts', () => {
 
 		expect(application.saveState.mapId).toBe('ruins-core');
 		expect(application.saveState.player).toMatchObject({
-			hp: 1,
+			hp: 20,
 			x: 5_376,
 			y: 3_200,
 			facing: 'left'
@@ -428,7 +430,7 @@ describe('battle contracts', () => {
 		expect(Math.hypot(x - stranded.x, y - stranded.y)).toBeLessThanOrEqual(128);
 	});
 
-	it('applies a defeat result by sending the hero to the Shrine at 1 HP without rewards', () => {
+	it('applies a defeat result by sending the hero to the Shrine at full effective HP without rewards', () => {
 		const saveState = {
 			...createNewSaveState(),
 			mapId: 'ruins-threshold',
@@ -455,7 +457,7 @@ describe('battle contracts', () => {
 
 		expect(application.saveState.mapId).toBe(shrineOfAuroraInteriorMap.id);
 		expect(application.saveState.player).toMatchObject({
-			hp: 1,
+			hp: 20,
 			x: shrineOfAuroraInteriorMap.spawn.x,
 			y: shrineOfAuroraInteriorMap.spawn.y,
 			facing: shrineOfAuroraInteriorMap.spawnDirection
@@ -471,5 +473,33 @@ describe('battle contracts', () => {
 			coinsGained: 0,
 			drops: []
 		});
+	});
+
+	it('restores the full level-and-equipment-adjusted max HP on defeat', () => {
+		const saveState = {
+			...createNewSaveState(),
+			mapId: 'ruins-threshold',
+			player: {
+				...createNewSaveState().player,
+				level: 5,
+				hp: 1
+			},
+			equipment: { ...createEmptyEquipment(), body: 'stone-mail' }
+		};
+
+		const application = applyBattleResultToSaveState(saveState, {
+			outcome: 'defeat',
+			sourceMapId: 'ruins-threshold',
+			sourceEncounterId: 'threshold-crawlers',
+			sourceEnemyId: 'tunnel-crawler',
+			returnPosition: { mapId: 'ruins-threshold', x: 512, y: 3_200, facing: 'right' },
+			finalHeroHp: 0,
+			inventory: saveState.inventory,
+			defeatedUnits: []
+		});
+
+		expect(application.saveState.player.hp).toBe(
+			deriveEffectiveStats(getHeroBaseStats(saveState.player), saveState.equipment).maxHp
+		);
 	});
 });

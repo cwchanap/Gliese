@@ -7549,7 +7549,8 @@ describe('WorldScene', () => {
 				scene as unknown as { buildSaveState: () => ReturnType<typeof createNewSaveState> }
 			).buildSaveState();
 			expect(builtSave.mapId).toBe('shrine-of-aurora-interior');
-			expect(builtSave.player).toMatchObject({ hp: 1, x: 512, y: 784, facing: 'up' });
+			// Full effective HP for a fresh level-1, unequipped hero.
+			expect(builtSave.player).toMatchObject({ hp: 20, x: 512, y: 784, facing: 'up' });
 			expect(builtSave.wallet.coins).toBe(9);
 			expect(builtSave.flags.clearedEncounters).toEqual([]);
 			const envelope = JSON.parse(storedSaves.at(-1)!) as {
@@ -7560,7 +7561,7 @@ describe('WorldScene', () => {
 			expect(envelope.slots[0]?.state).toMatchObject({
 				mapId: 'shrine-of-aurora-interior',
 				flags: expect.objectContaining({ clearedEncounters: [] }),
-				player: expect.objectContaining({ hp: 1, x: 512, y: 784, facing: 'up' }),
+				player: expect.objectContaining({ hp: 20, x: 512, y: 784, facing: 'up' }),
 				wallet: { coins: 9 }
 			});
 		} finally {

@@ -10,6 +10,7 @@ import {
 	type QuestProgressUpdate,
 	type QuestRewardGrant
 } from '$lib/game/core/quests';
+import { deriveEffectiveStats, getHeroBaseStats } from '$lib/game/core/stats';
 import type { Direction } from '$lib/game/core/types';
 import { normalizePlayerPosition, type SaveState } from '$lib/game/save/save-state';
 
@@ -344,11 +345,16 @@ function normalizeBattleEnemyCount(count: number): number {
 }
 
 /**
- * The hero falls and wakes at 1 HP in the Shrine of Aurora, or where the current
- * objective's `respawn` says. A fall can also be the story's own beat: it reports
- * `lose-battle` so a scripted loss completes.
+ * The hero falls and wakes at full effective HP — level- and equipment-adjusted —
+ * in the Shrine of Aurora, or where the current objective's `respawn` says. A
+ * fall can also be the story's own beat: it reports `lose-battle` so a
+ * scripted loss completes.
  */
 function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleApplication {
+	const fullHp = deriveEffectiveStats(
+		getHeroBaseStats(saveState.player),
+		saveState.equipment
+	).maxHp;
 	const shrine = shrineOfAuroraInteriorMap;
 	const questResult = applyQuestEvent({
 		state: saveState.quests,
@@ -370,7 +376,7 @@ function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleAp
 			mapId: wake.mapId,
 			player: {
 				...saveState.player,
-				hp: 1,
+				hp: fullHp,
 				x: wake.x,
 				y: wake.y,
 				facing: wake.facing
