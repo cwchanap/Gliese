@@ -695,7 +695,7 @@ const phaserState = vi.hoisted(() => {
 		scene = { start: vi.fn(), restart: vi.fn() };
 		private sceneEventListeners = new Map<
 			string,
-			Set<{ callback: (...args: unknown[]) => void; once: boolean }>
+			Set<{ callback: (...args: unknown[]) => void; context?: unknown; once: boolean }>
 		>();
 		private loadListeners = new Map<
 			string,
@@ -735,15 +735,28 @@ const phaserState = vi.hoisted(() => {
 		};
 		game = { renderer };
 		events = {
-			once: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
+			on: vi.fn((event: string, callback: (...args: unknown[]) => void, context?: unknown) => {
 				const listeners = this.sceneEventListeners.get(event) ?? new Set();
-				listeners.add({ callback, once: true });
+				listeners.add({ callback, context, once: false });
 				this.sceneEventListeners.set(event, listeners);
+			}),
+			once: vi.fn((event: string, callback: (...args: unknown[]) => void, context?: unknown) => {
+				const listeners = this.sceneEventListeners.get(event) ?? new Set();
+				listeners.add({ callback, context, once: true });
+				this.sceneEventListeners.set(event, listeners);
+			}),
+			off: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
+				const listeners = this.sceneEventListeners.get(event);
+				for (const listener of listeners ?? []) {
+					if (listener.callback === callback) {
+						listeners!.delete(listener);
+					}
+				}
 			}),
 			emit: (event: string, ...args: unknown[]) => {
 				const listeners = this.sceneEventListeners.get(event);
 				for (const listener of [...(listeners ?? [])]) {
-					listener.callback(...args);
+					listener.callback.apply(listener.context, args);
 					if (listener.once) {
 						listeners!.delete(listener);
 					}
@@ -2139,6 +2152,7 @@ describe('BattleScene', () => {
 		Object.assign(phaserState.enemyMarker, { x: 448, y: 280 });
 
 		scene.update(0, 16);
+		scene.events.emit('postupdate');
 
 		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(345);
 		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(364);
@@ -2151,6 +2165,7 @@ describe('BattleScene', () => {
 		phaserState.enemyMarker.setDepth.mockClear();
 
 		scene.update(20, 16);
+		scene.events.emit('postupdate');
 
 		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(425);
 		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(384);
@@ -2180,6 +2195,7 @@ describe('BattleScene', () => {
 		Object.assign(phaserState.enemyMarker, { x: 448, y: 295 });
 
 		scene.update(0, 16);
+		scene.events.emit('postupdate');
 
 		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(345); // 300 + 90 / 2
 		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(349); // 295 + 108 / 2
@@ -2192,6 +2208,7 @@ describe('BattleScene', () => {
 		phaserState.enemyMarker.setDepth.mockClear();
 
 		scene.update(20, 16);
+		scene.events.emit('postupdate');
 
 		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(365); // 320 + 90 / 2
 		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(354); // 300 + 108 / 2
@@ -2217,7 +2234,7 @@ describe('BattleScene', () => {
 		phaserState.cursorKeys.down.isDown = true;
 
 		scene.update(0, 250); // hero walks 35 px down to y = 287
-		scene.update(250, 250);
+		scene.events.emit('postupdate'); // depth re-syncs after movement in the same frame
 
 		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(332); // 287 + 90 / 2
 	});
@@ -2252,6 +2269,7 @@ describe('BattleScene', () => {
 		phaserState.playerMarker.setDepth.mockClear();
 
 		scene.update(20, 16); // movement and AI are frozen; depth sync is not
+		scene.events.emit('postupdate');
 
 		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(289); // 244 + 90 / 2
 	});

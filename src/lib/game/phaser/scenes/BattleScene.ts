@@ -215,7 +215,9 @@ export class BattleScene extends Phaser.Scene {
 		}) as Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>> | undefined;
 		this.lastFrameTime = this.game?.loop?.now ?? this.lastFrameTime;
 		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
+		this.events?.on?.('postupdate', this.syncActorDepths, this);
 		this.events?.once?.('shutdown', () => {
+			this.events?.off?.('postupdate', this.syncActorDepths, this);
 			this.removeHudCommandListener();
 			this.removeResizeListener();
 		});
@@ -229,8 +231,6 @@ export class BattleScene extends Phaser.Scene {
 		if (!this.player || !this.payload || this.pendingResult) {
 			return;
 		}
-
-		this.syncActorDepths();
 
 		if (this.updateFleeChannel(time)) {
 			return;
