@@ -11,7 +11,7 @@ import {
 	type QuestRewardGrant
 } from '$lib/game/core/quests';
 import type { Direction } from '$lib/game/core/types';
-import type { SaveState } from '$lib/game/save/save-state';
+import { normalizePlayerPosition, type SaveState } from '$lib/game/save/save-state';
 
 export const battleEnemyCountRange = { min: 1, max: 10 } as const;
 
@@ -155,15 +155,26 @@ export function applyBattleResultToSaveState(
 	saveState: SaveState,
 	result: BattleResult
 ): BattleApplication {
-	if (result.outcome === 'defeat') {
-		return applyBattleDefeat(saveState, result);
-	}
+	const application =
+		result.outcome === 'defeat'
+			? applyBattleDefeat(saveState, result)
+			: result.outcome === 'fled'
+				? applyBattleFled(saveState, result)
+				: applyBattleVictory(saveState, result);
 
-	if (result.outcome === 'fled') {
-		return applyBattleFled(saveState, result);
-	}
-
-	return applyBattleVictory(saveState, result);
+	// Every outcome's final resting point is validated in one place: a blocked
+	// return (or respawn) would strand Grik inside collision on load.
+	return {
+		...application,
+		saveState: {
+			...application.saveState,
+			player: normalizePlayerPosition(
+				application.saveState.mapId,
+				application.saveState.player,
+				application.saveState.quests
+			)
+		}
+	};
 }
 
 function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleApplication {

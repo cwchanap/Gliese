@@ -2,9 +2,18 @@ import { describe, expect, it } from 'vitest';
 
 import { enemies } from '$lib/game/content/enemies';
 import { shrineOfAuroraInteriorMap } from '$lib/game/content/maps';
+import { overworldMap } from '$lib/game/content/maps/overworld/map';
+import { anchorPoint } from '$lib/game/content/maps/overworld/world';
 import { applyExperienceGain } from '$lib/game/core/progression';
-import { getStoryProgress } from '$lib/game/core/quests';
+import { getStoryProgress, type QuestState } from '$lib/game/core/quests';
 import { questStateAt } from '$lib/game/core/quests.fixtures';
+import {
+	buildMapNavigationObstacles,
+	resolveMapNavigationGrid
+} from '$lib/game/content/maps/navigation';
+import { isPositionWalkable } from '$lib/game/core/navigation';
+import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
+import { applyStoryGates } from '$lib/game/core/story-gates';
 import { createNewSaveState, type SaveState } from '$lib/game/save/save-state';
 import {
 	applyBattleResultToSaveState,
@@ -145,8 +154,10 @@ describe('battle contracts', () => {
 
 		expect(application.saveState.player).toMatchObject({
 			...expected,
-			x: 1_200,
-			y: 5_440,
+			// The input return point is blocked terrain, so final normalization nudges
+			// it to the nearest walkable spot before it is saved.
+			x: 1_144,
+			y: 5_352,
 			facing: 'down'
 		});
 		expect(application.saveState.wallet.coins).toBe(saveState.wallet.coins + 18);
@@ -342,6 +353,79 @@ describe('battle contracts', () => {
 			level: saveState.player.level,
 			xp: saveState.player.xp
 		});
+	});
+
+	// Walkability as normalizePlayerPosition sees it: the story-gated overworld
+	// grid and obstacles at the save's own story progress.
+	function isOverworldRestingWalkable(point: { x: number; y: number }, quests: QuestState) {
+		const map = applyStoryGates(overworldMap, getStoryProgress(quests));
+		return isPositionWalkable(
+			resolveMapNavigationGrid(map),
+			buildMapNavigationObstacles(map, { includeInteractableNpcs: false }),
+			point,
+			PLAYER_COLLISION_RADIUS,
+			'resting-position'
+		);
+	}
+
+	function mistfenFledResult(
+		encounterId: string,
+		at: { x: number; y: number },
+		facing: 'up' | 'right'
+	): BattleResult {
+		return {
+			outcome: 'fled',
+			sourceMapId: 'overworld',
+			sourceEncounterId: encounterId,
+			sourceEnemyId: 'mist-toad',
+			returnPosition: { mapId: 'overworld', x: at.x, y: at.y, facing },
+			finalHeroHp: 8,
+			inventory: createNewSaveState().inventory,
+			defeatedUnits: []
+		};
+	}
+
+	it('keeps a walkable Mistfen return position identical when applying a fled result', () => {
+		const saveState = {
+			...createNewSaveState(),
+			mapId: 'overworld',
+			quests: questStateAt('gather-moonmoss')
+		};
+		const reeds = anchorPoint('mistfen-toads-reeds');
+		expect(isOverworldRestingWalkable(reeds, saveState.quests)).toBe(true);
+
+		const application = applyBattleResultToSaveState(
+			saveState,
+			mistfenFledResult('mistfen-toads-reeds', reeds, 'right')
+		);
+
+		expect(application.saveState.player).toMatchObject({
+			x: reeds.x,
+			y: reeds.y,
+			facing: 'right'
+		});
+	});
+
+	it('nudges a blocked Mistfen-area return to walkable ground when applying a fled result', () => {
+		const saveState = {
+			...createNewSaveState(),
+			mapId: 'overworld',
+			quests: questStateAt('gather-moonmoss')
+		};
+		// The old enemy-home offset: two tiles south of the pool pack, inside the
+		// pond basin, which the story-gated Mistfen geometry blocks.
+		const pool = anchorPoint('mistfen-toads-pool');
+		const stranded = { x: pool.x, y: pool.y + 64 };
+		expect(isOverworldRestingWalkable(stranded, saveState.quests)).toBe(false);
+
+		const application = applyBattleResultToSaveState(
+			saveState,
+			mistfenFledResult('mistfen-toads-pool', stranded, 'up')
+		);
+
+		const { x, y } = application.saveState.player;
+		expect(isOverworldRestingWalkable({ x, y }, saveState.quests)).toBe(true);
+		expect(Math.hypot(x - stranded.x, y - stranded.y)).toBeLessThanOrEqual(128);
 	});
 
 	it('applies a defeat result by sending the hero to the Shrine at 1 HP without rewards', () => {

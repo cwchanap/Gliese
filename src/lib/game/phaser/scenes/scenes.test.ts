@@ -7309,8 +7309,8 @@ describe('WorldScene', () => {
 					sourceEnemyId: 'forest-wolf',
 					returnPosition: {
 						mapId: 'overworld',
-						x: wolvesMouth.x,
-						y: wolvesMouth.y + 64,
+						x: wolvesMouthApproach.x,
+						y: wolvesMouthApproach.y,
 						facing: 'down'
 					},
 					enemyCount: 2,
@@ -7320,6 +7320,37 @@ describe('WorldScene', () => {
 		} finally {
 			randomSpy.mockRestore();
 		}
+	});
+
+	it('returns Grik to his own position and facing when a battle starts', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const save = createNewSaveState();
+
+		scene.create({
+			saveState: {
+				...save,
+				mapId: 'overworld',
+				player: { ...save.player, facing: 'left' }
+			}
+		});
+		Object.assign(phaserState.playerMarker, wolvesMouthApproach);
+
+		scene.update(0, 16);
+
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({
+				returnPosition: {
+					mapId: 'overworld',
+					x: wolvesMouthApproach.x,
+					y: wolvesMouthApproach.y,
+					facing: 'left'
+				}
+			})
+		);
 	});
 
 	it('does not start BattleScene for cleared or already defeated encounters', async () => {
@@ -7382,7 +7413,14 @@ describe('WorldScene', () => {
 					sourceMapId: 'overworld',
 					sourceEncounterId: 'wildwood-wolves-mouth',
 					sourceEnemyId: 'forest-wolf',
-					returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
+					// The new contract: Grik returns to where he stood when the fight
+					// started (just east of the pack), not an enemy-home offset.
+					returnPosition: {
+						mapId: 'overworld',
+						x: wolvesMouthApproach.x,
+						y: wolvesMouthApproach.y,
+						facing: 'down'
+					},
 					finalHeroHp: 16,
 					inventory: saveState.inventory,
 					defeatedUnits: [
@@ -7412,7 +7450,12 @@ describe('WorldScene', () => {
 				scene as unknown as { buildSaveState: () => ReturnType<typeof createNewSaveState> }
 			).buildSaveState();
 			expect(builtSave.flags.clearedEncounters).toEqual(['wildwood-wolves-mouth']);
-			expect(builtSave.player).toMatchObject({ x: 4_928, y: 1_024, facing: 'down', hp: 20 });
+			expect(builtSave.player).toMatchObject({
+				x: wolvesMouthApproach.x,
+				y: wolvesMouthApproach.y,
+				facing: 'down',
+				hp: 20
+			});
 			expect(builtSave.player.xp).toBe(8);
 			expect(builtSave.wallet.coins).toBe(8);
 			expect(phaserState.enemyMarker.setVisible).toHaveBeenCalledWith(false);
@@ -7423,9 +7466,13 @@ describe('WorldScene', () => {
 			expect(envelope.slots[0]?.kind).toBe('autosave');
 			expect(envelope.slots[0]?.state).toMatchObject({
 				flags: expect.objectContaining({ clearedEncounters: ['wildwood-wolves-mouth'] }),
-				player: expect.objectContaining({ x: 4_928, y: 1_024, hp: 20 }),
+				player: expect.objectContaining({
+					x: wolvesMouthApproach.x,
+					y: wolvesMouthApproach.y,
+					hp: 20
+				}),
 				mapExploration: expect.objectContaining({
-					overworld: expect.arrayContaining(['38,7'])
+					overworld: expect.arrayContaining(['52,53'])
 				}),
 				wallet: { coins: 8 }
 			});
