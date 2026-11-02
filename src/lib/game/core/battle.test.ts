@@ -2,21 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import { enemies } from '$lib/game/content/enemies';
 import { shrineOfAuroraInteriorMap } from '$lib/game/content/maps';
-import { overworldMap } from '$lib/game/content/maps/overworld/map';
 import { anchorPoint } from '$lib/game/content/maps/overworld/world';
 import { applyExperienceGain } from '$lib/game/core/progression';
 import { createEmptyEquipment } from '$lib/game/core/equipment';
 import { deriveEffectiveStats, getHeroBaseStats } from '$lib/game/core/stats';
-import { getStoryProgress, type QuestState } from '$lib/game/core/quests';
+import { getStoryProgress } from '$lib/game/core/quests';
 import { questStateAt } from '$lib/game/core/quests.fixtures';
 import {
-	buildMapNavigationObstacles,
-	resolveMapNavigationGrid
-} from '$lib/game/content/maps/navigation';
-import { isPositionWalkable } from '$lib/game/core/navigation';
-import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
-import { applyStoryGates } from '$lib/game/core/story-gates';
-import { createNewSaveState, type SaveState } from '$lib/game/save/save-state';
+	createNewSaveState,
+	normalizePlayerPosition,
+	type SaveState
+} from '$lib/game/save/save-state';
 import {
 	applyBattleResultToSaveState,
 	buildBattleEnemyUnits,
@@ -129,7 +125,6 @@ describe('battle contracts', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'raid-soldiers-lane',
 			sourceEnemyId: 'human-soldier',
-			returnPosition: { mapId: 'overworld', x: 1_200, y: 5_440, facing: 'down' },
 			finalHeroHp: 14,
 			inventory: saveState.inventory,
 			defeatedUnits: soldierUnits(count)
@@ -137,7 +132,13 @@ describe('battle contracts', () => {
 	}
 
 	function raidSaveState(): SaveState {
-		return { ...createNewSaveState(), quests: questStateAt('repel-the-soldiers') };
+		const save = createNewSaveState();
+		return {
+			...save,
+			mapId: 'overworld',
+			player: { ...save.player, x: 1_200, y: 5_440, facing: 'down' },
+			quests: questStateAt('repel-the-soldiers')
+		};
 	}
 
 	it('applies a victory with per-unit rewards, drops, quest progress, and one cleared marker', () => {
@@ -162,10 +163,16 @@ describe('battle contracts', () => {
 		// The input return point is blocked raid terrain, so final normalization
 		// nudges it to the nearest walkable spot (checked against the resulting
 		// story-gated geometry, like the fled-result regressions below).
-		expect(isOverworldRestingWalkable({ x: 1_200, y: 5_440 }, application.saveState.quests)).toBe(
-			false
-		);
-		expect(isOverworldRestingWalkable({ x, y }, application.saveState.quests)).toBe(true);
+		expect(
+			normalizePlayerPosition('overworld', saveState.player, application.saveState.quests)
+		).not.toEqual(saveState.player);
+		expect(
+			normalizePlayerPosition(
+				'overworld',
+				application.saveState.player,
+				application.saveState.quests
+			)
+		).toEqual(application.saveState.player);
 		expect(Math.hypot(x - 1_200, y - 5_440)).toBeLessThanOrEqual(128);
 		expect(application.saveState.wallet.coins).toBe(saveState.wallet.coins + 18);
 		expect(application.saveState.flags.clearedEncounters).toEqual(['raid-soldiers-lane']);
@@ -237,7 +244,6 @@ describe('battle contracts', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'sun-crest-captain',
 			sourceEnemyId: 'sun-crest-captain',
-			returnPosition: { mapId: 'overworld', x: 1_504, y: 4_860, facing: 'up' },
 			finalHeroHp: 0,
 			inventory: saveState.inventory,
 			defeatedUnits: []
@@ -262,12 +268,6 @@ describe('battle contracts', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'raid-soldiers-lane',
 			sourceEnemyId: 'human-soldier',
-			returnPosition: {
-				mapId: 'overworld',
-				x: saveState.player.x,
-				y: saveState.player.y,
-				facing: 'up'
-			},
 			finalHeroHp: 0,
 			inventory: saveState.inventory,
 			defeatedUnits: []
@@ -291,7 +291,6 @@ describe('battle contracts', () => {
 			sourceMapId: 'ruins-threshold',
 			sourceEncounterId: 'threshold-crawlers',
 			sourceEnemyId: 'tunnel-crawler',
-			returnPosition: { mapId: 'ruins-threshold', x: 512, y: 3_200, facing: 'right' },
 			finalHeroHp: 0,
 			inventory: saveState.inventory,
 			defeatedUnits: []
@@ -324,7 +323,6 @@ describe('battle contracts', () => {
 			sourceMapId: 'ruins-threshold',
 			sourceEncounterId: 'threshold-crawlers',
 			sourceEnemyId: 'tunnel-crawler',
-			returnPosition: { mapId: 'ruins-threshold', x: 512, y: 3_200, facing: 'right' },
 			finalHeroHp: 6,
 			inventory: saveState.inventory,
 			defeatedUnits: [
@@ -362,48 +360,35 @@ describe('battle contracts', () => {
 		});
 	});
 
-	// Walkability as normalizePlayerPosition sees it: the story-gated overworld
-	// grid and obstacles at the save's own story progress.
-	function isOverworldRestingWalkable(point: { x: number; y: number }, quests: QuestState) {
-		const map = applyStoryGates(overworldMap, getStoryProgress(quests));
-		return isPositionWalkable(
-			resolveMapNavigationGrid(map),
-			buildMapNavigationObstacles(map, { includeInteractableNpcs: false }),
-			point,
-			PLAYER_COLLISION_RADIUS,
-			'resting-position'
-		);
-	}
-
-	function mistfenFledResult(
-		encounterId: string,
-		at: { x: number; y: number },
-		facing: 'up' | 'right'
-	): BattleResult {
+	function mistfenFledResult(encounterId: string): BattleResult {
 		return {
 			outcome: 'fled',
 			sourceMapId: 'overworld',
 			sourceEncounterId: encounterId,
 			sourceEnemyId: 'mist-toad',
-			returnPosition: { mapId: 'overworld', x: at.x, y: at.y, facing },
 			finalHeroHp: 8,
 			inventory: createNewSaveState().inventory,
 			defeatedUnits: []
 		};
 	}
 
+	// Walkability as normalizePlayerPosition sees it: the story-gated overworld
+	// grid and obstacles at the save's own story progress.
 	it('keeps a walkable Mistfen return position identical when applying a fled result', () => {
+		const reeds = anchorPoint('mistfen-toads-reeds');
 		const saveState = {
 			...createNewSaveState(),
 			mapId: 'overworld',
+			player: { ...createNewSaveState().player, ...reeds, facing: 'right' as const },
 			quests: questStateAt('gather-moonmoss')
 		};
-		const reeds = anchorPoint('mistfen-toads-reeds');
-		expect(isOverworldRestingWalkable(reeds, saveState.quests)).toBe(true);
+		expect(normalizePlayerPosition('overworld', saveState.player, saveState.quests)).toEqual(
+			saveState.player
+		);
 
 		const application = applyBattleResultToSaveState(
 			saveState,
-			mistfenFledResult('mistfen-toads-reeds', reeds, 'right')
+			mistfenFledResult('mistfen-toads-reeds')
 		);
 
 		expect(application.saveState.player).toMatchObject({
@@ -413,25 +398,57 @@ describe('battle contracts', () => {
 		});
 	});
 
+	it('returns to the position captured in the battle-start save', () => {
+		const save = createNewSaveState();
+		const reeds = anchorPoint('mistfen-toads-reeds');
+		const saveState = {
+			...save,
+			mapId: 'overworld',
+			player: { ...save.player, ...reeds, facing: 'right' as const },
+			quests: questStateAt('gather-moonmoss')
+		};
+		const result = {
+			outcome: 'fled',
+			sourceMapId: 'overworld',
+			sourceEncounterId: 'mistfen-toads-reeds',
+			sourceEnemyId: 'mist-toad',
+			finalHeroHp: 8,
+			inventory: save.inventory,
+			defeatedUnits: []
+		} as BattleResult;
+
+		const application = applyBattleResultToSaveState(saveState, result);
+		expect(application.saveState.player).toMatchObject({ ...reeds, facing: 'right', hp: 8 });
+	});
+
 	it('nudges a blocked Mistfen-area return to walkable ground when applying a fled result', () => {
+		const pool = anchorPoint('mistfen-toads-pool');
+		const stranded = { x: pool.x, y: pool.y + 64 };
 		const saveState = {
 			...createNewSaveState(),
 			mapId: 'overworld',
+			player: { ...createNewSaveState().player, ...stranded, facing: 'up' as const },
 			quests: questStateAt('gather-moonmoss')
 		};
 		// The old enemy-home offset: two tiles south of the pool pack, inside the
 		// pond basin, which the story-gated Mistfen geometry blocks.
-		const pool = anchorPoint('mistfen-toads-pool');
-		const stranded = { x: pool.x, y: pool.y + 64 };
-		expect(isOverworldRestingWalkable(stranded, saveState.quests)).toBe(false);
+		expect(normalizePlayerPosition('overworld', saveState.player, saveState.quests)).not.toEqual(
+			saveState.player
+		);
 
 		const application = applyBattleResultToSaveState(
 			saveState,
-			mistfenFledResult('mistfen-toads-pool', stranded, 'up')
+			mistfenFledResult('mistfen-toads-pool')
 		);
 
 		const { x, y } = application.saveState.player;
-		expect(isOverworldRestingWalkable({ x, y }, saveState.quests)).toBe(true);
+		expect(
+			normalizePlayerPosition(
+				'overworld',
+				application.saveState.player,
+				application.saveState.quests
+			)
+		).toEqual(application.saveState.player);
 		expect(Math.hypot(x - stranded.x, y - stranded.y)).toBeLessThanOrEqual(128);
 	});
 
@@ -452,7 +469,6 @@ describe('battle contracts', () => {
 			sourceMapId: 'ruins-threshold',
 			sourceEncounterId: 'threshold-crawlers',
 			sourceEnemyId: 'tunnel-crawler',
-			returnPosition: { mapId: 'ruins-threshold', x: 512, y: 3_200, facing: 'right' },
 			finalHeroHp: 0,
 			inventory: saveState.inventory,
 			defeatedUnits: []
@@ -497,7 +513,6 @@ describe('battle contracts', () => {
 			sourceMapId: 'ruins-threshold',
 			sourceEncounterId: 'threshold-crawlers',
 			sourceEnemyId: 'tunnel-crawler',
-			returnPosition: { mapId: 'ruins-threshold', x: 512, y: 3_200, facing: 'right' },
 			finalHeroHp: 0,
 			inventory: saveState.inventory,
 			defeatedUnits: []

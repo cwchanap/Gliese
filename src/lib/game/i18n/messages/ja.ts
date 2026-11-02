@@ -207,6 +207,9 @@ export const ja = {
 		battleVictory: 'バトル勝利',
 		battleDefeat: 'バトル敗北',
 		battleReturned: 'バトルから帰還',
+		fledLeaveAndReturn: '逃走しました。再戦するには敵の縄張りを離れ、戻ってください。',
+		fledEnterLeaveAndReturn:
+			'逃走しました。再戦するには敵に近づき、縄張りを離れてから戻ってください。',
 		battleLocked: 'バトル中は実行できません',
 		noHealCharges: '回復回数がありません',
 		itemCannotBeUsed: 'そのアイテムは使えません',

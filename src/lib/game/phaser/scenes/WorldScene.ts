@@ -418,6 +418,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private clearedEncounterIds = new Set<string>();
 	private clearedEncounterUnitCounts: Record<string, number> = {};
+	private battleReturnTransitions = new Set<string>();
 	private collisionDebugGraphics?: Phaser.GameObjects.Graphics;
 	private collectedPickupIds = new Set<string>();
 	private seenDiscoveryIds = new Set<string>();
@@ -446,8 +447,10 @@ export class WorldScene extends Phaser.Scene {
 	private pickupMarkers = new Map<string, PickupMarker>();
 	private player?: ActorMarker;
 	private recentlyFled: RecentlyFledEncounter | null = null;
-	/** Whether the player has been seen outside the fled pack's acquisition zone. */
-	private fledPackExited = false;
+	private fledGraceRemainingMs = 0;
+	private fledPackHasBounds = false;
+	/** Progress through entering and leaving the fled pack's acquisition zone. */
+	private fledPackZone: 'awaiting-entry' | 'inside' | 'exited' = 'awaiting-entry';
 	private playerAttackCooldownUntil = 0;
 	private playerInvulnerableUntil = 0;
 	private playerProgress: ProgressionState = {
@@ -584,7 +587,8 @@ export class WorldScene extends Phaser.Scene {
 		this.playerInvulnerableUntil = 0;
 		this.playerAttackCooldownUntil = 0;
 		this.recentlyFled = data.battleResult?.outcome === 'fled' ? (data.recentlyFled ?? null) : null;
-		this.fledPackExited = false;
+		this.fledGraceRemainingMs = this.recentlyFled ? WorldScene.recentlyFledGraceMs : 0;
+		this.fledPackZone = 'awaiting-entry';
 		this.simulationPaused = false;
 		this.storyEffectRunning = false;
 		this.storyRefreshPending = false;
@@ -631,6 +635,22 @@ export class WorldScene extends Phaser.Scene {
 			heroAnimation.clips.idle.frames[0]
 		) as ActorMarker;
 		this.player.setDisplaySize(heroAnimation.displaySize.width, heroAnimation.displaySize.height);
+		this.battleReturnTransitions = new Set(
+			battleApplication
+				? map.transitions
+						.filter(
+							(transition) =>
+								Phaser.Math.Distance.Between(
+									this.player!.x,
+									this.player!.y,
+									transition.x,
+									transition.y
+								) <=
+								WorldScene.playerRadius + WorldScene.transitionRadius
+						)
+						.map((transition) => transition.id)
+				: []
+		);
 		if (this.playerProgress.hp === 0) {
 			this.defeatHero();
 		} else {
@@ -638,6 +658,17 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		this.setupEncounters(map);
+		const fledEnemy = this.enemies.find((enemy) => enemy.id === this.recentlyFled?.encounterId);
+		const fledBounds = fledEnemy && this.findLeashBoundsForEnemy(map, fledEnemy);
+		this.fledPackHasBounds = Boolean(fledBounds);
+		if (fledEnemy && fledBounds) {
+			const { playerWithinLeash, canAcquire } = this.getEnemyAcquisition(
+				this.player,
+				fledEnemy,
+				fledBounds
+			);
+			if (playerWithinLeash && canAcquire) this.fledPackZone = 'inside';
+		}
 		this.renderTransitions(map);
 		this.renderPickups(map);
 		this.renderDiscoveries(map);
@@ -727,7 +758,7 @@ export class WorldScene extends Phaser.Scene {
 			this.cameras.main.fadeIn?.(WorldScene.storyFadeMs, 0, 0, 0);
 		}
 
-		this.publishHudState(data.status ?? this.resolveInitialStatus(reason));
+		this.publishHudState(data.status ?? this.resolveInitialStatus(reason, Boolean(fledBounds)));
 	}
 
 	private getCenteredCameraBounds(width: number, height: number) {
@@ -770,6 +801,16 @@ export class WorldScene extends Phaser.Scene {
 		const dialogueFrozen = this.dialogueSession !== null;
 
 		if (!dialogueFrozen) {
+			this.fledGraceRemainingMs = Math.max(
+				0,
+				this.fledGraceRemainingMs - Math.min(Math.max(delta, 0), WorldScene.maxMovementDeltaMs)
+			);
+			if (
+				this.fledGraceRemainingMs === 0 &&
+				(!this.fledPackHasBounds || this.fledPackZone === 'exited')
+			) {
+				this.recentlyFled = null;
+			}
 			this.updateHitReactions(time);
 		}
 
@@ -832,7 +873,7 @@ export class WorldScene extends Phaser.Scene {
 				: undefined;
 
 		if (battleTarget) {
-			this.startBattle(battleTarget, time);
+			this.startBattle(battleTarget);
 			return;
 		}
 
@@ -852,8 +893,7 @@ export class WorldScene extends Phaser.Scene {
 
 		return this.enemies
 			.filter(
-				(enemy) =>
-					!enemy.defeated && !this.isFledPackProtected(enemy, time) && canReceiveHit(enemy, time)
+				(enemy) => !enemy.defeated && !this.isFledPackProtected(enemy) && canReceiveHit(enemy, time)
 			)
 			.map((enemy) => ({
 				enemy,
@@ -964,16 +1004,14 @@ export class WorldScene extends Phaser.Scene {
 		this.publishHudState(this.status('status.recoveredHp'));
 	}
 
-	private startBattle(enemy: EnemyInstance, time: number) {
+	private startBattle(enemy: EnemyInstance) {
 		if (!this.player) {
 			return;
 		}
 
-		if (this.isFledPackProtected(enemy, time)) {
-			return;
-		}
-
 		const effectiveStats = this.getEffectiveStats();
+		// Grik returns to where he stood when the fight broke out; an enemy-home
+		// offset can land inside blocking terrain (Mistfen pond, cliff bands).
 		const saveState = this.buildSaveState();
 
 		this.scene.start(BattleScene.key, {
@@ -981,14 +1019,6 @@ export class WorldScene extends Phaser.Scene {
 			sourceMapId: this.mapId,
 			sourceEncounterId: enemy.id,
 			sourceEnemyId: enemy.definition.id,
-			// Grik returns to where he stood when the fight broke out; an enemy-home
-			// offset can land inside blocking terrain (Mistfen pond, cliff bands).
-			returnPosition: {
-				mapId: this.mapId,
-				x: this.player.x,
-				y: this.player.y,
-				facing: this.facing
-			},
 			enemyCount: enemy.definition.boss ? 1 : (enemy.count ?? rollBattleEnemyCount()),
 			hero: {
 				hp: this.playerProgress.hp,
@@ -2211,10 +2241,7 @@ export class WorldScene extends Phaser.Scene {
 		return enemy.definition.moveSpeed;
 	}
 
-	private resolveEnemyMovementTarget(
-		enemy: EnemyInstance,
-		time: number
-	): { x: number; y: number } | undefined {
+	private resolveEnemyMovementTarget(enemy: EnemyInstance): { x: number; y: number } | undefined {
 		if (!this.player) {
 			return undefined;
 		}
@@ -2223,7 +2250,7 @@ export class WorldScene extends Phaser.Scene {
 		const combatBounds = this.findLeashBoundsForEnemy(map, enemy);
 
 		if (!combatBounds) {
-			if (this.isFledPackProtected(enemy, time)) {
+			if (this.isFledPackProtected(enemy)) {
 				enemy.movementMode = 'idle';
 				return undefined;
 			}
@@ -2232,40 +2259,24 @@ export class WorldScene extends Phaser.Scene {
 			return { x: this.player.x, y: this.player.y };
 		}
 
-		const distanceToPlayer = Phaser.Math.Distance.Between(
-			this.player.x,
-			this.player.y,
-			enemy.x,
-			enemy.y
+		const { playerWithinLeash, canAcquire } = this.getEnemyAcquisition(
+			this.player,
+			enemy,
+			combatBounds
 		);
-		const playerDistanceFromHome = Phaser.Math.Distance.Between(
-			this.player.x,
-			this.player.y,
-			enemy.homeX,
-			enemy.homeY
-		);
-		const playerInsideForest = this.isPointInsideMapRect(
-			this.player.x,
-			this.player.y,
-			combatBounds,
-			WorldScene.playerRadius
-		);
-		const playerWithinLeash =
-			playerInsideForest && playerDistanceFromHome <= combatBounds.leashRadius;
-		const canAcquire = distanceToPlayer <= combatBounds.aggroRadius;
 		const canContinueChase = enemy.movementMode === 'chase' && playerWithinLeash;
 
 		// The fled pack only re-engages after the player deliberately leaves its
 		// acquisition zone; observe the exit before protection skips the chase.
-		if (this.recentlyFled?.encounterId === enemy.id && !(playerWithinLeash && canAcquire)) {
-			this.fledPackExited = true;
+		if (this.recentlyFled?.encounterId === enemy.id) {
+			if (playerWithinLeash && canAcquire && this.fledPackZone !== 'exited') {
+				this.fledPackZone = 'inside';
+			} else if (!(playerWithinLeash && canAcquire) && this.fledPackZone === 'inside') {
+				this.fledPackZone = 'exited';
+			}
 		}
 
-		if (
-			playerWithinLeash &&
-			(canAcquire || canContinueChase) &&
-			!this.isFledPackProtected(enemy, time)
-		) {
+		if (playerWithinLeash && (canAcquire || canContinueChase) && !this.isFledPackProtected(enemy)) {
 			enemy.movementMode = 'chase';
 			return { x: this.player.x, y: this.player.y };
 		}
@@ -2277,6 +2288,31 @@ export class WorldScene extends Phaser.Scene {
 
 		enemy.movementMode = 'idle';
 		return undefined;
+	}
+
+	private getEnemyAcquisition(
+		player: { x: number; y: number },
+		enemy: EnemyInstance,
+		combatBounds: MapCombatBounds
+	) {
+		const playerDistanceFromHome = Phaser.Math.Distance.Between(
+			player.x,
+			player.y,
+			enemy.homeX,
+			enemy.homeY
+		);
+		const playerInsideForest = this.isPointInsideMapRect(
+			player.x,
+			player.y,
+			combatBounds,
+			WorldScene.playerRadius
+		);
+		return {
+			playerWithinLeash: playerInsideForest && playerDistanceFromHome <= combatBounds.leashRadius,
+			canAcquire:
+				Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y) <=
+				combatBounds.aggroRadius
+		};
 	}
 
 	private findCombatBoundsForEnemy(
@@ -2298,21 +2334,20 @@ export class WorldScene extends Phaser.Scene {
 	/**
 	 * A pack the player just fled stays disengaged: every pack gets the grace
 	 * window, and a bounded pack also stays protected until the player has
-	 * left its acquisition zone (`fledPackExited`, observed in
+	 * left its acquisition zone (`fledPackZone === 'exited'`, observed in
 	 * `resolveEnemyMovementTarget`). Packs without bounds have no finite
 	 * pocket to observe, so they re-engage once grace expires.
 	 */
-	private isFledPackProtected(enemy: EnemyInstance, time: number): boolean {
+	private isFledPackProtected(enemy: EnemyInstance): boolean {
 		if (!this.recentlyFled || enemy.id !== this.recentlyFled.encounterId) {
 			return false;
 		}
 
-		if (time - this.recentlyFled.fledAt < WorldScene.recentlyFledGraceMs) {
+		if (this.fledGraceRemainingMs > 0) {
 			return true;
 		}
 
-		const map = this.resolveMap(this.mapId);
-		return Boolean(this.findLeashBoundsForEnemy(map, enemy)) && !this.fledPackExited;
+		return this.fledPackHasBounds && this.fledPackZone !== 'exited';
 	}
 
 	private isPointInsideMapRect(x: number, y: number, rect: MapRect, padding = 0): boolean {
@@ -3000,8 +3035,20 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private resolveInitialStatus(reason: NonNullable<WorldSceneData['reason']>) {
-		if (reason === 'battle-result') return this.status('status.battleReturned');
+	private resolveInitialStatus(
+		reason: NonNullable<WorldSceneData['reason']>,
+		fledBounded: boolean
+	) {
+		if (reason === 'battle-result') {
+			if (fledBounded) {
+				return this.status(
+					this.fledPackZone === 'inside'
+						? 'status.fledLeaveAndReturn'
+						: 'status.fledEnterLeaveAndReturn'
+				);
+			}
+			return this.status('status.battleReturned');
+		}
 		if (reason === 'resume') return this.status('status.saveResumed');
 		if (reason === 'transition' || reason === 'story-move')
 			return this.status('status.enteredArea');
@@ -3028,10 +3075,6 @@ export class WorldScene extends Phaser.Scene {
 		const hasLivingEnemies = this.hasLivingEnemies();
 
 		for (const transition of map.transitions) {
-			if (transition.requiresClear === true && hasLivingEnemies) {
-				continue;
-			}
-
 			const distance = Phaser.Math.Distance.Between(
 				this.player.x,
 				this.player.y,
@@ -3039,13 +3082,23 @@ export class WorldScene extends Phaser.Scene {
 				transition.y
 			);
 
-			if (distance <= WorldScene.playerRadius + WorldScene.transitionRadius) {
-				this.scene.restart({
-					saveState: this.buildTransitionSaveState(transition),
-					reason: 'transition'
-				});
-				return true;
+			if (distance > WorldScene.playerRadius + WorldScene.transitionRadius) {
+				this.battleReturnTransitions.delete(transition.id);
+				continue;
 			}
+
+			if (
+				this.battleReturnTransitions.has(transition.id) ||
+				(transition.requiresClear === true && hasLivingEnemies)
+			) {
+				continue;
+			}
+
+			this.scene.restart({
+				saveState: this.buildTransitionSaveState(transition),
+				reason: 'transition'
+			});
+			return true;
 		}
 
 		return false;
@@ -3450,7 +3503,7 @@ export class WorldScene extends Phaser.Scene {
 			}
 
 			let chaseDistance = 0;
-			const movementTarget = this.resolveEnemyMovementTarget(enemy, time);
+			const movementTarget = this.resolveEnemyMovementTarget(enemy);
 
 			if (movementTarget) {
 				const distanceToTarget = Phaser.Math.Distance.Between(
@@ -3498,10 +3551,10 @@ export class WorldScene extends Phaser.Scene {
 
 			if (
 				chaseDistance > 0 &&
-				this.canEnemyAttackPlayer(enemy, time) &&
+				this.canEnemyAttackPlayer(enemy) &&
 				this.isEnemyInBattleRange(enemy)
 			) {
-				this.startBattle(enemy, time);
+				this.startBattle(enemy);
 				return;
 			}
 		}
@@ -3516,8 +3569,8 @@ export class WorldScene extends Phaser.Scene {
 		return distance <= WorldScene.playerRadius + WorldScene.enemyRadius + WorldScene.attackReach;
 	}
 
-	private canEnemyAttackPlayer(enemy: EnemyInstance, time: number): boolean {
-		if (this.isFledPackProtected(enemy, time)) {
+	private canEnemyAttackPlayer(enemy: EnemyInstance): boolean {
+		if (this.isFledPackProtected(enemy)) {
 			return false;
 		}
 

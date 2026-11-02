@@ -422,7 +422,10 @@ type ActorAnimationAsset = {
 	id: ActorAnimationId;
 	displaySize: { width: number; height: number };
 	clips: Record<ActorAnimationKey, ActorAnimationClip>;
+	groundContactY: Record<string, number>;
 };
+
+type GroundContacts = Record<ActorAnimationKey, readonly [number, number, number, number]>;
 
 const animationCellSize = 192;
 const animationFrameCount = 4;
@@ -481,11 +484,17 @@ function buildClip(actorId: ActorAnimationId, clip: ActorAnimationKey): ActorAni
 
 function buildActorAnimationAsset(
 	id: ActorAnimationId,
-	displaySize: ActorAnimationAsset['displaySize']
+	displaySize: ActorAnimationAsset['displaySize'],
+	groundContacts: GroundContacts
 ): ActorAnimationAsset {
 	return {
 		id,
 		displaySize,
+		groundContactY: Object.fromEntries(
+			actorAnimationKeys.flatMap((clip) =>
+				groundContacts[clip].map((y, index) => [`${id}${capitalizeAnimationKey(clip)}${index}`, y])
+			)
+		),
 		clips: {
 			idle: buildClip(id, 'idle'),
 			walk: buildClip(id, 'walk'),
@@ -505,14 +514,86 @@ export const animationPackAsset = {
 } as const;
 
 export const actorAnimationAssets: Record<ActorAnimationId, ActorAnimationAsset> = {
-	hero: buildActorAnimationAsset('hero', { width: 90, height: 90 }),
-	forestWolf: buildActorAnimationAsset('forestWolf', { width: 96, height: 96 }),
-	mistToad: buildActorAnimationAsset('mistToad', { width: 84, height: 84 }),
-	thornbackBoar: buildActorAnimationAsset('thornbackBoar', { width: 108, height: 108 }),
-	boarKing: buildActorAnimationAsset('boarKing', { width: 168, height: 168 }),
-	tunnelCrawler: buildActorAnimationAsset('tunnelCrawler', { width: 96, height: 96 }),
-	humanSoldier: buildActorAnimationAsset('humanSoldier', { width: 96, height: 96 }),
-	sunCrestCaptain: buildActorAnimationAsset('sunCrestCaptain', { width: 116, height: 116 })
+	hero: buildActorAnimationAsset(
+		'hero',
+		{ width: 90, height: 90 },
+		{
+			idle: [187, 187, 187, 187],
+			walk: [184, 184, 185, 184],
+			attack: [180, 180, 180, 180],
+			dead: [167, 169, 163, 163]
+		}
+	),
+	forestWolf: buildActorAnimationAsset(
+		'forestWolf',
+		{ width: 96, height: 96 },
+		{
+			idle: [188, 188, 188, 188],
+			walk: [183, 183, 183, 183],
+			attack: [180, 180, 159, 184],
+			dead: [153, 153, 154, 158]
+		}
+	),
+	mistToad: buildActorAnimationAsset(
+		'mistToad',
+		{ width: 84, height: 84 },
+		{
+			idle: [186, 186, 186, 186],
+			walk: [187, 187, 187, 185],
+			attack: [186, 186, 185, 183],
+			dead: [183, 181, 179, 179]
+		}
+	),
+	thornbackBoar: buildActorAnimationAsset(
+		'thornbackBoar',
+		{ width: 108, height: 108 },
+		{
+			idle: [188, 188, 188, 188],
+			walk: [180, 180, 180, 180],
+			attack: [173, 173, 178, 176],
+			dead: [170, 166, 165, 162]
+		}
+	),
+	boarKing: buildActorAnimationAsset(
+		'boarKing',
+		{ width: 168, height: 168 },
+		{
+			idle: [188, 188, 188, 188],
+			walk: [185, 181, 185, 184],
+			attack: [185, 186, 183, 183],
+			dead: [172, 168, 168, 167]
+		}
+	),
+	tunnelCrawler: buildActorAnimationAsset(
+		'tunnelCrawler',
+		{ width: 96, height: 96 },
+		{
+			idle: [176, 180, 180, 178],
+			walk: [166, 173, 172, 175],
+			attack: [172, 170, 169, 174],
+			dead: [168, 169, 167, 167]
+		}
+	),
+	humanSoldier: buildActorAnimationAsset(
+		'humanSoldier',
+		{ width: 96, height: 96 },
+		{
+			idle: [188, 188, 188, 188],
+			walk: [186, 186, 186, 186],
+			attack: [173, 173, 173, 173],
+			dead: [163, 162, 160, 163]
+		}
+	),
+	sunCrestCaptain: buildActorAnimationAsset(
+		'sunCrestCaptain',
+		{ width: 116, height: 116 },
+		{
+			idle: [186, 186, 186, 187],
+			walk: [181, 181, 182, 181],
+			attack: [187, 187, 187, 187],
+			dead: [176, 170, 170, 164]
+		}
+	)
 };
 
 const enemyActorIds: Record<string, ActorAnimationId> = {

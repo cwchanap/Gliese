@@ -5,6 +5,7 @@ import {
 	continueFromTitle,
 	readSlotEnvelope,
 	saveThroughSaveScreen,
+	seedSaveSlots,
 	startNewRunFromTitle
 } from './helpers/game';
 import {
@@ -34,6 +35,8 @@ import {
 	layoutRectContainsPoint
 } from '../../src/lib/game/content/maps/layouts/layout-rects';
 import { VILLAGE_INTERIOR_LAYOUTS } from '../../src/lib/game/content/maps/layouts/village-interiors-v2';
+import { anchorPoint } from '../../src/lib/game/content/maps/overworld/world';
+import { questStateAt } from '../../src/lib/game/core/quests.fixtures';
 
 type HudStateSnapshot = {
 	ready?: boolean;
@@ -11704,6 +11707,92 @@ test('encounter opens battle scene and returns through battle summary', async ({
 	await battleSummary.getByRole('button', { name: /continue/i }).click();
 	await expect(battleSummary).toHaveCount(0);
 	await expect(fieldStatus(page)).toContainText('Returned from battle');
+});
+
+test('fleeing the boar king requires leaving and returning before re-engagement', async ({
+	page
+}) => {
+	test.setTimeout(45_000);
+	const home = anchorPoint('silverpine-boar-king');
+	const save = {
+		...createSaveFixture({
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: home.x,
+				y: home.y + 60,
+				facing: 'up'
+			},
+			clearedEncounters: ['silverpine-wolves-falls', 'silverpine-wolves-terrace']
+		}),
+		quests: questStateAt('defeat-boar-king')
+	};
+	await seedSaveSlots(page, [{ state: save }]);
+	await page.addInitScript(() => {
+		localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		);
+		window.addEventListener('gliese:player-movement-diagnostic', (event) => {
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic = (
+				event as CustomEvent<PlayerMovementDiagnostic>
+			).detail;
+		});
+	});
+	await page.goto('/?movementDiagnostics=on');
+	const battle = page.getByRole('region', { name: 'Battle' });
+	await expect(battle).toBeVisible({ timeout: 15_000 });
+	await page.keyboard.down('ArrowDown');
+	await battle.getByRole('button', { name: 'Flee' }).click();
+	await expect(fieldStatus(page)).toContainText(/leave.+return/i, { timeout: 10_000 });
+	await page.keyboard.up('ArrowDown');
+	await page.waitForTimeout(5_500);
+	await expect(fieldStatus(page)).toContainText(/leave.+return/i);
+	await expect(battle).toHaveCount(0);
+
+	await page.evaluate((targetY) => {
+		function stopAtLane(event: Event) {
+			const movement = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
+			if (movement.resolvedPosition.y > targetY) return;
+			window.removeEventListener('gliese:player-movement-diagnostic', stopAtLane);
+			window.dispatchEvent(
+				new KeyboardEvent('keyup', {
+					key: 'ArrowUp',
+					code: 'ArrowUp',
+					keyCode: 38,
+					which: 38,
+					bubbles: true
+				})
+			);
+		}
+		window.addEventListener('gliese:player-movement-diagnostic', stopAtLane);
+	}, home.y + 16);
+	await page.keyboard.down('ArrowUp');
+	await page.waitForFunction(
+		(y) =>
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic?.resolvedPosition.y !==
+				undefined &&
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic!.resolvedPosition.y <= y + 16,
+		home.y,
+		{ timeout: 5_000 }
+	);
+	await page.keyboard.up('ArrowUp');
+	await page.keyboard.down('ArrowLeft');
+	await page.waitForFunction(
+		(x) =>
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic?.resolvedPosition.x !==
+				undefined &&
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic!.resolvedPosition.x <= x - 220,
+		home.x,
+		{ timeout: 5_000 }
+	);
+	await page.keyboard.up('ArrowLeft');
+	await expect(battle).toHaveCount(0);
+	await page.keyboard.down('ArrowRight');
+	await expect(battle.getByRole('button', { name: /Boar King/i })).toBeVisible({ timeout: 8_000 });
+	await page.keyboard.up('ArrowRight');
 });
 
 test('mobile HUD stacks without overlapping controls', async ({ page }) => {
