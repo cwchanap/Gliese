@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import sharp from 'sharp';
 
 import {
 	actorAnimationAssets,
@@ -325,6 +326,41 @@ describe('animation pack metadata', () => {
 							h: 192
 						})
 					);
+					expect(actor.groundContactY[frameName]).toBeGreaterThan(0);
+					expect(actor.groundContactY[frameName]).toBeLessThanOrEqual(
+						animationPackAsset.cellHeight
+					);
+				}
+			}
+		}
+	});
+
+	it('keeps dust, weapons, and mandibles below the contact anchor out of actor depth', () => {
+		expect(actorAnimationAssets.forestWolf.groundContactY.forestWolfAttack2).toBe(159);
+		expect(actorAnimationAssets.boarKing.groundContactY.boarKingAttack2).toBe(183);
+		expect(actorAnimationAssets.hero.groundContactY.heroDead2).toBe(163);
+		expect(actorAnimationAssets.tunnelCrawler.groundContactY.tunnelCrawlerIdle0).toBe(176);
+		expect(actorAnimationAssets.tunnelCrawler.groundContactY.tunnelCrawlerAttack0).toBe(172);
+	});
+
+	it('places every ground-contact line on visible artwork in its frame', async () => {
+		const { data, info } = await sharp(`public${animationPackAsset.path}`)
+			.ensureAlpha()
+			.raw()
+			.toBuffer({ resolveWithObject: true });
+
+		for (const actorId of requiredActors) {
+			const actor = actorAnimationAssets[actorId];
+			expect(Object.keys(actor.groundContactY)).toHaveLength(16);
+			for (const clipName of requiredClips) {
+				for (const frameName of actor.clips[clipName].frames) {
+					const frame = animationPackAsset.frames[frameName];
+					const y = frame.y + actor.groundContactY[frameName]! - 1;
+					const alphaAtContact = Array.from(
+						{ length: frame.w },
+						(_, x) => data[(y * info.width + frame.x + x) * info.channels + 3]
+					);
+					expect(alphaAtContact.some((alpha) => alpha !== undefined && alpha > 128)).toBe(true);
 				}
 			}
 		}

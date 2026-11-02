@@ -207,6 +207,8 @@ export const zhHant = {
 		battleVictory: '戰鬥勝利',
 		battleDefeat: '戰鬥敗北',
 		battleReturned: '已從戰鬥返回',
+		fledLeaveAndReturn: '已逃離戰鬥。離開敵人的範圍後再返回，即可重新交戰。',
+		fledEnterLeaveAndReturn: '已逃離戰鬥。先靠近敵人，再離開其範圍並返回，即可重新交戰。',
 		battleLocked: '戰鬥中無法執行',
 		noHealCharges: '治療次數已用盡',
 		itemCannotBeUsed: '此道具無法使用',

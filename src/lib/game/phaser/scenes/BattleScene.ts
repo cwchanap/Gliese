@@ -9,6 +9,7 @@ import {
 	getActorAnimationAsset,
 	getEnemyActorId,
 	getEnemyPlateArtPath,
+	type ActorAnimationId,
 	type ActorAnimationKey
 } from '$lib/game/content/assets';
 import { getItem } from '$lib/game/content/items';
@@ -75,6 +76,7 @@ type ActorMarker = {
 	x: number;
 	y: number;
 	displayHeight: number;
+	frame: { name: string | number };
 	clearTint: () => unknown;
 	setDepth: (depth: number) => unknown;
 	setDisplaySize: (width: number, height: number) => unknown;
@@ -136,8 +138,10 @@ export class BattleScene extends Phaser.Scene {
 	private static readonly heroMoveSpeed = 140;
 	private static readonly bossPhaseTwoSpeedMultiplier = 1.5;
 	private static readonly enemyHealthBarOffsetY = 34;
-	/** Tallest authored battle actor (boar king); drives the fixed overlay depth. */
-	private static readonly maxActorDisplayHeight = 168;
+	/** Tallest authored battle actor; drives the fixed overlay depth. */
+	private static readonly maxActorDisplayHeight = Math.max(
+		...Object.values(actorAnimationAssets).map((asset) => asset.displaySize.height)
+	);
 	/** Fixed overlay depth above the deepest feet possible in the 504 px arena. */
 	private static readonly overlayDepth =
 		BattleScene.arena.height + BattleScene.maxActorDisplayHeight / 2;
@@ -436,18 +440,28 @@ export class BattleScene extends Phaser.Scene {
 	}
 
 	/**
-	 * Sorts actors by displayed foot (y + displayHeight / 2) every frame, so taller
-	 * actors (boar king) overlap the hero naturally — including tweened lunge Y.
+	 * Sorts actors at their current frame's calibrated ground-contact point, so
+	 * actors overlap naturally — including animation changes and tweened lunge Y.
 	 */
 	private syncActorDepths() {
 		if (!this.player) {
 			return;
 		}
 
-		this.player.setDepth(this.player.y + this.player.displayHeight / 2);
+		const setActorDepth = (marker: ActorMarker, actorId: ActorAnimationId) => {
+			const animation = getActorAnimationAsset(actorId);
+			const groundY =
+				animation.groundContactY[String(marker.frame.name)] ??
+				animation.groundContactY[animation.clips.idle.frames[0]!];
+			marker.setDepth(
+				marker.y + marker.displayHeight * (groundY / animationPackAsset.cellHeight - 0.5)
+			);
+		};
+
+		setActorDepth(this.player, 'hero');
 
 		for (const enemy of this.enemies) {
-			enemy.marker.setDepth(enemy.marker.y + enemy.marker.displayHeight / 2);
+			setActorDepth(enemy.marker, getEnemyActorId(enemy.enemyId));
 		}
 	}
 
@@ -679,7 +693,6 @@ export class BattleScene extends Phaser.Scene {
 			sourceMapId: this.payload.sourceMapId,
 			sourceEncounterId: this.payload.sourceEncounterId,
 			sourceEnemyId: this.payload.sourceEnemyId,
-			returnPosition: this.payload.returnPosition,
 			finalHeroHp: this.hero.hp,
 			inventory: this.inventory,
 			defeatedUnits: outcome === 'victory' ? this.defeatedUnits : []
@@ -693,8 +706,7 @@ export class BattleScene extends Phaser.Scene {
 				reason: 'battle-result',
 				battleResult: this.pendingResult,
 				recentlyFled: {
-					encounterId: this.payload.sourceEncounterId,
-					fledAt: this.lastFrameTime
+					encounterId: this.payload.sourceEncounterId
 				}
 			});
 			return;
@@ -1304,7 +1316,6 @@ function isBattleStartPayload(payload: unknown): payload is BattleStartPayload {
 		typeof candidate.sourceEncounterId === 'string' &&
 		typeof candidate.sourceEnemyId === 'string' &&
 		typeof candidate.enemyCount === 'number' &&
-		Boolean(candidate.returnPosition) &&
 		Boolean(candidate.hero) &&
 		typeof candidate.hero?.hp === 'number' &&
 		typeof candidate.hero?.maxHp === 'number' &&

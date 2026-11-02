@@ -204,6 +204,9 @@ export const en = {
 		battleVictory: 'Battle victory',
 		battleDefeat: 'Battle defeat',
 		battleReturned: 'Returned from battle',
+		fledLeaveAndReturn: "You fled. Leave the enemy's area and return to fight again.",
+		fledEnterLeaveAndReturn:
+			'You fled. Approach the enemy, leave its area, then return to fight again.',
 		battleLocked: 'Cannot do that during battle',
 		noHealCharges: 'No heal charges left',
 		itemCannotBeUsed: 'Item cannot be used',

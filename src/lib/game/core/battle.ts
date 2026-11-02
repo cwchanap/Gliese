@@ -11,19 +11,11 @@ import {
 	type QuestRewardGrant
 } from '$lib/game/core/quests';
 import { deriveEffectiveStats, getHeroBaseStats } from '$lib/game/core/stats';
-import type { Direction } from '$lib/game/core/types';
 import { normalizePlayerPosition, type SaveState } from '$lib/game/save/save-state';
 
 export const battleEnemyCountRange = { min: 1, max: 10 } as const;
 
 export type BattleOutcome = 'victory' | 'defeat' | 'fled';
-
-export type BattleReturnPosition = {
-	mapId: string;
-	x: number;
-	y: number;
-	facing: Direction;
-};
 
 export type BattleEnemyUnit = {
 	unitId: string;
@@ -52,7 +44,6 @@ export type BattleStartPayload = {
 	sourceMapId: string;
 	sourceEncounterId: string;
 	sourceEnemyId: string;
-	returnPosition: BattleReturnPosition;
 	enemyCount: number;
 	hero: {
 		hp: number;
@@ -67,7 +58,6 @@ export type BattleResult = {
 	sourceMapId: string;
 	sourceEncounterId: string;
 	sourceEnemyId: string;
-	returnPosition: BattleReturnPosition;
 	finalHeroHp: number;
 	inventory: SaveState['inventory'];
 	defeatedUnits: BattleDefeatedUnit[];
@@ -75,11 +65,10 @@ export type BattleResult = {
 
 /**
  * Marks the encounter the player just fled so the field can suppress an
- * instant re-trigger. `fledAt` is Phaser loop time (ms), shared across scenes.
+ * instant re-trigger.
  */
 export type RecentlyFledEncounter = {
 	encounterId: string;
-	fledAt: number;
 };
 
 export type BattleSummary = {
@@ -233,16 +222,12 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 
 	const nextSaveState: SaveState = {
 		...saveState,
-		mapId: result.returnPosition.mapId,
 		player: {
 			...saveState.player,
 			level: progression.level,
 			xp: progression.xp,
 			hp: progression.hp,
-			attack: progression.attack,
-			x: result.returnPosition.x,
-			y: result.returnPosition.y,
-			facing: result.returnPosition.facing
+			attack: progression.attack
 		},
 		flags: {
 			...saveState.flags,
@@ -321,13 +306,9 @@ function applyBattleFled(saveState: SaveState, result: BattleResult): BattleAppl
 	return {
 		saveState: {
 			...saveState,
-			mapId: result.returnPosition.mapId,
 			player: {
 				...saveState.player,
-				hp: result.finalHeroHp,
-				x: result.returnPosition.x,
-				y: result.returnPosition.y,
-				facing: result.returnPosition.facing
+				hp: result.finalHeroHp
 			},
 			inventory: result.inventory
 		},

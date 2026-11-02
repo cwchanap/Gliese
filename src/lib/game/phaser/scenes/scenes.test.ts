@@ -312,7 +312,7 @@ const phaserState = vi.hoisted(() => {
 			depth: number;
 			displayWidth: number;
 			displayHeight: number;
-			frame: string | undefined;
+			frame: { name: string } | undefined;
 			visible: boolean;
 			clearTint: ReturnType<typeof vi.fn>;
 			setDepth: ReturnType<typeof vi.fn>;
@@ -327,7 +327,7 @@ const phaserState = vi.hoisted(() => {
 			depth: 0,
 			displayWidth: 0,
 			displayHeight: 0,
-			frame: undefined as string | undefined,
+			frame: undefined as { name: string } | undefined,
 			visible: true,
 			clearTint: vi.fn(() => marker),
 			setDepth: vi.fn((depth: number) => {
@@ -344,7 +344,14 @@ const phaserState = vi.hoisted(() => {
 				marker.visible = visible;
 				return marker;
 			}),
-			play: vi.fn(() => marker),
+			play: vi.fn((key: string) => {
+				const match = /^([a-zA-Z]+)-(idle|walk|attack|dead)$/.exec(key);
+				if (match) {
+					const clip = match[2]!;
+					marker.frame = { name: `${match[1]}${clip[0]!.toUpperCase()}${clip.slice(1)}0` };
+				}
+				return marker;
+			}),
 			once: vi.fn((_event: string, _callback: () => void) => {
 				void _event;
 				void _callback;
@@ -590,7 +597,7 @@ const phaserState = vi.hoisted(() => {
 		) {
 			playerMarker.x = x;
 			playerMarker.y = y;
-			playerMarker.frame = frame;
+			playerMarker.frame = frame === undefined ? undefined : { name: frame };
 			return playerMarker;
 		}
 
@@ -603,7 +610,7 @@ const phaserState = vi.hoisted(() => {
 			const marker = enemyMarkers.length === 0 ? enemyMarker : createAnimatedMarker();
 			marker.x = x;
 			marker.y = y;
-			marker.frame = frame;
+			marker.frame = { name: frame };
 			marker.visible = true;
 			enemyMarkers.push(marker);
 			return marker;
@@ -1607,7 +1614,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 4,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -1648,7 +1654,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -1669,7 +1674,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -1689,7 +1693,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'ruins-core',
 			sourceEncounterId: 'boar-king',
 			sourceEnemyId: 'boar-king',
-			returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -1712,7 +1715,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -1741,7 +1743,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 4,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -1765,7 +1766,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 2,
 			hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
 		});
@@ -1788,7 +1788,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			finalHeroHp: 17,
 			inventory: saveState.inventory,
 			defeatedUnits: [
@@ -1845,7 +1844,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'boar-king',
 				sourceEnemyId: 'boar-king',
-				returnPosition: { mapId: 'overworld', x: 2_900, y: 800, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 90, defense: 0 }
 			});
@@ -1916,7 +1914,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 1, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -1937,7 +1934,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			finalHeroHp: 0,
 			inventory: saveState.inventory,
 			defeatedUnits: []
@@ -1954,7 +1950,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -1985,7 +1980,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -2018,7 +2012,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -2055,7 +2048,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -2085,7 +2077,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -2125,6 +2116,40 @@ describe('BattleScene', () => {
 		expect(state.hero.hp).toBe(hpAtStrike);
 	});
 
+	it('sorts by the current frame’s ground-contact point rather than the frame bottom', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+
+		scene.create({
+			saveState: createNewSaveState(),
+			sourceMapId: 'overworld',
+			sourceEncounterId: 'boar-king',
+			sourceEnemyId: 'boar-king',
+			enemyCount: 1,
+			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+		});
+		Object.assign(phaserState.playerMarker, {
+			y: 300,
+			frame: { name: 'heroIdle0' }
+		});
+		Object.assign(phaserState.enemyMarker, {
+			y: 261.25,
+			frame: { name: 'boarKingIdle0' }
+		});
+		scene.events.emit('postupdate');
+		expect(phaserState.playerMarker.depth).toBeCloseTo(300 + (187 / 192 - 0.5) * 90);
+		expect(phaserState.enemyMarker.depth).toBeCloseTo(261.25 + (188 / 192 - 0.5) * 168);
+		expect(phaserState.playerMarker.depth).toBeGreaterThan(phaserState.enemyMarker.depth);
+
+		Object.assign(phaserState.playerMarker, { frame: { name: 'heroAttack0' } });
+		Object.assign(phaserState.enemyMarker, { frame: { name: 'boarKingAttack2' } });
+		scene.events.emit('postupdate');
+		expect(phaserState.playerMarker.depth).toBeCloseTo(300 + (180 / 192 - 0.5) * 90);
+		expect(phaserState.enemyMarker.depth).toBeCloseTo(261.25 + (183 / 192 - 0.5) * 168);
+		expect(phaserState.playerMarker.depth).toBeGreaterThan(phaserState.enemyMarker.depth);
+	});
+
 	it('sorts battle actors by displayed foot even when center-Y sorting disagrees', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { BattleScene } = await import('./BattleScene');
@@ -2135,7 +2160,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'ruins-core',
 			sourceEncounterId: 'boar-king',
 			sourceEnemyId: 'boar-king',
-			returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -2147,15 +2171,15 @@ describe('BattleScene', () => {
 		state.hitStopUntil = 10_000;
 
 		// Center-Y sorting would put Grik in front (300 > 280), but the boar
-		// king's foot (280 + 168 / 2) is below Grik's (300 + 90 / 2).
+		// king's calibrated foot is below Grik's.
 		Object.assign(phaserState.playerMarker, { x: 448, y: 300 });
 		Object.assign(phaserState.enemyMarker, { x: 448, y: 280 });
 
 		scene.update(0, 16);
 		scene.events.emit('postupdate');
 
-		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(345);
-		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(364);
+		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(300 + (187 / 192 - 0.5) * 90);
+		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(280 + (188 / 192 - 0.5) * 168);
 		expect(phaserState.enemyMarker.depth).toBeGreaterThan(phaserState.playerMarker.depth);
 
 		// Reverse the arrangement so Grik's foot is lower: the front actor flips.
@@ -2167,8 +2191,8 @@ describe('BattleScene', () => {
 		scene.update(20, 16);
 		scene.events.emit('postupdate');
 
-		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(425);
-		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(384);
+		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(380 + (187 / 192 - 0.5) * 90);
+		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(300 + (188 / 192 - 0.5) * 168);
 		expect(phaserState.playerMarker.depth).toBeGreaterThan(phaserState.enemyMarker.depth);
 	});
 
@@ -2182,7 +2206,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-thornback-boar',
 			sourceEnemyId: 'thornback-boar',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -2190,15 +2213,15 @@ describe('BattleScene', () => {
 		expect(phaserState.enemyMarker.displayHeight).toBe(108);
 		state.hitStopUntil = 10_000;
 
-		// Only 5 px of center Y separate them; the boar's foot is 4 px lower.
+		// Only 5 px of center Y separate them; the boar's foot is lower.
 		Object.assign(phaserState.playerMarker, { x: 448, y: 300 });
 		Object.assign(phaserState.enemyMarker, { x: 448, y: 295 });
 
 		scene.update(0, 16);
 		scene.events.emit('postupdate');
 
-		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(345); // 300 + 90 / 2
-		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(349); // 295 + 108 / 2
+		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(300 + (187 / 192 - 0.5) * 90);
+		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(295 + (188 / 192 - 0.5) * 108);
 		expect(phaserState.enemyMarker.depth).toBeGreaterThan(phaserState.playerMarker.depth);
 
 		// Reverse the arrangement: the hero's foot is lower, so the hero leads.
@@ -2210,8 +2233,8 @@ describe('BattleScene', () => {
 		scene.update(20, 16);
 		scene.events.emit('postupdate');
 
-		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(365); // 320 + 90 / 2
-		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(354); // 300 + 108 / 2
+		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(320 + (187 / 192 - 0.5) * 90);
+		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(300 + (188 / 192 - 0.5) * 108);
 		expect(phaserState.playerMarker.depth).toBeGreaterThan(phaserState.enemyMarker.depth);
 	});
 
@@ -2225,7 +2248,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -2236,7 +2258,7 @@ describe('BattleScene', () => {
 		scene.update(0, 250); // hero walks 35 px down to y = 287
 		scene.events.emit('postupdate'); // depth re-syncs after movement in the same frame
 
-		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(332); // 287 + 90 / 2
+		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(287 + (184 / 192 - 0.5) * 90); // heroWalk0
 	});
 
 	it('re-syncs depths during hit stop so lunged frames stay sorted', async () => {
@@ -2249,7 +2271,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -2271,7 +2292,7 @@ describe('BattleScene', () => {
 		scene.update(20, 16); // movement and AI are frozen; depth sync is not
 		scene.events.emit('postupdate');
 
-		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(289); // 244 + 90 / 2
+		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(244 + (180 / 192 - 0.5) * 90); // heroAttack0
 	});
 
 	it('draws health bars and strike arcs at a fixed depth above every actor foot', async () => {
@@ -2287,7 +2308,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'ruins-core',
 			sourceEncounterId: 'boar-king',
 			sourceEnemyId: 'boar-king',
-			returnPosition: { mapId: 'ruins-core', x: 4_992, y: 3_200, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -2316,7 +2336,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -2348,7 +2367,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -2382,7 +2400,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
 		});
@@ -2422,7 +2439,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -2476,7 +2492,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 			});
@@ -2510,7 +2525,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 4, maxHp: 20, attack: 8, defense: 0 }
 			});
@@ -2560,7 +2574,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
 			});
@@ -2594,7 +2607,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
 			});
@@ -2634,7 +2646,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
 		});
@@ -2681,7 +2692,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
 			});
@@ -2711,7 +2721,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'boar-king',
 			sourceEnemyId: 'boar-king',
-			returnPosition: { mapId: 'overworld', x: 2_900, y: 800, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 41, defense: 0 }
 		});
@@ -2759,7 +2768,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'boar-king',
 			sourceEnemyId: 'boar-king',
-			returnPosition: { mapId: 'overworld', x: 2_900, y: 800, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 41, defense: 0 }
 		});
@@ -2805,7 +2813,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			// Spawn ring: unit:0 lands at (448, 74) — distance 178 — and units 1/2
 			// tie at ~309, so unit:0 is nearest to the hero at center.
 			enemyCount: 2,
@@ -2829,7 +2836,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 3,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 			});
@@ -2866,7 +2872,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 3,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 			});
@@ -2899,7 +2904,6 @@ describe('BattleScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 2,
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
@@ -2941,7 +2945,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 5, defense: 0 }
 			});
@@ -2991,7 +2994,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 3,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 			});
@@ -3043,7 +3045,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 			});
@@ -3082,7 +3083,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 			});
@@ -3116,7 +3116,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 			});
@@ -3157,7 +3156,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 13, maxHp: 20, attack: 1, defense: 0 }
 			});
@@ -3185,7 +3183,7 @@ describe('BattleScene', () => {
 						inventory: saveState.inventory,
 						defeatedUnits: []
 					}),
-					recentlyFled: { encounterId: 'wildwood-wolves-mouth', fledAt: 2_600 }
+					recentlyFled: { encounterId: 'wildwood-wolves-mouth' }
 				})
 			);
 		} finally {
@@ -3213,7 +3211,6 @@ describe('BattleScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				enemyCount: 1,
 				hero: { hp: 13, maxHp: 20, attack: 1, defense: 0 }
 			});
@@ -3236,7 +3233,7 @@ describe('BattleScene', () => {
 				expect.objectContaining({
 					reason: 'battle-result',
 					battleResult: expect.objectContaining({ outcome: 'fled' }),
-					recentlyFled: { encounterId: 'wildwood-wolves-mouth', fledAt: 7_400 }
+					recentlyFled: { encounterId: 'wildwood-wolves-mouth' }
 				})
 			);
 		} finally {
@@ -4115,7 +4112,7 @@ describe('WorldScene', () => {
 			expect(phaserState.playerMarker).toMatchObject({
 				x: itemShopMap.spawn.x,
 				y: itemShopMap.spawn.y,
-				frame: 'heroIdle0'
+				frame: { name: 'heroIdle0' }
 			});
 			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(90, 90);
 			expect(phaserState.imageMarkers).toEqual(
@@ -4264,7 +4261,7 @@ describe('WorldScene', () => {
 			expect(phaserState.playerMarker).toMatchObject({
 				x: blacksmithInteriorMap.spawn.x,
 				y: blacksmithInteriorMap.spawn.y,
-				frame: 'heroIdle0'
+				frame: { name: 'heroIdle0' }
 			});
 			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(90, 90);
 			expect(oren).toBeDefined();
@@ -4365,7 +4362,7 @@ describe('WorldScene', () => {
 			expect(phaserState.playerMarker).toMatchObject({
 				x: blacksmithInteriorMap.spawn.x,
 				y: blacksmithInteriorMap.spawn.y,
-				frame: 'heroIdle0'
+				frame: { name: 'heroIdle0' }
 			});
 			expect(oren).toBeDefined();
 			if (!oren) return;
@@ -4454,7 +4451,7 @@ describe('WorldScene', () => {
 			expect(phaserState.playerMarker).toMatchObject({
 				x: villagerHouse1Map.spawn.x,
 				y: villagerHouse1Map.spawn.y,
-				frame: 'heroIdle0'
+				frame: { name: 'heroIdle0' }
 			});
 			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(90, 90);
 			expect(lynn).toBeDefined();
@@ -4612,7 +4609,7 @@ describe('WorldScene', () => {
 			expect(phaserState.playerMarker).toMatchObject({
 				x: villagerHouse2Map.spawn.x,
 				y: villagerHouse2Map.spawn.y,
-				frame: 'heroIdle0'
+				frame: { name: 'heroIdle0' }
 			});
 			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(90, 90);
 			expect(toma).toBeDefined();
@@ -4732,7 +4729,7 @@ describe('WorldScene', () => {
 			expect(phaserState.playerMarker).toMatchObject({
 				x: villagerHouse2Map.spawn.x,
 				y: villagerHouse2Map.spawn.y,
-				frame: 'heroIdle0'
+				frame: { name: 'heroIdle0' }
 			});
 			expect(toma).toBeDefined();
 			expect(neighbor).toBeDefined();
@@ -4824,7 +4821,7 @@ describe('WorldScene', () => {
 			expect(phaserState.playerMarker).toMatchObject({
 				x: villagerHouse3Map.spawn.x,
 				y: villagerHouse3Map.spawn.y,
-				frame: 'heroIdle0'
+				frame: { name: 'heroIdle0' }
 			});
 			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(90, 90);
 			expect(io).toBeDefined();
@@ -4936,7 +4933,7 @@ describe('WorldScene', () => {
 			expect(phaserState.playerMarker).toMatchObject({
 				x: villagerHouse3Map.spawn.x,
 				y: villagerHouse3Map.spawn.y,
-				frame: 'heroIdle0'
+				frame: { name: 'heroIdle0' }
 			});
 			expect(io).toBeDefined();
 			expect(neighbor).toBeDefined();
@@ -5021,7 +5018,7 @@ describe('WorldScene', () => {
 			expect(phaserState.playerMarker).toMatchObject({
 				x: shrineOfAuroraInteriorMap.spawn.x,
 				y: shrineOfAuroraInteriorMap.spawn.y,
-				frame: 'heroIdle0'
+				frame: { name: 'heroIdle0' }
 			});
 			expect(phaserState.playerMarker.setDisplaySize).toHaveBeenCalledWith(90, 90);
 			expect(phaserState.imageMarkers).toEqual(
@@ -5111,7 +5108,7 @@ describe('WorldScene', () => {
 			expect(phaserState.playerMarker).toMatchObject({
 				x: shrineOfAuroraInteriorMap.spawn.x,
 				y: shrineOfAuroraInteriorMap.spawn.y,
-				frame: 'heroIdle0'
+				frame: { name: 'heroIdle0' }
 			});
 			expect(phaserState.imageMarkers).toEqual(
 				expect.arrayContaining([
@@ -7547,17 +7544,12 @@ describe('WorldScene', () => {
 				expect.objectContaining({
 					saveState: expect.objectContaining({
 						mapId: 'overworld',
+						player: expect.objectContaining({ ...wolvesMouthApproach, facing: 'down' }),
 						flags: expect.objectContaining({ clearedEncounters: [] })
 					}),
 					sourceMapId: 'overworld',
 					sourceEncounterId: 'wildwood-wolves-mouth',
 					sourceEnemyId: 'forest-wolf',
-					returnPosition: {
-						mapId: 'overworld',
-						x: wolvesMouthApproach.x,
-						y: wolvesMouthApproach.y,
-						facing: 'down'
-					},
 					enemyCount: 2,
 					hero: { hp: 12, maxHp: 26, attack: 5, defense: 1 }
 				})
@@ -7588,12 +7580,10 @@ describe('WorldScene', () => {
 		expect(scene.scene.start).toHaveBeenCalledWith(
 			BattleScene.key,
 			expect.objectContaining({
-				returnPosition: {
+				saveState: expect.objectContaining({
 					mapId: 'overworld',
-					x: wolvesMouthApproach.x,
-					y: wolvesMouthApproach.y,
-					facing: 'left'
-				}
+					player: expect.objectContaining({ ...wolvesMouthApproach, facing: 'left' })
+				})
 			})
 		);
 	});
@@ -7645,7 +7635,14 @@ describe('WorldScene', () => {
 				storedSaves.push(value);
 			})
 		};
-		const saveState = { ...createNewSaveState(), wallet: { coins: 0 } };
+		// The new contract: Grik returns to where he stood when the fight
+		// started (just east of the pack), not an enemy-home offset.
+		const saveState = {
+			...createNewSaveState(),
+			mapId: 'overworld',
+			player: { ...createNewSaveState().player, ...wolvesMouthApproach, facing: 'down' as const },
+			wallet: { coins: 0 }
+		};
 		const scene = new WorldScene();
 
 		storage.setSaveStorage(memoryStorage);
@@ -7658,14 +7655,6 @@ describe('WorldScene', () => {
 					sourceMapId: 'overworld',
 					sourceEncounterId: 'wildwood-wolves-mouth',
 					sourceEnemyId: 'forest-wolf',
-					// The new contract: Grik returns to where he stood when the fight
-					// started (just east of the pack), not an enemy-home offset.
-					returnPosition: {
-						mapId: 'overworld',
-						x: wolvesMouthApproach.x,
-						y: wolvesMouthApproach.y,
-						facing: 'down'
-					},
 					finalHeroHp: 16,
 					inventory: saveState.inventory,
 					defeatedUnits: [
@@ -7727,6 +7716,44 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('waits for the player to leave and re-enter a cleared transition after battle', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const save = {
+			...createNewSaveState(),
+			mapId: 'ruins-threshold',
+			player: { ...createNewSaveState().player, x: 256, y: 3_200, facing: 'right' as const }
+		};
+		const scene = new WorldScene();
+
+		scene.create({
+			saveState: save,
+			reason: 'battle-result',
+			battleResult: {
+				outcome: 'victory',
+				sourceMapId: 'ruins-threshold',
+				sourceEncounterId: 'threshold-crawlers',
+				sourceEnemyId: 'tunnel-crawler',
+				finalHeroHp: 12,
+				inventory: save.inventory,
+				defeatedUnits: []
+			}
+		});
+		scene.update(0, 16);
+		expect(scene.scene.restart).not.toHaveBeenCalled();
+
+		Object.assign(phaserState.playerMarker, { x: 356, y: 3_200 });
+		scene.update(16, 16);
+		expect(scene.scene.restart).not.toHaveBeenCalled();
+
+		Object.assign(phaserState.playerMarker, { x: 256, y: 3_200 });
+		scene.update(32, 16);
+		expect(scene.scene.restart).toHaveBeenCalledWith({
+			reason: 'transition',
+			saveState: expect.objectContaining({ mapId: 'overworld' })
+		});
+	});
+
 	it('ignores battle summary dismissal commands when no battle is active', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
@@ -7781,7 +7808,6 @@ describe('WorldScene', () => {
 					sourceMapId: 'ruins-threshold',
 					sourceEncounterId: 'threshold-slime-west',
 					sourceEnemyId: 'forest-wolf',
-					returnPosition: { mapId: 'ruins-threshold', x: 512, y: 3_200, facing: 'right' },
 					finalHeroHp: 0,
 					inventory: saveState.inventory,
 					defeatedUnits: []
@@ -9294,7 +9320,6 @@ describe('WorldScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				finalHeroHp: 20,
 				inventory: save.inventory,
 				defeatedUnits: [
@@ -9608,7 +9633,7 @@ describe('WorldScene', () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		const save = createNewSaveState();
+		const save = { ...createNewSaveState(), mapId: 'overworld' };
 
 		scene.create({
 			saveState: save,
@@ -9618,7 +9643,6 @@ describe('WorldScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				finalHeroHp: 20,
 				inventory: save.inventory,
 				defeatedUnits: [
@@ -9661,7 +9685,6 @@ describe('WorldScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'wildwood-wolves-mouth',
 				sourceEnemyId: 'forest-wolf',
-				returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 				finalHeroHp: 20,
 				inventory: save.inventory,
 				defeatedUnits: [
@@ -9726,7 +9749,6 @@ describe('WorldScene', () => {
 					sourceMapId: 'overworld',
 					sourceEncounterId: 'wildwood-wolves-mouth',
 					sourceEnemyId: 'forest-wolf',
-					returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 					finalHeroHp: 20,
 					inventory: { stacks: [], equipment: ['training-sword'] },
 					defeatedUnits: [
@@ -9823,7 +9845,6 @@ describe('WorldScene', () => {
 					sourceMapId: 'overworld',
 					sourceEncounterId: 'wildwood-wolves-mouth',
 					sourceEnemyId: 'forest-wolf',
-					returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 					finalHeroHp: 24,
 					inventory: save.inventory,
 					defeatedUnits: [
@@ -9874,12 +9895,6 @@ describe('WorldScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'boar-king',
 				sourceEnemyId: 'boar-king',
-				returnPosition: {
-					mapId: 'overworld',
-					x: boarKingHome.x,
-					y: boarKingHome.y + 60,
-					facing: 'down'
-				},
 				finalHeroHp: 20,
 				inventory: save.inventory,
 				defeatedUnits: [
@@ -10417,6 +10432,8 @@ describe('WorldScene', () => {
 	});
 
 	it('keeps a fled bounded pack disengaged until the player leaves its acquisition zone', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
 		const { BattleScene } = await import('./BattleScene');
@@ -10425,6 +10442,12 @@ describe('WorldScene', () => {
 		const save = {
 			...createNewSaveState(),
 			mapId: 'overworld',
+			player: {
+				...createNewSaveState().player,
+				x: boarKingHome.x,
+				y: boarKingHome.y + 60,
+				facing: 'down' as const
+			},
 			flags: boarKingFlags,
 			quests: questStateAt('defeat-boar-king')
 		};
@@ -10437,27 +10460,26 @@ describe('WorldScene', () => {
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'boar-king',
 				sourceEnemyId: 'boar-king',
-				returnPosition: {
-					mapId: 'overworld',
-					x: boarKingHome.x,
-					y: boarKingHome.y + 60,
-					facing: 'down'
-				},
 				finalHeroHp: 12,
 				inventory: save.inventory,
 				defeatedUnits: []
 			},
-			recentlyFled: { encounterId: 'boar-king', fledAt: 0 }
+			recentlyFled: { encounterId: 'boar-king' }
 		});
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: expect.stringMatching(/leave.+return/i) })
+		);
 		Object.assign(phaserState.playerMarker, { x: boarKingHome.x, y: boarKingHome.y + 60 });
 		const sceneState = scene as unknown as {
 			enemies: Array<{ id: string; x: number; y: number; movementMode: string }>;
+			recentlyFled: { encounterId: string } | null;
 		};
 
 		// Grik stays put, in battle range and inside the pocket: five seconds on,
 		// the Boar King neither restarts the fight nor closes the distance.
-		scene.update(100, 16);
-		scene.update(5_000, 16);
+		for (let time = 250; time <= 5_000; time += 250) {
+			scene.update(time, 250);
+		}
 		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
 		const boarKing = sceneState.enemies.find(({ id }) => id === 'boar-king')!;
 		expect(boarKing.x).toBe(boarKingHome.x);
@@ -10472,6 +10494,7 @@ describe('WorldScene', () => {
 
 		Object.assign(phaserState.playerMarker, { x: boarKingHome.x, y: boarKingHome.y + 60 });
 		scene.update(5_100, 16);
+		expect(sceneState.recentlyFled).toBeNull();
 		expect(scene.scene.start).toHaveBeenCalledWith(
 			BattleScene.key,
 			expect.objectContaining({ sourceEncounterId: 'boar-king' })
@@ -10483,6 +10506,60 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { x: boarKingHome.x, y: boarKingHome.y + 60 });
 		scene.update(0, 16);
 		expect(scene.scene.start).toHaveBeenCalledTimes(2);
+	});
+
+	it('does not count an outside return as leaving the boar king’s acquisition zone', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const save = {
+			...createNewSaveState(),
+			mapId: 'overworld',
+			flags: boarKingFlags,
+			quests: questStateAt('defeat-boar-king')
+		};
+		const outside = { x: boarKingHome.x - 256, y: boarKingHome.y };
+
+		scene.create({
+			saveState: { ...save, player: { ...save.player, ...outside, facing: 'right' } },
+			reason: 'battle-result',
+			battleResult: {
+				outcome: 'fled',
+				sourceMapId: 'overworld',
+				sourceEncounterId: 'boar-king',
+				sourceEnemyId: 'boar-king',
+				finalHeroHp: 12,
+				inventory: save.inventory,
+				defeatedUnits: []
+			},
+			recentlyFled: { encounterId: 'boar-king' }
+		});
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: expect.stringMatching(/approach.+leave.+return/i) })
+		);
+		for (let time = 250; time <= 5_000; time += 250) {
+			scene.update(time, 250);
+		}
+		phaserState.cursorKeys.right.isDown = true;
+		for (let time = 5_250; time <= 7_250; time += 250) {
+			scene.update(time, 250);
+			expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+		}
+		expect(phaserState.playerMarker.x).toBeGreaterThan(boarKingHome.x + 200);
+
+		phaserState.cursorKeys.right.isDown = false;
+		phaserState.cursorKeys.left.isDown = true;
+		for (let time = 7_500; time <= 9_500; time += 250) {
+			scene.update(time, 250);
+		}
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({ sourceEncounterId: 'boar-king' })
+		);
 	});
 
 	it('leaves other packs engaging and updating while the fled pack is protected', async () => {
@@ -10501,28 +10578,28 @@ describe('WorldScene', () => {
 		};
 
 		scene.create({
-			saveState: save,
+			saveState: {
+				...save,
+				player: { ...save.player, x: boarKingHome.x, y: boarKingHome.y - 20, facing: 'up' }
+			},
 			reason: 'battle-result',
 			battleResult: {
 				outcome: 'fled',
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'boar-king',
 				sourceEnemyId: 'boar-king',
-				returnPosition: {
-					mapId: 'overworld',
-					x: boarKingHome.x,
-					y: boarKingHome.y - 20,
-					facing: 'up'
-				},
 				finalHeroHp: 12,
 				inventory: save.inventory,
 				defeatedUnits: []
 			},
-			recentlyFled: { encounterId: 'boar-king', fledAt: 0 }
+			recentlyFled: { encounterId: 'boar-king' }
 		});
 		// Inside both pockets: 20px from the protected Boar King, ~150px from a
 		// wolf pulled toward the clearing (it spawns at its own anchor).
 		Object.assign(phaserState.playerMarker, { x: boarKingHome.x, y: boarKingHome.y - 20 });
+		for (let time = 250; time <= 4_000; time += 250) {
+			scene.update(time, 250);
+		}
 		const sceneState = scene as unknown as {
 			enemies: Array<{
 				id: string;
@@ -10576,23 +10653,26 @@ describe('WorldScene', () => {
 				sourceMapId: 'ruins-core',
 				sourceEncounterId: 'core-crawlers',
 				sourceEnemyId: 'tunnel-crawler',
-				returnPosition: { mapId: 'ruins-core', x: 2_880, y: 3_300, facing: 'up' },
 				finalHeroHp: 12,
 				inventory: save.inventory,
 				defeatedUnits: []
 			},
-			recentlyFled: { encounterId: 'core-crawlers', fledAt: 0 }
+			recentlyFled: { encounterId: 'core-crawlers' }
 		});
 		// 100px south of the crawlers: outside battle range (62px), inside the
 		// ruins' unrestricted chase.
 		Object.assign(phaserState.playerMarker, { x: 2_880, y: 3_300 });
 		const sceneState = scene as unknown as {
 			enemies: Array<{ id: string; y: number; movementMode: string }>;
+			recentlyFled: { encounterId: string } | null;
 		};
 
 		// During grace the crawler neither chases nor attacks, even though the
 		// unbounded canEnemyAttackPlayer policy is otherwise always true.
-		scene.update(3_999, 16);
+		for (let time = 250; time <= 3_750; time += 250) {
+			scene.update(time, 250);
+		}
+		scene.update(3_999, 249);
 		const crawler = sceneState.enemies.find(({ id }) => id === 'core-crawlers')!;
 		expect(crawler.y).toBe(3_200);
 		expect(crawler.movementMode).toBe('idle');
@@ -10600,7 +10680,9 @@ describe('WorldScene', () => {
 
 		// Grace only: afterwards the crawler follows its existing unrestricted
 		// chase policy and re-engages.
-		for (let time = 4_000; time <= 4_600; time += 250) {
+		scene.update(4_000, 1);
+		expect(sceneState.recentlyFled).toBeNull();
+		for (let time = 4_250; time <= 4_750; time += 250) {
 			scene.update(time, 250);
 		}
 		expect(scene.scene.start).toHaveBeenCalledWith(
@@ -10624,16 +10706,15 @@ describe('WorldScene', () => {
 				sourceMapId: 'ruins-core',
 				sourceEncounterId: 'core-crawlers',
 				sourceEnemyId: 'tunnel-crawler',
-				returnPosition: { mapId: 'ruins-core', x: 2_880, y: 3_300, facing: 'up' },
 				finalHeroHp: 12,
 				inventory: save.inventory,
 				defeatedUnits: []
 			},
-			recentlyFled: { encounterId: 'core-crawlers', fledAt: 0 }
+			recentlyFled: { encounterId: 'core-crawlers' }
 		});
 		const sceneState = scene as unknown as {
 			enemies: Array<{ id: string; x: number; y: number }>;
-			canEnemyAttackPlayer: (enemy: { id: string; x: number; y: number }, time: number) => boolean;
+			canEnemyAttackPlayer: (enemy: { id: string; x: number; y: number }) => boolean;
 		};
 		const crawler = sceneState.enemies.find(({ id }) => id === 'core-crawlers')!;
 		// Inside the 62px attack range: the unbounded attack policy is otherwise
@@ -10642,10 +10723,108 @@ describe('WorldScene', () => {
 		// protected enemy has no movement target.
 		Object.assign(phaserState.playerMarker, { x: crawler.x, y: crawler.y + 40 });
 
-		expect(sceneState.canEnemyAttackPlayer(crawler, 3_999)).toBe(false);
+		expect(sceneState.canEnemyAttackPlayer(crawler)).toBe(false);
 		scene.update(3_999, 16);
 		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
 	});
+
+	it('preserves the flee grace while the world is paused', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const save = {
+			...createNewSaveState(),
+			mapId: 'ruins-core',
+			player: { ...createNewSaveState().player, x: 2_880, y: 3_240, facing: 'up' as const }
+		};
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+
+		scene.create({
+			saveState: save,
+			reason: 'battle-result',
+			battleResult: {
+				outcome: 'fled',
+				sourceMapId: 'ruins-core',
+				sourceEncounterId: 'core-crawlers',
+				sourceEnemyId: 'tunnel-crawler',
+				finalHeroHp: 12,
+				inventory: save.inventory,
+				defeatedUnits: []
+			},
+			recentlyFled: { encounterId: 'core-crawlers' }
+		});
+		scene.update(0, 16);
+		sceneState.handleHudCommand({ type: 'pause-game' });
+		scene.update(5_000, 16);
+		sceneState.handleHudCommand({ type: 'resume-game' });
+		scene.update(5_016, 16);
+		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+
+		for (let time = 5_266; time <= 9_266; time += 250) {
+			scene.update(time, 250);
+		}
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			BattleScene.key,
+			expect.objectContaining({ sourceEncounterId: 'core-crawlers' })
+		);
+	});
+
+	it.each(['story', 'dialogue'] as const)(
+		'preserves the flee grace while %s holds the world',
+		async (hold) => {
+			const { buildDialogueFallback } = await import('$lib/game/core/dialogue');
+			const { createNewSaveState } = await import('$lib/game/save/save-state');
+			const { BattleScene } = await import('./BattleScene');
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+			const save = {
+				...createNewSaveState(),
+				mapId: 'ruins-core',
+				player: { ...createNewSaveState().player, x: 2_880, y: 3_240, facing: 'up' as const }
+			};
+			const sceneState = scene as unknown as {
+				storyEffectRunning: boolean;
+				dialogueSession: ReturnType<typeof buildDialogueFallback> | null;
+			};
+
+			scene.create({
+				saveState: save,
+				reason: 'battle-result',
+				battleResult: {
+					outcome: 'fled',
+					sourceMapId: 'ruins-core',
+					sourceEncounterId: 'core-crawlers',
+					sourceEnemyId: 'tunnel-crawler',
+					finalHeroHp: 12,
+					inventory: save.inventory,
+					defeatedUnits: []
+				},
+				recentlyFled: { encounterId: 'core-crawlers' }
+			});
+			scene.update(0, 16);
+			if (hold === 'story') {
+				sceneState.storyEffectRunning = true;
+			} else {
+				sceneState.dialogueSession = buildDialogueFallback('Traveler', 'Wait');
+			}
+			scene.update(5_000, 16);
+			sceneState.storyEffectRunning = false;
+			sceneState.dialogueSession = null;
+			scene.update(5_016, 16);
+			expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+
+			for (let time = 5_266; time <= 9_266; time += 250) {
+				scene.update(time, 250);
+			}
+			expect(scene.scene.start).toHaveBeenCalledWith(
+				BattleScene.key,
+				expect.objectContaining({ sourceEncounterId: 'core-crawlers' })
+			);
+		}
+	);
 
 	it('publishes HUD state after a non-lethal enemy hit in BattleScene', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
@@ -10660,7 +10839,6 @@ describe('WorldScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'wildwood-wolves-mouth',
 			sourceEnemyId: 'forest-wolf',
-			returnPosition: { mapId: 'overworld', x: 4_928, y: 1_024, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
 		});
@@ -10692,7 +10870,6 @@ describe('WorldScene', () => {
 			sourceMapId: 'overworld',
 			sourceEncounterId: 'boar-king',
 			sourceEnemyId: 'boar-king',
-			returnPosition: { mapId: 'overworld', x: 2_900, y: 800, facing: 'down' },
 			enemyCount: 1,
 			hero: { hp: 20, maxHp: 20, attack: 41, defense: 0 }
 		});
