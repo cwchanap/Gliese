@@ -3216,20 +3216,20 @@ export class WorldScene extends Phaser.Scene {
 			return undefined;
 		}
 
+		const player = this.player;
 		const map = this.resolveMap(this.mapId);
 
-		return selectNearbyCandidate({
-			origin: { x: this.player.x, y: this.player.y },
-			facing: this.facing,
-			reach: WorldScene.playerRadius,
-			candidates: (map.discoveries ?? []).map((discovery) => ({
+		return (map.discoveries ?? [])
+			.map((discovery) => ({
 				discovery,
-				id: discovery.id,
-				x: discovery.x,
-				y: discovery.y,
-				radius: discovery.radius ?? WorldScene.discoveryInteractRadius
+				distance: Phaser.Math.Distance.Between(player.x, player.y, discovery.x, discovery.y)
 			}))
-		})?.discovery;
+			.filter(
+				({ discovery, distance }) =>
+					distance <=
+					WorldScene.playerRadius + (discovery.radius ?? WorldScene.discoveryInteractRadius)
+			)
+			.sort((left, right) => left.distance - right.distance)[0]?.discovery;
 	}
 
 	private readDiscovery(discovery: MapDiscovery) {
