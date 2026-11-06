@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
 	continueFromTitle,
@@ -415,7 +415,7 @@ function rewriteSceneStateProbeSource(servedBody: string): string {
 	const [, livingEnemiesVariable, transitionVariable, mapVariable] = transitionGateMatch;
 	return servedBody.replace(
 		transitionGateMatch[0],
-		`${livingEnemiesVariable}=this.hasLivingEnemies();globalThis.__glieseTransitionGateState={mapId:this.mapId,player:this.player?{x:this.player.x,y:this.player.y}:null,hasLivingEnemies:${livingEnemiesVariable},clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))};for(let ${transitionVariable} of ${mapVariable}.transitions)`
+		`${livingEnemiesVariable}=this.hasLivingEnemies();globalThis.__glieseTransitionGateState={mapId:this.mapId,player:this.player?{x:this.player.x,y:this.player.y}:null,hasLivingEnemies:${livingEnemiesVariable},clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))};{const __glieseTrace=globalThis.__glieseJourneyTrace;if(__glieseTrace&&this.player){const __glieseLast=__glieseTrace[__glieseTrace.length-1];if(!__glieseLast||__glieseLast.x!==this.player.x||__glieseLast.y!==this.player.y||__glieseLast.mapId!==this.mapId)__glieseTrace.push({x:this.player.x,y:this.player.y,mapId:this.mapId});}}for(let ${transitionVariable} of ${mapVariable}.transitions)`
 	);
 }
 
@@ -12412,18 +12412,6 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 					const gate = probeWindow.__glieseTransitionGateState;
 					const player = gate && gate.mapId === state?.mapId ? gate.player : state?.areaMap?.player;
 					if (typeof player?.x !== 'number' || typeof player.y !== 'number') return false;
-					const trace = probeWindow.__glieseJourneyTrace;
-					if (trace) {
-						const last = trace[trace.length - 1];
-						if (
-							!last ||
-							last.x !== player.x ||
-							last.y !== player.y ||
-							last.mapId !== state?.mapId
-						) {
-							trace.push({ x: player.x, y: player.y, mapId: state?.mapId });
-						}
-					}
 					const value = requested.axis === 'x' ? player.x : player.y;
 					return requested.direction === 'gte'
 						? value >= requested.value
@@ -12602,10 +12590,69 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	expect(approachPoint?.x).toBeLessThanOrEqual(5_678);
 	await holdUntil('w', { kind: 'map', value: 'blacksmith-interior' }, 20_000);
 	await expect.poll(async () => (await readHud())?.mapId).toBe('blacksmith-interior');
-	const overworldTrace = (
-		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseJourneyTrace ?? [])) ?? []
-	).filter((point) => point.mapId === 'overworld');
-	const relatedDoors = new Set(['overworld-to-blacksmith-interior', 'overworld-to-hero-house']);
+	const journeyTrace =
+		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseJourneyTrace ?? [])) ?? [];
+	const overworldTrace = journeyTrace.filter((point) => point.mapId === 'overworld');
+	expect(overworldTrace.length).toBeGreaterThan(0);
+	const corridorStages: { name: string; test: (point: { x: number; y: number }) => boolean }[] = [
+		{
+			name: 'corridor-top',
+			test: (point) => point.x >= 4_576 && point.x <= 4_768 && point.y >= 7_168 && point.y <= 7_200
+		},
+		{
+			name: 'south-turn',
+			test: (point) => point.x >= 5_150 && point.x <= 5_200 && point.y >= 7_168 && point.y <= 7_200
+		},
+		{
+			name: 'lower-lane',
+			test: (point) => point.x >= 5_150 && point.x <= 5_200 && point.y >= 7_264 && point.y <= 7_296
+		},
+		{
+			name: 'under-hut',
+			test: (point) => point.x >= 5_440 && point.x <= 5_476 && point.y >= 7_264 && point.y <= 7_296
+		},
+		{
+			name: 'jog-shoulder',
+			test: (point) => point.x >= 5_440 && point.x <= 5_476 && point.y >= 7_232 && point.y <= 7_264
+		},
+		{
+			name: 'forge-column',
+			test: (point) => point.x >= 5_618 && point.x <= 5_678 && point.y >= 7_232 && point.y <= 7_264
+		}
+	];
+	let stageCursor = 0;
+	const stageHits: { name: string; index: number }[] = [];
+	for (const stage of corridorStages) {
+		const index = overworldTrace.findIndex(
+			(point, pointIndex) => pointIndex >= stageCursor && stage.test(point)
+		);
+		expect(index, `journey trace missing ordered stage "${stage.name}"`).toBeGreaterThanOrEqual(0);
+		stageHits.push({ name: stage.name, index });
+		stageCursor = index + 1;
+	}
+	const legRanges = stageHits.map((hit, stageIndex) => {
+		const end =
+			stageIndex + 1 < stageHits.length
+				? stageHits[stageIndex + 1].index + 1
+				: overworldTrace.length;
+		const leg = overworldTrace.slice(hit.index, end);
+		return {
+			stage: hit.name,
+			points: leg.length,
+			x: [Math.min(...leg.map((point) => point.x)), Math.max(...leg.map((point) => point.x))],
+			y: [Math.min(...leg.map((point) => point.y)), Math.max(...leg.map((point) => point.y))]
+		};
+	});
+	const forgeDoor = overworldMap.transitions.find(
+		(transition) => transition.id === 'overworld-to-blacksmith-interior'
+	)!;
+	const lastTracePoint = overworldTrace[overworldTrace.length - 1];
+	const lastDoorDistance = Math.hypot(
+		lastTracePoint.x - forgeDoor.x,
+		lastTracePoint.y - forgeDoor.y
+	);
+	expect(lastDoorDistance).toBeLessThanOrEqual(32);
+	const relatedDoors = new Set([forgeDoor.id, 'overworld-to-hero-house']);
 	const unrelatedDoors = overworldMap.transitions.filter(
 		(transition) => !relatedDoors.has(transition.id)
 	);
@@ -12615,6 +12662,19 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 		)
 	);
 	expect(minDoorClearance).toBeGreaterThanOrEqual(48);
+	const traceEvidence = { legRanges, minDoorClearance, lastDoorDistance, trace: overworldTrace };
+	await test.info().attach('overworld-journey-trace', {
+		body: JSON.stringify(traceEvidence),
+		contentType: 'application/json'
+	});
+	const evidenceDir = resolve(
+		'.superpowers/sdd/2026-11-05-hpa-760-round-2-playtest-reliability/evidence'
+	);
+	mkdirSync(evidenceDir, { recursive: true });
+	writeFileSync(
+		resolve(evidenceDir, 'task-7-journey-trace.json'),
+		JSON.stringify(traceEvidence, null, 2)
+	);
 	const forgePoint = await readPosition();
 	expect(forgePoint?.x).toBeGreaterThanOrEqual(440);
 	expect(forgePoint?.x).toBeLessThanOrEqual(456);
@@ -14015,7 +14075,12 @@ test('quest log shows main quest and completes proving morning at Borak', async 
 	await expect(questDialog.getByTestId('quest-entry-completed')).toContainText(
 		'The Proving Morning'
 	);
+	// Live progress renders in the detail panel only while the quest is selected.
+	const detailPanel = questDialog.getByTestId('quest-detail');
+	await expect(detailPanel).toContainText('Met Lirra: 0 / 1');
+	await questDialog.getByTestId('quest-entry-completed').click();
+	await expect(detailPanel).toContainText('Reported to Borak: 1 / 1');
 	await questDialog.getByRole('button', { name: 'Close' }).click();
 	// The status pill only renders while the command grid is closed (Task 4).
-	await expect(fieldStatus(page)).toBeVisible();
+	await expect(fieldStatus(page)).toHaveText('Dialogue closed');
 });
