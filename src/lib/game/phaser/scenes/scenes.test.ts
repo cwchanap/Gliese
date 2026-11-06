@@ -9123,6 +9123,154 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('targets the faced NPC and its dialogue when two NPCs share the range', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const storyClient = await import('$lib/game/story/client');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as { facing: string };
+
+		scene.create({ mapId: 'hero-house' });
+		Object.assign(phaserState.playerMarker, { x: 160, y: 400 });
+		scene.update(0, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Old Mott nearby' })
+		);
+
+		sceneState.facing = 'down';
+		scene.update(16, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Tikka nearby' })
+		);
+
+		emitHudStateSpy.mockClear();
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(32, 16);
+		await flushStoryDialogue();
+
+		expect(storyClient.getNpcStoryDialogue).toHaveBeenCalledWith(
+			expect.objectContaining({ npcId: 'tikka-home', mapId: 'hero-house', locale: 'en' })
+		);
+	});
+
+	it('clears a stale nearby status once when the hero leaves NPC range', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, borakApproach);
+		scene.update(0, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Borak nearby' })
+		);
+
+		emitHudStateSpy.mockClear();
+		Object.assign(phaserState.playerMarker, { ...guildHallMap.spawn });
+		scene.update(16, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'No one nearby' })
+		);
+
+		emitHudStateSpy.mockClear();
+		scene.update(32, 16);
+
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
+	});
+
+	it('keeps a meaningful non-proximity status when the hero leaves NPC range', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, borakApproach);
+		scene.update(0, 16);
+		sceneState.handleHudCommand({ type: 'heal' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'No heal charges left' })
+		);
+
+		emitHudStateSpy.mockClear();
+		Object.assign(phaserState.playerMarker, { ...guildHallMap.spawn });
+		scene.update(16, 16);
+
+		expect(emitHudStateSpy).not.toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'No one nearby' })
+		);
+	});
+
+	it('shows a busy fallback instead of no one nearby beside an ambient villager', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const storyClient = await import('$lib/game/story/client');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const customer = itemShopMap.ambientNpcs?.find(({ id }) => id === 'item-shop-customer');
+		expect(customer).toBeDefined();
+		if (!customer) return;
+
+		scene.create({ mapId: 'item-shop' });
+		Object.assign(phaserState.playerMarker, { x: customer.x, y: customer.y + 48 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(storyClient.getNpcStoryDialogue).not.toHaveBeenCalled();
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'They have nothing to say',
+				dialogue: expect.objectContaining({
+					speaker: 'Traveler',
+					line: 'They have nothing to say.'
+				})
+			})
+		);
+	});
+
+	it('localizes the ambient busy fallback for Japanese', async () => {
+		localeState.activeLocale = 'ja';
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const customer = itemShopMap.ambientNpcs?.find(({ id }) => id === 'item-shop-customer');
+		expect(customer).toBeDefined();
+		if (!customer) return;
+
+		scene.create({ mapId: 'item-shop' });
+		Object.assign(phaserState.playerMarker, { x: customer.x, y: customer.y + 48 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: '話すことはないようだ',
+				dialogue: expect.objectContaining({
+					speaker: 'JP Traveler',
+					line: '話すことはないようだ。'
+				})
+			})
+		);
+	});
+
 	it.each([
 		{
 			mapId: 'item-shop',
