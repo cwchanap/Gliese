@@ -97,7 +97,11 @@ import {
 	STARTER_NPC_COLLISION_RADIUS
 } from '$lib/game/core/collision';
 import { equipItem, unequipSlot } from '$lib/game/core/equipment';
-import { heroScreenPosition, isHeroInHeroCardZone } from '$lib/game/core/hud-occlusion';
+import {
+	heroScreenPosition,
+	isHeroInHeroCardZone,
+	settledCameraScroll
+} from '$lib/game/core/hud-occlusion';
 import { selectNearbyCandidate } from '$lib/game/core/interaction';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { addItem, consumeStackItem } from '$lib/game/core/inventory';
@@ -433,7 +437,6 @@ export class WorldScene extends Phaser.Scene {
 	private facing: Direction = 'down';
 	private heroAnimationLockedUntil = 0;
 	private heroDefeated = false;
-	/** Last published hero-card occlusion flag; republished only on zone edges. */
 	private heroOccluded = false;
 	private heroHitReactionUntil = 0;
 	private heroVisualState: ActorAnimationKey = 'idle';
@@ -765,6 +768,16 @@ export class WorldScene extends Phaser.Scene {
 			this.cameras.main.fadeIn?.(WorldScene.storyFadeMs, 0, 0, 0);
 		}
 
+		const camera = this.cameras?.main;
+		if (camera) {
+			const settled = settledCameraScroll(camera, cameraBounds, this.player);
+			const screen = heroScreenPosition(
+				{ ...camera, scrollX: settled.x, scrollY: settled.y },
+				this.player
+			);
+			this.heroOccluded = isHeroInHeroCardZone(screen.x, screen.y, camera.width, camera.height);
+		}
+
 		this.publishHudState(data.status ?? this.resolveInitialStatus(reason, Boolean(fledBounds)));
 	}
 
@@ -787,6 +800,8 @@ export class WorldScene extends Phaser.Scene {
 		if (!this.player) {
 			return;
 		}
+
+		this.updateHeroOcclusion();
 
 		if (this.simulationPaused) {
 			return;
@@ -857,18 +872,6 @@ export class WorldScene extends Phaser.Scene {
 		this.player.x = resolvedPosition.x;
 		this.player.y = resolvedPosition.y;
 		this.facing = this.resolveFacing(direction, this.facing);
-
-		// Edge-triggered hero-card occlusion: the flag republishes only on zone
-		// entry/exit, so the DOM never sees per-frame coordinates or state.
-		const camera = this.cameras?.main;
-		if (camera) {
-			const screen = heroScreenPosition(camera, this.player);
-			const occluded = isHeroInHeroCardZone(screen.x, screen.y);
-			if (occluded !== this.heroOccluded) {
-				this.heroOccluded = occluded;
-				this.publishHudState(this.lastPublishedStatus);
-			}
-		}
 
 		const explorationChanged = this.revealCurrentMapArea();
 		if (explorationChanged) {
@@ -1328,6 +1331,19 @@ export class WorldScene extends Phaser.Scene {
 				this.dialogueSession = null;
 				this.publishHudState(this.status('status.dialogueClosed'));
 				return;
+		}
+	}
+
+	private updateHeroOcclusion() {
+		const camera = this.cameras?.main;
+		if (!camera || !this.player) {
+			return;
+		}
+		const screen = heroScreenPosition(camera, this.player);
+		const occluded = isHeroInHeroCardZone(screen.x, screen.y, camera.width, camera.height);
+		if (occluded !== this.heroOccluded) {
+			this.heroOccluded = occluded;
+			this.publishHudState(this.lastPublishedStatus);
 		}
 	}
 

@@ -394,16 +394,6 @@ const phaserState = vi.hoisted(() => {
 		x: 0,
 		y: 0,
 		zoom: 1,
-		// Mirrors Camera.preRender so scroll/zoom writes in tests keep a faithful
-		// visible-world rect: view.x = scrollX + halfWidth·(1 − 1/zoom).
-		get worldView() {
-			return {
-				x: this.scrollX + (this.width / 2) * (1 - 1 / this.zoom),
-				y: this.scrollY + (this.height / 2) * (1 - 1 / this.zoom),
-				width: this.width / this.zoom,
-				height: this.height / this.zoom
-			};
-		},
 		shake: vi.fn(),
 		setBackgroundColor: vi.fn(),
 		setBounds: vi.fn(),
@@ -6576,16 +6566,12 @@ describe('WorldScene', () => {
 		);
 
 		emitHudStateSpy.mockClear();
-		// NW bedroom corner: with the stub camera parked at scroll 0 the world
-		// point lands at screen (82,80), inside the top-left card envelope.
 		Object.assign(phaserState.playerMarker, { x: 82, y: 80 });
 		scene.update(0, 16);
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({ heroOccluded: true })
 		);
 
-		// Staying inside publishes nothing — the flag crosses the wire only on
-		// zone entry/exit, never per frame.
 		emitHudStateSpy.mockClear();
 		scene.update(16, 16);
 		scene.update(32, 16);
@@ -6614,8 +6600,6 @@ describe('WorldScene', () => {
 			type: 'heal'
 		});
 
-		// An unrelated status publish must keep the flag or the card would snap
-		// back to full opacity between zone edges.
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({ heroOccluded: true })
 		);
@@ -6630,9 +6614,6 @@ describe('WorldScene', () => {
 
 		scene.create({ mapId: heroHouseMap.id });
 		emitHudStateSpy.mockClear();
-		// Same world point, different scroll: (500,80) lands inside the card
-		// envelope while the camera sits at scrollX 300 (screen 200,80) and
-		// clears it once the camera relaxes to scrollX 50 (screen 450,80).
 		Object.assign(phaserState.mainCamera, { scrollX: 300 });
 		Object.assign(phaserState.playerMarker, { x: 500, y: 80 });
 		scene.update(0, 16);
@@ -6658,13 +6639,84 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { x: 500, y: 300 });
 		scene.update(16, 16);
 
-		// The feature only reads the camera: map-exact centered bounds stay as
-		// set once by create, and scroll/follow are never written.
 		expect(phaserState.mainCamera.setBounds).toHaveBeenCalledTimes(1);
 		expect(phaserState.mainCamera.setBounds).toHaveBeenCalledWith(0, 0, 704, 576);
 		expect(phaserState.mainCamera.scrollX).toBe(0);
 		expect(phaserState.mainCamera.scrollY).toBe(0);
 		expect(phaserState.mainCamera.startFollow).toHaveBeenCalledTimes(1);
+	});
+
+	it('publishes the arrival occlusion on the first authoritative HUD state', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const save = {
+			...createNewSaveState(),
+			mapId: 'hero-house'
+		};
+		save.player = { ...save.player, x: 82, y: 80 };
+
+		scene.create({ saveState: save, reason: 'resume' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ heroOccluded: true })
+		);
+	});
+
+	it('keeps evaluating the flag when the resumed hero cannot move', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const save = {
+			...createNewSaveState(),
+			mapId: 'hero-house'
+		};
+		save.player = { ...save.player, x: 82, y: 80, hp: 0 };
+
+		scene.create({ saveState: save, reason: 'resume' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ heroOccluded: true })
+		);
+
+		emitHudStateSpy.mockClear();
+		Object.assign(phaserState.playerMarker, { x: 500, y: 300 });
+		scene.update(0, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ heroOccluded: false })
+		);
+	});
+
+	it('keeps the flag coherent when the camera resizes with a stale previous view', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const { heroHouseMap } = await import('$lib/game/content/maps');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: heroHouseMap.id });
+		Object.assign(phaserState.playerMarker, { x: 230, y: 120 });
+		scene.update(0, 16);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ heroOccluded: true })
+		);
+
+		emitHudStateSpy.mockClear();
+		Object.assign(phaserState.mainCamera, { width: 1280, height: 800 });
+		Object.defineProperty(phaserState.mainCamera, 'worldView', {
+			value: { x: 0, y: 0, width: 640, height: 360 },
+			writable: true,
+			configurable: true
+		});
+		scene.update(16, 16);
+		scene.update(32, 16);
+
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
 	});
 
 	it('moves the player marker using the current input state', async () => {

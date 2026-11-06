@@ -1150,8 +1150,6 @@ export class BattleScene extends Phaser.Scene {
 				locale
 			}),
 			wallet: { coins: saveState?.wallet.coins ?? 0 },
-			// A full state publish clears the field occlusion flag so a stale
-			// one can't leave the hero card faded through combat.
 			heroOccluded: false,
 			nearbyShop: null,
 			shop: null,
