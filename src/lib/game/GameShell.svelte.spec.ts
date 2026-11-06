@@ -19,6 +19,7 @@ import { setLastInputModality } from '$lib/game/core/gamepad';
 import { PREFERENCES_STORAGE_KEY } from '$lib/game/i18n/preferences';
 import { updatePreferences } from '$lib/game/i18n/store';
 import type { ConsumableDefinition, EquipmentDefinition } from '$lib/game/content/items';
+import { getAreaName } from '$lib/game/core/area-map';
 import type { HudQuestEntry } from '$lib/game/core/quests';
 import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
 
@@ -1616,7 +1617,7 @@ describe('GameShell area map', () => {
 						{
 							id: 'ruins-gate',
 							kind: 'quest',
-							x: 2_560,
+							x: 2_048,
 							y: 6_016,
 							label: 'Ruins Gate',
 							emphasis: true
@@ -1648,7 +1649,77 @@ describe('GameShell area map', () => {
 		await expect.element(page.getByTestId('area-map-selected')).toHaveTextContent('Ruins Gate');
 	});
 
-	it('frames the player and a known quest entrance with its rendered label', async () => {
+	it.each(['en', 'ja', 'zh-Hant'] as const)(
+		'frames the player and a known quest entrance with its rendered label (%s)',
+		async (locale) => {
+			const label = getAreaName(locale, 'blacksmith-interior');
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					areaMap: {
+						...baseHudState().areaMap,
+						worldWidth: 12_288,
+						worldHeight: 12_288,
+						player: { x: 4_464, y: 7_312 },
+						markers: [
+							{
+								id: 'overworld-to-hero-house',
+								kind: 'exit',
+								x: 4_464,
+								y: 7_280,
+								label: 'Hero House'
+							},
+							{
+								id: 'overworld-to-blacksmith-interior',
+								kind: 'exit',
+								x: 5_648,
+								y: 7_184,
+								label,
+								emphasis: true,
+								knownQuestEntrance: true
+							}
+						]
+					}
+				})
+			);
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: /map/i }).click();
+			const svg = page.getByTestId('area-map-svg');
+			await expect.element(svg).toBeVisible();
+
+			const svgEl = svg.element() as SVGSVGElement;
+			const [viewX, viewY, viewWidth, viewHeight] = (svgEl.getAttribute('viewBox') ?? '')
+				.split(' ')
+				.map(Number);
+			expect(viewWidth).toBeLessThan(12_288);
+			for (const point of [
+				{ x: 4_464, y: 7_312 },
+				{ x: 5_648, y: 7_184 }
+			]) {
+				expect(point.x).toBeGreaterThanOrEqual(viewX);
+				expect(point.x).toBeLessThanOrEqual(viewX + viewWidth);
+				expect(point.y).toBeGreaterThanOrEqual(viewY);
+				expect(point.y).toBeLessThanOrEqual(viewY + viewHeight);
+			}
+
+			const marker = svgEl.querySelector<SVGGElement>(
+				'[data-focus-id="map-marker-overworld-to-blacksmith-interior"]'
+			);
+			expect(marker).not.toBeNull();
+			const markerText = marker?.querySelector('text');
+			expect(markerText?.textContent).toBe(label);
+			const frame = svgEl.getBoundingClientRect();
+			const labelBox = markerText!.getBoundingClientRect();
+			expect(labelBox.width).toBeGreaterThan(0);
+			expect(labelBox.left).toBeGreaterThanOrEqual(frame.left);
+			expect(labelBox.top).toBeGreaterThanOrEqual(frame.top);
+			expect(labelBox.right).toBeLessThanOrEqual(frame.right + 1);
+			expect(labelBox.bottom).toBeLessThanOrEqual(frame.bottom + 1);
+		}
+	);
+
+	it('keeps a revealed offscreen marker out of the local frame and tab order', async () => {
 		render(GameShell);
 		emitHudState(
 			baseHudState({
@@ -1670,9 +1741,7 @@ describe('GameShell area map', () => {
 							kind: 'exit',
 							x: 5_648,
 							y: 7_184,
-							label: 'Sundrop Forge',
-							emphasis: true,
-							knownQuestEntrance: true
+							label: 'Sundrop Forge'
 						}
 					]
 				}
@@ -1685,33 +1754,18 @@ describe('GameShell area map', () => {
 		await expect.element(svg).toBeVisible();
 
 		const svgEl = svg.element() as SVGSVGElement;
-		const [viewX, viewY, viewWidth, viewHeight] = (svgEl.getAttribute('viewBox') ?? '')
-			.split(' ')
-			.map(Number);
-		expect(viewWidth).toBeLessThan(12_288);
-		for (const point of [
-			{ x: 4_464, y: 7_312 },
-			{ x: 5_648, y: 7_184 }
-		]) {
-			expect(point.x).toBeGreaterThanOrEqual(viewX);
-			expect(point.x).toBeLessThanOrEqual(viewX + viewWidth);
-			expect(point.y).toBeGreaterThanOrEqual(viewY);
-			expect(point.y).toBeLessThanOrEqual(viewY + viewHeight);
-		}
+		const [viewX, , viewWidth] = (svgEl.getAttribute('viewBox') ?? '').split(' ').map(Number);
+		expect(5_648).toBeGreaterThan(viewX + viewWidth);
 
-		const marker = svgEl.querySelector<SVGGElement>(
-			'[data-focus-id="map-marker-overworld-to-blacksmith-interior"]'
-		);
-		expect(marker).not.toBeNull();
-		const markerText = marker?.querySelector('text');
-		expect(markerText?.textContent).toBe('Sundrop Forge');
-		const frame = svgEl.getBoundingClientRect();
-		const labelBox = markerText!.getBoundingClientRect();
-		expect(labelBox.width).toBeGreaterThan(0);
-		expect(labelBox.left).toBeGreaterThanOrEqual(frame.left);
-		expect(labelBox.top).toBeGreaterThanOrEqual(frame.top);
-		expect(labelBox.right).toBeLessThanOrEqual(frame.right + 1);
-		expect(labelBox.bottom).toBeLessThanOrEqual(frame.bottom + 1);
+		expect(
+			svgEl.querySelector('[data-focus-id="map-marker-overworld-to-hero-house"]')
+		).not.toBeNull();
+		expect(
+			svgEl.querySelector('[data-focus-id="map-marker-overworld-to-blacksmith-interior"]')
+		).toBeNull();
+
+		await userEvent.keyboard('{Tab}');
+		await expect.element(svg.getByRole('img', { name: 'Hero House' })).toHaveFocus();
 	});
 
 	it('traps focus inside the map dialog while paused', async () => {
@@ -3218,7 +3272,7 @@ describe('GameShell pad layer', () => {
 						{
 							id: 'ruins-gate',
 							kind: 'quest',
-							x: 2_560,
+							x: 2_048,
 							y: 6_016,
 							label: 'Ruins Gate',
 							emphasis: true

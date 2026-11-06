@@ -3,16 +3,20 @@ import { describe, expect, it } from 'vitest';
 import {
 	blacksmithInteriorMap,
 	heroHouseMap,
+	itemShopMap,
 	maps,
 	overworldMap,
-	shrineOfAuroraInteriorMap
+	shrineOfAuroraInteriorMap,
+	type WorldMapDefinition
 } from '$lib/game/content/maps';
 import { overworldAnchors } from '$lib/game/content/maps/overworld/world';
+import { storyWindows } from '$lib/game/content/quests';
 import {
 	AREA_MAP_MARKER_EMPHASIS_FONT_PX,
 	AREA_MAP_MARKER_FONT_PX,
 	AREA_MAP_MARKER_LABEL_DX,
 	areaMapLocalView,
+	areaMapMarkersInView,
 	buildAreaMapState,
 	buildInitialAreaMapState,
 	clampedLocalMapView,
@@ -263,6 +267,55 @@ describe('known quest entrance hints', () => {
 		).toEqual(['overworld-to-hero-house']);
 	});
 
+	it('drops the hint when story gates remove the talk target from the destination', () => {
+		const quests = questStateAt('collect-herb-pouch');
+		const progress = getStoryProgress(quests);
+		const gatedOutItemShop: WorldMapDefinition = {
+			...itemShopMap,
+			npcs: (itemShopMap.npcs ?? []).map((npc) =>
+				npc.dialogueId === 'mira' ? { ...npc, activeDuring: storyWindows.afterRaid } : npc
+			)
+		};
+		expect(gatedOutItemShop.npcs?.some((npc) => npc.dialogueId === 'mira')).toBe(true);
+		expect(
+			applyStoryGates(gatedOutItemShop, progress).npcs?.some((npc) => npc.dialogueId === 'mira')
+		).toBe(false);
+
+		maps['item-shop'] = gatedOutItemShop;
+		try {
+			const markers = markersAt(quests);
+			expect(markers.some((marker) => marker.knownQuestEntrance === true)).toBe(false);
+			expect(markers.some((marker) => marker.id === 'overworld-to-item-shop')).toBe(false);
+		} finally {
+			maps['item-shop'] = itemShopMap;
+		}
+	});
+
+	it.each([
+		{ locale: 'en' as const, label: 'Sundrop Forge' },
+		{ locale: 'ja' as const, label: 'サンドロップ鍛冶場' },
+		{ locale: 'zh-Hant' as const, label: '晴滴鍛造坊' }
+	])(
+		'localizes the flagged entrance label and frames its extent ($locale)',
+		({ locale, label }) => {
+			const quests = questStateAt('collect-practice-spear');
+			const map = applyStoryGates(overworldMap, getStoryProgress(quests));
+			const state = buildAreaMapState({
+				map,
+				player: homeExit,
+				revealedCells: revealAround(homeExit),
+				quests,
+				locale
+			});
+			const hint = state.markers.find((marker) => marker.knownQuestEntrance === true);
+			expect(hint?.label).toBe(label);
+			const view = areaMapLocalView(state);
+			expect(view.x + view.width).toBeGreaterThanOrEqual(
+				hint!.x + AREA_MAP_MARKER_LABEL_DX + hint!.label.length * AREA_MAP_MARKER_EMPHASIS_FONT_PX
+			);
+		}
+	);
+
 	it('never flags entrances for overworld, non-talk, or finished objectives', () => {
 		for (const objectiveId of ['meet-lirra-forest', 'repel-the-soldiers', 'go-to-sleep']) {
 			expect(
@@ -305,6 +358,29 @@ describe('local area map view', () => {
 		expect(view.x + view.width).toBeGreaterThanOrEqual(
 			hint.x + AREA_MAP_MARKER_LABEL_DX + hint.label.length * fontPx
 		);
+	});
+
+	it('drops markers outside the local view from the rendered set', () => {
+		const quests = questStateAt('meet-lirra-forest');
+		const map = applyStoryGates(overworldMap, getStoryProgress(quests));
+		const revealedCells = [...revealAround(homeExit), ...revealAround(forgeDoor)];
+		const state = buildAreaMapState({
+			map,
+			player: homeExit,
+			revealedCells,
+			quests,
+			locale: 'en'
+		});
+		expect(state.markers.some((marker) => marker.id === 'overworld-to-blacksmith-interior')).toBe(
+			true
+		);
+
+		const view = areaMapLocalView(state);
+		expect(forgeDoor.x).toBeGreaterThan(view.x + view.width);
+
+		const visible = areaMapMarkersInView(state.markers, view);
+		expect(visible.some((marker) => marker.id === 'overworld-to-blacksmith-interior')).toBe(false);
+		expect(visible.some((marker) => marker.id === 'overworld-to-hero-house')).toBe(true);
 	});
 
 	it('keeps a player-local window when no entrance is flagged', () => {
