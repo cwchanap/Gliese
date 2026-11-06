@@ -151,22 +151,16 @@ describe('overworld', () => {
 	});
 });
 
-/**
- * The way to the forge is painted in dirt: the village lane turns south ahead of
- * neighbour hut 2, crosses under it on the lower lane, jogs around the tree at
- * (43,43) through the row-42 shoulder, then climbs the forge column. Grass and
- * dirt are both walkable, so only the source glyphs prove the visible route.
- */
 const FORGE_CORRIDOR: readonly { col: number; row: number }[] = [
-	{ col: 33, row: 40 }, // village lane, last tile before the south turn
-	{ col: 33, row: 43 }, // south leg onto the lower lane
-	{ col: 36, row: 43 }, // lower lane, west of the huts
-	{ col: 39, row: 43 }, // lower lane, south of neighbour hut 2
-	{ col: 42, row: 43 }, // lower lane, end below the tree
-	{ col: 42, row: 42 }, // jog north beside the tree
-	{ col: 45, row: 42 }, // east transit over the tree's shoulder
-	{ col: 48, row: 42 }, // transit turns up the forge column
-	{ col: 48, row: 41 } // forge doorstep
+	{ col: 33, row: 40 },
+	{ col: 33, row: 43 },
+	{ col: 36, row: 43 },
+	{ col: 39, row: 43 },
+	{ col: 42, row: 43 },
+	{ col: 42, row: 42 },
+	{ col: 45, row: 42 },
+	{ col: 48, row: 42 },
+	{ col: 48, row: 41 }
 ];
 
 const FORGE_TRANSITION = 'overworld-to-blacksmith-interior';
@@ -179,7 +173,6 @@ describe('Sundrop forge connector', () => {
 		for (const { col, row } of FORGE_CORRIDOR) {
 			expect(terrain[row]![col], `terrain[${row}][${col}]`).toBe(',');
 		}
-		// The old connector ran east on row 41 straight out of the neighbour-hut door.
 		for (const col of [41, 42, 43, 44, 45, 46, 47]) {
 			expect(terrain[41]![col], `terrain[41][${col}]`).not.toBe(',');
 		}
@@ -191,18 +184,16 @@ describe('Sundrop forge connector', () => {
 			overworld.grid.terrain,
 			overworld.grid.buildings
 		);
-		// World-pixel walk-line along the corridor above, hugging the walkable half
-		// where the trees erode the lane's edge.
 		const waypoints = [
-			{ x: 4560, y: 7280 }, // lower lane, east of Grik's door
-			{ x: 4656, y: 7280 }, // turn north onto the lane column
-			{ x: 4656, y: 7184 }, // village lane
-			{ x: 5168, y: 7184 }, // lane end, turn south
-			{ x: 5168, y: 7280 }, // south leg onto the lower lane
-			{ x: 5448, y: 7280 }, // lower lane, south of neighbour hut 2
-			{ x: 5448, y: 7240 }, // jog north beside the tree
-			{ x: 5648, y: 7240 }, // east transit to the forge column
-			{ x: 5648, y: 7184 } // forge door
+			{ x: 4560, y: 7280 },
+			{ x: 4656, y: 7280 },
+			{ x: 4656, y: 7184 },
+			{ x: 5168, y: 7184 },
+			{ x: 5168, y: 7280 },
+			{ x: 5448, y: 7280 },
+			{ x: 5448, y: 7240 },
+			{ x: 5648, y: 7240 },
+			{ x: 5648, y: 7184 }
 		] as const;
 		const samples: { x: number; y: number }[] = [];
 		for (let i = 0; i + 1 < waypoints.length; i += 1) {
