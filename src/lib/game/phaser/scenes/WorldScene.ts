@@ -478,6 +478,7 @@ export class WorldScene extends Phaser.Scene {
 	private resolvedEncounterDrops: SaveState['flags']['resolvedEncounterDrops'] = {};
 	private removeHudCommandListener = () => {};
 	private removeHeroRenderProbeListener = () => {};
+	private pendingHeroRenderProbe: (() => void) | null = null;
 	private renderOptions!: WorldRenderOptions;
 	private simulationPaused = false;
 	/** A quest effect (a scene or a fade) is playing; the next one waits for it. */
@@ -742,9 +743,11 @@ export class WorldScene extends Phaser.Scene {
 			this.renderEpoch += 1;
 			this.removeHudCommandListener();
 			this.removeHeroRenderProbeListener();
+			this.cancelHeroRenderProbe();
 			this.unsubscribePreferences?.();
 			this.unsubscribePreferences = null;
 		});
+		this.events?.once?.('destroy', () => this.cancelHeroRenderProbe());
 
 		setAmbience(this, ambienceFor(map.id, getStoryProgress(this.quests)));
 		if (reason === 'transition') {
@@ -1369,13 +1372,31 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private answerHeroRenderProbe() {
-		this.events?.once?.('render', () => {
+		if (!this.renderOptions.movementDiagnostics || this.pendingHeroRenderProbe) {
+			return;
+		}
+		const epoch = this.renderEpoch;
+		const respond = () => {
+			this.pendingHeroRenderProbe = null;
+			if (epoch !== this.renderEpoch || !this.renderOptions.movementDiagnostics) {
+				return;
+			}
 			emitHeroRenderProbe({
 				mapId: this.mapId,
 				spritePosition: this.player ? { x: this.player.x, y: this.player.y } : null,
 				camera: this.diagnosticCameraSnapshot()
 			});
-		});
+		};
+		this.pendingHeroRenderProbe = respond;
+		this.events?.once?.('render', respond);
+	}
+
+	private cancelHeroRenderProbe() {
+		const pending = this.pendingHeroRenderProbe;
+		this.pendingHeroRenderProbe = null;
+		if (pending) {
+			this.events?.off?.('render', pending);
+		}
 	}
 
 	private publishHudState(status: string) {

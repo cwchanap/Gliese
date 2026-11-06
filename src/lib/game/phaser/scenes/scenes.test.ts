@@ -7682,6 +7682,75 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('cancels a pending render probe on shutdown so a restart cannot answer it', async () => {
+		const restoreLocation = installLocationSearch('?movementDiagnostics=on');
+		const target = installHudCommandTarget();
+		const probes: HeroRenderProbe[] = [];
+		target.target.addEventListener(HERO_RENDER_PROBE_EVENT, (event) => {
+			probes.push((event as CustomEvent<HeroRenderProbe>).detail);
+		});
+		try {
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+
+			scene.create({ mapId: 'overworld' });
+			target.target.dispatchEvent(new Event(HERO_RENDER_PROBE_REQUEST_EVENT));
+			expect(scene.events.listenerCount('render')).toBe(2);
+
+			scene.events.emit('shutdown');
+			expect(scene.events.listenerCount('render')).toBe(1);
+
+			scene.create({ mapId: 'guild-hall' });
+			scene.events.emit('render');
+
+			expect(probes).toEqual([]);
+
+			target.target.dispatchEvent(new Event(HERO_RENDER_PROBE_REQUEST_EVENT));
+			scene.events.emit('render');
+
+			expect(probes).toHaveLength(1);
+			expect(probes[0]).toMatchObject({
+				mapId: 'guild-hall',
+				spritePosition: { x: phaserState.playerMarker.x, y: phaserState.playerMarker.y }
+			});
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
+	it('ignores a pending render probe after a restart with diagnostics off', async () => {
+		let restoreLocation = installLocationSearch('?movementDiagnostics=on');
+		const target = installHudCommandTarget();
+		const probes: HeroRenderProbe[] = [];
+		target.target.addEventListener(HERO_RENDER_PROBE_EVENT, (event) => {
+			probes.push((event as CustomEvent<HeroRenderProbe>).detail);
+		});
+		try {
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+
+			scene.create({ mapId: 'overworld' });
+			target.target.dispatchEvent(new Event(HERO_RENDER_PROBE_REQUEST_EVENT));
+			scene.events.emit('shutdown');
+
+			restoreLocation();
+			restoreLocation = installLocationSearch('');
+			scene.create({ mapId: 'guild-hall' });
+			scene.events.emit('render');
+
+			expect(probes).toEqual([]);
+
+			target.target.dispatchEvent(new Event(HERO_RENDER_PROBE_REQUEST_EVENT));
+			scene.events.emit('render');
+
+			expect(probes).toEqual([]);
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
 	it('blocks player movement through NPC bodies', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
