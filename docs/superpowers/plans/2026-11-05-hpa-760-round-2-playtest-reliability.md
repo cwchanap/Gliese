@@ -10,6 +10,9 @@
 
 **Tech:** Svelte 5, Phaser, TypeScript, Bun, Vitest, Playwright, grid-map/navigation source generators, existing save slots.
 
+**Review incorporated (Nov 5):** This plan now prioritizes trigger-aware forge navigation, an optional *tested* global corner-nudge before per-door geometry edits, explicit cleanup of stale NPC hints, correct Playwright `exhaustive`/`flaky` ownership, gating provisional HUD values on `ready`, and diagnosing `h:mm` playtime before touching persistence. The global movement/camera alternatives are **not pre-approved without behavior/regression proof**.
+
+
 ## Constraints and acceptance policy
 
 - [ ] Keep **all** HPA-760 findings in **this one PR**. Do not add a new issue or split the fixes merely for code ownership.
@@ -21,69 +24,68 @@
 - [ ] A bot-only route failure is not sufficient reason to move walls. Use real keyboard/controller evidence and focused deterministic checks before geometry changes.
 - [ ] Keep PR **draft** until implementation/tests/manual acceptance are actually complete.
 
-## Task 0 — Capture the pre-fix behavior and choose the smallest fix
+## Task 0 — Short, targeted baseline proof (not another 45-minute exploration)
 
-**Read:** Linear HPA-760, `CLAUDE.md`, `.agents/skills/gliese-world-expansion/SKILL.md`, existing tests and the design above.
+**Read:** HPA-760, current code owners, `core/navigation.ts`, `grid/layers.ts`, `WorldScene`, the approved design spec and existing Playwright classification.
 
-- [ ] Run `bun run dev`, a genuinely fresh **New Run**, and keyboard-only steps: speak to Old Mott → leave Hero House → follow the forge objective → attempt its south-facing door → enter and speak to Oren. Screenshot the village/forge door and note which steps are reliable vs. frustrating.
-- [ ] In Hero House: test front exit and bedroom door at center and reasonable off-center approaches; stand near Mott/Tikka while facing each; attempt E next to a decorative villager; walk into/out of Tikka's table gap; move Grik under the top-left hero card.
-- [ ] Create a save after several minutes of play; quit/reopen load picker; note whether “00:00” is a true metadata bug, an early autosave whose timestamp predates the play session, or a manual-save formatting issue.
-- [ ] Record viewport and actual player/door positions when available. Compare collision debug overlay (`WorldScene` render option) to visible art before adjusting geometry.
-- [ ] Write a short before/after evidence note in the PR description or the existing review/report folder; avoid a large second acceptance spreadsheet.
+- [ ] On a clean **normal New Run** (no `?startMap=`), use keyboard Mott → home exit → village → `sundrop-forge-door` → Oren. The forge (`f`) is close to neighbor door (`b`); note whether its **automatic transition radius** forces the player into the neighbor or whether a different readable path already works.
+- [ ] Confirm Hero House front/bedroom “sweet spot” on current 16px clearance-eroded navigation cells. Record which offset/axis fails; the axis-separated movement resolver is a known suspect.
+- [ ] Position player near both Tikka/Mott; explicitly check whether a **stale “Tikka nearby” status** remains after the nearest eligible NPC changes, and whether E selects the same candidate at that instant. Check ambient-only villages.
+- [ ] Try the living-table wedge; record camera/card overlap in a small interior at common viewport sizes.
+- [ ] Reproduce the save-slot playtime report: inspect direct/dev boot vs normal New Run, actual slot index and last save time, `getPlaytimeSeconds`, the `h:mm` formatter, and headless clock. Under 60s legitimately renders `00:00`; 4 minutes renders `00:04`, so test more than a minute.
+- [ ] Document before/after in the same PR using short notes/screenshots; preserve the original playtest friction even if it isn't a formal soft-lock.
 
-**Gate:** Do not claim a confirmed forge soft-lock if the normal keyboard route works.
+**Gate:** Reproduction classifies root cause; it does not authorize a global code change without safety tests.
 
 ## Task 1 — Fix the independent shop test drift (low risk)
 
-**Change:** `tests/e2e/game.e2e.ts`.
+**Owner:** `tests/e2e/game.e2e.ts`.
 
-- [ ] Replace all stale **“Mira's Item Shop”** expectations: current test fixture (~line 1971), heading (~line 12025), and dialog name (~line 12119). Confirm there are no additional stale references.
-- [ ] Keep an explicit expected player-facing **“Mira's Herb Hut”** string. Do not change production shop names, inventory/buy/sell, or story dialogue solely to make tests green.
-- [ ] Run the focused Mira shop E2E in the `gate` Playwright project. Check the existing tests still exercise opening, buying, selling, and closing.
+- [ ] Update the three stale `Mira's Item Shop` fixture/heading/dialog expectations to the **literal canonical** `Mira's Herb Hut`; preserve shop and NPC IDs, stock, buying and selling.
+- [ ] Do **not** mass-replace matching text in `src/lib/game/GameShell.svelte.spec.ts`: those occurrences are caller-supplied HudState fixtures, not necessarily production naming regressions. Change a fixture only if its tested contract requires canonical naming.
+- [ ] Run the **`exhaustive`** owner: `bun run test:e2e -- --project=exhaustive --grep "Item Shop painted interior"`. Run relevant `gate` shop tests separately. The painted case is not `gate`-owned.
 
-**Gate:** Shop UI matches the existing build and its current displayed name.
+**Gate:** The production shop label stays unchanged and the correct owning E2E passes.
 
-## Task 2 — Make the forge the clear and reachable first destination
+## Task 2 — Solve the forge route and destination marker (minimal sources)
 
-**Read/change only if required:**
-- `src/lib/game/content/maps/overworld/chunks/sundrop.ts` — forge footprint (`F`), forge door (`f`), neighboring hut/fence/trees/paths;
-- `src/lib/game/content/maps/overworld/places.ts` — existing door transition and arrival;
-- `src/lib/game/content/maps/grid/layers.ts` and `src/lib/game/core/navigation.ts` — diagnose, don't rewrite globally;
-- `src/lib/game/core/area-map.ts` and `src/lib/game/ui/AreaMapScreen.svelte` — destination marker and readable local map.
+**Inspect:** `src/lib/game/content/maps/overworld/chunks/sundrop.ts` (`f` forge, `b` neighbor house, racks `X`), `overworld/places.ts`, `grid/layers.ts`, `core/navigation.ts`, `core/area-map.ts`, `ui/AreaMapScreen.svelte` and `ui/FieldHud.svelte`.
 
-- [ ] Inspect/verify street-to-door walkability using the **existing** grid mask, the player radius, the transition trigger, and the actual keyboard path. If blocked or visually misleading, edit the fewest Sundrop grid cells around the forge/neighbor junction and keep the door on the painted south face.
-- [ ] Make the active `collect-practice-spear` objective point to the overworld-to-blacksmith entrance: derive a **one-hop** target from the active NPC objective and existing interior/transition data. Reuse existing map-marker structures, not a new route data model.
-- [ ] Mark the current objective entrance distinctly in the minimap/area map and show its useful label (e.g., “Forge”). Avoid three identical gold rings that require blind trial-and-error.
-- [ ] Improve the overworld area map default framing so the revealed **local village** and its doors are readable; retain a simple whole-world overview if necessary, without a general pan/zoom framework. Preserve focus and accessible marker labels.
-- [ ] Add the smallest deterministic reachability/marker assertions to `src/lib/game/content/maps/overworld/world.test.ts` and/or `src/lib/game/core/area-map.test.ts`, reusing existing map fixtures. Avoid a duplicate hand-maintained forge coordinate list.
-- [ ] Use `bun run map:preview -- --chunk sundrop` when grid cells move, then manually walk from home to forge.
+- [ ] Add a **trigger-aware** route regression: a player-radius-clear route to the forge `f` must not enter another *active unrelated* transition's radius (30px for the current rules). The existing `findUnreachablePoints` reaches anchors without considering door activation. Add a small optional avoided-point predicate/radius only if it simplifies the current grid test; otherwise keep the check local to `world.test.ts`.
+- [ ] Scope any all-door invariant to currently relevant Sundrop entrances and story state. Do not require that **all future door anchors** can be reached without crossing *any* other door trigger; this could reject intentional transition chains. Also test actual arrival/door trigger semantics, not merely walkable center cells.
+- [ ] Check for a route around the neighbor door before touching the chunk. If the approach is still blocked or unreasonably confusing, move the **fewest authored Sundrop glyphs** around the forge/hut/trees/racks while keeping drawn door faces aligned; preview via `bun run map:preview -- --chunk sundrop`.
+- [ ] In `getObjectiveTargets`/`buildMainQuestMarkers`, if a `talk-to-npc` objective has no eligible target on the current map, check directly connected `map.transitions` to a gated target NPC in `maps[transition.toMapId]` (using `applyStoryGates` and current quest progress). Return the one-hop entrance marker. No generic route graph.
+- [ ] Share a tiny pure clamped local viewBox helper from `core/area-map.ts` between the existing `FieldHud` minimap and `AreaMapScreen`, using suitable spans. Area map door markers already have labels; make them readable at local scale and keep focus/ARIA. Emphasize the current forge entrance in minimap (instead of undifferentiated gold rings).
+- [ ] Unit tests: current destination Oren yields highlighted forge entrance; completed/other objective does not; local viewport stays in bounds; relevant Sundrop route avoids unrelated door activation.
+- [ ] Manually confirm Mott → forge → Oren → practice spear.
 
-**Gate:** New Run → Mott → village forge → Oren → practice spear works by keyboard, with a legible destination and no accidental neighboring-house transition.
+**Gate:** Reachable *and discoverable* forge; no accidental neighbor interior while using intended approach.
 
-## Task 3 — Align the first two painted doors with movement
+## Task 3 — Prove or reject a shared corner-nudge for narrow doors
 
-**Geometry owner:** `src/lib/game/content/maps/layouts/village-interiors-v2.ts`.  
-**Generation owner:** `src/lib/game/content/backgrounds/village-interior-navigation-sources.ts` plus `tools/generate-navigation-runtime.ts`.
+**Primary owner:** `src/lib/game/core/navigation.ts` and `src/lib/game/core/navigation.test.ts`. **Fallback authored owner:** `VILLAGE_INTERIOR_LAYOUTS['hero-house']`.
 
-- [ ] Compare the painted Hero House exterior/bedroom openings against `heroHouseWalls`, `doors`, `heroHouseMap.transitions`, generated navigation cell size/clearance, and `PLAYER_COLLISION_RADIUS`.
-- [ ] Change the **source layout** minimally so center and reasonable visible off-center approaches work from **both sides**. Don't reduce the global player radius or let the player cross visibly solid wall art.
-- [ ] Regenerate navigation via `bun run world:generate:navigation` and commit the changed generated runtime file(s), if any; run `bun run world:check:navigation`.
-- [ ] Update/extend the nearest authored layout/navigation tests rather than building another all-interior regression matrix.
-- [ ] Verify bedroom, exterior exit/re-entry, and representative unaffected interiors through existing acceptance journeys.
+- [ ] Reproduce the movement failure in Hero House's exterior/bedroom door (the E2E already describes two-cell, 16px clearance-eroded lanes). Prefer a shared fix over hand widening every 64px opening.
+- [ ] Prototype the smallest bounded **cardinal-only** correction inside `resolveMovementSegment`: when requested forward movement is blocked, probe up to ~16–20px sideways on either side and move at most the normal frame step **only if both the lateral and forward swept segments stay valid**. Do not silently teleport toward a door, nudge while input is diagonal/zero, or bypass a solid wall/corner. A nudge that would trigger the wrong nearby door is a failed candidate.
+- [ ] Test correct center/off-center crossing, tight corners, dead ends, obstacles, NPC/prop collisions, diagonal input, no input, and no movement into blocked cells, **before accepting a global resolver change**.
+- [ ] Re-run relevant `gate`, `exhaustive` and `flaky` route-walking tests after a global movement change; compare any flaky helper failure against manual keyboard behavior.
+- [ ] Only if visible door bands still fail after a collision-safe nudge (or the nudge is unsafe), make the smallest Hero House source `walls`/`doors`/exit correction in `village-interiors-v2.ts` and regenerate `bun run world:generate:navigation` and `bun run world:check:navigation`.
+- [ ] Confirm exterior and bedroom crossings both ways from realistic offsets, plus existing Item Shop and villager house door interactions. Preserve map/transition IDs.
 
-**Gate:** Players don't need trial-and-error pixel alignment to pass visibly open doorways; wall collision remains honest.
+**Gate:** Door passages no longer require invisible precision; no ghost-wall crossing or regressions in the shared movement system.
 
-## Task 4 — Make E, NPC prompt, and ambient response agree
+## Task 4 — Repair current shared selection + stale hint; keep E truthful
 
-**Owner:** `src/lib/game/phaser/scenes/WorldScene.ts`, with a tiny pure selection helper only if it substantially improves unit testing.
+**Owner:** `WorldScene.findNearbyNpc`, `updateNpcDialogue`, `handleInteractInput`; a tiny pure helper in `core/`.
 
-- [ ] Reproduce Mott vs. Tikka selection with the current `findNearbyNpc`: it currently chooses nearest eligible NPC, regardless of facing. Define one deterministic selection contract: in-range, prefer in-facing-direction, then proximity, then stable ID.
-- [ ] Use the **same result** for `updateNpcDialogue`'s “X nearby” hint and `handleInteractInput` / `interactWithNearbyNpc`. Recompute on change of facing/target and clear a stale nearby message when the candidate disappears.
-- [ ] Retain shop reachability, story-gated NPC membership, transient-fallback handling, and dialogue request sequencing.
-- [ ] For noninteractable `ambientNpcs` (on overworld and in interior maps), provide a short localized no-dialogue / busy response if the player faces a visible nearby villager. Keep “No one is nearby” for genuinely empty spaces.
-- [ ] Cover targeting both ways (Mott/Tikka), facing a decoration-only villager, out-of-range fallback, quest progress, and Mira shop proximity with focused scene/unit/E2E tests. If new i18n keys are needed, update English/Japanese/Traditional Chinese parity together.
+- [ ] Reproduce “Tikka nearby” → E opens Mott: prompt and E already call the same `findNearbyNpc`, so verify a stale free-text hint from `updateNpcDialogue` before blaming two separate selectors. Check Mott/Tikka overlapping reach and orientation.
+- [ ] **Require** a pure, unit-tested selection helper for only candidate ranking (generic `id`/`x`/`y`/`radius`), called by existing `findNearbyNpc`. Filter in-range; prefer facing; then distance; then stable ID. Reuse for ambient `MapAmbientNpc` proximity without building a second interaction manager.
+- [ ] In `updateNpcDialogue`, refresh/clear “X nearby” when target/facing/range changes even without nearby shop, but preserve meaningful non-proximity status where appropriate and avoid full HUD publishing each frame. Ensure E and displayed hint resolve the same candidate at action time.
+- [ ] On E facing an ambient-only villager, display a **single localized** “They have nothing to say” / “busy” fallback instead of “No one is nearby”, with i18n parity across `en`, `ja`, `zh-Hant`. No authored character dialogue or quest progression. Keep true empty-space fallback.
+- [ ] Do not rebuild the existing shop/dialogue wiring; preserve quest progress, story-gates, and stale async dialogue cancellation. Reuse the helper for discoveries only if trivial and safe.
+- [ ] Cover two-NPC facing, stale-target disappearance, deterministic ties, ambient-only, none-in-range, Mira shop reach, and quest event behavior in existing unit/scene/E2E owners.
 
-**Gate:** Prompt and E refer to the same eligible person; ambient villagers do not appear invisible to interaction messaging.
+**Gate:** The prompt, E target, and merchant proximity are consistent, and visible ambient NPCs get truthful feedback.
 
 ## Task 5 — Remove the Tikka/table wedging point
 
@@ -95,51 +97,56 @@
 
 **Gate:** No reachable trap remains between Tikka and the table; Tikka is still talkable.
 
-## Task 6 — Correct HUD overlap and save metadata
+## Task 6 — Fix provisional HUD, investigate playtime, and protect hero visibility
 
-**Read/change:**
-- `src/lib/game/ui/FieldHud.svelte`, `src/lib/game/phaser/scenes/WorldScene.ts`, `src/lib/game/ui-bridge/events.ts` / `store.ts`;
-- `src/lib/game/save/save-state.ts` (new-wallet source), `playtime.ts`, `slots.ts`, and `ui/SaveScreen.svelte`.
+**Owners:** `GameShell.svelte`/`FieldHud.svelte`, `WorldScene.getCenteredCameraBounds`, `ui-bridge/store.ts`, `save/playtime.ts`, `SaveScreen.svelte`, existing save slot writer.
 
-- [ ] Hero overlay: determine actual hero screen coordinates from the active camera; make the top-left hero card yield when it obscures the sprite. Prefer a boolean transition with an opacity class; no per-frame full HUD broadcast and no unrelated CSS redesign. Test common desktop and narrow viewports.
-- [ ] Wallet: replace hardcoded loading `coins: 30` with authoritative new-run `wallet.coins` (20G today); assert initial and ready HUD values agree. Keep the loading screen honest even before Phaser publishes.
-- [ ] Playtime: confirm when `resetPlaytime` is called and when `buildSlotRecord` samples the value. If the slot stays at 00:00 because no later autosave occurred, add a **bounded** checkpoint at sensible intervals or a lifecycle save flush using the existing `writeAutosave` path; don't write every frame or invent new storage. Continue to display persisted slot duration, not fake “live” time for a slot that was never saved.
-- [ ] Unit-test elapsed time and resume/reset semantics with a controllable clock. E2E test a run of >2 minutes (time controlled when practical), an actual persisted save, and load-picker display after reload. Exercise both autosave and manual slot paths without changing schema.
-- [ ] Preserve existing Tauri save flush/failure logic; don't introduce a second save-state owner.
+- [ ] **Loading gold:** `GameShell` currently renders `FieldHud` when not in battle/dialogue even while `$hudState.ready` is false. Gate numerical field content or the component on `ready`; if the whole component is hidden, keep an honest loading label. Do **not** simply replace hardcoded `coins: 30` with `20`: Continue could hold 150G, and the placeholder would still lie. Verify both New Run and Continue, with no initial coin flash.
+- [ ] **Portrait:** Test a *minimal* top-left camera bounds inset using real small-room screenshots and viewport sizes. The current bounds center small maps and do not add padding for larger-than-viewport rooms; a large inset can reveal blank `#1a1f2b` margins. Reject that option if it makes gameplay less legible; instead use a small card fade/yield on actual overlap with clearly owned player screen coordinates and measured responsive DOM card bounds. No per-frame full HUD publish.
+- [ ] **Playtime:** `getPlaytimeSeconds` is already sampled in `buildSlotRecord`, with multiple normal autosave triggers. Inspect `resetPlaytime`, actual slot writes, dev `?startMap=` save suppression, slot age and headless clock. The formatter is **`h:mm`**, so `00:04` is 4 minutes and `00:00` means under a minute or unsaved time. Add explicit hour/minute units if the stored data is correct (update formatter tests and relevant i18n/UX copy). Only fix a true missing save path with a minimal existing lifecycle write; **no timer-based periodic autosave unless a reproducible normal-play case demands it**, no schema migration.
+- [ ] Verify newly written/resumed **manual and autosave** slot durations after several minutes, that no time is double counted, and existing Tauri flush/failure guarantees stay intact.
 
-**Gate:** Hero visible behind top-left HUD, first loading gold 20G, and saved slot playtime accurately reflects real elapsed saved duration.
+**Gate:** No false loading wallet for New Run/Continue, hero visible in small rooms, and persisted slot elapsed time is accurate and unambiguous.
 
-## Task 7 — Finish targeted regression and human acceptance
+## Task 7 — Run the actual owning test projects and final manual acceptance
 
-**Run focused commands first:**
+**Focused build and static checks:**
 
     bun run check
     bun run lint
     bun run world:check:navigation
     bun run test:unit -- --run
-    bun run test:e2e -- --project=gate --grep "Mira|Shop|Forge|HPA-760"
 
-Also run the current relevant existing interior tests and `bun run art:validate:village-interiors` if interior layout/painted bounds changed. Run `bun run story:check:strict` only if story references/content changed; this ticket should not need new NPC prose. Record exact tested commit and commands in the PR.
+**Playwright ownership (the test command rebuilds before each Playwright invocation):**
 
-- [ ] Add/reuse one **player-facing** Playwright keyboard journey covering fresh start → Mott → exterior → forge → Oren → spear; don't create a giant parallel route-walking harness. Keep route helper flakiness distinct from actual gameplay regression.
-- [ ] Validate both Hero House doors; Mott/Tikka target selection; ambient villager messaging; living-room escape; hero visibility; gold; save slot playtime; current Mira shop name.
-- [ ] Exercise already-supported keyboard + gamepad focus for any area-map UI changes.
-- [ ] Capture final comparison screenshots or a short video of forge approach, door passability, and hero/HUD overlap.
-- [ ] Update the existing PR description with outcomes, **manual** evidence, test commands/results, deviations, and remaining risks. Keep it draft until all acceptance gates pass.
+    bun run test:e2e -- --project=gate
+    bun run test:e2e -- --project=exhaustive --grep "Item Shop painted interior"
+    bun run test:e2e -- --project=flaky --grep "Hero House painted interior preserves runtime"
+
+- [ ] Run the **full** `exhaustive` and `flaky` projects after any global movement resolver change; these are not optional just because `gate` passed. Distinguish route-helper flakiness from gameplay regressions using the keyboard proof, and record both outcomes.
+- [ ] Add/reuse one lean keyboard Playwright journey New Run → Mott → enter forge → Oren → spear without another giant pathfinding harness.
+- [ ] Manually verify both Hero House openings, Mott/Tikka hint and E, ambient feedback, Tikka/table escape, hero visibility, correct startup/Continue wallet, genuinely persisted slot playtime, and current Mira label/shop flows.
+- [ ] Run `bun run map:preview -- --chunk sundrop` for grid edits, `bun run world:generate:navigation` / `bun run world:check:navigation` for V2 geometry edits, and `bun run art:validate:village-interiors` if interior geometry/asset bounds change.
+- [ ] Run `bun run story:check:strict` only if story references/content change; one localized UI fallback need not invent story prose. Preserve the existing story gate contract.
+- [ ] Update this *same* PR with tested commit SHA, exact command results, screenshot evidence, any rejected movement/camera hypotheses, and residual risks; leave it draft until implementation completes.
+
+**Gate:** All player-facing cases meet the HPA-760 issue, with correct test-project ownership and no unverified claims.
 
 ## Proposed reviewer checklist
 
-| Finding | Proof required | Primary owner |
+| Finding | Evidence | Primary owner |
 | --- | --- | --- |
-| Forge impossible/hard to enter | Actual New Run keyboard path to Oren; readable destination | Sundrop grid + entrance / area map |
-| Narrow front and bedroom doors | Cross both ways from realistic offsets | V2 Hero House layout + generated navigation |
-| E picks Mott vs. Tikka | Prompt and dialog match facing | `WorldScene` target resolver |
-| No one nearby beside villagers | Ambient-specific truthful fallback | `WorldScene` / i18n |
-| Wedged by Tikka and furniture | Walk into previous location and exit | NPC/prop authored geometry |
-| Portrait hides hero | Hero remains visible at top-left screen position | `FieldHud` / minimal HUD signal |
-| 30G vs 20G | Initial placeholder and new wallet equal | HUD store / save source |
-| 00:00 after minutes | Persist and re-open elapsed slot time | Playtime + existing slot writer |
-| Old Mira name in tests | Existing shop tests pass on canonical visible name | `tests/e2e/game.e2e.ts` |
+| Forge route + accidental neighbor entry | Trigger-avoiding path plus real Mott → Oren journey | Sundrop grid / transitions |
+| Door sweet spot | Realistic offsets, no clipping; regression across other interiors | Core movement resolver, V2 layout fallback |
+| E targets wrong NPC | Stale-hint cleared and shared pure facing selection | WorldScene + tiny `core/` helper |
+| Ambient villagers ignored | One truthful localized fallback | WorldScene / i18n |
+| Tikka/table wedge | Walk in and safely walk out | Authored NPC/prop geometry |
+| Portrait occlusion | Hero still visible with no huge blank camera border | Camera bounds trial / FieldHud fallback |
+| 30G placeholder | No stale numeric HUD for New Run or Continue | GameShell `ready` |
+| 00:00 playtime | Real saved record and explicit `h:mm` semantics | Playtime / SaveScreen; persistence only if broken |
+| Mira name drift | Literal Herb Hut assertion in actual exhaustive owner | E2E fixture/assertions |
+
+**Risks:** Global movement nudging affects all route-walking tests and can inadvertently activate nearby doors; camera insets can reveal blank room margins; unconditional all-door avoidance tests can falsely reject intended transitions. Treat each as a **testable candidate** rather than guaranteed fix.
 
 ## Stop conditions
 
