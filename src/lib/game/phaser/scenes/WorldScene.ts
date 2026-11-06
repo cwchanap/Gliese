@@ -97,6 +97,7 @@ import {
 	STARTER_NPC_COLLISION_RADIUS
 } from '$lib/game/core/collision';
 import { equipItem, unequipSlot } from '$lib/game/core/equipment';
+import { heroScreenPosition, isHeroInHeroCardZone } from '$lib/game/core/hud-occlusion';
 import { selectNearbyCandidate } from '$lib/game/core/interaction';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { addItem, consumeStackItem } from '$lib/game/core/inventory';
@@ -432,6 +433,8 @@ export class WorldScene extends Phaser.Scene {
 	private facing: Direction = 'down';
 	private heroAnimationLockedUntil = 0;
 	private heroDefeated = false;
+	/** Last published hero-card occlusion flag; republished only on zone edges. */
+	private heroOccluded = false;
 	private heroHitReactionUntil = 0;
 	private heroVisualState: ActorAnimationKey = 'idle';
 	private hitImpactLayers?: HitImpactLayers;
@@ -555,6 +558,7 @@ export class WorldScene extends Phaser.Scene {
 		this.heroDefeated = false;
 		this.heroHitReactionUntil = 0;
 		this.heroVisualState = 'idle';
+		this.heroOccluded = false;
 		this.hitImpactLayers = undefined;
 		this.hitImpactStartedAt = 0;
 		this.hitImpactUntil = 0;
@@ -853,6 +857,18 @@ export class WorldScene extends Phaser.Scene {
 		this.player.x = resolvedPosition.x;
 		this.player.y = resolvedPosition.y;
 		this.facing = this.resolveFacing(direction, this.facing);
+
+		// Edge-triggered hero-card occlusion: the flag republishes only on zone
+		// entry/exit, so the DOM never sees per-frame coordinates or state.
+		const camera = this.cameras?.main;
+		if (camera) {
+			const screen = heroScreenPosition(camera, this.player);
+			const occluded = isHeroInHeroCardZone(screen.x, screen.y);
+			if (occluded !== this.heroOccluded) {
+				this.heroOccluded = occluded;
+				this.publishHudState(this.lastPublishedStatus);
+			}
+		}
 
 		const explorationChanged = this.revealCurrentMapArea();
 		if (explorationChanged) {
@@ -1344,6 +1360,7 @@ export class WorldScene extends Phaser.Scene {
 				seenDiscoveries: [...this.seenDiscoveryIds]
 			}),
 			wallet: { ...this.wallet },
+			heroOccluded: this.heroOccluded,
 			nearbyShop: this.buildNearbyShop(),
 			shop: this.buildOpenShop(),
 			dialogue: this.buildHudDialogue(),
