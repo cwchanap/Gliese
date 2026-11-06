@@ -6975,6 +6975,112 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('persists elapsed wall-clock playtime and the save timestamp in slot records', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const { resetPlaytime } = await import('$lib/game/save/playtime');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-09-04T12:00:00.000Z'));
+		try {
+			resetPlaytime();
+			scene.create({ reason: 'new', saveState: null });
+			// Boot-time autosave lands after the first render (Phaser RENDER event, thumbnail timing).
+			scene.events.emit('render');
+
+			vi.advanceTimersByTime(96_000);
+			(scene as unknown as { handleHudCommand: (command: HudCommand) => void }).handleHudCommand({
+				type: 'save-slot',
+				slot: 1
+			});
+
+			const saved = slots.loadSaveSlots(memoryStorage).slots;
+			expect(saved[0]).toMatchObject({
+				kind: 'autosave',
+				savedAt: '2026-09-04T12:00:00.000Z',
+				playtimeSeconds: 0
+			});
+			expect(saved[1]).toMatchObject({
+				kind: 'manual',
+				savedAt: '2026-09-04T12:01:36.000Z',
+				playtimeSeconds: 96
+			});
+		} finally {
+			vi.useRealTimers();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('accumulates resumed playtime from the persisted base without double-counting', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { resetPlaytime } = await import('$lib/game/save/playtime');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-09-04T12:00:00.000Z'));
+		try {
+			// Continue seeds the tracker from the slot record (GameShell beginRun).
+			resetPlaytime(96);
+			scene.create({ reason: 'resume', saveState: createNewSaveState() });
+			scene.events.emit('render');
+
+			vi.advanceTimersByTime(30_000);
+			(scene as unknown as { handleHudCommand: (command: HudCommand) => void }).handleHudCommand({
+				type: 'save-slot',
+				slot: 1
+			});
+
+			// 126 = persisted 96 + 30 elapsed; re-adding the stored base would write 222.
+			expect(slots.loadSaveSlots(memoryStorage).slots[1]?.playtimeSeconds).toBe(126);
+		} finally {
+			vi.useRealTimers();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('reports save failure on the HUD when the adapter flush does not confirm the write', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		// The envelope write lands in the cache; only the durability flush says
+		// the disk write behind it failed (Tauri adapters queue setItem).
+		const memoryStorage = {
+			...createSlotCaptureStorage(),
+			flush: vi.fn(async () => false)
+		};
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({ reason: 'new', saveState: null });
+			scene.events.emit('render');
+			emitHudStateSpy.mockClear();
+
+			(scene as unknown as { handleHudCommand: (command: HudCommand) => void }).handleHudCommand({
+				type: 'save-slot',
+				slot: 1
+			});
+			await vi.waitFor(() => {
+				expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+					expect.objectContaining({ status: 'Could not save' })
+				);
+			});
+		} finally {
+			emitHudStateSpy.mockRestore();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
 	it('reports save failure on the HUD when the manual slot write fails', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');

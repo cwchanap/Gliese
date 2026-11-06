@@ -15,9 +15,10 @@ export function getPlaytimeSeconds(): number {
 	return baseSeconds + Math.floor((Date.now() - startedAtMs) / 1000);
 }
 
-/** Format a playtime duration as zero-padded `h:mm`. */
+/** Format a playtime duration as unambiguous `h:mm:ss` (e.g. 96s reads `0:01:36`). */
 export function formatPlaytimeSeconds(totalSeconds: number): string {
 	const hours = Math.floor(totalSeconds / 3600);
 	const minutes = Math.floor((totalSeconds % 3600) / 60);
-	return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+	const seconds = totalSeconds % 60;
+	return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
