@@ -14,7 +14,11 @@ import {
 } from './layout-rects';
 import { buildVillageInteriorNavigationSource } from '$lib/game/content/backgrounds/village-interior-package';
 import { VILLAGE_INTERIOR_NAVIGATION_SOURCES } from '$lib/game/content/backgrounds/village-interior-navigation-sources';
-import { compileNavigationGrid, isWalkable } from '$lib/game/core/navigation';
+import {
+	compileNavigationGrid,
+	isWalkable,
+	resolveMovementSegment
+} from '$lib/game/core/navigation';
 import { VILLAGE_INTERIOR_LAYOUTS, type VillageInteriorLayout } from './village-interiors-v2';
 
 const EXPECTED_INTERIOR_PROGRAMS = {
@@ -547,6 +551,29 @@ describe('village interior layout coordinate contracts', () => {
 			}
 		}
 
+		for (const y of [136, 152, 168]) {
+			for (const [label, from, to] of [
+				['hall->bedroom', { x: 304, y }, { x: 224, y }],
+				['bedroom->hall', { x: 224, y }, { x: 304, y }]
+			] as const) {
+				expect(
+					resolveMovementSegment(grid, [], from, to, PLAYER_COLLISION_RADIUS),
+					`${label} crossing at y=${y} is blocked`
+				).toEqual(to);
+			}
+		}
+		for (const y of [120, 184]) {
+			for (const [label, from, to] of [
+				['hall->bedroom', { x: 304, y }, { x: 224, y }],
+				['bedroom->hall', { x: 224, y }, { x: 304, y }]
+			] as const) {
+				expect(
+					resolveMovementSegment(grid, [], from, to, PLAYER_COLLISION_RADIUS),
+					`${label} doorframe at y=${y} is passable`
+				).toEqual(from);
+			}
+		}
+
 		for (const y of [552, 568]) {
 			for (const x of [344, 360]) {
 				expect(isWalkable(grid, x, y), `front doorway (${x},${y}) is blocked`).toBe(true);
@@ -554,6 +581,18 @@ describe('village interior layout coordinate contracts', () => {
 			for (const x of [328, 376]) {
 				expect(isWalkable(grid, x, y), `front doorframe (${x},${y}) is open`).toBe(false);
 			}
+		}
+		for (const x of [344, 352, 360]) {
+			expect(
+				resolveMovementSegment(grid, [], { x, y: 520 }, { x, y: 576 }, PLAYER_COLLISION_RADIUS),
+				`front-door descent at x=${x} is blocked`
+			).toEqual({ x, y: 576 });
+		}
+		for (const x of [296, 408]) {
+			expect(
+				resolveMovementSegment(grid, [], { x, y: 520 }, { x, y: 576 }, PLAYER_COLLISION_RADIUS),
+				`south wall at x=${x} is passable`
+			).toEqual({ x, y: 520 });
 		}
 	});
 
