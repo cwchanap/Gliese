@@ -6989,7 +6989,6 @@ describe('WorldScene', () => {
 		try {
 			resetPlaytime();
 			scene.create({ reason: 'new', saveState: null });
-			// Boot-time autosave lands after the first render (Phaser RENDER event, thumbnail timing).
 			scene.events.emit('render');
 
 			vi.advanceTimersByTime(96_000);
@@ -7028,7 +7027,6 @@ describe('WorldScene', () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date('2026-09-04T12:00:00.000Z'));
 		try {
-			// Continue seeds the tracker from the slot record (GameShell beginRun).
 			resetPlaytime(96);
 			scene.create({ reason: 'resume', saveState: createNewSaveState() });
 			scene.events.emit('render');
@@ -7039,7 +7037,6 @@ describe('WorldScene', () => {
 				slot: 1
 			});
 
-			// 126 = persisted 96 + 30 elapsed; re-adding the stored base would write 222.
 			expect(slots.loadSaveSlots(memoryStorage).slots[1]?.playtimeSeconds).toBe(126);
 		} finally {
 			vi.useRealTimers();
@@ -7052,8 +7049,6 @@ describe('WorldScene', () => {
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		// The envelope write lands in the cache; only the durability flush says
-		// the disk write behind it failed (Tauri adapters queue setItem).
 		const memoryStorage = {
 			...createSlotCaptureStorage(),
 			flush: vi.fn(async () => false)
