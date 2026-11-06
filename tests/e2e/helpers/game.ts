@@ -30,6 +30,18 @@ export async function startNewRunFromTitle(page: Page) {
 	await waitForPlaying(page);
 }
 
+export async function startNewRunThroughOpening(page: Page) {
+	await startNewRunFromTitle(page);
+	const opening = page.getByRole('dialog');
+	await opening.waitFor({ state: 'visible', timeout: 30_000 });
+	for (let advance = 0; advance < 40 && (await opening.count()) > 0; advance += 1) {
+		await page.keyboard.press('Enter');
+		await page.waitForTimeout(200);
+	}
+	await expect(opening).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+}
+
 /** Boots through the Title screen: Continue opens the Load picker, then resumes the first occupied slot. */
 export async function continueFromTitle(page: Page) {
 	await page.goto('/');
