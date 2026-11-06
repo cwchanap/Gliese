@@ -234,6 +234,7 @@ export const zhHant = {
 		itemCannotBeSold: '此物品無法出售',
 		noDialogueOpen: '沒有開啟對話',
 		noOneNearby: '附近沒有任何人',
+		nothingToSay: '對方似乎無話可說',
 		dialogueClosed: '對話已關閉',
 		dialogueUpdated: '對話已更新',
 		saved: '已存檔',
@@ -549,6 +550,7 @@ export const zhHant = {
 				optionNotAvailable: '該選項目前不可用。',
 				noDialogueOpen: '目前沒有開啟對話。',
 				noOneNearby: '附近沒有人。',
+				nothingToSay: '對方似乎無話可說。',
 				shopOutOfReach: '商店距離過遠。'
 			}
 		},

@@ -97,6 +97,7 @@ import {
 	STARTER_NPC_COLLISION_RADIUS
 } from '$lib/game/core/collision';
 import { equipItem, unequipSlot } from '$lib/game/core/equipment';
+import { selectNearbyCandidate } from '$lib/game/core/interaction';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { addItem, consumeStackItem } from '$lib/game/core/inventory';
 import { resolveLootDrops } from '$lib/game/core/loot';
@@ -443,6 +444,7 @@ export class WorldScene extends Phaser.Scene {
 	private mapId = openingMapId;
 	private lastPublishedStatus = '';
 	private currentNearbyNpcId: string | null = null;
+	private currentNearbyNpcStatus: string | null = null;
 	private npcMarkers = new Map<string, NpcMarker>();
 	private pickupMarkers = new Map<string, PickupMarker>();
 	private player?: ActorMarker;
@@ -570,6 +572,7 @@ export class WorldScene extends Phaser.Scene {
 		);
 		this.mapId = map.id;
 		this.currentNearbyNpcId = null;
+		this.currentNearbyNpcStatus = null;
 		this.storyDialogueSeq++;
 		this.nearbyShopId = null;
 		this.openShopId = null;
@@ -2731,7 +2734,7 @@ export class WorldScene extends Phaser.Scene {
 		);
 	}
 
-	private getNpcCollisionRadius(npc: MapNpc): number {
+	private getNpcCollisionRadius(npc: MapNpc | MapAmbientNpc): number {
 		return isNpcPackFrameName(npc.frameName)
 			? NPC_PACK_COLLISION_RADIUS
 			: STARTER_NPC_COLLISION_RADIUS;
@@ -3117,13 +3120,19 @@ export class WorldScene extends Phaser.Scene {
 
 		if (!nearbyNpc) {
 			const hadShop = this.nearbyShopId !== null;
+			const hadNearbyStatus =
+				this.currentNearbyNpcStatus !== null &&
+				this.lastPublishedStatus === this.currentNearbyNpcStatus;
 			this.currentNearbyNpcId = null;
+			this.currentNearbyNpcStatus = null;
 			this.storyDialogueSeq++;
 			this.nearbyShopId = null;
 			this.openShopId = null;
 
 			if (hadShop) {
 				this.publishHudState(this.status('status.shopOutOfReach'));
+			} else if (hadNearbyStatus) {
+				this.publishHudState(this.status('status.noOneNearby'));
 			}
 
 			return;
@@ -3139,8 +3148,12 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
+		const nearbyStatus = this.status('status.npcNearby', {
+			npcName: this.getNpcName(nearbyNpc)
+		});
 		this.currentNearbyNpcId = nearbyNpc.id;
-		this.publishHudState(this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) }));
+		this.currentNearbyNpcStatus = nearbyStatus;
+		this.publishHudState(nearbyStatus);
 	}
 
 	private handleInteractInput() {
@@ -3203,20 +3216,20 @@ export class WorldScene extends Phaser.Scene {
 			return undefined;
 		}
 
-		const player = this.player;
 		const map = this.resolveMap(this.mapId);
 
-		return (map.discoveries ?? [])
-			.map((discovery) => ({
+		return selectNearbyCandidate({
+			origin: { x: this.player.x, y: this.player.y },
+			facing: this.facing,
+			reach: WorldScene.playerRadius,
+			candidates: (map.discoveries ?? []).map((discovery) => ({
 				discovery,
-				distance: Phaser.Math.Distance.Between(player.x, player.y, discovery.x, discovery.y)
+				id: discovery.id,
+				x: discovery.x,
+				y: discovery.y,
+				radius: discovery.radius ?? WorldScene.discoveryInteractRadius
 			}))
-			.filter(
-				({ discovery, distance }) =>
-					distance <=
-					WorldScene.playerRadius + (discovery.radius ?? WorldScene.discoveryInteractRadius)
-			)
-			.sort((left, right) => left.distance - right.distance)[0]?.discovery;
+		})?.discovery;
 	}
 
 	private readDiscovery(discovery: MapDiscovery) {
@@ -3351,15 +3364,23 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		if (!nearbyNpc) {
+			const ambientNpc = this.findNearbyAmbientNpc();
 			this.dialogueSession = buildDialogueFallback(
 				this.getTravelerSpeaker(),
-				this.status('content.dialogue.system.noOneNearby')
+				this.status(
+					ambientNpc
+						? 'content.dialogue.system.nothingToSay'
+						: 'content.dialogue.system.noOneNearby'
+				)
 			);
-			this.publishHudState(this.status('status.noOneNearby'));
+			this.publishHudState(this.status(ambientNpc ? 'status.nothingToSay' : 'status.noOneNearby'));
 			return;
 		}
 
 		this.currentNearbyNpcId = nearbyNpc.id;
+		this.currentNearbyNpcStatus = this.status('status.npcNearby', {
+			npcName: this.getNpcName(nearbyNpc)
+		});
 		this.nearbyShopId = nearbyNpc.shopId ?? null;
 		void this.startNearbyNpcStoryDialogue(nearbyNpc);
 	}
@@ -3415,17 +3436,39 @@ export class WorldScene extends Phaser.Scene {
 
 		const map = this.resolveMap(this.mapId);
 
-		return (map.npcs ?? [])
-			.map((npc) => ({
+		return selectNearbyCandidate({
+			origin: { x: this.player.x, y: this.player.y },
+			facing: this.facing,
+			reach: PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS,
+			candidates: (map.npcs ?? []).map((npc) => ({
 				npc,
-				distance: Phaser.Math.Distance.Between(this.player!.x, this.player!.y, npc.x, npc.y)
+				id: npc.id,
+				x: npc.x,
+				y: npc.y,
+				radius: this.getNpcCollisionRadius(npc)
 			}))
-			.filter(
-				({ npc, distance }) =>
-					distance <=
-					PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + this.getNpcCollisionRadius(npc)
-			)
-			.sort((left, right) => left.distance - right.distance)[0]?.npc;
+		})?.npc;
+	}
+
+	private findNearbyAmbientNpc(): MapAmbientNpc | undefined {
+		if (!this.player) {
+			return undefined;
+		}
+
+		const map = this.resolveMap(this.mapId);
+
+		return selectNearbyCandidate({
+			origin: { x: this.player.x, y: this.player.y },
+			facing: this.facing,
+			reach: PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS,
+			candidates: (map.ambientNpcs ?? []).map((npc) => ({
+				npc,
+				id: npc.id,
+				x: npc.x,
+				y: npc.y,
+				radius: this.getNpcCollisionRadius(npc)
+			}))
+		})?.npc;
 	}
 
 	private tryCollectPickup() {

@@ -235,6 +235,7 @@ export const ja = {
 		itemCannotBeSold: '売れません',
 		noDialogueOpen: '会話が開いていません',
 		noOneNearby: '近くに誰もいません',
+		nothingToSay: '話すことはないようだ',
 		dialogueClosed: '会話を閉じた',
 		dialogueUpdated: '会話を更新した',
 		saved: 'セーブした',
@@ -550,6 +551,7 @@ export const ja = {
 				optionNotAvailable: 'その選択肢はありません。',
 				noDialogueOpen: '会話は開いていません。',
 				noOneNearby: '近くに誰もいません。',
+				nothingToSay: '話すことはないようだ。',
 				shopOutOfReach: '店に届きません。'
 			}
 		},
