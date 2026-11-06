@@ -8,6 +8,7 @@
 		AREA_MAP_MARKER_FONT_PX,
 		AREA_MAP_MARKER_LABEL_DX,
 		areaMapLocalView,
+		areaMapMarkersInView,
 		type HudAreaMapState
 	} from '$lib/game/core/area-map';
 
@@ -29,14 +30,13 @@
 		onkeydown
 	}: Props = $props();
 
-	const mapViewBox = $derived.by(() => {
-		const view = areaMapLocalView(areaMap);
-		return `${view.x} ${view.y} ${view.width} ${view.height}`;
-	});
+	const mapView = $derived(areaMapLocalView(areaMap));
+	const mapViewBox = $derived(`${mapView.x} ${mapView.y} ${mapView.width} ${mapView.height}`);
+	const visibleMarkers = $derived(areaMapMarkersInView(areaMap.markers, mapView));
 
 	let focusedMarkerId = $state<string | null>(null);
 	const focusedMarkerLabel = $derived(
-		areaMap.markers.find((marker) => marker.id === focusedMarkerId)?.label ?? null
+		visibleMarkers.find((marker) => marker.id === focusedMarkerId)?.label ?? null
 	);
 
 	$effect(() => {
@@ -48,7 +48,7 @@
 	// top to bottom, columns are x-rank within a band (left to right).
 	const markerFocusCoords = $derived.by(() => {
 		const coords: Record<string, { row: number; column: number }> = {};
-		const sorted = [...areaMap.markers].sort((a, b) => a.y - b.y || a.x - b.x);
+		const sorted = [...visibleMarkers].sort((a, b) => a.y - b.y || a.x - b.x);
 		const rowBand = areaMap.worldHeight / 8;
 		let row = -1;
 		let column = 0;
@@ -125,7 +125,7 @@
 								height={areaMap.cellSize}
 							/>
 						{/each}
-						{#each areaMap.markers as marker (marker.id)}
+						{#each visibleMarkers as marker (marker.id)}
 							{@const focusCoords = markerFocusCoords[marker.id]}
 							<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 							<g

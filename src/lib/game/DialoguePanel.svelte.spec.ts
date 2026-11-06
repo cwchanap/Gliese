@@ -87,7 +87,7 @@ function createReadyHudState(overrides: Partial<HudState> = {}): HudState {
 				{
 					id: 'hero-house-exterior',
 					kind: 'building',
-					x: 531,
+					x: 1_024,
 					y: 5_850,
 					label: "Hero's House"
 				},

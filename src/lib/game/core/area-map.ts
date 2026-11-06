@@ -303,6 +303,19 @@ export function areaMapLocalView(areaMap: HudAreaMapState): AreaMapView {
 	});
 }
 
+export function areaMapMarkersInView(
+	markers: readonly HudAreaMapMarker[],
+	view: AreaMapView
+): HudAreaMapMarker[] {
+	return markers.filter(
+		(marker) =>
+			marker.x >= view.x &&
+			marker.x <= view.x + view.width &&
+			marker.y >= view.y &&
+			marker.y <= view.y + view.height
+	);
+}
+
 function markerLabelExtent(marker: HudAreaMapMarker): number {
 	const fontPx = marker.emphasis ? AREA_MAP_MARKER_EMPHASIS_FONT_PX : AREA_MAP_MARKER_FONT_PX;
 	return AREA_MAP_MARKER_LABEL_DX + marker.label.length * fontPx;
