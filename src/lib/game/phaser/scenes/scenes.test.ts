@@ -9271,6 +9271,49 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('reads the nearest discovery when overlapping markers share the range', async () => {
+		registerSceneSupportTestMap();
+		maps['scene-support-test']!.discoveries = [
+			{
+				id: 'overlap-near-discovery',
+				x: 120,
+				y: 96,
+				labelKey: 'content.maps.discoveries.wildwood-cave-danger.label',
+				descriptionKey: 'content.maps.discoveries.wildwood-cave-danger.description'
+			},
+			{
+				id: 'overlap-far-discovery',
+				x: 96,
+				y: 170,
+				labelKey: 'content.maps.discoveries.witchwood-poison-warning.label',
+				descriptionKey: 'content.maps.discoveries.witchwood-poison-warning.description'
+			}
+		];
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as { facing: string };
+
+		scene.create({ mapId: 'scene-support-test' });
+		Object.assign(phaserState.playerMarker, { x: 96, y: 96 });
+		sceneState.facing = 'down';
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				dialogue: expect.objectContaining({
+					speaker: 'Cave Warning',
+					line: 'Claw-scarred bark. Something denned in the Whispering Cave does not sleep.'
+				})
+			})
+		);
+	});
+
 	it.each([
 		{
 			mapId: 'item-shop',
