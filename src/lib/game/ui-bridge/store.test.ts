@@ -134,8 +134,6 @@ describe('ui-bridge store provisional state', () => {
 		const { get } = await import('svelte/store');
 
 		const state = get(hudState);
-		// ready:false keeps the placeholder off-screen; the values still match a
-		// fresh run so nothing downstream can mistake them for a stale constant.
 		expect(state.ready).toBe(false);
 		expect(state.heroOccluded).toBe(false);
 		expect(state.wallet.coins).toBe(createNewSaveState().wallet.coins);

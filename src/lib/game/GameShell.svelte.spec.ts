@@ -382,8 +382,6 @@ describe('GameShell hero-card occlusion and readiness', () => {
 
 	it('hides provisional numeric values until the first authoritative publish', async () => {
 		render(GameShell);
-		// Clicking New Run flips the shell to playing while the store still
-		// holds its ready:false placeholder — no numeric field may paint.
 		await page.getByRole('button', { name: /new run/i }).click();
 		await expect.element(page.getByTestId('hud-party-panel')).not.toBeInTheDocument();
 		expect(document.body.textContent).not.toContain('30G');

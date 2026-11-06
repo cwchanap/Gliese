@@ -28,8 +28,6 @@ const initialHudState: HudState = {
 	heals: 1,
 	status: t(initialLocale, 'status.loadingGame'),
 	wallet: {
-		// Provisional until the first authoritative publish; mirrors a fresh
-		// run (createNewSaveState) and stays hidden behind ready:false.
 		coins: 20
 	},
 	heroOccluded: false,
