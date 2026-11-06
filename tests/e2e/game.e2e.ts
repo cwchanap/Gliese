@@ -50,8 +50,10 @@ type HudStateSnapshot = {
 	battle?: unknown;
 	nearbyShop?: { shopId?: string; merchantName?: string } | null;
 	wallet?: { coins?: number };
+	quests?: { main?: { objectiveId?: string | null } | null };
 	inventory?: {
 		consumables?: Array<{ itemId?: string; quantity?: number }>;
+		equipment?: Array<{ itemId?: string }>;
 		keyItems?: Array<{ itemId?: string; quantity?: number }>;
 	};
 };
@@ -391,9 +393,11 @@ function readAutosaveState(page: Page): Promise<LooseSaveState> {
 }
 
 function rewriteSceneStateProbeSource(servedBody: string): string {
-	const encounterMatch = servedBody.match(
-		/(this\.setupEncounters\(([^)]+)\)),this\.renderTransitions\(\2\)/
-	);
+	// Anchor the probe to the stable setupEncounters call site alone — later
+	// statements (fled-leash resolution, transition rendering) can sit between
+	// it and renderTransitions, so requiring them as immediate neighbours
+	// breaks whenever the scene's create flow is reordered.
+	const encounterMatch = servedBody.match(/this\.setupEncounters\([^)]*\)/);
 	const transitionGateMatch = servedBody.match(
 		/((?<![A-Za-z0-9_$])[A-Za-z_$][\w$]*)=this\.hasLivingEnemies\(\);for\(let ([A-Za-z_$][\w$]*) of ([A-Za-z_$][\w$]*)\.transitions\)/
 	);
@@ -407,7 +411,7 @@ function rewriteSceneStateProbeSource(servedBody: string): string {
 	}
 	servedBody = servedBody.replace(
 		encounterMatch[0],
-		`${encounterMatch[1]},globalThis.__glieseSceneEncounterState={mapId:this.mapId,clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))},this.renderTransitions(${encounterMatch[2]})`
+		`${encounterMatch[0]},globalThis.__glieseSceneEncounterState={mapId:this.mapId,clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))}`
 	);
 	const [, livingEnemiesVariable, transitionVariable, mapVariable] = transitionGateMatch;
 	return servedBody.replace(
@@ -12364,6 +12368,242 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 		.getByLabel('Iron Cap', { exact: true });
 	await resumedIronCap.hover();
 	await expect(page.getByRole('tooltip')).toContainText('0 left');
+});
+
+test('proving morning keyboard journey reaches Oren through the painted forge lane', async ({
+	page
+}) => {
+	test.setTimeout(240_000);
+	// The per-frame transition-gate probe doubles as a position feed — the
+	// `?movementDiagnostics=on` URL flag would work too but it marks the URL as
+	// a direct-boot tooling link, skipping the Title screen this journey needs.
+	await installRuntimeProbes(page, { captureSceneState: true });
+	await startNewRunFromTitle(page);
+
+	const readHud = () =>
+		page.evaluate(() => (window as GlieseProbeWindow).__glieseLastHudState ?? null);
+	const readPosition = () =>
+		page.evaluate(() => {
+			const probeWindow = window as GlieseProbeWindow;
+			const state = probeWindow.__glieseLastHudState;
+			const gate = probeWindow.__glieseTransitionGateState;
+			if (gate && gate.mapId === state?.mapId && gate.player) {
+				return { ...gate.player };
+			}
+			const player = state?.areaMap?.player;
+			return typeof player?.x === 'number' && typeof player.y === 'number'
+				? { x: player.x, y: player.y }
+				: null;
+		});
+	const holdUntil = async (
+		key: 'w' | 'a' | 's' | 'd',
+		stop:
+			| { kind: 'axis'; axis: 'x' | 'y'; direction: 'gte' | 'lte'; value: number }
+			| { kind: 'status'; value: string }
+			| { kind: 'map'; value: string },
+		timeoutMs = 15_000
+	) => {
+		await page.keyboard.down(key);
+		try {
+			await page.waitForFunction(
+				(requested) => {
+					const probeWindow = window as GlieseProbeWindow;
+					const state = probeWindow.__glieseLastHudState;
+					if (requested.kind === 'map') return state?.mapId === requested.value;
+					if (requested.kind === 'status') return state?.status === requested.value;
+					const gate = probeWindow.__glieseTransitionGateState;
+					const player = gate && gate.mapId === state?.mapId ? gate.player : state?.areaMap?.player;
+					if (typeof player?.x !== 'number' || typeof player.y !== 'number') return false;
+					const value = requested.axis === 'x' ? player.x : player.y;
+					return requested.direction === 'gte'
+						? value >= requested.value
+						: value <= requested.value;
+				},
+				stop,
+				{ timeout: timeoutMs }
+			);
+		} catch (error) {
+			const hud = await readHud();
+			const position = await readPosition();
+			throw new Error(
+				`holdUntil(${JSON.stringify(stop)}) timed out holding '${key}' ` +
+					`at ${JSON.stringify(position)} on map ${hud?.mapId ?? '?'} ` +
+					`(status: ${hud?.status ?? '?'})`,
+				{ cause: error }
+			);
+		} finally {
+			await page.keyboard.up(key);
+		}
+	};
+	const advanceDialogue = async () => {
+		for (let press = 0; press < 40; press += 1) {
+			const hud = await readHud();
+			if (!hud?.dialogue) return;
+			await page.keyboard.press('Enter');
+			await page.waitForTimeout(250);
+		}
+		throw new Error('dialogue did not close after 40 advances');
+	};
+
+	await page.waitForFunction(
+		() => (window as GlieseProbeWindow).__glieseLastHudState?.dialogue != null,
+		undefined,
+		{ timeout: 30_000 }
+	);
+	await advanceDialogue();
+	await expect.poll(async () => (await readHud())?.quests?.main?.objectiveId).toBe('talk-to-mott');
+	await expect.poll(async () => (await readHud())?.mapId).toBe('hero-house');
+
+	// Grik wakes in the bedroom (160,224). The bed collision (x100-220 expanded)
+	// seals the east side, so hug its south edge to the divider lane (x~230),
+	// go north through the gap in collision to door height, then east through
+	// the bedroom door, south through the hall, and west to Mott's hearth.
+	await page.locator('canvas').click();
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 228 });
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 160 });
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 336 });
+	await holdUntil('s', { kind: 'axis', axis: 'y', direction: 'gte', value: 352 });
+	await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 160 });
+	for (let attempt = 0; attempt < 6; attempt += 1) {
+		const status = (await readHud())?.status ?? '';
+		if (status === 'Old Mott nearby') break;
+		if (status === 'Tikka nearby') {
+			// Drifted south into Tikka's radius: step back north onto Mott's row.
+			await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 352 }, 5_000);
+		} else {
+			await page.keyboard.down('a');
+			await page.waitForTimeout(250);
+			await page.keyboard.up('a');
+		}
+	}
+	await expect
+		.poll(async () => (await readHud())?.status, { timeout: 10_000 })
+		.toBe('Old Mott nearby');
+	await page.keyboard.press('e');
+	const mottDialogue = page.getByRole('dialog', { name: 'Old Mott' });
+	await expect(mottDialogue).toBeVisible();
+	await advanceDialogue();
+	await expect
+		.poll(async () => (await readHud())?.quests?.main?.objectiveId)
+		.toBe('collect-practice-spear');
+
+	// Out the front door: east onto the door lane, then south through the
+	// exit corridor (nav cols 21-22, x336-368) onto the (352,560) trigger.
+	await page.locator('canvas').click();
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 352 });
+	await holdUntil('s', { kind: 'map', value: 'overworld' }, 20_000);
+	await expect.poll(async () => (await readHud())?.mapId).toBe('overworld');
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Map' }).click();
+	const mapDialog = page.getByRole('dialog', { name: /map$/i });
+	await expect(mapDialog).toBeVisible();
+	const mapEvidence = await mapDialog.getByTestId('area-map-svg').evaluate((svgEl) => {
+		const [viewX = 0, viewY = 0, viewWidth = 0, viewHeight = 0] = (
+			svgEl.getAttribute('viewBox') ?? ''
+		)
+			.split(/\s+/)
+			.map(Number);
+		const markers = [...svgEl.querySelectorAll('[data-focus-id^="map-marker-"]')].map(
+			(markerEl) => {
+				const textEl = markerEl.querySelector('text');
+				const transform = markerEl.getAttribute('transform') ?? '';
+				const translate = transform.match(/translate\((-?[\d.]+)[ ,]+(-?[\d.]+)\)/);
+				const textBox = textEl?.getBBox();
+				return {
+					id: markerEl.getAttribute('data-focus-id'),
+					label: textEl?.textContent ?? null,
+					markerX: translate ? Number(translate[1]) : NaN,
+					markerY: translate ? Number(translate[2]) : NaN,
+					textLeft: textBox ? textBox.x : null,
+					textRight: textBox ? textBox.x + textBox.width : null,
+					textTop: textBox ? textBox.y : null,
+					textBottom: textBox ? textBox.y + textBox.height : null,
+					emphasis: markerEl.classList.contains('area-map-marker-emphasis')
+				};
+			}
+		);
+		return { viewX, viewY, viewWidth, viewHeight, markers };
+	});
+	expect(mapEvidence.viewWidth).toBeGreaterThan(0);
+	expect(mapEvidence.viewWidth).toBeLessThan(12_288);
+	const forgeMarker = mapEvidence.markers.find(
+		(marker) => marker.id === 'map-marker-overworld-to-blacksmith-interior'
+	);
+	expect(forgeMarker?.label).toBe('Sundrop Forge');
+	expect(forgeMarker?.emphasis).toBe(true);
+	expect(forgeMarker?.textLeft).not.toBeNull();
+	expect(forgeMarker!.markerX + forgeMarker!.textLeft!).toBeGreaterThanOrEqual(
+		mapEvidence.viewX - 1
+	);
+	expect(forgeMarker!.markerX + forgeMarker!.textRight!).toBeLessThanOrEqual(
+		mapEvidence.viewX + mapEvidence.viewWidth + 1
+	);
+	expect(forgeMarker!.markerY + forgeMarker!.textTop!).toBeGreaterThanOrEqual(
+		mapEvidence.viewY - 1
+	);
+	expect(forgeMarker!.markerY + forgeMarker!.textBottom!).toBeLessThanOrEqual(
+		mapEvidence.viewY + mapEvidence.viewHeight + 1
+	);
+	expect(new Set(mapEvidence.markers.map((marker) => marker.id))).toEqual(
+		new Set(['map-marker-overworld-to-hero-house', 'map-marker-overworld-to-blacksmith-interior'])
+	);
+	await mapDialog.getByRole('button', { name: 'Close' }).click();
+	await expect(mapDialog).toHaveCount(0);
+
+	// The forge run, verified against the compiled nav grid: the east clearing
+	// row pins at x~4719 on the tree west of the small hut, so duck north in
+	// the x~4705 corridor onto the open lane row, ride east but stop short of
+	// hut 2's door trigger (30px reach around x5392±30 at door height), dip to
+	// the safe lane row at y~7250 where the trigger margin is ~34px, pass under
+	// the lone tree to x~5440, climb back to the lane row, and finish east to
+	// the forge door column before heading north.
+	await page.locator('canvas').click();
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 4700 });
+	// Key release drift is ~20px, so aim high enough to land inside the
+	// fully-open lane rows (y 7216-7248) rather than the tree rows below.
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7240 });
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5320 });
+	const lanePoint = await readPosition();
+	expect(lanePoint?.x).toBeLessThan(5_362);
+	await holdUntil('s', { kind: 'axis', axis: 'y', direction: 'gte', value: 7252 });
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5440 });
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7236 });
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5630 });
+	const approachPoint = await readPosition();
+	if (approachPoint && approachPoint.x > 5_678) {
+		await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 5660 });
+	}
+	await holdUntil('w', { kind: 'map', value: 'blacksmith-interior' }, 20_000);
+	await expect.poll(async () => (await readHud())?.mapId).toBe('blacksmith-interior');
+	const forgePoint = await readPosition();
+	expect(forgePoint?.x).toBeGreaterThanOrEqual(440);
+	expect(forgePoint?.x).toBeLessThanOrEqual(456);
+	expect(forgePoint?.y).toBeGreaterThanOrEqual(560);
+	expect(forgePoint?.y).toBeLessThanOrEqual(580);
+
+	// The service counter is a solid wall between the showroom and Oren, but
+	// the west aisle (x80-272) climbs to the y400 lane that passes within his
+	// 48px reach — the route a player naturally takes around the counter end.
+	await page.locator('canvas').click();
+	await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 200 });
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 404 });
+	await holdUntil('d', { kind: 'status', value: 'Oren nearby' }, 15_000);
+	await page.keyboard.press('e');
+	const orenDialogue = page.getByRole('dialog', { name: 'Oren' });
+	await expect(orenDialogue).toBeVisible();
+	await advanceDialogue();
+	await expect
+		.poll(async () => (await readHud())?.quests?.main?.objectiveId)
+		.toBe('collect-herb-pouch');
+	await expect
+		.poll(
+			async () =>
+				(await readHud())?.inventory?.equipment?.some(
+					(item) => item.itemId === 'practice-spear'
+				) === true
+		)
+		.toBe(true);
 });
 
 test('Blacksmith painted interior preserves baked composition and collision', async ({ page }) => {

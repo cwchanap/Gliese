@@ -9681,6 +9681,34 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('selects the input-faced NPC and refreshes the hint in the same frame E lands', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const storyClient = await import('$lib/game/story/client');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'hero-house' });
+		Object.assign(phaserState.playerMarker, { x: 160, y: 400 });
+		scene.update(0, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Old Mott nearby' })
+		);
+
+		phaserState.wasdKeys.down.isDown = true;
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(emitHudStateSpy).toHaveBeenCalledWith(
+			expect.objectContaining({ status: 'Tikka nearby' })
+		);
+		expect(storyClient.getNpcStoryDialogue).toHaveBeenCalledWith(
+			expect.objectContaining({ npcId: 'tikka-home', mapId: 'hero-house', locale: 'en' })
+		);
+	});
+
 	it('clears a stale nearby status once when the hero leaves NPC range', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
@@ -9706,6 +9734,80 @@ describe('WorldScene', () => {
 		emitHudStateSpy.mockClear();
 		scene.update(32, 16);
 
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
+	});
+
+	it('keeps E truthful after the hero leaves NPC range instead of opening stale dialogue', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const storyClient = await import('$lib/game/story/client');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, borakApproach);
+		scene.update(0, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Borak nearby' })
+		);
+
+		Object.assign(phaserState.playerMarker, { ...guildHallMap.spawn });
+		scene.update(16, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'No one nearby' })
+		);
+
+		emitHudStateSpy.mockClear();
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(32, 16);
+		await flushStoryDialogue();
+
+		expect(storyClient.getNpcStoryDialogue).not.toHaveBeenCalled();
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'No one nearby',
+				dialogue: expect.objectContaining({
+					speaker: 'Traveler',
+					line: 'No one is nearby.'
+				})
+			})
+		);
+	});
+
+	it('never offers a story-gated NPC as nearby, even while a fallback dialogue is open', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const storyClient = await import('$lib/game/story/client');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as { dialogueSession: unknown };
+
+		scene.create({ mapId: 'hero-house' });
+		Object.assign(phaserState.playerMarker, { x: 408, y: 448 });
+		scene.update(0, 16);
+
+		expect(emitHudStateSpy).not.toHaveBeenCalledWith(
+			expect.objectContaining({ status: 'Borak nearby' })
+		);
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(storyClient.getNpcStoryDialogue).not.toHaveBeenCalled();
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'No one nearby' })
+		);
+		expect(sceneState.dialogueSession).not.toBeNull();
+
+		emitHudStateSpy.mockClear();
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(32, 16);
+		await flushStoryDialogue();
+
+		expect(storyClient.getNpcStoryDialogue).not.toHaveBeenCalled();
 		expect(emitHudStateSpy).not.toHaveBeenCalled();
 	});
 
