@@ -36,7 +36,7 @@ import {
 } from '../../src/lib/game/content/maps/layouts/layout-rects';
 import { VILLAGE_INTERIOR_LAYOUTS } from '../../src/lib/game/content/maps/layouts/village-interiors-v2';
 import { anchorPoint } from '../../src/lib/game/content/maps/overworld/world';
-import { getStoryProgress } from '../../src/lib/game/core/quests';
+import { getStoryProgress, type QuestState } from '../../src/lib/game/core/quests';
 import { questStateAt } from '../../src/lib/game/core/quests.fixtures';
 import { applyStoryGates } from '../../src/lib/game/core/story-gates';
 
@@ -211,7 +211,7 @@ function fieldStatus(page: Page) {
 	return page.getByRole('status', { name: 'Field status' });
 }
 
-function createQuestFixture() {
+function createQuestFixture(): QuestState {
 	return {
 		entries: {
 			'prologue-trial-mistfen': {
@@ -2517,7 +2517,7 @@ const BLACKSMITH_ALL_EIGHT_CASE: InteriorGrayboxCase = {
 		{
 			label: 'oren-approach',
 			point: VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'].npcApproaches.oren.approach,
-			interaction: { speaker: 'Blacksmith Oren', shopName: 'Sundrop Forge' }
+			interaction: { speaker: 'Oren', shopName: 'Sundrop Forge' }
 		}
 	]
 };
@@ -2549,26 +2549,32 @@ const HERO_HOUSE_RUNTIME_EVIDENCE_ROOT = resolve(
 const GUILD_HALL_RUNTIME_EVIDENCE_ROOT = resolve(
 	'docs/superpowers/reports/img/hpa-586-interiors-runtime/guild-hall'
 );
+const saveFixtureStoryProgress = getStoryProgress(createQuestFixture());
+const heroHouseMapAtFixtureProgress = applyStoryGates(heroHouseMap, saveFixtureStoryProgress);
 const HERO_HOUSE_COLLISION_IDS = [
-	...(heroHouseMap.blockers ?? []).map(({ id }) => id),
-	...(heroHouseMap.fences ?? []).map(({ id }) => id),
-	...(heroHouseMap.mapDecor ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
-	...(heroHouseMap.interiorProps ?? []).flatMap(({ collision }) =>
+	...(heroHouseMapAtFixtureProgress.blockers ?? []).map(({ id }) => id),
+	...(heroHouseMapAtFixtureProgress.fences ?? []).map(({ id }) => id),
+	...(heroHouseMapAtFixtureProgress.mapDecor ?? []).flatMap(({ collision }) =>
 		collision ? [collision.id] : []
 	),
-	...(heroHouseMap.landmarks ?? []).map(({ id }) => id)
+	...(heroHouseMapAtFixtureProgress.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(heroHouseMapAtFixtureProgress.landmarks ?? []).map(({ id }) => id)
 ].sort();
 const HERO_HOUSE_STATEFUL_OBJECT_IDS = [
-	...heroHouseMap.transitions.map(({ id }) => id),
-	...(heroHouseMap.pickups ?? []).map(({ id }) => id),
-	...(heroHouseMap.encounters ?? []).map(({ id }) => id),
-	...(heroHouseMap.npcs ?? []).map(({ id }) => id),
-	...(heroHouseMap.landmarks ?? []).map(({ id }) => id),
-	...(heroHouseMap.ambientNpcs ?? []).map(({ id }) => id),
-	...(heroHouseMap.discoveries ?? []).map(({ id }) => id),
-	...(heroHouseMap.combatBounds ?? []).map(({ id }) => id)
+	...heroHouseMapAtFixtureProgress.transitions.map(({ id }) => id),
+	...(heroHouseMapAtFixtureProgress.pickups ?? []).map(({ id }) => id),
+	...(heroHouseMapAtFixtureProgress.encounters ?? []).map(({ id }) => id),
+	...(heroHouseMapAtFixtureProgress.npcs ?? []).map(({ id }) => id),
+	...(heroHouseMapAtFixtureProgress.landmarks ?? []).map(({ id }) => id),
+	...(heroHouseMapAtFixtureProgress.ambientNpcs ?? []).map(({ id }) => id),
+	...(heroHouseMapAtFixtureProgress.discoveries ?? []).map(({ id }) => id),
+	...(heroHouseMapAtFixtureProgress.combatBounds ?? []).map(({ id }) => id)
 ].sort();
-const HERO_HOUSE_FALLBACK_BLOCKER_IDS = (heroHouseMap.blockers ?? []).map(({ id }) => id);
+const HERO_HOUSE_FALLBACK_BLOCKER_IDS = (heroHouseMapAtFixtureProgress.blockers ?? []).map(
+	({ id }) => id
+);
 const GUILD_HALL_COLLISION_IDS = [
 	...(guildHallMap.blockers ?? []).map(({ id }) => id),
 	...(guildHallMap.fences ?? []).map(({ id }) => id),
@@ -2592,10 +2598,7 @@ const GUILD_HALL_FALLBACK_BLOCKER_IDS = (guildHallMap.blockers ?? []).map(({ id 
 const ITEM_SHOP_RUNTIME_EVIDENCE_ROOT = resolve(
 	'docs/superpowers/reports/img/hpa-586-interiors-runtime/item-shop'
 );
-const itemShopMapAtFixtureProgress = applyStoryGates(
-	itemShopMap,
-	getStoryProgress(questStateAt('gather-moonmoss'))
-);
+const itemShopMapAtFixtureProgress = applyStoryGates(itemShopMap, saveFixtureStoryProgress);
 const ITEM_SHOP_COLLISION_IDS = [
 	...(itemShopMapAtFixtureProgress.blockers ?? []).map(({ id }) => id),
 	...(itemShopMapAtFixtureProgress.fences ?? []).map(({ id }) => id),
@@ -2772,7 +2775,7 @@ const INTERIOR_NPC_APPROACH_BINDINGS = {
 		Mira: { approachKey: 'mira', propCollisionKey: 'miraCounter' }
 	},
 	'blacksmith-interior': {
-		'Blacksmith Oren': { approachKey: 'oren', propCollisionKey: 'serviceCounter' }
+		Oren: { approachKey: 'oren', propCollisionKey: 'serviceCounter' }
 	},
 	'villager-house-1': {
 		Lynn: { approachKey: 'lynn' }
@@ -11140,13 +11143,13 @@ async function runAllEightFallbackCriticalPhase(page: Page, interior: InteriorGr
 
 async function openAllEightBlacksmithShop(page: Page, expectedCoins: number, buyIronCap: boolean) {
 	await page.waitForFunction(
-		() => (window as GlieseProbeWindow).__glieseLastHudState?.status === 'Blacksmith Oren nearby',
+		() => (window as GlieseProbeWindow).__glieseLastHudState?.status === 'Oren nearby',
 		undefined,
 		{ timeout: 30_000 }
 	);
 	await page.locator('canvas').click();
 	await page.keyboard.press('e', { delay: 50 });
-	const dialogue = page.getByRole('dialog', { name: 'Blacksmith Oren' });
+	const dialogue = page.getByRole('dialog', { name: 'Oren' });
 	await expect(dialogue).toBeVisible();
 	await dialogue.getByRole('button', { name: 'Shop' }).click();
 	const shop = page.getByRole('dialog', { name: 'Sundrop Forge' });
@@ -11171,8 +11174,8 @@ async function runAllEightBlacksmithPhase(
 	mode: AllEightPresentationMode
 ) {
 	const layout = VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'];
-	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'blacksmith-oren');
-	if (!oren) throw new Error('Blacksmith Oren fixture is missing from the all-eight route');
+	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'oren');
+	if (!oren) throw new Error('Oren fixture is missing from the all-eight route');
 	const forgePoint = { x: 240, y: 144 };
 	const storagePoint = { x: 336, y: 320 };
 	const armoryPoint = { x: 800, y: 304 };
@@ -11256,7 +11259,7 @@ async function runAllEightBlacksmithPhase(
 	);
 	await approachNpcWithTrustedKeyboard(page, {
 		mapId: interior.mapId,
-		speaker: 'Blacksmith Oren',
+		speaker: 'Oren',
 		stagingPoint: blacksmithOrenInteractionStagingPoint,
 		npc: { x: oren.x, y: oren.y },
 		propCollision: layout.propCollisions.serviceCounter
@@ -12283,8 +12286,8 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 
 	await enterInteriorWithTrustedKeyboard(page, blacksmith);
 	const layout = VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'];
-	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'blacksmith-oren');
-	if (!oren) throw new Error('Blacksmith Oren fixture is missing');
+	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'oren');
+	if (!oren) throw new Error('Oren fixture is missing');
 	const orenApproachPoint = layout.npcApproaches.oren.approach;
 	await moveRoute(page, [
 		blacksmith.spawn,
@@ -12309,7 +12312,7 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	);
 	await approachNpcWithTrustedKeyboard(page, {
 		mapId: blacksmith.mapId,
-		speaker: 'Blacksmith Oren',
+		speaker: 'Oren',
 		stagingPoint: blacksmithOrenInteractionStagingPoint,
 		npc: { x: oren.x, y: oren.y },
 		propCollision: layout.propCollisions.serviceCounter
@@ -12317,10 +12320,10 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	await page.locator('canvas').click();
 	await page.keyboard.press('e', { delay: 50 });
 
-	const dialogue = page.getByRole('dialog', { name: 'Blacksmith Oren' });
+	const dialogue = page.getByRole('dialog', { name: 'Oren' });
 	await expect(dialogue).toBeVisible();
 	await expect(dialogue).toContainText(
-		'Steel holds when the hand behind it does. Take what fits, and keep it dry.'
+		"Steel for those who can pay, advice for those who can't. Today, the advice is free."
 	);
 	await dialogue.getByRole('button', { name: 'Shop' }).click();
 
@@ -12343,18 +12346,15 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	await page.waitForFunction(
 		() => {
 			const state = (window as GlieseProbeWindow).__glieseLastHudState;
-			return state?.mapId === 'blacksmith-interior' && state.status === 'Blacksmith Oren nearby';
+			return state?.mapId === 'blacksmith-interior' && state.status === 'Oren nearby';
 		},
 		undefined,
 		{ timeout: 30_000 }
 	);
 	await page.locator('canvas').click();
 	await page.keyboard.press('e', { delay: 50 });
-	await expect(page.getByRole('dialog', { name: 'Blacksmith Oren' })).toBeVisible();
-	await page
-		.getByRole('dialog', { name: 'Blacksmith Oren' })
-		.getByRole('button', { name: 'Shop' })
-		.click();
+	await expect(page.getByRole('dialog', { name: 'Oren' })).toBeVisible();
+	await page.getByRole('dialog', { name: 'Oren' }).getByRole('button', { name: 'Shop' }).click();
 	const resumedShop = page.getByRole('dialog', { name: 'Sundrop Forge' });
 	await expect(resumedShop).toBeVisible();
 	await expect(resumedShop.getByLabel('Coins: 65')).toBeVisible();
@@ -12375,12 +12375,12 @@ test('Blacksmith painted interior preserves baked composition and collision', as
 		steps: []
 	};
 	const layout = VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'];
-	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'blacksmith-oren');
-	if (!oren) throw new Error('Blacksmith Oren fixture is missing');
+	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'oren');
+	if (!oren) throw new Error('Oren fixture is missing');
 	expect(blacksmith.spawn).toEqual(layout.spawn);
 	expect(blacksmith.exit).toEqual(layout.exit);
 	expect(oren).toMatchObject({
-		id: 'blacksmith-oren',
+		id: 'oren',
 		x: 448,
 		y: 416,
 		shopId: 'sundrop-forge'
@@ -12491,13 +12491,13 @@ test('Blacksmith painted interior preserves baked composition and collision', as
 	);
 	await approachNpcWithTrustedKeyboard(page, {
 		mapId: blacksmith.mapId,
-		speaker: 'Blacksmith Oren',
+		speaker: 'Oren',
 		stagingPoint: blacksmithOrenInteractionStagingPoint,
 		npc: { x: oren.x, y: oren.y },
 		propCollision: layout.propCollisions.serviceCounter
 	});
 	await interactWithInteriorNpc(page, {
-		speaker: 'Blacksmith Oren',
+		speaker: 'Oren',
 		shopName: 'Sundrop Forge'
 	});
 	currentPoint = await currentHudPlayerPoint(page, blacksmith.mapId);
