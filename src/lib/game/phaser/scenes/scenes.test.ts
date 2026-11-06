@@ -3803,7 +3803,10 @@ describe('WorldScene', () => {
 		};
 	}
 
-	afterEach(() => {
+	afterEach(async () => {
+		vi.useRealTimers();
+		const { resetPlaytime } = await import('$lib/game/save/playtime');
+		resetPlaytime();
 		delete maps['scene-support-test'];
 		delete maps['scene-registry-default-test'];
 		delete maps['scene-collision-test'];
@@ -7010,6 +7013,7 @@ describe('WorldScene', () => {
 			});
 		} finally {
 			vi.useRealTimers();
+			resetPlaytime();
 			storage.setSaveStorage(undefined);
 		}
 	});
@@ -7040,6 +7044,34 @@ describe('WorldScene', () => {
 			expect(slots.loadSaveSlots(memoryStorage).slots[1]?.playtimeSeconds).toBe(126);
 		} finally {
 			vi.useRealTimers();
+			resetPlaytime();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('leaves the playtime tracker on the real clock for subsequent slot writes', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const { getPlaytimeSeconds } = await import('$lib/game/save/playtime');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const memoryStorage = createSlotCaptureStorage();
+
+		const storage = await import('$lib/game/save/storage');
+		storage.setSaveStorage(memoryStorage);
+		try {
+			scene.create({ reason: 'new', saveState: null });
+			scene.events.emit('render');
+			(scene as unknown as { handleHudCommand: (command: HudCommand) => void }).handleHudCommand({
+				type: 'save-slot',
+				slot: 1
+			});
+
+			const saved = slots.loadSaveSlots(memoryStorage).slots;
+			expect(getPlaytimeSeconds()).toBeGreaterThanOrEqual(0);
+			expect(getPlaytimeSeconds()).toBeLessThan(3_600);
+			expect(saved[0]?.playtimeSeconds).toBeLessThan(3_600);
+			expect(saved[1]?.playtimeSeconds).toBeLessThan(3_600);
+		} finally {
 			storage.setSaveStorage(undefined);
 		}
 	});
