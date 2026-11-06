@@ -7884,6 +7884,75 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('keeps the destroy listener count bounded across restarts with diagnostics off', async () => {
+		const restoreLocation = installLocationSearch('');
+		const target = installHudCommandTarget();
+		try {
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+
+			for (let restart = 0; restart < 4; restart += 1) {
+				scene.create({ mapId: restart % 2 === 0 ? 'overworld' : 'guild-hall' });
+				expect(scene.events.listenerCount('destroy')).toBeLessThanOrEqual(1);
+				scene.events.emit('shutdown');
+			}
+
+			expect(scene.events.listenerCount('destroy')).toBeLessThanOrEqual(1);
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
+	it('keeps the destroy listener count bounded across restarts with diagnostics on', async () => {
+		const restoreLocation = installLocationSearch('?movementDiagnostics=on');
+		const target = installHudCommandTarget();
+		try {
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+
+			for (let restart = 0; restart < 4; restart += 1) {
+				scene.create({ mapId: restart % 2 === 0 ? 'overworld' : 'guild-hall' });
+				expect(scene.events.listenerCount('destroy')).toBeLessThanOrEqual(1);
+				scene.events.emit('shutdown');
+			}
+
+			expect(scene.events.listenerCount('destroy')).toBeLessThanOrEqual(1);
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
+	it('still cancels an armed render probe on destroy without leaking listeners', async () => {
+		const restoreLocation = installLocationSearch('?movementDiagnostics=on');
+		const target = installHudCommandTarget();
+		const probes: HeroRenderProbe[] = [];
+		target.target.addEventListener(HERO_RENDER_PROBE_EVENT, (event) => {
+			probes.push((event as CustomEvent<HeroRenderProbe>).detail);
+		});
+		try {
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+
+			scene.create({ mapId: 'overworld' });
+			target.target.dispatchEvent(new Event(HERO_RENDER_PROBE_REQUEST_EVENT));
+			expect(scene.events.listenerCount('render')).toBe(2);
+			expect(scene.events.listenerCount('destroy')).toBe(1);
+
+			scene.events.emit('destroy');
+			expect(scene.events.listenerCount('render')).toBe(1);
+			expect(scene.events.listenerCount('destroy')).toBeLessThanOrEqual(1);
+
+			scene.events.emit('render');
+			expect(probes).toEqual([]);
+			expect(scene.events.listenerCount('render')).toBe(0);
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
 	it('blocks player movement through NPC bodies', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
