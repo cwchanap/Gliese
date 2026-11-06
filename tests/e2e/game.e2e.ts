@@ -36,7 +36,9 @@ import {
 } from '../../src/lib/game/content/maps/layouts/layout-rects';
 import { VILLAGE_INTERIOR_LAYOUTS } from '../../src/lib/game/content/maps/layouts/village-interiors-v2';
 import { anchorPoint } from '../../src/lib/game/content/maps/overworld/world';
+import { getStoryProgress } from '../../src/lib/game/core/quests';
 import { questStateAt } from '../../src/lib/game/core/quests.fixtures';
+import { applyStoryGates } from '../../src/lib/game/core/story-gates';
 
 type HudStateSnapshot = {
 	ready?: boolean;
@@ -1968,7 +1970,7 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 				point: { x: 416, y: 360 },
 				interaction: {
 					speaker: 'Mira',
-					shopName: "Mira's Item Shop",
+					shopName: "Mira's Herb Hut",
 					purchase: {
 						label: 'Field Potion',
 						itemId: 'field-potion',
@@ -2590,26 +2592,34 @@ const GUILD_HALL_FALLBACK_BLOCKER_IDS = (guildHallMap.blockers ?? []).map(({ id 
 const ITEM_SHOP_RUNTIME_EVIDENCE_ROOT = resolve(
 	'docs/superpowers/reports/img/hpa-586-interiors-runtime/item-shop'
 );
+const itemShopMapAtFixtureProgress = applyStoryGates(
+	itemShopMap,
+	getStoryProgress(questStateAt('gather-moonmoss'))
+);
 const ITEM_SHOP_COLLISION_IDS = [
-	...(itemShopMap.blockers ?? []).map(({ id }) => id),
-	...(itemShopMap.fences ?? []).map(({ id }) => id),
-	...(itemShopMap.mapDecor ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
-	...(itemShopMap.interiorProps ?? []).flatMap(({ collision }) =>
+	...(itemShopMapAtFixtureProgress.blockers ?? []).map(({ id }) => id),
+	...(itemShopMapAtFixtureProgress.fences ?? []).map(({ id }) => id),
+	...(itemShopMapAtFixtureProgress.mapDecor ?? []).flatMap(({ collision }) =>
 		collision ? [collision.id] : []
 	),
-	...(itemShopMap.landmarks ?? []).map(({ id }) => id)
+	...(itemShopMapAtFixtureProgress.interiorProps ?? []).flatMap(({ collision }) =>
+		collision ? [collision.id] : []
+	),
+	...(itemShopMapAtFixtureProgress.landmarks ?? []).map(({ id }) => id)
 ].sort();
 const ITEM_SHOP_STATEFUL_OBJECT_IDS = [
-	...itemShopMap.transitions.map(({ id }) => id),
-	...(itemShopMap.pickups ?? []).map(({ id }) => id),
-	...(itemShopMap.encounters ?? []).map(({ id }) => id),
-	...(itemShopMap.npcs ?? []).map(({ id }) => id),
-	...(itemShopMap.landmarks ?? []).map(({ id }) => id),
-	...(itemShopMap.ambientNpcs ?? []).map(({ id }) => id),
-	...(itemShopMap.discoveries ?? []).map(({ id }) => id),
-	...(itemShopMap.combatBounds ?? []).map(({ id }) => id)
+	...itemShopMapAtFixtureProgress.transitions.map(({ id }) => id),
+	...(itemShopMapAtFixtureProgress.pickups ?? []).map(({ id }) => id),
+	...(itemShopMapAtFixtureProgress.encounters ?? []).map(({ id }) => id),
+	...(itemShopMapAtFixtureProgress.npcs ?? []).map(({ id }) => id),
+	...(itemShopMapAtFixtureProgress.landmarks ?? []).map(({ id }) => id),
+	...(itemShopMapAtFixtureProgress.ambientNpcs ?? []).map(({ id }) => id),
+	...(itemShopMapAtFixtureProgress.discoveries ?? []).map(({ id }) => id),
+	...(itemShopMapAtFixtureProgress.combatBounds ?? []).map(({ id }) => id)
 ].sort();
-const ITEM_SHOP_FALLBACK_BLOCKER_IDS = (itemShopMap.blockers ?? []).map(({ id }) => id);
+const ITEM_SHOP_FALLBACK_BLOCKER_IDS = (itemShopMapAtFixtureProgress.blockers ?? []).map(
+	({ id }) => id
+);
 const VILLAGER_HOUSE_1_RUNTIME_EVIDENCE_ROOT = resolve(
 	'docs/superpowers/reports/img/hpa-586-interiors-runtime/villager-house-1'
 );
@@ -12022,7 +12032,7 @@ test('shop overlay opens near a merchant and supports buying and selling', async
 	await expect(miraDialog).toBeVisible();
 	await miraDialog.getByRole('button', { name: 'Shop' }).click();
 
-	await expect(page.getByRole('heading', { name: "Mira's Item Shop" })).toBeVisible();
+	await expect(page.getByRole('heading', { name: "Mira's Herb Hut" })).toBeVisible();
 	await expect(page.getByLabel('Coins: 30')).toBeVisible();
 	const buyGrid = page.getByTestId('shop-buy-grid');
 	await expect
@@ -12116,7 +12126,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 	await miraDialog.getByRole('button', { name: 'Next' }).click();
 	await miraDialog.getByRole('button', { name: 'Shop' }).click();
 
-	const shopDialog = page.getByRole('dialog', { name: "Mira's Item Shop" });
+	const shopDialog = page.getByRole('dialog', { name: "Mira's Herb Hut" });
 	await expect(shopDialog).toBeVisible();
 	await shopDialog
 		.getByTestId('shop-buy-grid')
