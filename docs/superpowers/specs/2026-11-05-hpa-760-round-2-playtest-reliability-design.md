@@ -25,6 +25,10 @@ The code confirms several concrete risk points:
 | Load picker keeps 00:00 | `save/playtime.ts` counts live seconds; `WorldScene.buildSlotRecord` samples only when writing; `ui/SaveScreen.svelte` reads the last stored slot duration | Likely stale save metadata when a run continues without a later save. Reproduce across actual saves before changing persistence cadence. |
 | Shop E2E expects “Mira's Item Shop” | `tests/e2e/game.e2e.ts` has old name in shop fixture plus heading/dialog assertions | Test-only rename drift: preserve current product-facing “Mira's Herb Hut”. |
 
+**Review evidence addendum (2026-11-05):** `resolveMovementSegment` is axis-separated and does not assist sideways movement toward narrow doorways; existing E2E comments describe 16px clearance-eroded door lanes. `findNearbyNpc` already serves prompt, shop, and E, but chooses by distance and can leave a stale “X nearby” status when a non-shop target disappears. The entire overworld is displayed in `AreaMapScreen` while the minimap uses a player-local viewport. `formatPlaytimeSeconds` is `h:mm` rather than `mm:ss`. The 30G initial HUD placeholder is used for Continue too, so changing it to 20G alone is insufficient.
+
+The forge `f` is near the neighbor-house `b` door; automatic triggers fire within player radius + 18px, but existing anchor reachability ignores door triggers. A trigger-avoiding route check is justified. **Do not assume every route necessarily crosses `b` without proving it**; the walkable glyph grid has other approaches. Global corner nudging and camera padding are hypotheses to test, not mandatory fixes without regressions/visual checks.
+
 ## Decision: one focused implementation PR for this issue
 
 The subsequent implementation continues **on the same HPA-760 PR**, after review of these planning docs. Fix player-visible contracts in the existing map, interaction, HUD, and save owners. Reuse current navigation generation, Svelte/Phaser bridge, story gates, shop identity, and slot storage. Do not split one Linear ticket into several PRs.
@@ -33,31 +37,30 @@ This work is not an opportunity for a general interaction framework, map authori
 
 ### 1. First-quest forge: discoverable, accessible, and correctly targeted
 
-- Preserve the existing exterior-to-`blacksmith-interior` transition identity and Oren/practice-spear quest identity.
-- Trace the **actual walkable** route from Grik's home/village path to the south-facing forge entrance at `sundrop-forge-door`. Check the neighboring hut/fence/tree clearance with the current player radius and grid mask. Adjust the minimum source-owned Sundrop cells/door approach only if keyboard repro proves a pinch or false-looking entrance.
-- Ensure the art entrance, `f` anchor, and navigation mask agree. Do **not** enlarge a collision hole blindly beyond the drawn entrance. A real new/edited sprite must be a separate art task, not generated inside this gameplay fix.
-- Add a useful first-quest entrance-level indication: when the active objective is to speak to Oren in an interior, the overworld shows the forge **door/entrance** as the intended destination, rather than treating all doors as indistinguishable gold circles. Prefer the current one-hop transition data and quest objective IDs; no generic multi-map route planner.
-- Improve `AreaMapScreen` readability around the local village (e.g., a bounded, player-local default view with the existing full-world view retained as an overview if needed). Preserve keyboard/gamepad focus and visible marker labels. Keep the minimap focused, but distinguish the current quest entrance from ordinary door markers.
+- Preserve forge exterior/interior transition and Oren/practice-spear IDs. Test a real keyboard path from Grik's home to the south-facing `sundrop-forge-door` (`f`) **without automatically entering** neighbor hut `sundrop-neighbor-hut-2-door` (`b`). Account for player clearance, the 30px automatic door trigger and current story gates.
+- Extend the existing navigation reachability helper only if useful to avoid specified **active unrelated door triggers**. Test forge and currently important Sundrop entrances; don't impose a universal “never cross any door trigger” invariant on future maps where chained transitions may be intended. Check for an existing safe route before relocating a hut/path; adjust minimal Sundrop cells only if genuinely needed.
+- Existing door markers in `core/area-map.ts` already have labels. Make the active `talk-to-npc` objective highlight a one-hop entrance transition when its eligible target NPC lives in a directly connected interior (`maps[toMapId]` after `applyStoryGates`), instead of showing no objective marker on the overworld. Keep the current quest entrance visually distinguishable on the minimap from ordinary circles; no route-planner.
+- Reuse `FieldHud`'s existing clamped local minimap viewBox math through a small pure shared helper in `core/area-map.ts`, with an appropriate larger local span for `AreaMapScreen`. Preserve accessible marker labels and keyboard/gamepad focus. No general zoom/pan system or new artwork.
 
-**Acceptance:** Starting a fresh New Run, a keyboard-only player talks to Mott, exits the house, identifies the forge destination, enters its real south door without side-shuffling/accidental neighbor-house entry, speaks to Oren, and receives the practice spear. An authored navigation check must show a reachable approach, but automated routing cannot replace the manual keyboard check.
+**Acceptance:** Fresh keyboard New Run → Mott → home exit → forge approach **without accidental neighbor transition** → Oren → practice spear, supported by a trigger-aware navigation regression. Don't call the headless report a proven soft-lock.
 
-### 2. Doorway collision matches visible openings
+### 2. Narrow doors: test a shared movement fix before editing every layout
 
-- Treat `VILLAGE_INTERIOR_LAYOUTS['hero-house']` as the geometry owner: front exit opening and bedroom divider opening, adjacent wall rectangles, live prop blockers, and exit trigger.
-- Compare the painted visible passable band against the generated navigation grid and physical player-radius clearance. Adjust only the relevant wall/door/transition geometry; regenerate via `bun run world:generate:navigation` and commit the generated result if changed.
-- Validate several reasonable approach offsets and both sides of each opening. The player should be guided through a visibly open doorway without needing a hidden one-pixel sweet spot.
-- Preserve all map/transition/story IDs and untouched interiors.
+- Clearance-eroded 16px navigation cells and the axis-separated `resolveMovementSegment` explain why a visually 64px door can feel like a narrow alignment puzzle. Test a small, **bounded corner nudge** in the existing pure `core/navigation.ts` as a first candidate instead of changing Hero House and every later room separately.
+- Only for blocked *cardinal* input, probe nearby offsets of at most ~16–20px and move laterally by **no more than the normal frame step** if the lateral sweep **and the intended forward sweep** both remain collision-safe. Do not nudge across painted walls, toward an unintended doorway trigger, around dead ends, or while ordinary movement succeeds.
+- Write pure navigation tests for legitimate door lanes, solid walls, corners, ambiguous offsets, NPC/prop blockers, and diagonal/zero input. Since `WorldScene` also uses the resolver outdoors, recheck overworld movement and all relevant route-walking E2E projects.
+- If actual visible Hero House bedroom/exterior openings still disagree with traversal after a safe nudge, minimally adjust `VILLAGE_INTERIOR_LAYOUTS['hero-house']`'s source geometry and regenerate navigation; do not change global player radius.
 
-**Acceptance:** A normal keyboard player crosses Hero House's exterior and bedroom doors both ways from multiple positions inside the *visibly open* band. Collision still blocks the painted solid walls. The existing interior navigation/round-trip tests stay green.
+**Acceptance:** Both doors work from reasonable visible offsets in both directions without allowing clipping. Global nudge is **conditional on reproducing the problem and proving safe behavior**.
 
-### 3. One truthful NPC target for prompt and E
+### 3. Fix stale NPC hints and targeting in the *existing* shared wiring
 
-- Replace the distance-only selection with a **small shared target resolver** that uses available NPCs in interaction range and favors the NPC in the player's facing direction; use stable proximity/ID tie breaking. Do not silently start a different NPC's dialogue after showing another NPC's “nearby” status.
-- Reuse that resolver for HUD hint, shop proximity, and interaction. Refresh/clear a stale “X nearby” hint as target/facing/range changes; avoid republishing the entire HUD on every movement tick if nothing meaningful changed.
-- Handle visually present `ambientNpcs` separately: pressing E while facing one can show a localized “They are busy / have nothing to say” fallback (without granting quest progress). Use “No one is nearby” only when no visible candidate is in useful range.
-- Do not fabricate new story conversations or alter Rust-generated story content to solve ambient behavior.
+- `WorldScene.findNearbyNpc` already feeds `updateNpcDialogue`, E, and nearby shop selection. Preserve this wiring. The current function ranks by distance only, and `updateNpcDialogue` does not clear a stale non-shop “X nearby” status when the target disappears. That stale line may explain “Tikka nearby” followed by Mott dialogue; reproduce the sequence before assuming competing resolvers.
+- Extract **only the selection rule** into a tiny pure `core/` spatial helper using candidate position, radius and stable ID; filter by range, prefer facing, then distance, then ID. Use it for eligible interactable NPCs and ambient-villager proximity, not a second NPC system. Leave discovery selection unchanged unless reuse is trivial.
+- Update the hint when target/facing/range changes and clear stale nearby prose without overwriting significant dialogue/quest status. Avoid per-frame full HUD publishes. E and hint should reflect the same selected candidate at input time.
+- For visible noninteractable `MapAmbientNpc`, return a single localized “busy / nothing to say” fallback (all three locales) when faced/interacted with; no full dialogue content and no quest progress. Retain existing shop, dialogue sequencing and story gates.
 
-**Acceptance:** With Mott and Tikka both in range, facing Tikka makes both the prompt and E select Tikka; facing Mott selects Mott. Outdoor and house ambient villagers no longer cause a demonstrably false “No one is nearby” line. Dialogue, shop, and quest-gate behavior stays intact.
+**Acceptance:** Mott/Tikka prompt matches the dialogue opened by E, stale hints clear, and ambient villagers receive a truthful fallback.
 
 ### 4. Eliminate the living-room wedge using authored clearance
 
@@ -69,27 +72,25 @@ This work is not an opportunity for a general interaction framework, map authori
 
 ### 5. HUD and save-display truthfulness
 
-- **Hero visibility:** When the player sprite's *screen position* overlaps the top-left portrait card, make the card yield (e.g., a controlled opacity reduction). Use the existing scene/UI bridge with an overlap boolean updated only on threshold changes, or an equally small current-owner solution. Do not push high-frequency world coordinates through the whole HUD merely to animate this class.
-- **Initial gold:** Remove the copied 30G value from `ui-bridge/store.ts`; initialize from the authoritative 20G new-save wallet (or one existing shared content constant). A loading placeholder must not lie about the wallet.
-- **Playtime:** First verify `resetPlaytime`, actual `buildSlotRecord` calls, and whether an idle run has no autosave after its first minute. If confirmed, use the **minimum** bounded checkpoint/lifecycle update needed to keep displayed *persisted* slot playtime credible; no per-frame disk writes, schema migration, or derived “live elapsed” mislabeled as already saved. Continue to preserve manual save semantics and Tauri flush guarantees.
+- **Portrait occlusion:** First visually evaluate a minimal top-left camera bounds inset in `WorldScene.getCenteredCameraBounds`; it may expose large blank margins in small rooms, so don't assume this is the solution. If it degrades presentation, prefer a narrowly scoped fading/opacity behavior for `FieldHud`'s portrait card on actual screen overlap, with an explicit owner for Phaser player screen coordinates and responsive DOM card rectangle. No continuous full-HUD event stream or broad HUD rewrite.
+- **Startup gold:** `ui-bridge/store.ts` is provisional for both New Run and Continue. Hide `FieldHud` numeric values (or FieldHud itself) until `hudState.ready` so neither a new 20G wallet nor a resumed 150G wallet flashes the wrong figure. Preserve a truthful loading indication and current command disabled state.
+- **Playtime:** `getPlaytimeSeconds` feeds `WorldScene.buildSlotRecord` on existing autosaves/manual saves; first check whether the repro used `?startMap=` (which suppresses save writes), which slot was viewed, the last real write, headless clock, and the `h:mm` formatter (`00:04` means 4 minutes). Prefer visible explicit hour/minute units if the stored value is correct. **Do not add a timer-driven autosave or new schema** unless a normal-run reproducible missing persistence path justifies it.
+- Keep existing manual save/Tauri flush guarantees.
 
-**Acceptance:** Player remains visible while moving beneath the portrait, new-game loading and in-game gold agree, and a save slot written/reopened after a few minutes reflects elapsed time. Backgrounding/returning and manual vs. auto slot behavior must not duplicate elapsed time.
+**Acceptance:** Hero remains visible in the top-left without distorting small interiors, both New Run and Continue show only authoritative wallet values, and a freshly written slot displays understandable persisted elapsed time.
 
 ### 6. Fix shop E2E rename drift without changing the shop
 
-- Update the old shop name in `tests/e2e/game.e2e.ts` (shop fixture and heading/dialog assertions; verify all occurrences).
-- Assert the **visible canonical** “Mira's Herb Hut”, not a dynamically read value that would pass if the app silently renamed itself again.
-- Do not rename the shop IDs, inventory state, items, buy/sell behavior, or dialogue contracts.
+- Fix stale `Mira's Item Shop` strings in `tests/e2e/game.e2e.ts` (fixture, heading and dialog name), explicitly asserting the current visible `Mira's Herb Hut`. Preserve IDs, inventory, buy/sell behavior, and authored dialog.
+- Other `Mira's Item Shop` occurrences in `src/lib/game/GameShell.svelte.spec.ts` are caller-supplied HudState fixture names, **not necessarily production rename drift**; avoid unrelated fixture churn.
+- The painted Item Shop case belongs to Playwright **`exhaustive`**, not `gate`. Run its targeted E2E plus any relevant gate shop tests.
 
-## Verification ownership and scope limits
+## Verification ownership, risks and scope limits
 
-**Smallest useful tests:** map/nav reachability and door clearance in existing map/layout/navigation owners; target-selection/ambient fallback unit or scene coverage; existing `tests/e2e/game.e2e.ts` for the first playable quest path and shop heading; save/HUD tests for startup wallet and persisted playtime.
+- Add focused pure regressions to `core/navigation.test.ts` (only if the global nudge proves useful), existing Sundrop `world.test.ts` / grid navigation tests (avoid unintended transition triggers), `core/area-map.test.ts` (local viewBox and Oren one-hop marker), and existing scene/NPC, save and HUD tests. Avoid parallel test frameworks or copied map-ID inventories.
+- E2E ownership matters: `Item Shop painted interior` runs in **`exhaustive`**; `Hero House painted interior preserves runtime` is in **`flaky`**, while `gate` covers the general gameplay suite. After any global movement change, run `gate`, `exhaustive` and `flaky` and triage flaky route-helper failures against manual keyboard behavior, not just automation.
+- Required final evidence: genuine keyboard New Run → Oren and practice spear, Hero House door clearance, Mott/Tikka interaction, ambient fallback, no table wedge, player visibility, correct loading/readied wallet, and persisted playtime with explicit units.
+- **Risks:** Global corner nudges can alter all route walks and may accidentally activate doors if not sweep-tested; camera padding can expose painted-background margins; a universal “all other door triggers must be avoided” rule can reject intentional future transitions. Keep these conditional and focused.
+- Keep **one Linear issue and one draft PR** for planning + subsequent implementation. Do not create new art, SFX, dialogue scripts, broad navigation frameworks, save schema changes, compatibility branches, or extra approval scaffolding. If artwork itself needs generation, scope it in a **separate art task**.
+- These are planning docs; no gameplay implementation or test run is claimed.
 
-**Critical proof:** a real keyboard play from new run through Mott → forge → Oren, plus Mott/Tikka and living-room wedge reproduction, observed with screenshots/video and noted viewport. A fake route-helper failure alone must not justify changing authored geometry.
-
-**Guardrails:**
-- One Linear issue, one draft PR that later contains its implementation.
-- No new image art, SFX, NPC prose, rendering architecture, map compiler, global collision-radius change, save schema, or compatibility layer.
-- Preserve the current `gate` / `exhaustive` / `flaky` Playwright ownership; don't make a previously quarantined route walk a blocking test without a stable real-player repro.
-- If painted art itself must change, create a separate art-generation task later (reusing an available Graveyard ticket per project process) and keep code changes distinct.
-- No claim that these fixes are implemented or validated by this document-only PR.
