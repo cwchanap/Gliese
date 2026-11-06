@@ -576,7 +576,7 @@ const dayOne: StoryGated = { activeDuring: storyWindows.dayOne };
 /** Where the family stands in the living room; the table sits at x 224-336, y 400-464. */
 const prologueHomeSpots = {
 	mott: { x: 128, y: 352 },
-	tikka: { x: 192, y: 432 },
+	tikka: { x: 152, y: 432 },
 	borak: { x: 408, y: 400 },
 	drogg: { x: 280, y: 496 }
 } as const;
