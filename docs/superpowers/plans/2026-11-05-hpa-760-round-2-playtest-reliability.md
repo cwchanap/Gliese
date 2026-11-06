@@ -10,7 +10,7 @@
 
 **Tech:** Svelte 5, Phaser, TypeScript, Bun, Vitest, Playwright, grid-map/navigation source generators, existing save slots.
 
-**Review incorporated (Nov 5):** This plan now prioritizes trigger-aware forge navigation, an optional *tested* global corner-nudge before per-door geometry edits, explicit cleanup of stale NPC hints, correct Playwright `exhaustive`/`flaky` ownership, gating provisional HUD values on `ready`, and diagnosing `h:mm` playtime before touching persistence. The global movement/camera alternatives are **not pre-approved without behavior/regression proof**.
+**Review incorporated (Nov 5, two rounds):** Prioritize **local authored doorway and Sundrop corridor fixes**, an edge-triggered top-left `heroOccluded` fade, stale NPC hint cleanup, correct Playwright `exhaustive`/`flaky` ownership, readiness-gated wallet display, and investigating `h:mm` playtime before changing storage. Do **not** add global collision nudging or camera padding. Treat exact suggested 16px path/door coordinates as proposals to validate against paint and real navigation, not unquestioned fixes.
 
 
 ## Constraints and acceptance policy
@@ -24,18 +24,18 @@
 - [ ] A bot-only route failure is not sufficient reason to move walls. Use real keyboard/controller evidence and focused deterministic checks before geometry changes.
 - [ ] Keep PR **draft** until implementation/tests/manual acceptance are actually complete.
 
-## Task 0 — Short, targeted baseline proof (not another 45-minute exploration)
+## Task 0 — Baseline proof and source-owned constraints
 
-**Read:** HPA-760, current code owners, `core/navigation.ts`, `grid/layers.ts`, `WorldScene`, the approved design spec and existing Playwright classification.
+**Read:** HPA-760, both review threads, `CLAUDE.md`, `grid/layers.ts`, `village-interiors-v2.ts`, `WorldScene.ts`, and the current design.
 
-- [ ] On a clean **normal New Run** (no `?startMap=`), use keyboard Mott → home exit → village → `sundrop-forge-door` → Oren. The forge (`f`) is close to neighbor door (`b`); note whether its **automatic transition radius** forces the player into the neighbor or whether a different readable path already works.
-- [ ] Confirm Hero House front/bedroom “sweet spot” on current 16px clearance-eroded navigation cells. Record which offset/axis fails; the axis-separated movement resolver is a known suspect.
-- [ ] Position player near both Tikka/Mott; explicitly check whether a **stale “Tikka nearby” status** remains after the nearest eligible NPC changes, and whether E selects the same candidate at that instant. Check ambient-only villages.
-- [ ] Try the living-table wedge; record camera/card overlap in a small interior at common viewport sizes.
-- [ ] Reproduce the save-slot playtime report: inspect direct/dev boot vs normal New Run, actual slot index and last save time, `getPlaytimeSeconds`, the `h:mm` formatter, and headless clock. Under 60s legitimately renders `00:00`; 4 minutes renders `00:04`, so test more than a minute.
-- [ ] Document before/after in the same PR using short notes/screenshots; preserve the original playtest friction even if it isn't a formal soft-lock.
+- [ ] Use **normal New Run**, no `?startMap=`, to confirm Mott → exterior door → forge `f` → Oren. The obvious current dirt connector leads through nearby villager-house door `b`'s **30px automatic trigger**; record a short route/camera screenshot and which approach a player naturally follows.
+- [ ] Note that a source-grid route *can* avoid `b` when intentionally detouring south (16px cells, 12px grid clearance). This disproves a universal forced-transition claim but **does not** make the visible path usable. The intended route should have safe trigger clearance with comfortable tolerance, not a 2–4px near-miss.
+- [ ] Check actual Hero House painted front/bedroom opening geometry against `heroHouseWalls`, `doors`, `PLAYER_COLLISION_RADIUS` and generated navigation; note plausible **up to 16px** localized expansion without walking through painted doorframes.
+- [ ] For NPC reports, reproduce the existing **stale “Tikka nearby”** status and current range-only selector; check ambient-only villagers and the Tikka/table wedge.
+- [ ] Record top-left hero/card overlap at a common desktop and narrow viewport. The portrait card's CSS dimensions vary by responsive breakpoint.
+- [ ] Verify playtime with a real save after >60 seconds, correct slot index, normal vs dev boot, clock/slot time and the current **`h:mm`** rendering.
 
-**Gate:** Reproduction classifies root cause; it does not authorize a global code change without safety tests.
+**Gate:** This is focused evidence for existing owners, not permission for broad physics, camera, or save architecture changes.
 
 ## Task 1 — Fix the independent shop test drift (low risk)
 
@@ -47,32 +47,30 @@
 
 **Gate:** The production shop label stays unchanged and the correct owning E2E passes.
 
-## Task 2 — Solve the forge route and destination marker (minimal sources)
+## Task 2 — Fix the authored forge connector and objective marker
 
-**Inspect:** `src/lib/game/content/maps/overworld/chunks/sundrop.ts` (`f` forge, `b` neighbor house, racks `X`), `overworld/places.ts`, `grid/layers.ts`, `core/navigation.ts`, `core/area-map.ts`, `ui/AreaMapScreen.svelte` and `ui/FieldHud.svelte`.
+**Owner:** `src/lib/game/content/maps/overworld/chunks/sundrop.ts`; reuse `overworld/places.ts`, `grid/layers.ts`, `core/area-map.ts`, `AreaMapScreen.svelte`, `FieldHud.svelte`.
 
-- [ ] Add a **trigger-aware** route regression: a player-radius-clear route to the forge `f` must not enter another *active unrelated* transition's radius (30px for the current rules). The existing `findUnreachablePoints` reaches anchors without considering door activation. Add a small optional avoided-point predicate/radius only if it simplifies the current grid test; otherwise keep the check local to `world.test.ts`.
-- [ ] Scope any all-door invariant to currently relevant Sundrop entrances and story state. Do not require that **all future door anchors** can be reached without crossing *any* other door trigger; this could reject intentional transition chains. Also test actual arrival/door trigger semantics, not merely walkable center cells.
-- [ ] Check for a route around the neighbor door before touching the chunk. If the approach is still blocked or unreasonably confusing, move the **fewest authored Sundrop glyphs** around the forge/hut/trees/racks while keeping drawn door faces aligned; preview via `bun run map:preview -- --chunk sundrop`.
-- [ ] In `getObjectiveTargets`/`buildMainQuestMarkers`, if a `talk-to-npc` objective has no eligible target on the current map, check directly connected `map.transitions` to a gated target NPC in `maps[transition.toMapId]` (using `applyStoryGates` and current quest progress). Return the one-hop entrance marker. No generic route graph.
-- [ ] Share a tiny pure clamped local viewBox helper from `core/area-map.ts` between the existing `FieldHud` minimap and `AreaMapScreen`, using suitable spans. Area map door markers already have labels; make them readable at local scale and keep focus/ARIA. Emphasize the current forge entrance in minimap (instead of undifferentiated gold rings).
-- [ ] Unit tests: current destination Oren yields highlighted forge entrance; completed/other objective does not; local viewport stays in bounds; relevant Sundrop route avoids unrelated door activation.
-- [ ] Manually confirm Mott → forge → Oren → practice spear.
+- [ ] Fix the **visible dirt/path connector** that currently guides the player across neighbor door `b` while approaching forge door `f`. Prefer changing the fewest Sundrop glyphs to route south around `b` before continuing east, keeping door-anchor locations and the south-facing forge entrance aligned with sprite art.
+- [ ] The review's “shift one row south” is a starting proposal, **not guaranteed sufficient**: 32px from a 30px trigger offers only ~2px theoretical margin at a tile center. Use nav-grid geometry and a real keyboard path to choose a comfortable wider clearance (prefer ≥48px at the intended walk-line where feasible). Avoid moving buildings/anchors unless path edits cannot accomplish this.
+- [ ] Add an existing-owner **trigger-aware navigation regression** for the intended home-to-forge route avoiding unrelated doors within player radius + transition radius. Do not broaden `findUnreachablePoints` into a global pathfinding framework or require all future doors to avoid each other.
+- [ ] Implement one-hop objective marking: when a `talk-to-npc` target is in a directly connected, story-gated interior, identify/highlight that entrance using `map.transitions`, `maps[toMapId]`, and `applyStoryGates`; do not add a routing graph.
+- [ ] Share a tiny pure clamped local viewBox helper in `core/area-map.ts` between minimap and full Area Map (different spans), preserving existing door labels, keyboard/gamepad focus, and a distinct active forge marker.
+- [ ] Run relevant `world.test.ts`, `core/area-map.test.ts`, `bun run map:preview -- --chunk sundrop`, and actual Mott → Oren keyboard acceptance.
 
-**Gate:** Reachable *and discoverable* forge; no accidental neighbor interior while using intended approach.
+**Gate:** The intended approach is obvious and avoids neighbor-house activation; no unnecessary art or quest identity changes.
 
-## Task 3 — Prove or reject a shared corner-nudge for narrow doors
+## Task 3 — Fix only Hero House authored doorway clearance
 
-**Primary owner:** `src/lib/game/core/navigation.ts` and `src/lib/game/core/navigation.test.ts`. **Fallback authored owner:** `VILLAGE_INTERIOR_LAYOUTS['hero-house']`.
+**Source owner:** `src/lib/game/content/maps/layouts/village-interiors-v2.ts`, generated navigation source/runtime, and existing map/layout tests.
 
-- [ ] Reproduce the movement failure in Hero House's exterior/bedroom door (the E2E already describes two-cell, 16px clearance-eroded lanes). Prefer a shared fix over hand widening every 64px opening.
-- [ ] Prototype the smallest bounded **cardinal-only** correction inside `resolveMovementSegment`: when requested forward movement is blocked, probe up to ~16–20px sideways on either side and move at most the normal frame step **only if both the lateral and forward swept segments stay valid**. Do not silently teleport toward a door, nudge while input is diagonal/zero, or bypass a solid wall/corner. A nudge that would trigger the wrong nearby door is a failed candidate.
-- [ ] Test correct center/off-center crossing, tight corners, dead ends, obstacles, NPC/prop collisions, diagonal input, no input, and no movement into blocked cells, **before accepting a global resolver change**.
-- [ ] Re-run relevant `gate`, `exhaustive` and `flaky` route-walking tests after a global movement change; compare any flaky helper failure against manual keyboard behavior.
-- [ ] Only if visible door bands still fail after a collision-safe nudge (or the nudge is unsafe), make the smallest Hero House source `walls`/`doors`/exit correction in `village-interiors-v2.ts` and regenerate `bun run world:generate:navigation` and `bun run world:check:navigation`.
-- [ ] Confirm exterior and bedroom crossings both ways from realistic offsets, plus existing Item Shop and villager house door interactions. Preserve map/transition IDs.
+- [ ] **Do not change `resolveMovementSegment`** or introduce a global corner nudge for this issue. The shared physics code serves every map and can unexpectedly drift into unrelated door triggers. Prefer local source data.
+- [ ] Adjust the Hero House **bedroom and front-door wall openings** to provide the clearance players see in the painted image. Target roughly one extra 16px navigation cell of usable clearance where required, by changing actual wall endpoints and corresponding `doors` geometry (the door rectangles alone do not change blockers).
+- [ ] Verify exact fit with painted art before writing the proposed 16px change. Do not clear a currently solid-painted doorframe. If the artwork cannot support a wider walkable opening, keep the collision honest and record that an art-generation/edit task is a separate deliverable.
+- [ ] Run `bun run world:generate:navigation` and `bun run world:check:navigation`, commit generated files when altered, and cover both directions plus reasonable off-center offsets in existing layout/navigation tests.
+- [ ] Verify normal keyboard Hero House exit/entry and bedroom passage. Spot-check Item Shop and relevant `flaky`/painted E2E without widening other interiors without repro.
 
-**Gate:** Door passages no longer require invisible precision; no ghost-wall crossing or regressions in the shared movement system.
+**Gate:** Clear visible doorway traversal with honest wall collision and **no global movement behavior change**.
 
 ## Task 4 — Repair current shared selection + stale hint; keep E truthful
 
@@ -97,59 +95,61 @@
 
 **Gate:** No reachable trap remains between Tikka and the table; Tikka is still talkable.
 
-## Task 6 — Fix provisional HUD, investigate playtime, and protect hero visibility
+## Task 6 — Edge-triggered HUD visibility; truthful loading and playtime
 
-**Owners:** `GameShell.svelte`/`FieldHud.svelte`, `WorldScene.getCenteredCameraBounds`, `ui-bridge/store.ts`, `save/playtime.ts`, `SaveScreen.svelte`, existing save slot writer.
+**Owners:** `src/lib/game/phaser/scenes/WorldScene.ts`, `ui-bridge/events.ts`, `ui-bridge/store.ts`, `ui/FieldHud.svelte`, `GameShell.svelte`, `save/playtime.ts`, `SaveScreen.svelte`.
 
-- [ ] **Loading gold:** `GameShell` currently renders `FieldHud` when not in battle/dialogue even while `$hudState.ready` is false. Gate numerical field content or the component on `ready`; if the whole component is hidden, keep an honest loading label. Do **not** simply replace hardcoded `coins: 30` with `20`: Continue could hold 150G, and the placeholder would still lie. Verify both New Run and Continue, with no initial coin flash.
-- [ ] **Portrait:** Test a *minimal* top-left camera bounds inset using real small-room screenshots and viewport sizes. The current bounds center small maps and do not add padding for larger-than-viewport rooms; a large inset can reveal blank `#1a1f2b` margins. Reject that option if it makes gameplay less legible; instead use a small card fade/yield on actual overlap with clearly owned player screen coordinates and measured responsive DOM card bounds. No per-frame full HUD publish.
-- [ ] **Playtime:** `getPlaytimeSeconds` is already sampled in `buildSlotRecord`, with multiple normal autosave triggers. Inspect `resetPlaytime`, actual slot writes, dev `?startMap=` save suppression, slot age and headless clock. The formatter is **`h:mm`**, so `00:04` is 4 minutes and `00:00` means under a minute or unsaved time. Add explicit hour/minute units if the stored data is correct (update formatter tests and relevant i18n/UX copy). Only fix a true missing save path with a minimal existing lifecycle write; **no timer-based periodic autosave unless a reproducible normal-play case demands it**, no schema migration.
-- [ ] Verify newly written/resumed **manual and autosave** slot durations after several minutes, that no time is double counted, and existing Tauri flush/failure guarantees stay intact.
+- [ ] **Hero visibility:** Do **not** pad `getCenteredCameraBounds` or force scroll on a map smaller than the viewport (reveals empty dark margins). Determine the player center in game-screen coordinates; update one `HudState.heroOccluded` boolean **only at zone entry/exit**, not every frame. In `FieldHud`, add a `.hero-card-occluded` class (e.g., `opacity: 0.35`) and remove it on exit; initialize the flag as `false` in the provisional store.
+- [ ] Start with a conservative top-left overlap envelope near desktop `screenX < 420 && screenY < 240` **only if it matches the actual card**, whose desktop CSS is top/left 2.125rem and `width: min(23.125rem, 100vw - 2rem)`. Check responsive (≤720px) and short-height (≤559px) layouts. Correct approximate thresholds if the card is not there; avoid DOM queries/resize listeners unless the simple envelope visibly fails.
+- [ ] Do not broadcast player screen coordinates or full HUD state every frame. Leverage existing `WorldScene.publishHudState` only when the boolean changes; ensure the publish includes the current flag on subsequent saves/map/quest events.
+- [ ] **Wallet:** Hide `FieldHud` numeric values or the component while `hudState.ready === false`, including Continue. For internal consistency, correct the provisional store's obsolete 30G to current new-run 20G, but **never display the provisional amount** before the first authoritative publish. Check both a fresh 20G run and a resumed save with a different wallet.
+- [ ] **Playtime:** Existing `WorldScene.buildSlotRecord` samples `getPlaytimeSeconds`. Check normal vs `?startMap=` boot, slot timestamp/index, headless clock and `h:mm` formatting. If the record is correct, use explicit hours/minutes or unambiguous `h:mm:ss` in display and tests; do **not** add periodic autosaves, save schema changes or migration paths without a real missing-write repro.
+- [ ] Preserve Tauri manual-save flush/failure handling and verify elapsed time is not double-counted after Continue.
 
-**Gate:** No false loading wallet for New Run/Continue, hero visible in small rooms, and persisted slot elapsed time is accurate and unambiguous.
+**Gate:** Hero visible in top-left without camera drift, no wrong wallet flash, and an honest, unambiguous persisted slot playtime.
 
-## Task 7 — Run the actual owning test projects and final manual acceptance
+## Task 7 — Focused regressions + actual keyboard acceptance
 
-**Focused build and static checks:**
+**Baseline checks:**
 
     bun run check
     bun run lint
     bun run world:check:navigation
     bun run test:unit -- --run
 
-**Playwright ownership (the test command rebuilds before each Playwright invocation):**
+**Playwright owning tests:**
 
     bun run test:e2e -- --project=gate
     bun run test:e2e -- --project=exhaustive --grep "Item Shop painted interior"
     bun run test:e2e -- --project=flaky --grep "Hero House painted interior preserves runtime"
 
-- [ ] Run the **full** `exhaustive` and `flaky` projects after any global movement resolver change; these are not optional just because `gate` passed. Distinguish route-helper flakiness from gameplay regressions using the keyboard proof, and record both outcomes.
-- [ ] Add/reuse one lean keyboard Playwright journey New Run → Mott → enter forge → Oren → spear without another giant pathfinding harness.
-- [ ] Manually verify both Hero House openings, Mott/Tikka hint and E, ambient feedback, Tikka/table escape, hero visibility, correct startup/Continue wallet, genuinely persisted slot playtime, and current Mira label/shop flows.
-- [ ] Run `bun run map:preview -- --chunk sundrop` for grid edits, `bun run world:generate:navigation` / `bun run world:check:navigation` for V2 geometry edits, and `bun run art:validate:village-interiors` if interior geometry/asset bounds change.
-- [ ] Run `bun run story:check:strict` only if story references/content change; one localized UI fallback need not invent story prose. Preserve the existing story gate contract.
-- [ ] Update this *same* PR with tested commit SHA, exact command results, screenshot evidence, any rejected movement/camera hypotheses, and residual risks; leave it draft until implementation completes.
+- [ ] After geometry changes, run the existing relevant interior navigation/painted verification and `bun run art:validate:village-interiors` when appropriate. The full `exhaustive` + `flaky` sweep is **not newly required just to test a global movement change**, because this plan **does not change global movement**; expand targeted coverage only for concrete failures.
+- [ ] Keep a lean keyboard E2E covering fresh Mott → correct forge → Oren → spear, but do not replace real manual acceptance with a route-script-only proof.
+- [ ] Manually verify visually guided forge approach with a comfortable trigger margin; both Hero House door openings; Mott/Tikka hint/E; ambient fallback; Tikka/table escape; hero occlusion fade on desktop and narrow viewport; New Run and Continue wallets; and actual saved playtime units.
+- [ ] Record tests run, exact tested SHA, short screenshot/keyboard evidence, and any art limitation in **this same PR**. Do not claim implementation or passing tests until they actually run.
+- [ ] Run `bun run story:check:strict` if story-referencing content changes; localized UI fallback should not require full story authoring.
 
-**Gate:** All player-facing cases meet the HPA-760 issue, with correct test-project ownership and no unverified claims.
+**Gate:** HPA-760 acceptance evidence is complete without general movement/camera redesign.
 
 ## Proposed reviewer checklist
 
-| Finding | Evidence | Primary owner |
+| Finding | Evidence | Source owner |
 | --- | --- | --- |
-| Forge route + accidental neighbor entry | Trigger-avoiding path plus real Mott → Oren journey | Sundrop grid / transitions |
-| Door sweet spot | Realistic offsets, no clipping; regression across other interiors | Core movement resolver, V2 layout fallback |
-| E targets wrong NPC | Stale-hint cleared and shared pure facing selection | WorldScene + tiny `core/` helper |
-| Ambient villagers ignored | One truthful localized fallback | WorldScene / i18n |
-| Tikka/table wedge | Walk in and safely walk out | Authored NPC/prop geometry |
-| Portrait occlusion | Hero still visible with no huge blank camera border | Camera bounds trial / FieldHud fallback |
-| 30G placeholder | No stale numeric HUD for New Run or Continue | GameShell `ready` |
-| 00:00 playtime | Real saved record and explicit `h:mm` semantics | Playtime / SaveScreen; persistence only if broken |
-| Mira name drift | Literal Herb Hut assertion in actual exhaustive owner | E2E fixture/assertions |
+| Forge route wrongly enters neighbor | Visually directed path plus trigger-safe route and Mott → Oren keyboard proof | Sundrop glyphs/transitions |
+| Hero House door sweet spot | Wall/door layout clearance and painted alignment; both directions | V2 Hero House + generated navigation |
+| E chooses wrong/stale NPC | Pure facing selection and stale hint regression | Existing WorldScene selector |
+| Ambient ignored | One truthful localized fallback | WorldScene + i18n |
+| Tikka/table wedge | Can walk in, out and interact | Authored NPC/prop |
+| Portrait hides hero | Edge-triggered card fade, responsive proof, no camera drift | WorldScene HudState + FieldHud |
+| 30G / Continue wrong values | Readiness-gated numeric HUD; provisional wallet corrected | GameShell / HUD store |
+| 00:00 playtime ambiguity | Real saved slot, clear duration units | Existing playtime formatter |
+| Mira shop test drift | Literal Herb Hut in actual `exhaustive` owner | E2E fixture/assertions |
 
-**Risks:** Global movement nudging affects all route-walking tests and can inadvertently activate nearby doors; camera insets can reveal blank room margins; unconditional all-door avoidance tests can falsely reject intended transitions. Treat each as a **testable candidate** rather than guaranteed fix.
+**Review risks:** A +16px local opening can disagree with the painted doorframe; merely moving a dirt marker one tile south may still leave an easy accidental neighbor trigger; a fixed `heroOccluded` envelope can over-fade at responsive breakpoints. Validate those specific risks rather than adding generic infrastructure.
 
 ## Stop conditions
 
-Stop scope growth once the above player contracts pass. Do **not** add a general mini-map pathfinder, NPC-dialogue authoring pass, world art rebake beyond changed source requirements, save-service rewrite, full UI redesign, or backwards-compatibility work. If art itself is the blocker, log it as a separately scoped asset-generation task instead of mixing it with implementation.
+Stop when the ticket's player-facing contracts pass. **No global movement nudge** and **no camera bounds inset**; don't add pathfinding frameworks, new map-authoring systems, new persistence infrastructure, new gameplay dialogue or broad HUD redesign. Don't widen unrelated interiors without reproduction. Any new/edited image art or SFX is a **separately scoped task** (not mixed into code implementation); keep **one PR for HPA-760** and leave the PR draft until code and evidence are actually completed.
 
-**Planning-only PR note:** Creating these documents does not run unit tests, Playwright, or manual game acceptance; those belong to the subsequent implementation work within this same draft PR.
+**Docs-only status:** These instructions document what to implement later in this same PR. No tests, keyboard playthrough, or gameplay fixes have been executed as part of these planning revisions.
+
