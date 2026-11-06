@@ -2115,6 +2115,35 @@ describe('Hero House Gate 2 coordinate and navigation contracts', () => {
 			});
 		}
 	});
+
+	it('keeps the lane west of the living table open and Tikka walk-up-able', () => {
+		const tikka = heroHouseMap.npcs!.find((npc) => npc.id === 'tikka-home')!;
+		const livingTableCollision = heroHouseMap.interiorProps!.find(
+			(prop) => prop.id === 'hero-house-living-table'
+		)!.collision!;
+
+		const tikkaBodyEdge = tikka.x + getTestNpcBodyRadius(tikka);
+		const tableWalkEdge =
+			livingTableCollision.x - livingTableCollision.width / 2 - PLAYER_COLLISION_RADIUS;
+		expect(tableWalkEdge - tikkaBodyEdge).toBeGreaterThanOrEqual(24);
+
+		expectRouteClear(
+			heroHouseMap,
+			[
+				{ x: 196, y: 340 },
+				{ x: 196, y: 492 }
+			],
+			'hero-living-table-west-lane'
+		);
+
+		const tikkaApproach = { x: 112, y: 432 };
+		expectRouteClear(
+			heroHouseMap,
+			[heroHouseMap.spawn, { x: 352, y: 384 }, { x: 112, y: 384 }, tikkaApproach],
+			'hero-spawn-to-tikka'
+		);
+		expect(Math.hypot(tikkaApproach.x - tikka.x, tikkaApproach.y - tikka.y)).toBe(40);
+	});
 });
 
 describe('Guild Hall Gates 1/2 coordinate and navigation contracts', () => {
