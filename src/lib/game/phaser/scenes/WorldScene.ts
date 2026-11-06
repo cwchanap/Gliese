@@ -80,7 +80,12 @@ import {
 	type RegionalBackgroundPlaneRenderDiagnosticEntry,
 	type RegionalBackgroundRenderStatus
 } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
-import { emitPlayerMovementDiagnostic } from '$lib/game/phaser/player-movement-diagnostics';
+import {
+	emitHeroRenderProbe,
+	emitPlayerMovementDiagnostic,
+	onHeroRenderProbeRequest,
+	type DiagnosticCameraSnapshot
+} from '$lib/game/phaser/player-movement-diagnostics';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import { buildAreaMapState } from '$lib/game/core/area-map';
 import {
@@ -472,6 +477,7 @@ export class WorldScene extends Phaser.Scene {
 	private storyDialogueSeq = 0;
 	private resolvedEncounterDrops: SaveState['flags']['resolvedEncounterDrops'] = {};
 	private removeHudCommandListener = () => {};
+	private removeHeroRenderProbeListener = () => {};
 	private renderOptions!: WorldRenderOptions;
 	private simulationPaused = false;
 	/** A quest effect (a scene or a fade) is playing; the next one waits for it. */
@@ -716,6 +722,10 @@ export class WorldScene extends Phaser.Scene {
 			: [];
 		this.removeHudCommandListener();
 		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
+		this.removeHeroRenderProbeListener();
+		this.removeHeroRenderProbeListener = this.renderOptions.movementDiagnostics
+			? onHeroRenderProbeRequest(() => this.answerHeroRenderProbe())
+			: () => {};
 		this.unsubscribePreferences?.();
 		let preferencesInitialized = false;
 		this.unsubscribePreferences = preferences.subscribe(() => {
@@ -731,6 +741,7 @@ export class WorldScene extends Phaser.Scene {
 		this.events?.once?.('shutdown', () => {
 			this.renderEpoch += 1;
 			this.removeHudCommandListener();
+			this.removeHeroRenderProbeListener();
 			this.unsubscribePreferences?.();
 			this.unsubscribePreferences = null;
 		});
@@ -852,25 +863,13 @@ export class WorldScene extends Phaser.Scene {
 			targetY
 		);
 		if ((direction.x !== 0 || direction.y !== 0) && this.renderOptions.movementDiagnostics) {
-			const camera = this.cameras?.main;
 			emitPlayerMovementDiagnostic({
 				mapId: this.mapId,
 				previousPosition: { x: this.player.x, y: this.player.y },
 				requestedPosition: { x: targetX, y: targetY },
 				resolvedPosition,
 				blocked: resolvedPosition.x !== targetX || resolvedPosition.y !== targetY,
-				camera: camera
-					? {
-							scrollX: camera.scrollX,
-							scrollY: camera.scrollY,
-							zoomX: camera.zoomX,
-							zoomY: camera.zoomY,
-							width: camera.width,
-							height: camera.height,
-							x: camera.x,
-							y: camera.y
-						}
-					: null
+				camera: this.diagnosticCameraSnapshot()
 			});
 		}
 
@@ -1350,6 +1349,33 @@ export class WorldScene extends Phaser.Scene {
 			this.heroOccluded = occluded;
 			this.publishHudState(this.lastPublishedStatus);
 		}
+	}
+
+	private diagnosticCameraSnapshot(): DiagnosticCameraSnapshot | null {
+		const camera = this.cameras?.main;
+		if (!camera) {
+			return null;
+		}
+		return {
+			scrollX: camera.scrollX,
+			scrollY: camera.scrollY,
+			zoomX: camera.zoomX,
+			zoomY: camera.zoomY,
+			width: camera.width,
+			height: camera.height,
+			x: camera.x,
+			y: camera.y
+		};
+	}
+
+	private answerHeroRenderProbe() {
+		this.events?.once?.('render', () => {
+			emitHeroRenderProbe({
+				mapId: this.mapId,
+				spritePosition: this.player ? { x: this.player.x, y: this.player.y } : null,
+				camera: this.diagnosticCameraSnapshot()
+			});
+		});
 	}
 
 	private publishHudState(status: string) {

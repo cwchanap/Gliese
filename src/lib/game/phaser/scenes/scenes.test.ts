@@ -22,7 +22,10 @@ import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { compileNavigationGrid } from '$lib/game/core/navigation';
 import { applyStoryGates } from '$lib/game/core/story-gates';
 import {
+	HERO_RENDER_PROBE_EVENT,
+	HERO_RENDER_PROBE_REQUEST_EVENT,
 	PLAYER_MOVEMENT_DIAGNOSTIC_EVENT,
+	type HeroRenderProbe,
 	type PlayerMovementDiagnostic
 } from '$lib/game/phaser/player-movement-diagnostics';
 import type { RegionalBackgroundRendererDiagnostic } from '$lib/game/phaser/renderer-diagnostics';
@@ -7610,6 +7613,69 @@ describe('WorldScene', () => {
 					camera: cameraSnapshot
 				}
 			]);
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
+	it('answers a render probe with the camera and sprite position captured at render time', async () => {
+		const restoreLocation = installLocationSearch('?movementDiagnostics=on');
+		const target = installHudCommandTarget();
+		const probes: HeroRenderProbe[] = [];
+		target.target.addEventListener(HERO_RENDER_PROBE_EVENT, (event) => {
+			probes.push((event as CustomEvent<HeroRenderProbe>).detail);
+		});
+		try {
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+
+			scene.create({ mapId: 'hero-house' });
+			Object.assign(phaserState.playerMarker, { x: 160, y: 224 });
+			phaserState.mainCamera.scrollX = -288;
+
+			target.target.dispatchEvent(new Event(HERO_RENDER_PROBE_REQUEST_EVENT));
+			phaserState.mainCamera.scrollX = -300;
+			scene.events.emit('render');
+
+			expect(probes).toEqual([
+				{
+					mapId: 'hero-house',
+					spritePosition: { x: 160, y: 224 },
+					camera: {
+						scrollX: -300,
+						scrollY: 0,
+						zoomX: 1,
+						zoomY: 1,
+						width: 640,
+						height: 360,
+						x: 0,
+						y: 0
+					}
+				}
+			]);
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
+	it('ignores render probe requests when movement diagnostics are off', async () => {
+		const restoreLocation = installLocationSearch('');
+		const target = installHudCommandTarget();
+		const probes: unknown[] = [];
+		target.target.addEventListener(HERO_RENDER_PROBE_EVENT, (event) => {
+			probes.push((event as CustomEvent<unknown>).detail);
+		});
+		try {
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+
+			scene.create({ mapId: 'hero-house' });
+			target.target.dispatchEvent(new Event(HERO_RENDER_PROBE_REQUEST_EVENT));
+			scene.events.emit('render');
+
+			expect(probes).toEqual([]);
 		} finally {
 			target.restore();
 			restoreLocation();
