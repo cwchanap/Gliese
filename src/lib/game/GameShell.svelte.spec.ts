@@ -1956,6 +1956,29 @@ describe('GameShell save screen', () => {
 		});
 	});
 
+	it('renders slot playtime as h:mm:ss on the save screen', async () => {
+		writeSaveSlot(1, { ...createSlotRecord(), playtimeSeconds: 96 });
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
+
+		const saveDialog = page.getByRole('dialog', { name: /save/i });
+		await expect.element(saveDialog).toBeVisible();
+		await expect.element(saveDialog.getByTestId('save-slot-1')).toHaveTextContent('0:01:36');
+	});
+
+	it('shows persisted playtime as h:mm:ss on the title Continue card', async () => {
+		writeSaveSlot(1, { ...createSlotRecord(), playtimeSeconds: 3661 });
+		render(GameShell);
+
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+		await expect
+			.element(page.getByRole('button', { name: /continue/i }))
+			.toHaveTextContent('1:01:01');
+	});
+
 	it('moves overwrite-dialog focus: entry on the primary, Tab trapped, cancel restores the slot', async () => {
 		render(GameShell);
 		emitHudState(baseHudState());

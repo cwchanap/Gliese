@@ -102,7 +102,7 @@ function seedStateRecord(state: string) {
 }
 
 function seedRecord(kind: 'autosave' | 'manual', playtimeSeconds: number, locationLabel: string) {
-	// playtimeSeconds is formatted as h:mm; 6120 -> "01:42", 3480 -> "00:58".
+	// playtimeSeconds is formatted as h:mm:ss; 6120 -> "1:42:00", 3480 -> "0:58:00".
 	return {
 		kind,
 		savedAt:
@@ -309,7 +309,7 @@ test('Field HUD capture through a real New Run', async ({ page }) => {
 // Title capture: the full Heroic title surface with key art, crest, wordmark,
 // chapter pill, and the three action cards. A newest autosave slot is seeded so
 // Continue renders as the selected cream-gold card (mockup composition:
-// "Sundrop Meadows · 01:42").
+// "Sundrop Meadows · 1:42:00").
 test('Title screen capture', async ({ page }) => {
 	await seedSaveSlots(page, [seedRecord('autosave', 6120, 'Sundrop Meadows'), null, null]);
 	await page.goto('/');
@@ -326,7 +326,7 @@ test('Title screen capture', async ({ page }) => {
 	// Selected-card treatment: Continue is the enabled cream-gold primary card.
 	const continueCard = page.locator('.title-card-primary');
 	await expect(continueCard).toContainText('Continue');
-	await expect(continueCard).toContainText('Sundrop Meadows · 01:42');
+	await expect(continueCard).toContainText('Sundrop Meadows · 1:42:00');
 	await expect(page.getByRole('button', { name: /Continue/i })).toBeEnabled();
 	await expect(page.getByRole('button', { name: /New Run/i })).toBeVisible();
 	await expect(page.getByRole('button', { name: /System/ })).toBeVisible();
