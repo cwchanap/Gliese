@@ -479,6 +479,7 @@ export class WorldScene extends Phaser.Scene {
 	private removeHudCommandListener = () => {};
 	private removeHeroRenderProbeListener = () => {};
 	private pendingHeroRenderProbe: (() => void) | null = null;
+	private readonly cancelHeroRenderProbeOnDestroy = () => this.cancelHeroRenderProbe();
 	private renderOptions!: WorldRenderOptions;
 	private simulationPaused = false;
 	/** A quest effect (a scene or a fade) is playing; the next one waits for it. */
@@ -744,10 +745,11 @@ export class WorldScene extends Phaser.Scene {
 			this.removeHudCommandListener();
 			this.removeHeroRenderProbeListener();
 			this.cancelHeroRenderProbe();
+			this.events?.off?.('destroy', this.cancelHeroRenderProbeOnDestroy);
 			this.unsubscribePreferences?.();
 			this.unsubscribePreferences = null;
 		});
-		this.events?.once?.('destroy', () => this.cancelHeroRenderProbe());
+		this.events?.once?.('destroy', this.cancelHeroRenderProbeOnDestroy);
 
 		setAmbience(this, ambienceFor(map.id, getStoryProgress(this.quests)));
 		if (reason === 'transition') {

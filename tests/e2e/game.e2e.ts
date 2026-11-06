@@ -13554,7 +13554,7 @@ test('Villager House 1 painted interior', async ({ page }) => {
 				await page.keyboard.press('e', { delay: 50 });
 				const noOneNearbyDialogue = page.getByRole('dialog', { name: 'Traveler' });
 				await expect(noOneNearbyDialogue).toBeVisible();
-				await expect(noOneNearbyDialogue).toContainText('No one is nearby.');
+				await expect(noOneNearbyDialogue).toContainText('They have nothing to say.');
 				await noOneNearbyDialogue.getByRole('button', { name: 'Close' }).click();
 				await expect(noOneNearbyDialogue).toHaveCount(0);
 				const familyHud = await page.evaluate(
@@ -13811,7 +13811,7 @@ test('Villager House 2 painted interior', async ({ page }) => {
 					await page.keyboard.press('e', { delay: 50 });
 					const noOneNearbyDialogue = page.getByRole('dialog', { name: 'Traveler' });
 					await expect(noOneNearbyDialogue).toBeVisible();
-					await expect(noOneNearbyDialogue).toContainText('No one is nearby.');
+					await expect(noOneNearbyDialogue).toContainText('They have nothing to say.');
 					await noOneNearbyDialogue.getByRole('button', { name: 'Close' }).click();
 					await expect(noOneNearbyDialogue).toHaveCount(0);
 					const neighborHud = await page.evaluate(
@@ -13958,7 +13958,7 @@ test('Villager House 3 painted interior', async ({ page }) => {
 					await page.keyboard.press('e', { delay: 50 });
 					const noOneNearbyDialogue = page.getByRole('dialog', { name: 'Traveler' });
 					await expect(noOneNearbyDialogue).toBeVisible();
-					await expect(noOneNearbyDialogue).toContainText('No one is nearby.');
+					await expect(noOneNearbyDialogue).toContainText('They have nothing to say.');
 					await noOneNearbyDialogue.getByRole('button', { name: 'Close' }).click();
 					await expect(noOneNearbyDialogue).toHaveCount(0);
 					const neighborHud = await page.evaluate(
