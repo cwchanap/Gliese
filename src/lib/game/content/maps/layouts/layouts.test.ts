@@ -124,6 +124,7 @@ function expectStructuralGrid(value: { x: number; y: number; width: number; heig
 }
 
 const APPROVED_HALF_TILE_DOORS = {
+	'hero-house:bedroom': { x: 256, y: 120, width: 32, height: 72 },
 	'guild-hall:recordsToSpine': { x: 416, y: 144, width: 32, height: 96 },
 	'guild-hall:masterToSpine': { x: 576, y: 112, width: 32, height: 96 },
 	'item-shop:stockroom': { x: 320, y: 112, width: 32, height: 64 },
@@ -135,6 +136,7 @@ const APPROVED_NON_GRID_WALLS = {
 	'guild-hall:guild-hall-records-spine-south': { x: 416, y: 240, width: 32, height: 80 },
 	'guild-hall:guild-hall-office-spine-north': { x: 576, y: 64, width: 32, height: 48 },
 	'guild-hall:guild-hall-office-spine-south': { x: 576, y: 208, width: 32, height: 48 },
+	'hero-house:hero-house-bedroom-divider-north': { x: 256, y: 64, width: 32, height: 56 },
 	'item-shop:item-shop-stockroom-divider-north': { x: 320, y: 64, width: 32, height: 48 },
 	'item-shop:item-shop-stockroom-divider-south': { x: 320, y: 176, width: 32, height: 48 },
 	'item-shop:item-shop-office-divider-north': { x: 480, y: 64, width: 32, height: 48 },
@@ -466,6 +468,93 @@ describe('village interior layout coordinate contracts', () => {
 		expect(source?.rows).toEqual(
 			buildVillageInteriorNavigationSource({ mapId: 'hero-house', layout }).rows
 		);
+	});
+
+	it('widens the Hero House bedroom doorway to its painted reveal while keeping the front door on its painted frame', () => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS['hero-house'];
+		expect(layout.walls).toEqual([
+			{ id: 'hero-house-wall-north', x: 0, y: 0, width: 704, height: 64 },
+			{ id: 'hero-house-wall-west', x: 0, y: 64, width: 64, height: 480 },
+			{ id: 'hero-house-wall-east', x: 640, y: 64, width: 64, height: 480 },
+			{ id: 'hero-house-wall-south-west', x: 0, y: 544, width: 320, height: 32 },
+			{ id: 'hero-house-wall-south-east', x: 384, y: 544, width: 320, height: 32 },
+			{
+				id: 'hero-house-bedroom-divider-north',
+				x: 256,
+				y: 64,
+				width: 32,
+				height: 56
+			},
+			{
+				id: 'hero-house-bedroom-divider-south',
+				x: 256,
+				y: 192,
+				width: 32,
+				height: 64
+			},
+			{
+				id: 'hero-house-study-divider-north',
+				x: 416,
+				y: 64,
+				width: 32,
+				height: 64
+			},
+			{
+				id: 'hero-house-study-divider-south',
+				x: 416,
+				y: 192,
+				width: 32,
+				height: 64
+			},
+			{
+				id: 'hero-house-hall-living-divider-west',
+				x: 64,
+				y: 256,
+				width: 224,
+				height: 32
+			},
+			{
+				id: 'hero-house-hall-living-divider-east',
+				x: 416,
+				y: 256,
+				width: 224,
+				height: 32
+			}
+		]);
+		expect(layout.doors.bedroom).toEqual({ x: 256, y: 120, width: 32, height: 72 });
+		expect(layout.doors.study).toEqual({ x: 416, y: 128, width: 32, height: 64 });
+		expect(layout.doors.exterior).toEqual({ x: 320, y: 544, width: 64, height: 32 });
+
+		const source = buildVillageInteriorNavigationSource({ mapId: 'hero-house', layout });
+		const grid = compileNavigationGrid(source);
+
+		for (const y of [136, 152, 168]) {
+			for (const x of [264, 280]) {
+				expect(isWalkable(grid, x, y), `bedroom doorway (${x},${y}) is blocked`).toBe(true);
+			}
+		}
+		for (const y of [120, 184]) {
+			for (const x of [264, 280]) {
+				expect(isWalkable(grid, x, y), `bedroom doorframe (${x},${y}) is open`).toBe(false);
+			}
+		}
+		for (const [label, x] of [
+			['bedroom-side', 232],
+			['hall-side', 304]
+		] as const) {
+			for (const y of [136, 152, 168]) {
+				expect(isWalkable(grid, x, y), `${label} approach (${x},${y}) is blocked`).toBe(true);
+			}
+		}
+
+		for (const y of [552, 568]) {
+			for (const x of [344, 360]) {
+				expect(isWalkable(grid, x, y), `front doorway (${x},${y}) is blocked`).toBe(true);
+			}
+			for (const x of [328, 376]) {
+				expect(isWalkable(grid, x, y), `front doorframe (${x},${y}) is open`).toBe(false);
+			}
+		}
 	});
 
 	it('pins the Villager House 1 family-cottage program, anchors, circulation, and camera envelope', () => {

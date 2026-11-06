@@ -56,7 +56,7 @@ const heroHouseWalls: readonly NamedLayoutRect[] = [
 	namedRect('hero-house-wall-east', 640, 64, 64, 480),
 	namedRect('hero-house-wall-south-west', 0, 544, 320, 32),
 	namedRect('hero-house-wall-south-east', 384, 544, 320, 32),
-	namedRect('hero-house-bedroom-divider-north', 256, 64, 32, 64),
+	namedRect('hero-house-bedroom-divider-north', 256, 64, 32, 56),
 	namedRect('hero-house-bedroom-divider-south', 256, 192, 32, 64),
 	namedRect('hero-house-study-divider-north', 416, 64, 32, 64),
 	namedRect('hero-house-study-divider-south', 416, 192, 32, 64),
@@ -218,7 +218,7 @@ export const VILLAGE_INTERIOR_LAYOUTS = {
 			hall: rect(288, 64, 128, 224)
 		},
 		doors: {
-			bedroom: rect(256, 128, 32, 64),
+			bedroom: rect(256, 120, 32, 72),
 			study: rect(416, 128, 32, 64),
 			hallToLiving: rect(288, 256, 128, 32),
 			exterior: rect(320, 544, 64, 32)
