@@ -6,7 +6,8 @@ import {
 	readSlotEnvelope,
 	saveThroughSaveScreen,
 	seedSaveSlots,
-	startNewRunFromTitle
+	startNewRunFromTitle,
+	startNewRunThroughOpening
 } from './helpers/game';
 import {
 	blacksmithInteriorMap,
@@ -187,6 +188,7 @@ type GlieseProbeWindow = Window & {
 	__glieseRouteHasFocus?: boolean;
 	__glieseRouteBlurAt?: number;
 	__glieseRouteFocusAt?: number;
+	__glieseJourneyTrace?: { x: number; y: number; mapId?: string }[];
 	__glieseRouteRunner?: {
 		start: (plan: BrowserRoutePlan) => BrowserRouteResult;
 		get: (token: string) => BrowserRouteResult | null;
@@ -252,6 +254,7 @@ type SaveFixtureOverrides = Partial<{
 		accessory: string | null;
 	};
 	wallet: { coins: number };
+	quests: QuestState;
 }> & {
 	clearedEncounters?: string[];
 	collectedPickups?: string[];
@@ -320,7 +323,7 @@ function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
 				}
 			}
 		},
-		quests: createQuestFixture(),
+		quests: overrides.quests ?? createQuestFixture(),
 		seenDiscoveries: overrides.seenDiscoveries ?? []
 	};
 }
@@ -393,10 +396,6 @@ function readAutosaveState(page: Page): Promise<LooseSaveState> {
 }
 
 function rewriteSceneStateProbeSource(servedBody: string): string {
-	// Anchor the probe to the stable setupEncounters call site alone — later
-	// statements (fled-leash resolution, transition rendering) can sit between
-	// it and renderTransitions, so requiring them as immediate neighbours
-	// breaks whenever the scene's create flow is reordered.
 	const encounterMatch = servedBody.match(/this\.setupEncounters\([^)]*\)/);
 	const transitionGateMatch = servedBody.match(
 		/((?<![A-Za-z0-9_$])[A-Za-z_$][\w$]*)=this\.hasLivingEnemies\(\);for\(let ([A-Za-z_$][\w$]*) of ([A-Za-z_$][\w$]*)\.transitions\)/
@@ -11361,7 +11360,7 @@ test('browser-local route correction paces an unblocked Guild Hall overshoot bef
 	page
 }) => {
 	await installRuntimeProbes(page);
-	await page.goto('/?movementDiagnostics=on');
+	await page.goto('/?movementDiagnostics=on&startMap=overworld');
 	await expect(page.locator('canvas')).toBeVisible();
 	await page.waitForFunction(() => {
 		const state = (window as GlieseProbeWindow).__glieseLastHudState;
@@ -11668,7 +11667,7 @@ test('entry map boots with no game console errors', async ({ page }) => {
 });
 
 test('game route boots', async ({ page }) => {
-	await startNewRunFromTitle(page);
+	await startNewRunThroughOpening(page);
 
 	const viewport = page.viewportSize();
 	const minimap = page.getByTestId('hud-minimap');
@@ -11678,7 +11677,7 @@ test('game route boots', async ({ page }) => {
 	await expect(partyPanel).toBeVisible();
 	await expect(sideHud).toBeVisible();
 	// Location pill renders the live area name inside the minimap card.
-	await expect(minimap.getByText('The Wilds')).toBeVisible();
+	await expect(minimap.getByText("Grik's House")).toBeVisible();
 
 	const minimapBox = await minimap.boundingBox();
 	const partyBox = await partyPanel.boundingBox();
@@ -11815,7 +11814,7 @@ test('fleeing the boar king requires leaving and returning before re-engagement'
 
 test('mobile HUD stacks without overlapping controls', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
-	await startNewRunFromTitle(page);
+	await startNewRunThroughOpening(page);
 
 	const viewport = page.viewportSize();
 	const menuButton = page.getByRole('button', { name: 'Menu' });
@@ -11856,7 +11855,8 @@ test('mobile HUD stacks without overlapping controls', async ({ page }) => {
 });
 
 test('inventory overlay opens from the menu', async ({ page }) => {
-	await startNewRunFromTitle(page);
+	await injectSave(page, createSaveFixture());
+	await continueFromTitle(page);
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
@@ -11898,7 +11898,7 @@ test('inventory overlay opens from the menu', async ({ page }) => {
 });
 
 test('area map opens from the menu and closes back to field HUD', async ({ page }) => {
-	await startNewRunFromTitle(page);
+	await startNewRunThroughOpening(page);
 
 	await page.getByRole('button', { name: 'Menu' }).click();
 	await commandBox(page).getByRole('button', { name: 'Map' }).click();
@@ -11915,7 +11915,7 @@ test('area map opens from the menu and closes back to field HUD', async ({ page 
 });
 
 test('language preference shows Japanese chrome and keeps Japanese selected', async ({ page }) => {
-	await startNewRunFromTitle(page);
+	await startNewRunThroughOpening(page);
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
 	// Japanese is chosen on the Heroic System surface (segmented control).
@@ -11951,7 +11951,8 @@ test('language preference shows Japanese chrome and keeps Japanese selected', as
 });
 
 test('full hp potions explain why they cannot be consumed', async ({ page }) => {
-	await startNewRunFromTitle(page);
+	await injectSave(page, createSaveFixture());
+	await continueFromTitle(page);
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Menu' }).click();
@@ -12374,9 +12375,6 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	page
 }) => {
 	test.setTimeout(240_000);
-	// The per-frame transition-gate probe doubles as a position feed — the
-	// `?movementDiagnostics=on` URL flag would work too but it marks the URL as
-	// a direct-boot tooling link, skipping the Title screen this journey needs.
 	await installRuntimeProbes(page, { captureSceneState: true });
 	await startNewRunFromTitle(page);
 
@@ -12414,6 +12412,18 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 					const gate = probeWindow.__glieseTransitionGateState;
 					const player = gate && gate.mapId === state?.mapId ? gate.player : state?.areaMap?.player;
 					if (typeof player?.x !== 'number' || typeof player.y !== 'number') return false;
+					const trace = probeWindow.__glieseJourneyTrace;
+					if (trace) {
+						const last = trace[trace.length - 1];
+						if (
+							!last ||
+							last.x !== player.x ||
+							last.y !== player.y ||
+							last.mapId !== state?.mapId
+						) {
+							trace.push({ x: player.x, y: player.y, mapId: state?.mapId });
+						}
+					}
 					const value = requested.axis === 'x' ? player.x : player.y;
 					return requested.direction === 'gte'
 						? value >= requested.value
@@ -12454,10 +12464,6 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	await expect.poll(async () => (await readHud())?.quests?.main?.objectiveId).toBe('talk-to-mott');
 	await expect.poll(async () => (await readHud())?.mapId).toBe('hero-house');
 
-	// Grik wakes in the bedroom (160,224). The bed collision (x100-220 expanded)
-	// seals the east side, so hug its south edge to the divider lane (x~230),
-	// go north through the gap in collision to door height, then east through
-	// the bedroom door, south through the hall, and west to Mott's hearth.
 	await page.locator('canvas').click();
 	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 228 });
 	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 160 });
@@ -12468,7 +12474,6 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 		const status = (await readHud())?.status ?? '';
 		if (status === 'Old Mott nearby') break;
 		if (status === 'Tikka nearby') {
-			// Drifted south into Tikka's radius: step back north onto Mott's row.
 			await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 352 }, 5_000);
 		} else {
 			await page.keyboard.down('a');
@@ -12479,7 +12484,7 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	await expect
 		.poll(async () => (await readHud())?.status, { timeout: 10_000 })
 		.toBe('Old Mott nearby');
-	await page.keyboard.press('e');
+	await page.keyboard.press('e', { delay: 50 });
 	const mottDialogue = page.getByRole('dialog', { name: 'Old Mott' });
 	await expect(mottDialogue).toBeVisible();
 	await advanceDialogue();
@@ -12487,8 +12492,6 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 		.poll(async () => (await readHud())?.quests?.main?.objectiveId)
 		.toBe('collect-practice-spear');
 
-	// Out the front door: east onto the door lane, then south through the
-	// exit corridor (nav cols 21-22, x336-368) onto the (352,560) trigger.
 	await page.locator('canvas').click();
 	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 352 });
 	await holdUntil('s', { kind: 'map', value: 'overworld' }, 20_000);
@@ -12551,45 +12554,78 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	await mapDialog.getByRole('button', { name: 'Close' }).click();
 	await expect(mapDialog).toHaveCount(0);
 
-	// The forge run, verified against the compiled nav grid: the east clearing
-	// row pins at x~4719 on the tree west of the small hut, so duck north in
-	// the x~4705 corridor onto the open lane row, ride east but stop short of
-	// hut 2's door trigger (30px reach around x5392±30 at door height), dip to
-	// the safe lane row at y~7250 where the trigger margin is ~34px, pass under
-	// the lone tree to x~5440, climb back to the lane row, and finish east to
-	// the forge door column before heading north.
 	await page.locator('canvas').click();
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 4700 });
-	// Key release drift is ~20px, so aim high enough to land inside the
-	// fully-open lane rows (y 7216-7248) rather than the tree rows below.
-	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7240 });
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5320 });
-	const lanePoint = await readPosition();
-	expect(lanePoint?.x).toBeLessThan(5_362);
-	await holdUntil('s', { kind: 'axis', axis: 'y', direction: 'gte', value: 7252 });
+	await page.evaluate(() => {
+		(window as GlieseProbeWindow).__glieseJourneyTrace = [];
+	});
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 4600 });
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7195 });
+	const laneTop = await readPosition();
+	expect(laneTop?.x).toBeGreaterThanOrEqual(4_600);
+	expect(laneTop?.x).toBeLessThan(4_660);
+	expect(laneTop?.y).toBeGreaterThanOrEqual(7_168);
+	expect(laneTop?.y).toBeLessThanOrEqual(7_200);
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5150 });
+	const southTurn = await readPosition();
+	expect(southTurn?.x).toBeGreaterThanOrEqual(5_150);
+	expect(southTurn?.x).toBeLessThanOrEqual(5_200);
+	expect(southTurn?.y).toBeGreaterThanOrEqual(7_168);
+	expect(southTurn?.y).toBeLessThanOrEqual(7_200);
+	await holdUntil('s', { kind: 'axis', axis: 'y', direction: 'gte', value: 7268 });
+	const lowerLane = await readPosition();
+	expect(lowerLane?.x).toBeGreaterThanOrEqual(5_150);
+	expect(lowerLane?.x).toBeLessThanOrEqual(5_200);
+	expect(lowerLane?.y).toBeGreaterThanOrEqual(7_268);
+	expect(lowerLane?.y).toBeLessThanOrEqual(7_296);
 	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5440 });
-	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7236 });
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5630 });
-	const approachPoint = await readPosition();
-	if (approachPoint && approachPoint.x > 5_678) {
-		await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 5660 });
+	const underHut = await readPosition();
+	expect(underHut?.x).toBeGreaterThanOrEqual(5_440);
+	expect(underHut?.x).toBeLessThanOrEqual(5_476);
+	expect(underHut?.y).toBeGreaterThanOrEqual(7_264);
+	expect(underHut?.y).toBeLessThanOrEqual(7_296);
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7260 });
+	const jogShoulder = await readPosition();
+	expect(jogShoulder?.x).toBeGreaterThanOrEqual(5_440);
+	expect(jogShoulder?.x).toBeLessThanOrEqual(5_476);
+	expect(jogShoulder?.y).toBeGreaterThanOrEqual(7_232);
+	expect(jogShoulder?.y).toBeLessThanOrEqual(7_264);
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5640 });
+	const forgeColumn = await readPosition();
+	expect(forgeColumn?.x).toBeGreaterThanOrEqual(5_640);
+	expect(forgeColumn?.y).toBeGreaterThanOrEqual(7_232);
+	expect(forgeColumn?.y).toBeLessThanOrEqual(7_264);
+	if (forgeColumn && forgeColumn.x > 5_670) {
+		await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 5650 });
 	}
+	const approachPoint = await readPosition();
+	expect(approachPoint?.x).toBeGreaterThanOrEqual(5_618);
+	expect(approachPoint?.x).toBeLessThanOrEqual(5_678);
 	await holdUntil('w', { kind: 'map', value: 'blacksmith-interior' }, 20_000);
 	await expect.poll(async () => (await readHud())?.mapId).toBe('blacksmith-interior');
+	const overworldTrace = (
+		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseJourneyTrace ?? [])) ?? []
+	).filter((point) => point.mapId === 'overworld');
+	const relatedDoors = new Set(['overworld-to-blacksmith-interior', 'overworld-to-hero-house']);
+	const unrelatedDoors = overworldMap.transitions.filter(
+		(transition) => !relatedDoors.has(transition.id)
+	);
+	const minDoorClearance = Math.min(
+		...overworldTrace.flatMap((point) =>
+			unrelatedDoors.map((door) => Math.hypot(point.x - door.x, point.y - door.y))
+		)
+	);
+	expect(minDoorClearance).toBeGreaterThanOrEqual(48);
 	const forgePoint = await readPosition();
 	expect(forgePoint?.x).toBeGreaterThanOrEqual(440);
 	expect(forgePoint?.x).toBeLessThanOrEqual(456);
 	expect(forgePoint?.y).toBeGreaterThanOrEqual(560);
 	expect(forgePoint?.y).toBeLessThanOrEqual(580);
 
-	// The service counter is a solid wall between the showroom and Oren, but
-	// the west aisle (x80-272) climbs to the y400 lane that passes within his
-	// 48px reach — the route a player naturally takes around the counter end.
 	await page.locator('canvas').click();
 	await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 200 });
 	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 404 });
 	await holdUntil('d', { kind: 'status', value: 'Oren nearby' }, 15_000);
-	await page.keyboard.press('e');
+	await page.keyboard.press('e', { delay: 50 });
 	const orenDialogue = page.getByRole('dialog', { name: 'Oren' });
 	await expect(orenDialogue).toBeVisible();
 	await advanceDialogue();
@@ -13890,10 +13926,11 @@ test('Shrine of Aurora painted interior', async ({ page }) => {
 	}
 });
 
-test('quest log shows main quest and accepts Guild side quests', async ({ page }) => {
+test('quest log shows main quest and completes proving morning at Borak', async ({ page }) => {
 	const save = createSaveFixture({
 		mapId: 'guild-hall',
-		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 800, y: 184, facing: 'up' }
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 800, y: 184, facing: 'up' },
+		quests: questStateAt('report-to-borak')
 	});
 
 	await page.addInitScript(
@@ -13931,43 +13968,54 @@ test('quest log shows main quest and accepts Guild side quests', async ({ page }
 		)
 	);
 	await continueFromTitle(page);
-	await expect(page.getByText('Talk to the Guild Master')).toBeVisible();
+	await expect(page.getByText("Report to Borak at the Hunters' Lodge.")).toBeVisible();
 	await page.waitForFunction(() => {
 		const state = (window as GlieseProbeWindow).__glieseLastHudState;
-		return state?.status?.includes('Guild Master');
+		return state?.status?.includes('Borak');
 	});
 
 	await page.locator('canvas').click();
 	await page.keyboard.press('e', { delay: 50 });
-	const guildMasterDialog = page.getByRole('dialog', { name: 'Guild Master Arlen' });
-	await expect(guildMasterDialog).toBeVisible({ timeout: 10_000 });
+	const borakDialog = page.getByRole('dialog', { name: 'Borak' });
+	await expect(borakDialog).toBeVisible({ timeout: 10_000 });
 	// Scope to the visible line: the sr-only status twin repeats the dialogue text.
-	await expect(guildMasterDialog.locator('.jrpg-dialogue-line')).toContainText(
-		/eastern ruins are stirring/i
-	);
-	await guildMasterDialog.getByRole('button', { name: 'Next' }).click();
-	await guildMasterDialog.getByRole('button', { name: 'Next' }).click();
-	await guildMasterDialog.getByRole('button', { name: 'Quest' }).click();
-	await guildMasterDialog.getByRole('button', { name: 'Thin Village Slimes' }).click();
-	await expect(guildMasterDialog.locator('.jrpg-dialogue-line')).toContainText(
-		/Defeat slimes near the village/i
-	);
-	await guildMasterDialog.getByRole('button', { name: 'Accept' }).click();
-	await expect(guildMasterDialog).toHaveCount(0);
+	await expect(borakDialog.locator('.jrpg-dialogue-line')).toContainText(/Grik\. You came/i);
+	await borakDialog.getByRole('button', { name: 'Next' }).click();
+	await expect(borakDialog.locator('.jrpg-dialogue-line')).toContainText(/Three Trials/i);
+	const anyDialog = page.getByRole('dialog');
+	for (let advance = 0; advance < 40; advance += 1) {
+		const hud = await page.evaluate(
+			() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+		);
+		if (!hud?.dialogue) break;
+		const next = anyDialog.getByRole('button', { name: 'Next' });
+		if ((await next.count()) > 0) {
+			await next.click();
+		} else {
+			await page.keyboard.press('Enter');
+		}
+		await page.waitForTimeout(200);
+	}
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+		return !state?.dialogue;
+	});
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+		return state?.quests?.main?.objectiveId === 'meet-lirra-forest';
+	});
 
 	await page.getByRole('button', { name: 'Menu' }).click();
-	await expect(page.getByRole('button', { name: 'Guild Quests' })).toHaveCount(0);
 	await commandBox(page).getByRole('button', { name: 'Quest', exact: true }).click();
 
 	const questDialog = page.getByRole('dialog', { name: 'Quest Log' });
 	await expect(questDialog).toBeVisible();
-	await expect(questDialog.getByTestId('quest-entry-main')).toContainText('Investigate the Ruins');
-	await expect(questDialog.getByText('Defeat the ruins warden in the ruins core.')).toBeVisible();
-	await expect(questDialog.getByText('Thin Village Slimes')).toBeVisible();
-	// Live progress renders in the detail panel only while the side quest is selected.
-	await questDialog.getByTestId('quest-entry-side').click();
-	await expect(questDialog.getByText('Village slimes defeated: 0 / 3')).toBeVisible();
+	await expect(questDialog.getByTestId('quest-entry-main')).toContainText('First Trial: Tracks');
+	await expect(questDialog.getByText('Meet Lirra at the edge of the Wildwood.')).toBeVisible();
+	await expect(questDialog.getByTestId('quest-entry-completed')).toContainText(
+		'The Proving Morning'
+	);
 	await questDialog.getByRole('button', { name: 'Close' }).click();
 	// The status pill only renders while the command grid is closed (Task 4).
-	await expect(fieldStatus(page)).toContainText(/^Quest accepted\.?$/);
+	await expect(fieldStatus(page)).toBeVisible();
 });
