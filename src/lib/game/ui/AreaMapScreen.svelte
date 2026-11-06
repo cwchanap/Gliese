@@ -3,7 +3,13 @@
 	import { t } from '$lib/game/i18n/translate';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
 	import { parseCellKey } from '$lib/game/core/map-exploration';
-	import type { HudAreaMapState } from '$lib/game/core/area-map';
+	import {
+		AREA_MAP_MARKER_EMPHASIS_FONT_PX,
+		AREA_MAP_MARKER_FONT_PX,
+		AREA_MAP_MARKER_LABEL_DX,
+		areaMapLocalView,
+		type HudAreaMapState
+	} from '$lib/game/core/area-map';
 
 	interface Props {
 		open: boolean;
@@ -22,6 +28,11 @@
 		onClose,
 		onkeydown
 	}: Props = $props();
+
+	const mapViewBox = $derived.by(() => {
+		const view = areaMapLocalView(areaMap);
+		return `${view.x} ${view.y} ${view.width} ${view.height}`;
+	});
 
 	let focusedMarkerId = $state<string | null>(null);
 	const focusedMarkerLabel = $derived(
@@ -91,7 +102,7 @@
 					<svg
 						data-testid="area-map-svg"
 						class="area-map-svg"
-						viewBox={`0 0 ${areaMap.worldWidth} ${areaMap.worldHeight}`}
+						viewBox={mapViewBox}
 						role="img"
 						aria-label={t($locale, 'ui.areaMapDialog', {
 							areaName: areaMap.name
@@ -135,7 +146,15 @@
 								}}
 							>
 								<circle r={marker.emphasis ? 64 : 48} />
-								<text x="76" y="18">{marker.label}</text>
+								<text
+									x={AREA_MAP_MARKER_LABEL_DX}
+									y="18"
+									font-size={marker.emphasis
+										? AREA_MAP_MARKER_EMPHASIS_FONT_PX
+										: AREA_MAP_MARKER_FONT_PX}
+								>
+									{marker.label}
+								</text>
 							</g>
 						{/each}
 						<circle
@@ -257,7 +276,6 @@
 	.area-map-marker text {
 		fill: #fff7df;
 		font-family: var(--font-display);
-		font-size: 104px;
 		font-weight: 900;
 		paint-order: stroke;
 		stroke: rgba(5, 7, 20, 0.92);
@@ -306,7 +324,6 @@
 
 	.area-map-marker-emphasis text {
 		fill: #ffe3a0;
-		font-size: 116px;
 	}
 
 	.area-map-player-marker {

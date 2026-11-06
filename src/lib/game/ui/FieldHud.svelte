@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { locale } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
+	import { clampedLocalMapView } from '$lib/game/core/area-map';
 	import { parseCellKey } from '$lib/game/core/map-exploration';
 	import { getXpForLevel } from '$lib/game/core/progression';
 	import CommandGrid, { type FieldCommand } from '$lib/game/ui/CommandGrid.svelte';
@@ -28,15 +29,15 @@
 	const minimapView = $derived.by(() => {
 		const areaMap = hudState.areaMap;
 		const span = areaMap.cellSize * 6;
-		const x = Math.min(
-			Math.max(areaMap.player.x - span / 2, 0),
-			Math.max(0, areaMap.worldWidth - span)
-		);
-		const y = Math.min(
-			Math.max(areaMap.player.y - span / 2, 0),
-			Math.max(0, areaMap.worldHeight - span)
-		);
-		return `${x} ${y} ${span} ${span}`;
+		const view = clampedLocalMapView({
+			centerX: areaMap.player.x,
+			centerY: areaMap.player.y,
+			width: span,
+			height: span,
+			worldWidth: areaMap.worldWidth,
+			worldHeight: areaMap.worldHeight
+		});
+		return `${view.x} ${view.y} ${view.width} ${view.height}`;
 	});
 
 	let coinFlashTimer: ReturnType<typeof setTimeout> | undefined;
