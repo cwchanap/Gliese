@@ -12,6 +12,7 @@ import {
 	getStoryProgress,
 	type QuestState
 } from '$lib/game/core/quests';
+import { applyStoryGates } from '$lib/game/core/story-gates';
 import { getQuestText } from '$lib/game/i18n/content';
 import type { Locale } from '$lib/game/i18n/locales';
 import { t, type MessageKey } from '$lib/game/i18n/translate';
@@ -25,7 +26,22 @@ export type HudAreaMapMarker = {
 	y: number;
 	label: string;
 	emphasis?: boolean;
+	knownQuestEntrance?: boolean;
 };
+
+export type AreaMapView = {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+};
+
+export const AREA_MAP_MARKER_LABEL_DX = 76;
+export const AREA_MAP_MARKER_FONT_PX = 104;
+export const AREA_MAP_MARKER_EMPHASIS_FONT_PX = 116;
+
+const AREA_MAP_VIEW_MIN_SPAN = AREA_MAP_CELL_SIZE * 12;
+const AREA_MAP_VIEW_PADDING = AREA_MAP_CELL_SIZE + AREA_MAP_CELL_SIZE / 2;
 
 export type HudAreaMapState = {
 	mapId: string;
@@ -53,9 +69,10 @@ export function buildAreaMapState({
 	locale: Locale;
 	seenDiscoveries?: string[];
 }): HudAreaMapState {
+	const knownEntrances = knownQuestEntranceIds(map, quests);
 	const markerCandidates = [
 		...buildLandmarkMarkers(map, locale),
-		...buildTransitionMarkers(map, locale),
+		...buildTransitionMarkers(map, locale, knownEntrances),
 		...buildMainQuestMarkers(map, quests, locale),
 		...buildDiscoveryMarkers(map, seenDiscoveries, locale)
 	];
@@ -68,8 +85,10 @@ export function buildAreaMapState({
 		cellSize: AREA_MAP_CELL_SIZE,
 		revealedCells,
 		player,
-		markers: markerCandidates.filter((marker) =>
-			isWorldPositionRevealed({ revealed: revealedCells, x: marker.x, y: marker.y })
+		markers: markerCandidates.filter(
+			(marker) =>
+				marker.knownQuestEntrance === true ||
+				isWorldPositionRevealed({ revealed: revealedCells, x: marker.x, y: marker.y })
 		)
 	};
 }
@@ -114,7 +133,11 @@ function buildDiscoveryMarkers(
 		}));
 }
 
-function buildTransitionMarkers(map: WorldMapDefinition, locale: Locale): HudAreaMapMarker[] {
+function buildTransitionMarkers(
+	map: WorldMapDefinition,
+	locale: Locale,
+	knownEntrances: ReadonlySet<string>
+): HudAreaMapMarker[] {
 	return map.transitions
 		.filter((transition) => transition.marker !== undefined || transition.showMarker !== false)
 		.map((transition) => ({
@@ -122,8 +145,31 @@ function buildTransitionMarkers(map: WorldMapDefinition, locale: Locale): HudAre
 			kind: 'exit',
 			x: transition.x,
 			y: transition.y,
-			label: getAreaName(locale, transition.toMapId)
+			label: getAreaName(locale, transition.toMapId),
+			...(knownEntrances.has(transition.id) ? { knownQuestEntrance: true, emphasis: true } : {})
 		}));
+}
+
+function knownQuestEntranceIds(map: WorldMapDefinition, quests: QuestState): ReadonlySet<string> {
+	const objective = getCurrentObjective(quests);
+	if (!objective || objective.kind !== 'talk-to-npc') return new Set();
+	const progress = getStoryProgress(quests);
+	const counted = new Set(quests.entries[progress.questId]?.countedSourceIds ?? []);
+	const npcIds = objective.npcIds.filter((npcId) => !counted.has(`npc:${npcId}`));
+	if (npcIds.length === 0) return new Set();
+	return new Set(
+		map.transitions
+			.filter((transition) => {
+				const destination = maps[transition.toMapId];
+				if (!destination) return false;
+				return (
+					applyStoryGates(destination, progress).npcs?.some((npc) =>
+						npcIds.includes(npc.dialogueId)
+					) ?? false
+				);
+			})
+			.map((transition) => transition.id)
+	);
 }
 
 /**
@@ -204,4 +250,60 @@ type AreaNameMapId = keyof typeof areaNameKeys;
 export function getAreaName(locale: Locale, mapId: string): string {
 	const key = areaNameKeys[mapId as AreaNameMapId];
 	return key ? t(locale, key) : mapId;
+}
+
+export function clampedLocalMapView({
+	centerX,
+	centerY,
+	width,
+	height,
+	worldWidth,
+	worldHeight
+}: {
+	centerX: number;
+	centerY: number;
+	width: number;
+	height: number;
+	worldWidth: number;
+	worldHeight: number;
+}): AreaMapView {
+	return {
+		x: Math.min(Math.max(centerX - width / 2, 0), Math.max(0, worldWidth - width)),
+		y: Math.min(Math.max(centerY - height / 2, 0), Math.max(0, worldHeight - height)),
+		width,
+		height
+	};
+}
+
+export function areaMapLocalView(areaMap: HudAreaMapState): AreaMapView {
+	const focusPoints = [
+		{ x: areaMap.player.x, y: areaMap.player.y },
+		...areaMap.markers
+			.filter((marker) => marker.knownQuestEntrance === true)
+			.flatMap((marker) => [
+				{ x: marker.x, y: marker.y },
+				{ x: marker.x + markerLabelExtent(marker), y: marker.y }
+			])
+	];
+	const minX = Math.min(...focusPoints.map((point) => point.x)) - AREA_MAP_VIEW_PADDING;
+	const maxX = Math.max(...focusPoints.map((point) => point.x)) + AREA_MAP_VIEW_PADDING;
+	const minY = Math.min(...focusPoints.map((point) => point.y)) - AREA_MAP_VIEW_PADDING;
+	const maxY = Math.max(...focusPoints.map((point) => point.y)) + AREA_MAP_VIEW_PADDING;
+	const span = Math.min(
+		Math.max(AREA_MAP_VIEW_MIN_SPAN, maxX - minX, maxY - minY),
+		Math.max(areaMap.worldWidth, areaMap.worldHeight)
+	);
+	return clampedLocalMapView({
+		centerX: (minX + maxX) / 2,
+		centerY: (minY + maxY) / 2,
+		width: span,
+		height: span,
+		worldWidth: areaMap.worldWidth,
+		worldHeight: areaMap.worldHeight
+	});
+}
+
+function markerLabelExtent(marker: HudAreaMapMarker): number {
+	const fontPx = marker.emphasis ? AREA_MAP_MARKER_EMPHASIS_FONT_PX : AREA_MAP_MARKER_FONT_PX;
+	return AREA_MAP_MARKER_LABEL_DX + marker.label.length * fontPx;
 }

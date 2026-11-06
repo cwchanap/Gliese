@@ -2,17 +2,27 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	blacksmithInteriorMap,
+	heroHouseMap,
 	maps,
 	overworldMap,
 	shrineOfAuroraInteriorMap
 } from '$lib/game/content/maps';
 import { overworldAnchors } from '$lib/game/content/maps/overworld/world';
 import {
+	AREA_MAP_MARKER_EMPHASIS_FONT_PX,
+	AREA_MAP_MARKER_FONT_PX,
+	AREA_MAP_MARKER_LABEL_DX,
+	areaMapLocalView,
 	buildAreaMapState,
 	buildInitialAreaMapState,
+	clampedLocalMapView,
 	type HudAreaMapState
 } from '$lib/game/core/area-map';
-import { revealCellsAroundPoint } from '$lib/game/core/map-exploration';
+import {
+	AREA_MAP_CELL_SIZE,
+	isWorldPositionRevealed,
+	revealCellsAroundPoint
+} from '$lib/game/core/map-exploration';
 import {
 	applyQuestEvent,
 	createInitialQuestState,
@@ -181,6 +191,173 @@ describe('area map payload', () => {
 		});
 
 		expect(areaMap.markers.some((marker) => marker.kind === 'quest')).toBe(false);
+	});
+});
+
+describe('known quest entrance hints', () => {
+	const homeExit = { x: grikDoor.x, y: grikDoor.y + 32 };
+	const forgeDoor = overworldAnchors['sundrop-forge-door']!;
+
+	const markersAt = (quests: QuestState) => {
+		const map = applyStoryGates(overworldMap, getStoryProgress(quests));
+		return buildAreaMapState({
+			map,
+			player: homeExit,
+			revealedCells: revealAround(homeExit),
+			quests,
+			locale: 'en'
+		}).markers;
+	};
+
+	it('shows the forge door through fog while Oren is the current talk target', () => {
+		const quests = questStateAt('collect-practice-spear');
+		const map = applyStoryGates(overworldMap, getStoryProgress(quests));
+		const revealedCells = revealAround(homeExit);
+		expect(
+			isWorldPositionRevealed({ revealed: revealedCells, x: forgeDoor.x, y: forgeDoor.y })
+		).toBe(false);
+
+		const markers = buildAreaMapState({
+			map,
+			player: homeExit,
+			revealedCells,
+			quests,
+			locale: 'en'
+		}).markers;
+		expect(markers.filter((marker) => marker.knownQuestEntrance === true)).toEqual([
+			expect.objectContaining({
+				id: 'overworld-to-blacksmith-interior',
+				kind: 'exit',
+				x: forgeDoor.x,
+				y: forgeDoor.y,
+				label: 'Sundrop Forge'
+			})
+		]);
+		expect(markers.some((marker) => marker.kind === 'quest')).toBe(false);
+		expect(markers.some((marker) => marker.id === 'overworld-to-item-shop')).toBe(false);
+		for (const marker of markers) {
+			expect(
+				marker.knownQuestEntrance === true ||
+					isWorldPositionRevealed({ revealed: revealedCells, x: marker.x, y: marker.y })
+			).toBe(true);
+		}
+	});
+
+	it('moves the flag with the current objective', () => {
+		expect(
+			markersAt(questStateAt('collect-herb-pouch'))
+				.filter((marker) => marker.knownQuestEntrance === true)
+				.map((marker) => marker.id)
+		).toEqual(['overworld-to-item-shop']);
+		expect(
+			markersAt(questStateAt('talk-to-mott'))
+				.filter((marker) => marker.knownQuestEntrance === true)
+				.map((marker) => marker.id)
+		).toEqual(['overworld-to-hero-house']);
+	});
+
+	it('flags only the interior whose story-gated NPCs survive the raid', () => {
+		const markers = markersAt(questStateAt('heed-mott'));
+		expect(
+			markers.filter((marker) => marker.knownQuestEntrance === true).map((marker) => marker.id)
+		).toEqual(['overworld-to-hero-house']);
+	});
+
+	it('never flags entrances for overworld, non-talk, or finished objectives', () => {
+		for (const objectiveId of ['meet-lirra-forest', 'repel-the-soldiers', 'go-to-sleep']) {
+			expect(
+				markersAt(questStateAt(objectiveId)).some((marker) => marker.knownQuestEntrance === true),
+				objectiveId
+			).toBe(false);
+		}
+		expect(markersAt(questStateAt(null)).some((marker) => marker.knownQuestEntrance === true)).toBe(
+			false
+		);
+	});
+});
+
+describe('local area map view', () => {
+	const homeExit = { x: grikDoor.x, y: grikDoor.y + 32 };
+	const forgeDoor = overworldAnchors['sundrop-forge-door']!;
+
+	it('frames the player and the flagged entrance with room for its label', () => {
+		const quests = questStateAt('collect-practice-spear');
+		const map = applyStoryGates(overworldMap, getStoryProgress(quests));
+		const state = buildAreaMapState({
+			map,
+			player: homeExit,
+			revealedCells: revealAround(homeExit),
+			quests,
+			locale: 'en'
+		});
+		const view = areaMapLocalView(state);
+
+		expect(view.width).toBeLessThan(state.worldWidth);
+		expect(view.height).toBeLessThan(state.worldHeight);
+		for (const point of [homeExit, forgeDoor]) {
+			expect(point.x).toBeGreaterThanOrEqual(view.x);
+			expect(point.x).toBeLessThanOrEqual(view.x + view.width);
+			expect(point.y).toBeGreaterThanOrEqual(view.y);
+			expect(point.y).toBeLessThanOrEqual(view.y + view.height);
+		}
+		const hint = state.markers.find((marker) => marker.knownQuestEntrance === true)!;
+		const fontPx = hint.emphasis ? AREA_MAP_MARKER_EMPHASIS_FONT_PX : AREA_MAP_MARKER_FONT_PX;
+		expect(view.x + view.width).toBeGreaterThanOrEqual(
+			hint.x + AREA_MAP_MARKER_LABEL_DX + hint.label.length * fontPx
+		);
+	});
+
+	it('keeps a player-local window when no entrance is flagged', () => {
+		const state = buildAreaMapState({
+			map: overworldMap,
+			player: { x: 6_000, y: 6_000 },
+			revealedCells: [],
+			quests: questStateAt(null),
+			locale: 'en'
+		});
+		const span = state.cellSize * 12;
+		expect(areaMapLocalView(state)).toEqual({
+			x: 6_000 - span / 2,
+			y: 6_000 - span / 2,
+			width: span,
+			height: span
+		});
+	});
+
+	it('clamps the shared window to world edges like the minimap', () => {
+		const span = AREA_MAP_CELL_SIZE * 6;
+		expect(
+			clampedLocalMapView({
+				centerX: 100,
+				centerY: 100,
+				width: span,
+				height: span,
+				worldWidth: 12_288,
+				worldHeight: 12_288
+			})
+		).toEqual({ x: 0, y: 0, width: span, height: span });
+		expect(
+			clampedLocalMapView({
+				centerX: 12_000,
+				centerY: 6_000,
+				width: span,
+				height: span,
+				worldWidth: 12_288,
+				worldHeight: 12_288
+			})
+		).toEqual({ x: 12_288 - span, y: 6_000 - span / 2, width: span, height: span });
+	});
+
+	it('covers a whole small map when the local window exceeds it', () => {
+		const state = buildAreaMapState({
+			map: heroHouseMap,
+			player: heroHouseMap.spawn,
+			revealedCells: [],
+			quests: createInitialQuestState(),
+			locale: 'en'
+		});
+		const span = Math.max(state.worldWidth, state.worldHeight);
+		expect(areaMapLocalView(state)).toEqual({ x: 0, y: 0, width: span, height: span });
 	});
 });
 

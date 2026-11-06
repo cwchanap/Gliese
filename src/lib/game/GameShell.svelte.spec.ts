@@ -1648,6 +1648,72 @@ describe('GameShell area map', () => {
 		await expect.element(page.getByTestId('area-map-selected')).toHaveTextContent('Ruins Gate');
 	});
 
+	it('frames the player and a known quest entrance with its rendered label', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				areaMap: {
+					...baseHudState().areaMap,
+					worldWidth: 12_288,
+					worldHeight: 12_288,
+					player: { x: 4_464, y: 7_312 },
+					markers: [
+						{
+							id: 'overworld-to-hero-house',
+							kind: 'exit',
+							x: 4_464,
+							y: 7_280,
+							label: 'Hero House'
+						},
+						{
+							id: 'overworld-to-blacksmith-interior',
+							kind: 'exit',
+							x: 5_648,
+							y: 7_184,
+							label: 'Sundrop Forge',
+							emphasis: true,
+							knownQuestEntrance: true
+						}
+					]
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /map/i }).click();
+		const svg = page.getByTestId('area-map-svg');
+		await expect.element(svg).toBeVisible();
+
+		const svgEl = svg.element() as SVGSVGElement;
+		const [viewX, viewY, viewWidth, viewHeight] = (svgEl.getAttribute('viewBox') ?? '')
+			.split(' ')
+			.map(Number);
+		expect(viewWidth).toBeLessThan(12_288);
+		for (const point of [
+			{ x: 4_464, y: 7_312 },
+			{ x: 5_648, y: 7_184 }
+		]) {
+			expect(point.x).toBeGreaterThanOrEqual(viewX);
+			expect(point.x).toBeLessThanOrEqual(viewX + viewWidth);
+			expect(point.y).toBeGreaterThanOrEqual(viewY);
+			expect(point.y).toBeLessThanOrEqual(viewY + viewHeight);
+		}
+
+		const marker = svgEl.querySelector<SVGGElement>(
+			'[data-focus-id="map-marker-overworld-to-blacksmith-interior"]'
+		);
+		expect(marker).not.toBeNull();
+		const markerText = marker?.querySelector('text');
+		expect(markerText?.textContent).toBe('Sundrop Forge');
+		const frame = svgEl.getBoundingClientRect();
+		const labelBox = markerText!.getBoundingClientRect();
+		expect(labelBox.width).toBeGreaterThan(0);
+		expect(labelBox.left).toBeGreaterThanOrEqual(frame.left);
+		expect(labelBox.top).toBeGreaterThanOrEqual(frame.top);
+		expect(labelBox.right).toBeLessThanOrEqual(frame.right + 1);
+		expect(labelBox.bottom).toBeLessThanOrEqual(frame.bottom + 1);
+	});
+
 	it('traps focus inside the map dialog while paused', async () => {
 		render(GameShell);
 		emitHudState(
