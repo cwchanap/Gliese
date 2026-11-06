@@ -152,9 +152,6 @@ export type HudState = {
 	heals: number;
 	status: string;
 	wallet: { coins: number };
-	/** True while the hero projects inside the hero card's screen zone; the
-	 * card fades so he stays visible. Edge-triggered — producers republish
-	 * only when the boolean flips, never per frame. */
 	heroOccluded: boolean;
 	nearbyShop: HudNearbyShop | null;
 	shop: HudOpenShop | null;

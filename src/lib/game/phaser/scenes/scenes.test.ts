@@ -386,22 +386,41 @@ const phaserState = vi.hoisted(() => {
 		addTilesetImage: vi.fn(() => ({ name: 'starter-ground-tiles' })),
 		createLayer: vi.fn((layerId: number | string) => (layerId === 0 ? tilemapLayer : null))
 	};
-	const mainCamera = {
-		width: 640,
-		height: 360,
+	const cameraAccessorKeys = ['x', 'y', 'width', 'height', 'zoomX', 'zoomY'] as const;
+	const cameraAccessors = Object.create(null) as Record<
+		(typeof cameraAccessorKeys)[number],
+		number
+	>;
+	for (const key of cameraAccessorKeys) {
+		Object.defineProperty(cameraAccessors, key, {
+			get(this: Record<string, number>) {
+				return this[`_${key}`];
+			},
+			set(this: Record<string, number>, value: number) {
+				this[`_${key}`] = value;
+			},
+			enumerable: true,
+			configurable: true
+		});
+	}
+	const mainCamera = Object.assign(Object.create(cameraAccessors) as typeof cameraAccessors, {
+		_x: 0,
+		_y: 0,
+		_width: 640,
+		_height: 360,
+		_zoomX: 1,
+		_zoomY: 1,
 		scrollX: 0,
 		scrollY: 0,
-		x: 0,
-		y: 0,
-		zoom: 1,
 		shake: vi.fn(),
 		setBackgroundColor: vi.fn(),
 		setBounds: vi.fn(),
 		setZoom: vi.fn(function (this: typeof mainCamera, value: number) {
-			this.zoom = value;
+			this.zoomX = value;
+			this.zoomY = value;
 		}),
 		startFollow: vi.fn()
-	};
+	});
 	const imageMarkers: Array<{
 		x: number;
 		y: number;
@@ -888,7 +907,8 @@ const phaserState = vi.hoisted(() => {
 				scrollY: 0,
 				x: 0,
 				y: 0,
-				zoom: 1
+				zoomX: 1,
+				zoomY: 1
 			});
 			mainCamera.shake.mockClear();
 			mainCamera.setBackgroundColor.mockClear();
@@ -1709,8 +1729,6 @@ describe('BattleScene', () => {
 			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
 		});
 
-		// A battle publish is a full HudState: a stale field flag must never
-		// leak through and leave the hero card faded during combat.
 		expect(emitHudStateSpy).toHaveBeenCalled();
 		for (const call of emitHudStateSpy.mock.calls) {
 			expect(call[0]).toEqual(expect.objectContaining({ heroOccluded: false }));
@@ -6719,6 +6737,33 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).not.toHaveBeenCalled();
 	});
 
+	it('projects arrival occlusion through the initialized zoomed camera scroll', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const save = {
+			...createNewSaveState(),
+			mapId: 'overworld'
+		};
+		save.player = { ...save.player, x: 700, y: 600 };
+
+		Object.assign(phaserState.mainCamera, {
+			width: 1280,
+			height: 800,
+			zoomX: 2,
+			zoomY: 2,
+			scrollX: 360,
+			scrollY: 400
+		});
+		scene.create({ saveState: save, reason: 'resume' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ heroOccluded: true })
+		);
+	});
+
 	it('moves the player marker using the current input state', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
@@ -7537,20 +7582,32 @@ describe('WorldScene', () => {
 			Object.assign(phaserState.playerMarker, { x: 128, y: 200 });
 			scene.update(250, 250);
 
+			const cameraSnapshot = {
+				scrollX: 0,
+				scrollY: 0,
+				zoomX: 1,
+				zoomY: 1,
+				width: 640,
+				height: 360,
+				x: 0,
+				y: 0
+			};
 			expect(diagnostics).toEqual([
 				{
 					mapId: 'scene-collision-test',
 					previousPosition: { x: 128, y: 64 },
 					requestedPosition: { x: 188, y: 64 },
 					resolvedPosition: { x: 128, y: 64 },
-					blocked: true
+					blocked: true,
+					camera: cameraSnapshot
 				},
 				{
 					mapId: 'scene-collision-test',
 					previousPosition: { x: 128, y: 200 },
 					requestedPosition: { x: 188, y: 200 },
 					resolvedPosition: { x: 188, y: 200 },
-					blocked: false
+					blocked: false,
+					camera: cameraSnapshot
 				}
 			]);
 		} finally {
@@ -8696,8 +8753,6 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { x: 416, y: 360 });
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
-		// Out-of-range point kept clear of the top-left hero-card envelope so
-		// the occlusion edge doesn't add a publish to this count.
 		Object.assign(phaserState.playerMarker, { x: 520, y: 480 });
 		scene.update(16, 16);
 		Object.assign(phaserState.playerMarker, { x: 416, y: 360 });

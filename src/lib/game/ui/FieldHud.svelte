@@ -279,8 +279,6 @@
 		transition: opacity 180ms ease-out;
 	}
 
-	/* Grik walked beneath the card's top-left zone — fade it so he stays
-	   visible; the flag flips back on zone exit (WorldScene edge trigger). */
 	.hero-card-occluded {
 		opacity: 0.35;
 	}
