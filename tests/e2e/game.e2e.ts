@@ -12546,92 +12546,140 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	await page.evaluate(() => {
 		(window as GlieseProbeWindow).__glieseJourneyTrace = [];
 	});
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 4600 });
-	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7195 });
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 4508 });
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7288 });
+	const doorLane = await readPosition();
+	expect(doorLane?.x).toBeGreaterThanOrEqual(4_508);
+	expect(doorLane?.x).toBeLessThanOrEqual(4_576);
+	expect(doorLane?.y).toBeGreaterThanOrEqual(7_264);
+	expect(doorLane?.y).toBeLessThanOrEqual(7_296);
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 4640 });
+	const connectorBase = await readPosition();
+	if (connectorBase && connectorBase.x > 4_680) {
+		await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 4664 });
+	}
+	const connectorTurn = await readPosition();
+	expect(connectorTurn?.x).toBeGreaterThanOrEqual(4_632);
+	expect(connectorTurn?.x).toBeLessThanOrEqual(4_704);
+	expect(connectorTurn?.y).toBeGreaterThanOrEqual(7_264);
+	expect(connectorTurn?.y).toBeLessThanOrEqual(7_296);
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7190 });
 	const laneTop = await readPosition();
-	expect(laneTop?.x).toBeGreaterThanOrEqual(4_600);
-	expect(laneTop?.x).toBeLessThan(4_660);
-	expect(laneTop?.y).toBeGreaterThanOrEqual(7_168);
-	expect(laneTop?.y).toBeLessThanOrEqual(7_200);
+	expect(laneTop?.x).toBeGreaterThanOrEqual(4_632);
+	expect(laneTop?.x).toBeLessThanOrEqual(4_704);
+	expect(laneTop?.y).toBeGreaterThanOrEqual(7_152);
+	expect(laneTop?.y).toBeLessThanOrEqual(7_216);
 	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5150 });
+	const southBase = await readPosition();
+	if (southBase && southBase.x > 5_184) {
+		await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 5176 });
+	}
 	const southTurn = await readPosition();
-	expect(southTurn?.x).toBeGreaterThanOrEqual(5_150);
-	expect(southTurn?.x).toBeLessThanOrEqual(5_200);
-	expect(southTurn?.y).toBeGreaterThanOrEqual(7_168);
-	expect(southTurn?.y).toBeLessThanOrEqual(7_200);
-	await holdUntil('s', { kind: 'axis', axis: 'y', direction: 'gte', value: 7268 });
+	expect(southTurn?.x).toBeGreaterThanOrEqual(5_136);
+	expect(southTurn?.x).toBeLessThanOrEqual(5_192);
+	expect(southTurn?.y).toBeGreaterThanOrEqual(7_152);
+	expect(southTurn?.y).toBeLessThanOrEqual(7_216);
+	await holdUntil('s', { kind: 'axis', axis: 'y', direction: 'gte', value: 7276 });
 	const lowerLane = await readPosition();
-	expect(lowerLane?.x).toBeGreaterThanOrEqual(5_150);
-	expect(lowerLane?.x).toBeLessThanOrEqual(5_200);
-	expect(lowerLane?.y).toBeGreaterThanOrEqual(7_268);
-	expect(lowerLane?.y).toBeLessThanOrEqual(7_296);
+	expect(lowerLane?.x).toBeGreaterThanOrEqual(5_136);
+	expect(lowerLane?.x).toBeLessThanOrEqual(5_192);
+	expect(lowerLane?.y).toBeGreaterThanOrEqual(7_260);
+	expect(lowerLane?.y).toBeLessThanOrEqual(7_300);
 	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5440 });
 	const underHut = await readPosition();
 	expect(underHut?.x).toBeGreaterThanOrEqual(5_440);
-	expect(underHut?.x).toBeLessThanOrEqual(5_476);
-	expect(underHut?.y).toBeGreaterThanOrEqual(7_264);
-	expect(underHut?.y).toBeLessThanOrEqual(7_296);
+	expect(underHut?.x).toBeLessThanOrEqual(5_472);
+	expect(underHut?.y).toBeGreaterThanOrEqual(7_260);
+	expect(underHut?.y).toBeLessThanOrEqual(7_300);
 	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7260 });
 	const jogShoulder = await readPosition();
-	expect(jogShoulder?.x).toBeGreaterThanOrEqual(5_440);
-	expect(jogShoulder?.x).toBeLessThanOrEqual(5_476);
+	expect(jogShoulder?.x).toBeGreaterThanOrEqual(5_432);
+	expect(jogShoulder?.x).toBeLessThanOrEqual(5_472);
 	expect(jogShoulder?.y).toBeGreaterThanOrEqual(7_232);
-	expect(jogShoulder?.y).toBeLessThanOrEqual(7_264);
+	expect(jogShoulder?.y).toBeLessThanOrEqual(7_272);
 	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5640 });
 	const forgeColumn = await readPosition();
 	expect(forgeColumn?.x).toBeGreaterThanOrEqual(5_640);
-	expect(forgeColumn?.y).toBeGreaterThanOrEqual(7_232);
-	expect(forgeColumn?.y).toBeLessThanOrEqual(7_264);
+	expect(forgeColumn?.y).toBeGreaterThanOrEqual(7_224);
+	expect(forgeColumn?.y).toBeLessThanOrEqual(7_272);
 	if (forgeColumn && forgeColumn.x > 5_670) {
 		await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 5650 });
 	}
 	const approachPoint = await readPosition();
-	expect(approachPoint?.x).toBeGreaterThanOrEqual(5_618);
-	expect(approachPoint?.x).toBeLessThanOrEqual(5_678);
+	expect(approachPoint?.x).toBeGreaterThanOrEqual(5_616);
+	expect(approachPoint?.x).toBeLessThanOrEqual(5_688);
 	await holdUntil('w', { kind: 'map', value: 'blacksmith-interior' }, 20_000);
 	await expect.poll(async () => (await readHud())?.mapId).toBe('blacksmith-interior');
 	const journeyTrace =
 		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseJourneyTrace ?? [])) ?? [];
 	const overworldTrace = journeyTrace.filter((point) => point.mapId === 'overworld');
 	expect(overworldTrace.length).toBeGreaterThan(0);
-	const corridorLegs: { name: string; test: (point: { x: number; y: number }) => boolean }[] = [
+	const corridorLegs: {
+		name: string;
+		axis: 'x' | 'y';
+		dir: 1 | -1;
+		test: (point: { x: number; y: number }) => boolean;
+	}[] = [
 		{
-			name: 'home-connector',
-			test: (point) => point.x >= 4_448 && point.x <= 4_648 && point.y >= 7_300 && point.y <= 7_328
+			name: 'door-apron',
+			axis: 'x',
+			dir: 1,
+			test: (point) => point.x >= 4_440 && point.x <= 4_576 && point.y >= 7_264 && point.y <= 7_344
 		},
 		{
-			name: 'connector-turn',
-			test: (point) => point.x >= 4_596 && point.x <= 4_660 && point.y >= 7_168 && point.y <= 7_328
+			name: 'door-lane',
+			axis: 'x',
+			dir: 1,
+			test: (point) => point.x >= 4_448 && point.x <= 4_696 && point.y >= 7_264 && point.y <= 7_296
 		},
 		{
-			name: 'corridor-top',
-			test: (point) => point.x >= 4_590 && point.x <= 5_180 && point.y >= 7_168 && point.y <= 7_204
+			name: 'connector',
+			axis: 'y',
+			dir: -1,
+			test: (point) => point.x >= 4_624 && point.x <= 4_704 && point.y >= 7_152 && point.y <= 7_296
+		},
+		{
+			name: 'top-lane',
+			axis: 'x',
+			dir: 1,
+			test: (point) => point.x >= 4_624 && point.x <= 5_216 && point.y >= 7_152 && point.y <= 7_216
 		},
 		{
 			name: 'south-turn',
-			test: (point) => point.x >= 5_148 && point.x <= 5_178 && point.y >= 7_168 && point.y <= 7_278
+			axis: 'y',
+			dir: 1,
+			test: (point) => point.x >= 5_136 && point.x <= 5_192 && point.y >= 7_152 && point.y <= 7_288
 		},
 		{
 			name: 'lower-lane',
-			test: (point) => point.x >= 5_148 && point.x <= 5_460 && point.y >= 7_262 && point.y <= 7_290
+			axis: 'x',
+			dir: 1,
+			test: (point) => point.x >= 5_136 && point.x <= 5_468 && point.y >= 7_256 && point.y <= 7_300
 		},
 		{
-			name: 'under-hut',
-			test: (point) => point.x >= 5_440 && point.x <= 5_464 && point.y >= 7_256 && point.y <= 7_290
+			name: 'jog-north',
+			axis: 'y',
+			dir: -1,
+			test: (point) => point.x >= 5_432 && point.x <= 5_472 && point.y >= 7_232 && point.y <= 7_296
 		},
 		{
-			name: 'jog-shoulder',
-			test: (point) => point.x >= 5_440 && point.x <= 5_640 && point.y >= 7_228 && point.y <= 7_266
+			name: 'jog-east',
+			axis: 'x',
+			dir: 1,
+			test: (point) => point.x >= 5_432 && point.x <= 5_664 && point.y >= 7_224 && point.y <= 7_272
 		},
 		{
 			name: 'forge-approach',
-			test: (point) => point.x >= 5_608 && point.x <= 5_680 && point.y >= 7_176 && point.y <= 7_266
+			axis: 'y',
+			dir: -1,
+			test: (point) => point.x >= 5_616 && point.x <= 5_688 && point.y >= 7_160 && point.y <= 7_272
 		}
 	];
 	const containingLegs = (point: { x: number; y: number }) =>
 		corridorLegs.flatMap((leg, legIndex) => (leg.test(point) ? [legIndex] : []));
 	const corridorViolation = (trace: typeof overworldTrace) => {
 		let furthestLeg = 0;
+		const legProgress = corridorLegs.map(() => Number.NEGATIVE_INFINITY);
 		for (const [index, point] of trace.entries()) {
 			const containing = containingLegs(point);
 			if (containing.length === 0) {
@@ -12642,6 +12690,12 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 				return `point ${index} (${point.x.toFixed(2)}, ${point.y.toFixed(2)}) returned to ${corridorLegs[reached].name} after ${corridorLegs[furthestLeg].name}`;
 			}
 			furthestLeg = reached;
+			const leg = corridorLegs[furthestLeg];
+			const progress = (leg.axis === 'x' ? point.x : point.y) * leg.dir;
+			if (progress < legProgress[furthestLeg] - 8) {
+				return `point ${index} (${point.x.toFixed(2)}, ${point.y.toFixed(2)}) regressed ${(legProgress[furthestLeg] - progress).toFixed(1)}px along ${leg.name}`;
+			}
+			legProgress[furthestLeg] = Math.max(legProgress[furthestLeg], progress);
 		}
 		if (furthestLeg !== corridorLegs.length - 1) {
 			return `trace never reached ${corridorLegs[corridorLegs.length - 1].name}`;
@@ -12649,6 +12703,19 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 		return null;
 	};
 	expect(corridorViolation(overworldTrace)).toBeNull();
+	const samplePoints = (
+		waypoints: readonly { x: number; y: number }[],
+		stepPx = 7
+	): typeof overworldTrace =>
+		waypoints.slice(1).flatMap((to, segment) => {
+			const from = waypoints[segment];
+			const steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / stepPx));
+			return Array.from({ length: steps }, (_, step) => ({
+				x: from.x + ((to.x - from.x) * (step + 1)) / steps,
+				y: from.y + ((to.y - from.y) * (step + 1)) / steps,
+				mapId: 'overworld'
+			}));
+		});
 	const detourIndex = overworldTrace.findIndex(
 		(point) => point.x >= 4_900 && point.y >= 7_168 && point.y <= 7_204
 	);
@@ -12662,6 +12729,49 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 		...overworldTrace.slice(detourIndex)
 	];
 	expect(corridorViolation(detouredTrace)).toContain('outside the authored corridor');
+	let loopAnchorIndex = -1;
+	let loopAnchorDistance = Number.POSITIVE_INFINITY;
+	for (const [index, point] of overworldTrace.entries()) {
+		const distance = Math.hypot(point.x - 4_613.44, point.y - 7_305.4);
+		if (distance < loopAnchorDistance) {
+			loopAnchorDistance = distance;
+			loopAnchorIndex = index;
+		}
+	}
+	expect(loopAnchorIndex).toBeGreaterThanOrEqual(0);
+	const loopedTrace = [
+		...overworldTrace.slice(0, loopAnchorIndex + 1),
+		{ x: 4_613.44, y: 7_305.4, mapId: 'overworld' },
+		...samplePoints([
+			{ x: 4_613.44, y: 7_305.4 },
+			{ x: 4_598, y: 7_305.4 },
+			{ x: 4_598, y: 7_208 },
+			{ x: 4_636, y: 7_208 },
+			{ x: 4_636, y: 7_305.4 },
+			{ x: 4_613.44, y: 7_305.4 }
+		]),
+		...overworldTrace.slice(loopAnchorIndex + 1)
+	];
+	expect(corridorViolation(loopedTrace)).toContain('outside the authored corridor');
+	const connectorIndex = overworldTrace.findIndex(
+		(point) => point.x >= 4_624 && point.x <= 4_704 && point.y >= 7_152 && point.y <= 7_296
+	);
+	expect(connectorIndex).toBeGreaterThanOrEqual(0);
+	const connectorEntry = overworldTrace[connectorIndex];
+	const withinBandTrace = [
+		...overworldTrace.slice(0, connectorIndex + 1),
+		...samplePoints([
+			connectorEntry,
+			{ x: 4_644, y: connectorEntry.y },
+			{ x: 4_644, y: 7_224 },
+			{ x: 4_676, y: 7_224 },
+			{ x: 4_676, y: connectorEntry.y },
+			{ x: 4_644, y: connectorEntry.y },
+			connectorEntry
+		]),
+		...overworldTrace.slice(connectorIndex + 1)
+	];
+	expect(corridorViolation(withinBandTrace)).toContain('regressed');
 	const legRuns = corridorLegs.map((leg) => ({
 		name: leg.name,
 		points: [] as typeof overworldTrace
@@ -12714,6 +12824,14 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 			detouredTrace[detouredTrace.length - 1].y - forgeDoor.y
 		)
 	).toBeLessThanOrEqual(32);
+	expect(doorClearance(loopedTrace)).toBeGreaterThanOrEqual(48);
+	expect(
+		Math.hypot(
+			loopedTrace[loopedTrace.length - 1].x - forgeDoor.x,
+			loopedTrace[loopedTrace.length - 1].y - forgeDoor.y
+		)
+	).toBeLessThanOrEqual(32);
+	expect(doorClearance(withinBandTrace)).toBeGreaterThanOrEqual(48);
 	const traceEvidence = { legRanges, minDoorClearance, lastDoorDistance, trace: overworldTrace };
 	await test.info().attach('overworld-journey-trace', {
 		body: JSON.stringify(traceEvidence),
