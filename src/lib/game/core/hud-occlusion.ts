@@ -32,23 +32,6 @@ export function heroScreenPosition(
 	};
 }
 
-export function settledCameraScroll(
-	camera: { width: number; height: number; zoom?: number; zoomX?: number; zoomY?: number },
-	bounds: { x: number; y: number; width: number; height: number },
-	target: { x: number; y: number }
-): { x: number; y: number } {
-	const zoomX = camera.zoomX ?? camera.zoom ?? 1;
-	const zoomY = camera.zoomY ?? camera.zoom ?? 1;
-	const viewWidth = camera.width / zoomX;
-	const viewHeight = camera.height / zoomY;
-	const clampAxis = (value: number, min: number, max: number) =>
-		Math.min(Math.max(value, min), Math.max(min, max));
-	return {
-		x: clampAxis(target.x - viewWidth / 2, bounds.x, bounds.x + bounds.width - viewWidth),
-		y: clampAxis(target.y - viewHeight / 2, bounds.y, bounds.y + bounds.height - viewHeight)
-	};
-}
-
 export function isHeroInHeroCardZone(
 	screenX: number,
 	screenY: number,

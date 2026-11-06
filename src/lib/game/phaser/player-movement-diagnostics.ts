@@ -6,6 +6,16 @@ export interface PlayerMovementDiagnostic {
 	requestedPosition: { x: number; y: number };
 	resolvedPosition: { x: number; y: number };
 	blocked: boolean;
+	camera?: {
+		scrollX: number;
+		scrollY: number;
+		zoomX: number;
+		zoomY: number;
+		width: number;
+		height: number;
+		x: number;
+		y: number;
+	} | null;
 }
 
 /** Emits attempted player movement after collision resolution for runtime probes. */

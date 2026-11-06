@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-	heroCardZone,
-	heroScreenPosition,
-	isHeroInHeroCardZone,
-	settledCameraScroll
-} from './hud-occlusion';
+import { heroCardZone, heroScreenPosition, isHeroInHeroCardZone } from './hud-occlusion';
 
 describe('heroCardZone', () => {
 	it('picks the compact-height zone for short viewports', () => {
@@ -79,26 +74,5 @@ describe('heroScreenPosition', () => {
 		const before = heroScreenPosition(camera, { x: 230, y: 120 });
 		const after = heroScreenPosition({ ...camera, width: 1280, height: 800 }, { x: 230, y: 120 });
 		expect(after).toEqual(before);
-	});
-});
-
-describe('settledCameraScroll', () => {
-	it('pins the scroll when the map is smaller than the viewport', () => {
-		const bounds = { x: -288, y: -112, width: 1280, height: 800 };
-		const camera = { width: 1280, height: 800, zoom: 1 };
-		expect(settledCameraScroll(camera, bounds, { x: 160, y: 224 })).toEqual({
-			x: -288,
-			y: -112
-		});
-	});
-
-	it('clamps the follow target inside larger maps', () => {
-		const bounds = { x: 0, y: 0, width: 704, height: 576 };
-		const camera = { width: 640, height: 480, zoom: 1 };
-		expect(settledCameraScroll(camera, bounds, { x: 160, y: 224 })).toEqual({ x: 0, y: 0 });
-		expect(settledCameraScroll(camera, bounds, { x: 600, y: 500 })).toEqual({
-			x: 64,
-			y: 96
-		});
 	});
 });

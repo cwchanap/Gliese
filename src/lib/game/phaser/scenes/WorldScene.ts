@@ -97,11 +97,7 @@ import {
 	STARTER_NPC_COLLISION_RADIUS
 } from '$lib/game/core/collision';
 import { equipItem, unequipSlot } from '$lib/game/core/equipment';
-import {
-	heroScreenPosition,
-	isHeroInHeroCardZone,
-	settledCameraScroll
-} from '$lib/game/core/hud-occlusion';
+import { heroScreenPosition, isHeroInHeroCardZone } from '$lib/game/core/hud-occlusion';
 import { selectNearbyCandidate } from '$lib/game/core/interaction';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { addItem, consumeStackItem } from '$lib/game/core/inventory';
@@ -770,11 +766,7 @@ export class WorldScene extends Phaser.Scene {
 
 		const camera = this.cameras?.main;
 		if (camera) {
-			const settled = settledCameraScroll(camera, cameraBounds, this.player);
-			const screen = heroScreenPosition(
-				{ ...camera, scrollX: settled.x, scrollY: settled.y },
-				this.player
-			);
+			const screen = heroScreenPosition(camera, this.player);
 			this.heroOccluded = isHeroInHeroCardZone(screen.x, screen.y, camera.width, camera.height);
 		}
 
@@ -860,12 +852,25 @@ export class WorldScene extends Phaser.Scene {
 			targetY
 		);
 		if ((direction.x !== 0 || direction.y !== 0) && this.renderOptions.movementDiagnostics) {
+			const camera = this.cameras?.main;
 			emitPlayerMovementDiagnostic({
 				mapId: this.mapId,
 				previousPosition: { x: this.player.x, y: this.player.y },
 				requestedPosition: { x: targetX, y: targetY },
 				resolvedPosition,
-				blocked: resolvedPosition.x !== targetX || resolvedPosition.y !== targetY
+				blocked: resolvedPosition.x !== targetX || resolvedPosition.y !== targetY,
+				camera: camera
+					? {
+							scrollX: camera.scrollX,
+							scrollY: camera.scrollY,
+							zoomX: camera.zoomX,
+							zoomY: camera.zoomY,
+							width: camera.width,
+							height: camera.height,
+							x: camera.x,
+							y: camera.y
+						}
+					: null
 			});
 		}
 
