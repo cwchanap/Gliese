@@ -38,6 +38,7 @@ function baseHudState(overrides: Partial<HudState> = {}): HudState {
 		heals: 1,
 		status: 'Ready',
 		wallet: { coins: 30 },
+		heroOccluded: false,
 		nearbyShop: null,
 		shop: null,
 		dialogue: null,

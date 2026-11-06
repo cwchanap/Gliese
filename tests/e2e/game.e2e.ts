@@ -44,6 +44,7 @@ type HudStateSnapshot = {
 	ready?: boolean;
 	mapId?: string;
 	status?: string;
+	heroOccluded?: boolean;
 	areaMap?: { player?: { x?: number; y?: number } };
 	dialogue?: unknown;
 	battle?: unknown;

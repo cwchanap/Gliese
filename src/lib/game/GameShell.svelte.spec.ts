@@ -72,6 +72,7 @@ function baseHudState(overrides: Partial<HudState> = {}): HudState {
 		heals: 1,
 		status: 'Battle victory',
 		wallet: { coins: 30 },
+		heroOccluded: false,
 		nearbyShop: null,
 		shop: null,
 		dialogue: null,
@@ -365,6 +366,31 @@ describe('GameShell motion flourishes', () => {
 		const levelSpan = page.getByText(/LV 2/);
 		await expect.element(levelSpan).toBeVisible();
 		await expect.element(levelSpan).toHaveClass(/heroic-level-up/);
+	});
+});
+
+describe('GameShell hero-card occlusion and readiness', () => {
+	it('dims the hero card while the hero stands inside its screen zone', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ heroOccluded: true }));
+		const party = page.getByTestId('hud-party-panel');
+		await expect.element(party).toHaveClass(/hero-card-occluded/);
+
+		emitHudState(baseHudState({ heroOccluded: false }));
+		await expect.element(party).not.toHaveClass(/hero-card-occluded/);
+	});
+
+	it('hides provisional numeric values until the first authoritative publish', async () => {
+		render(GameShell);
+		// Clicking New Run flips the shell to playing while the store still
+		// holds its ready:false placeholder — no numeric field may paint.
+		await page.getByRole('button', { name: /new run/i }).click();
+		await expect.element(page.getByTestId('hud-party-panel')).not.toBeInTheDocument();
+		expect(document.body.textContent).not.toContain('30G');
+		expect(document.body.textContent).not.toContain('20G');
+
+		emitHudState(baseHudState({ wallet: { coins: 20 } }));
+		await expect.element(page.getByText(/20G/)).toBeVisible();
 	});
 });
 

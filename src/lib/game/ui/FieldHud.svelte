@@ -87,142 +87,146 @@
 </script>
 
 <div class="heroic-hud-top">
-	<section
-		data-testid="hud-party-panel"
-		class={`heroic-field-card filigree-frame hero-card${lowHp ? ' heroic-low-hp' : ''}`}
-		aria-label={t($locale, 'ui.playerStatus')}
-	>
-		<div class="hero-portrait">
-			<img
-				src="/game/assets/heroic-ui/grik-portrait.png"
-				alt=""
-				aria-hidden="true"
-				draggable="false"
-			/>
-			<span class="hero-level font-display tabular-nums" class:heroic-level-up={levelUpFlash}>
-				<span class="sr-only" class:heroic-level-up={levelUpFlash}
-					>{t($locale, 'ui.levelAbbrev')} {hudState.level}</span
-				>
-				<span aria-hidden="true">{hudState.level}</span>
-			</span>
-		</div>
-		<div class="hero-copy">
-			<p class="hero-name font-display">{t($locale, 'ui.heroName')}</p>
-			<div class="hero-meter">
-				<span class="hero-meter-label hero-meter-label-hp">{t($locale, 'ui.hp')}</span>
-				<div class="hero-meter-track">
-					<span class="hero-meter-fill hero-meter-fill-hp" style={`width: ${hpPercent}%`}></span>
-				</div>
-				<span class="hero-meter-value tabular-nums">{hudState.hp}/{hudState.maxHp}</span>
-			</div>
-			<div class="hero-meter">
-				<span class="hero-meter-label hero-meter-label-xp">{t($locale, 'ui.xp')}</span>
-				<div class="hero-meter-track">
-					<span class="hero-meter-fill hero-meter-fill-xp" style={`width: ${xpPercent}%`}></span>
-				</div>
-				<span class="hero-meter-value tabular-nums">{hudState.xp}/{xpTarget}</span>
-			</div>
-			<div class="hero-stats">
-				<span>
-					<svg class="hero-stat-glyph hero-stat-glyph-atk" viewBox="0 0 16 16" aria-hidden="true">
-						<path d="M4.5 11.5 11.5 4.5M6 4.5h5.5V10" />
-					</svg>
-					{t($locale, 'ui.attack')}
-					<b class="tabular-nums">{hudState.attack}</b>
-				</span>
-				<span>
-					<svg class="hero-stat-glyph hero-stat-glyph-def" viewBox="0 0 16 16" aria-hidden="true">
-						<path d="M8 2.2 12.8 4v4.1c0 2.9-2 4.6-4.8 5.7-2.8-1.1-4.8-2.8-4.8-5.7V4Z" />
-					</svg>
-					{t($locale, 'ui.defense')}
-					<b class="tabular-nums">{hudState.defense}</b>
+	{#if hudState.ready}
+		<section
+			data-testid="hud-party-panel"
+			class={`heroic-field-card filigree-frame hero-card${lowHp ? ' heroic-low-hp' : ''}${hudState.heroOccluded ? ' hero-card-occluded' : ''}`}
+			aria-label={t($locale, 'ui.playerStatus')}
+		>
+			<div class="hero-portrait">
+				<img
+					src="/game/assets/heroic-ui/grik-portrait.png"
+					alt=""
+					aria-hidden="true"
+					draggable="false"
+				/>
+				<span class="hero-level font-display tabular-nums" class:heroic-level-up={levelUpFlash}>
+					<span class="sr-only" class:heroic-level-up={levelUpFlash}
+						>{t($locale, 'ui.levelAbbrev')} {hudState.level}</span
+					>
+					<span aria-hidden="true">{hudState.level}</span>
 				</span>
 			</div>
-		</div>
-	</section>
+			<div class="hero-copy">
+				<p class="hero-name font-display">{t($locale, 'ui.heroName')}</p>
+				<div class="hero-meter">
+					<span class="hero-meter-label hero-meter-label-hp">{t($locale, 'ui.hp')}</span>
+					<div class="hero-meter-track">
+						<span class="hero-meter-fill hero-meter-fill-hp" style={`width: ${hpPercent}%`}></span>
+					</div>
+					<span class="hero-meter-value tabular-nums">{hudState.hp}/{hudState.maxHp}</span>
+				</div>
+				<div class="hero-meter">
+					<span class="hero-meter-label hero-meter-label-xp">{t($locale, 'ui.xp')}</span>
+					<div class="hero-meter-track">
+						<span class="hero-meter-fill hero-meter-fill-xp" style={`width: ${xpPercent}%`}></span>
+					</div>
+					<span class="hero-meter-value tabular-nums">{hudState.xp}/{xpTarget}</span>
+				</div>
+				<div class="hero-stats">
+					<span>
+						<svg class="hero-stat-glyph hero-stat-glyph-atk" viewBox="0 0 16 16" aria-hidden="true">
+							<path d="M4.5 11.5 11.5 4.5M6 4.5h5.5V10" />
+						</svg>
+						{t($locale, 'ui.attack')}
+						<b class="tabular-nums">{hudState.attack}</b>
+					</span>
+					<span>
+						<svg class="hero-stat-glyph hero-stat-glyph-def" viewBox="0 0 16 16" aria-hidden="true">
+							<path d="M8 2.2 12.8 4v4.1c0 2.9-2 4.6-4.8 5.7-2.8-1.1-4.8-2.8-4.8-5.7V4Z" />
+						</svg>
+						{t($locale, 'ui.defense')}
+						<b class="tabular-nums">{hudState.defense}</b>
+					</span>
+				</div>
+			</div>
+		</section>
+	{/if}
 
 	<div class="heroic-hud-row">
 		{#if commandOpen && commandEnabled && onCommand}
 			<CommandGrid enabled={commandEnabled} {onCommand} />
 		{/if}
 
-		<div
-			class="heroic-side-hud"
-			data-testid="hud-side-panel"
-			aria-label={t($locale, 'ui.questTracker')}
-		>
-			<section
-				data-testid="hud-minimap"
-				class="heroic-field-card minimap-card"
-				aria-label={t($locale, 'ui.areaMap')}
+		{#if hudState.ready}
+			<div
+				class="heroic-side-hud"
+				data-testid="hud-side-panel"
+				aria-label={t($locale, 'ui.questTracker')}
 			>
-				<div class="minimap-medallion">
-					<svg viewBox={minimapView} aria-hidden="true">
-						<rect
-							class="minimap-fog"
-							x="0"
-							y="0"
-							width={hudState.areaMap.worldWidth}
-							height={hudState.areaMap.worldHeight}
-						/>
-						{#each hudState.areaMap.revealedCells as cellKey (cellKey)}
-							{@const cell = parseCellKey(cellKey)}
-							<rect
-								class="minimap-cell"
-								x={cell.column * hudState.areaMap.cellSize}
-								y={cell.row * hudState.areaMap.cellSize}
-								width={hudState.areaMap.cellSize}
-								height={hudState.areaMap.cellSize}
-							/>
-						{/each}
-						{#each hudState.areaMap.markers as marker (marker.id)}
-							<circle
-								class={`minimap-marker minimap-marker-${marker.kind} ${
-									marker.emphasis ? 'minimap-marker-emphasis' : ''
-								}`}
-								cx={marker.x}
-								cy={marker.y}
-								r={marker.emphasis ? 96 : 64}
-							/>
-						{/each}
-						<circle
-							class="minimap-player-halo heroic-halo"
-							cx={hudState.areaMap.player.x}
-							cy={hudState.areaMap.player.y}
-							r="72"
-						/>
-						<circle
-							class="minimap-player"
-							cx={hudState.areaMap.player.x}
-							cy={hudState.areaMap.player.y}
-							r="40"
-						/>
-					</svg>
-				</div>
-				<p class="minimap-location font-display">{hudState.areaMap.name}</p>
-			</section>
-
-			{#if hudState.quests.main}
-				<aside class="heroic-field-card quest-banner" aria-label={t($locale, 'ui.questTracker')}>
-					<p class="heroic-eyebrow quest-banner-eyebrow">✦ {t($locale, 'ui.mainQuest')}</p>
-					<h2>{hudState.quests.main.title}</h2>
-					<p class="quest-banner-objective">
-						<span class="quest-dot quest-dot-current" aria-hidden="true"></span>
-						{hudState.quests.main.objective}
-						{#if hudState.quests.main.progress.target > 1}
-							({hudState.quests.main.progress.current}/{hudState.quests.main.progress.target})
-						{/if}
-					</p>
-				</aside>
-			{/if}
-
-			<div class="heroic-field-card wallet-pill">
-				<span class="wallet-coin" aria-hidden="true"></span>
-				<span class={`font-display tabular-nums${coinFlash ? ' heroic-coin-flash' : ''}`}
-					>{hudState.wallet.coins}{t($locale, 'ui.goldSuffix')}</span
+				<section
+					data-testid="hud-minimap"
+					class="heroic-field-card minimap-card"
+					aria-label={t($locale, 'ui.areaMap')}
 				>
+					<div class="minimap-medallion">
+						<svg viewBox={minimapView} aria-hidden="true">
+							<rect
+								class="minimap-fog"
+								x="0"
+								y="0"
+								width={hudState.areaMap.worldWidth}
+								height={hudState.areaMap.worldHeight}
+							/>
+							{#each hudState.areaMap.revealedCells as cellKey (cellKey)}
+								{@const cell = parseCellKey(cellKey)}
+								<rect
+									class="minimap-cell"
+									x={cell.column * hudState.areaMap.cellSize}
+									y={cell.row * hudState.areaMap.cellSize}
+									width={hudState.areaMap.cellSize}
+									height={hudState.areaMap.cellSize}
+								/>
+							{/each}
+							{#each hudState.areaMap.markers as marker (marker.id)}
+								<circle
+									class={`minimap-marker minimap-marker-${marker.kind} ${
+										marker.emphasis ? 'minimap-marker-emphasis' : ''
+									}`}
+									cx={marker.x}
+									cy={marker.y}
+									r={marker.emphasis ? 96 : 64}
+								/>
+							{/each}
+							<circle
+								class="minimap-player-halo heroic-halo"
+								cx={hudState.areaMap.player.x}
+								cy={hudState.areaMap.player.y}
+								r="72"
+							/>
+							<circle
+								class="minimap-player"
+								cx={hudState.areaMap.player.x}
+								cy={hudState.areaMap.player.y}
+								r="40"
+							/>
+						</svg>
+					</div>
+					<p class="minimap-location font-display">{hudState.areaMap.name}</p>
+				</section>
+
+				{#if hudState.quests.main}
+					<aside class="heroic-field-card quest-banner" aria-label={t($locale, 'ui.questTracker')}>
+						<p class="heroic-eyebrow quest-banner-eyebrow">✦ {t($locale, 'ui.mainQuest')}</p>
+						<h2>{hudState.quests.main.title}</h2>
+						<p class="quest-banner-objective">
+							<span class="quest-dot quest-dot-current" aria-hidden="true"></span>
+							{hudState.quests.main.objective}
+							{#if hudState.quests.main.progress.target > 1}
+								({hudState.quests.main.progress.current}/{hudState.quests.main.progress.target})
+							{/if}
+						</p>
+					</aside>
+				{/if}
+
+				<div class="heroic-field-card wallet-pill">
+					<span class="wallet-coin" aria-hidden="true"></span>
+					<span class={`font-display tabular-nums${coinFlash ? ' heroic-coin-flash' : ''}`}
+						>{hudState.wallet.coins}{t($locale, 'ui.goldSuffix')}</span
+					>
+				</div>
 			</div>
-		</div>
+		{/if}
 	</div>
 </div>
 
@@ -272,6 +276,13 @@
 		min-height: 12.375rem;
 		padding: 1.125rem 1.875rem 1.125rem 1.25rem;
 		pointer-events: none;
+		transition: opacity 180ms ease-out;
+	}
+
+	/* Grik walked beneath the card's top-left zone — fade it so he stays
+	   visible; the flag flips back on zone exit (WorldScene edge trigger). */
+	.hero-card-occluded {
+		opacity: 0.35;
 	}
 
 	/* Gold corner-bracket inlay (same etched treatment as the dialogue bar). */
