@@ -1114,7 +1114,7 @@ describe('opening map content', () => {
 				['hero-house-wall-east', 672, 304, 64, 480],
 				['hero-house-wall-south-west', 160, 560, 320, 32],
 				['hero-house-wall-south-east', 544, 560, 320, 32],
-				['hero-house-bedroom-divider-north', 272, 96, 32, 64],
+				['hero-house-bedroom-divider-north', 272, 92, 32, 56],
 				['hero-house-bedroom-divider-south', 272, 224, 32, 64],
 				['hero-house-study-divider-north', 432, 96, 32, 64],
 				['hero-house-study-divider-south', 432, 224, 32, 64],
