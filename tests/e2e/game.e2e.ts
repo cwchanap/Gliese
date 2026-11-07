@@ -216,6 +216,30 @@ function fieldStatus(page: Page) {
 	return page.getByRole('status', { name: 'Field status' });
 }
 
+/**
+ * The boar king trial. The lodge still has Borak and its keeper, but Drogg (there only during the
+ * earlier trials) has left the training-hall row that the guild hall route walks.
+ */
+function createBoarKingQuestFixture(): QuestState {
+	return {
+		entries: {
+			'prologue-trial-boar-king': {
+				status: 'active',
+				currentObjectiveId: 'meet-drogg-north-gate',
+				progress: 0,
+				countedSourceIds: []
+			}
+		},
+		completedObjectives: {},
+		pendingEffects: []
+	};
+}
+
+/** The guild hall route walks the training-hall row, which Drogg holds during the earlier trials. */
+function allEightQuests(interior: { mapId: string }): QuestState | undefined {
+	return interior.mapId === 'guild-hall' ? createBoarKingQuestFixture() : undefined;
+}
+
 function createQuestFixture(): QuestState {
 	return {
 		entries: {
@@ -1873,6 +1897,61 @@ function overworldDoor(
 // that gap can exceed the 18px checkpoint assert; those legs converge at reach 6.
 const TIGHT_HANDOFF_REACH_TOLERANCE = 6;
 
+/** An axis-aligned route from `start` through `targets`, moving along `first` before the other axis on each hop. */
+function axisRoute(start: Point, targets: readonly Point[], first: 'x' | 'y'): Point[] {
+	const route = [start];
+	for (const target of targets) {
+		const last = route.at(-1)!;
+		const corner = first === 'x' ? { x: target.x, y: last.y } : { x: last.x, y: target.y };
+		for (const next of [corner, target]) {
+			const previous = route.at(-1)!;
+			if (Math.abs(next.x - previous.x) > 0.5 || Math.abs(next.y - previous.y) > 0.5) {
+				route.push(next);
+			}
+		}
+	}
+	return route;
+}
+
+/**
+ * Ambient villagers answer E only to a player who is close and facing them (HPA-760), so walk
+ * onto the villager's row and along it through `offsets` (x distances from the villager), then
+ * tap toward the villager. The tap sets the facing even where a wall blocks the step, and it
+ * undoes any reverse correction the route runner made on its last leg.
+ */
+async function walkToAmbientNpcStance(
+	page: Page,
+	mapId: string,
+	npc: Point,
+	offsets: readonly number[]
+) {
+	const stances = offsets.map((offset) => ({ x: npc.x + offset, y: npc.y }));
+	await moveRoute(
+		page,
+		axisRoute(await currentHudPlayerPoint(page, mapId), stances, 'y'),
+		INTERIOR_ROUTE_SETTLE_TOLERANCE,
+		undefined,
+		undefined,
+		TIGHT_HANDOFF_REACH_TOLERANCE
+	);
+	await page.locator('canvas').click();
+	await page.keyboard.press(
+		trustedNpcDirectionToward(await currentHudPlayerPoint(page, mapId), npc),
+		{
+			delay: 40
+		}
+	);
+}
+
+/** Returns the player to `point` after a stance, so later legs start where the journey expects. */
+async function walkBackToStepPoint(page: Page, mapId: string, point: Point) {
+	await moveRoute(
+		page,
+		axisRoute(await currentHudPlayerPoint(page, mapId), [point], 'x'),
+		INTERIOR_ROUTE_SETTLE_TOLERANCE
+	);
+}
+
 const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 	{
 		mapId: 'guild-hall',
@@ -1917,7 +1996,7 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 			{
 				label: 'guild-master-approach',
 				point: { x: 800, y: 184 },
-				interaction: { speaker: 'Guild Master Arlen' }
+				interaction: { speaker: 'Borak' }
 			},
 			{ label: 'training-hall-spine', point: { x: 512, y: 184 } },
 			{ label: 'training-hall-south', point: { x: 512, y: 336 } },
@@ -1932,7 +2011,7 @@ const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
 			{
 				label: 'quartermaster-approach',
 				point: { x: 816, y: 568 },
-				interaction: { speaker: 'Quartermaster Vale', shopName: 'Guild Quartermaster' }
+				interaction: { speaker: 'Lodge Keeper', shopName: 'Lodge Stores' }
 			},
 			{ label: 'lobby-return-spine', point: { x: 512, y: 568 } },
 			{ label: 'lobby-return', point: { x: 512, y: 736 } }
@@ -2588,15 +2667,20 @@ const GUILD_HALL_COLLISION_IDS = [
 	),
 	...(guildHallMap.landmarks ?? []).map(({ id }) => id)
 ].sort();
+// The guild hall tests seed the boar king trial, so Drogg is not rendered in the lodge.
+const guildHallMapAtBoarKingProgress = applyStoryGates(
+	guildHallMap,
+	getStoryProgress(createBoarKingQuestFixture())
+);
 const GUILD_HALL_STATEFUL_OBJECT_IDS = [
-	...guildHallMap.transitions.map(({ id }) => id),
-	...(guildHallMap.pickups ?? []).map(({ id }) => id),
-	...(guildHallMap.encounters ?? []).map(({ id }) => id),
-	...(guildHallMap.npcs ?? []).map(({ id }) => id),
-	...(guildHallMap.landmarks ?? []).map(({ id }) => id),
-	...(guildHallMap.ambientNpcs ?? []).map(({ id }) => id),
-	...(guildHallMap.discoveries ?? []).map(({ id }) => id),
-	...(guildHallMap.combatBounds ?? []).map(({ id }) => id)
+	...guildHallMapAtBoarKingProgress.transitions.map(({ id }) => id),
+	...(guildHallMapAtBoarKingProgress.pickups ?? []).map(({ id }) => id),
+	...(guildHallMapAtBoarKingProgress.encounters ?? []).map(({ id }) => id),
+	...(guildHallMapAtBoarKingProgress.npcs ?? []).map(({ id }) => id),
+	...(guildHallMapAtBoarKingProgress.landmarks ?? []).map(({ id }) => id),
+	...(guildHallMapAtBoarKingProgress.ambientNpcs ?? []).map(({ id }) => id),
+	...(guildHallMapAtBoarKingProgress.discoveries ?? []).map(({ id }) => id),
+	...(guildHallMapAtBoarKingProgress.combatBounds ?? []).map(({ id }) => id)
 ].sort();
 const GUILD_HALL_FALLBACK_BLOCKER_IDS = (guildHallMap.blockers ?? []).map(({ id }) => id);
 const ITEM_SHOP_RUNTIME_EVIDENCE_ROOT = resolve(
@@ -2750,15 +2834,20 @@ const SHRINE_COLLISION_IDS = [
 	),
 	...(shrineOfAuroraInteriorMap.landmarks ?? []).map(({ id }) => id)
 ].sort();
+// Mott stands in the shrine only during the escape, so the run under test does not render him.
+const shrineMapAtFixtureProgress = applyStoryGates(
+	shrineOfAuroraInteriorMap,
+	saveFixtureStoryProgress
+);
 const SHRINE_STATEFUL_OBJECT_IDS = [
-	...shrineOfAuroraInteriorMap.transitions.map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.pickups ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.encounters ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.npcs ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.landmarks ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.ambientNpcs ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.discoveries ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.combatBounds ?? []).map(({ id }) => id)
+	...shrineMapAtFixtureProgress.transitions.map(({ id }) => id),
+	...(shrineMapAtFixtureProgress.pickups ?? []).map(({ id }) => id),
+	...(shrineMapAtFixtureProgress.encounters ?? []).map(({ id }) => id),
+	...(shrineMapAtFixtureProgress.npcs ?? []).map(({ id }) => id),
+	...(shrineMapAtFixtureProgress.landmarks ?? []).map(({ id }) => id),
+	...(shrineMapAtFixtureProgress.ambientNpcs ?? []).map(({ id }) => id),
+	...(shrineMapAtFixtureProgress.discoveries ?? []).map(({ id }) => id),
+	...(shrineMapAtFixtureProgress.combatBounds ?? []).map(({ id }) => id)
 ].sort();
 const SHRINE_FALLBACK_BLOCKER_IDS = (shrineOfAuroraInteriorMap.blockers ?? []).map(({ id }) => id);
 
@@ -2769,8 +2858,8 @@ type InteriorNpcApproachBinding = {
 
 const INTERIOR_NPC_APPROACH_BINDINGS = {
 	'guild-hall': {
-		'Guild Master Arlen': { approachKey: 'guildMaster', propCollisionKey: 'guildMasterDesk' },
-		'Quartermaster Vale': {
+		Borak: { approachKey: 'guildMaster', propCollisionKey: 'guildMasterDesk' },
+		'Lodge Keeper': {
 			approachKey: 'quartermaster',
 			propCollisionKey: 'quartermasterCounter'
 		}
@@ -3889,7 +3978,7 @@ function isGuildHallGuildMasterStep(
 	interior: InteriorGrayboxCase,
 	step: InteriorGrayboxStep
 ): boolean {
-	return interior.mapId === 'guild-hall' && step.interaction?.speaker === 'Guild Master Arlen';
+	return interior.mapId === 'guild-hall' && step.interaction?.speaker === 'Borak';
 }
 
 function isGuildHallGuildMasterReturnStep(
@@ -3906,7 +3995,7 @@ function isGuildHallQuartermasterStep(
 	interior: InteriorGrayboxCase,
 	step: InteriorGrayboxStep
 ): boolean {
-	return interior.mapId === 'guild-hall' && step.interaction?.speaker === 'Quartermaster Vale';
+	return interior.mapId === 'guild-hall' && step.interaction?.speaker === 'Lodge Keeper';
 }
 
 function isGuildHallQuartermasterReturnStep(
@@ -5951,7 +6040,7 @@ function assertInteriorNpcCheckpointContract(
 ) {
 	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
 
-	if (interior.mapId === 'guild-hall' && step.interaction?.speaker === 'Guild Master Arlen') {
+	if (interior.mapId === 'guild-hall' && step.interaction?.speaker === 'Borak') {
 		const guildHallLayout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
 		const guildMasterApproach = guildHallLayout.npcApproaches.guildMaster.approach;
 		const guildMasterNpc = guildHallLayout.npcApproaches.guildMaster.npc;
@@ -5993,7 +6082,7 @@ function assertInteriorNpcCheckpointContract(
 		return;
 	}
 
-	if (interior.mapId === 'guild-hall' && step.interaction?.speaker === 'Quartermaster Vale') {
+	if (interior.mapId === 'guild-hall' && step.interaction?.speaker === 'Lodge Keeper') {
 		const guildHallLayout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
 		const quartermasterCounter = guildHallLayout.propCollisions.quartermasterCounter;
 		const quartermasterApproach = guildHallLayout.npcApproaches.quartermaster.approach;
@@ -6987,7 +7076,10 @@ function assertFixedAxisRouteContract(
 	}
 	for (const diagnostic of fixedAxisDiagnostics) {
 		expect(diagnostic.mapId).toBe(expectedMapId);
-		expect(diagnostic.blocked).toBe(false);
+		expect(
+			diagnostic.blocked,
+			`${label} fixed-axis leg was blocked: ${JSON.stringify({ points, diagnostic })}`
+		).toBe(false);
 		// A fixed-axis input preserves its orthogonal coordinate exactly. Do not
 		// invent the route runner's ±18 reach residue on that locked axis.
 		expect(diagnostic.previousPosition[fixedCoordinate]).toBe(from[fixedCoordinate]);
@@ -8270,9 +8362,9 @@ function trustedNpcSemanticApproachForStep(
 	}
 	expect(step.point).toEqual(npcApproach.approach);
 	const stagingPoint =
-		interior.mapId === 'guild-hall' && step.interaction.speaker === 'Guild Master Arlen'
+		interior.mapId === 'guild-hall' && step.interaction.speaker === 'Borak'
 			? guildHallGuildMasterInteractionStagingPoint()
-			: interior.mapId === 'guild-hall' && step.interaction.speaker === 'Quartermaster Vale'
+			: interior.mapId === 'guild-hall' && step.interaction.speaker === 'Lodge Keeper'
 				? guildHallQuartermasterInteractionStagingPoint()
 				: isItemShopMiraStep(interior, step)
 					? itemShopMiraSemanticStagingPoint()
@@ -8623,7 +8715,7 @@ async function approachNpcWithTrustedKeyboard(
 		PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + NPC_PACK_COLLISION_RADIUS;
 	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
 	const guildMasterSemanticApproach =
-		approach.mapId === 'guild-hall' && approach.speaker === 'Guild Master Arlen';
+		approach.mapId === 'guild-hall' && approach.speaker === 'Borak';
 	let minimumMovementAt = stagingEvidence.movementAt;
 	let rangeObserved: boolean;
 	let blockedBeforeRange = false;
@@ -8899,15 +8991,13 @@ async function interactWithInteriorNpc(page: Page, interaction: InteriorGrayboxI
 async function completeGuildMasterQuest(page: Page) {
 	await page.waitForFunction(
 		() =>
-			(window as GlieseProbeWindow).__glieseLastHudState?.status?.includes(
-				'Guild Master Arlen nearby'
-			) === true,
+			(window as GlieseProbeWindow).__glieseLastHudState?.status?.includes('Borak nearby') === true,
 		undefined,
 		{ timeout: 30_000 }
 	);
 	await page.locator('canvas').click();
 	await page.keyboard.press('e', { delay: 50 });
-	const dialogue = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+	const dialogue = page.getByRole('dialog', { name: 'Borak' });
 	await expect(dialogue).toBeVisible();
 	await expect(dialogue.locator('.jrpg-dialogue-line')).toContainText(
 		/eastern ruins are stirring/i
@@ -9891,7 +9981,7 @@ async function traverseInteriorForJourney(
 		}
 		if (step.interaction) {
 			const pointBeforeInteraction = currentPoint;
-			if (options.completeGuildMasterQuest && step.interaction.speaker === 'Guild Master Arlen') {
+			if (options.completeGuildMasterQuest && step.interaction.speaker === 'Borak') {
 				await completeGuildMasterQuest(page);
 			} else {
 				await interactWithInteriorNpc(page, step.interaction);
@@ -10961,7 +11051,8 @@ async function writeAllEightOverworldSave(page: Page, interior: InteriorGrayboxC
 			y: interior.returnArrival.y,
 			facing: 'up'
 		},
-		wallet: { coins: wallet }
+		wallet: { coins: wallet },
+		quests: allEightQuests(interior)
 	});
 	await page.evaluate(
 		({ key, save }) => {
@@ -12172,7 +12263,8 @@ test('all eight painted village interiors', async ({ page }) => {
 				x: firstInterior.returnArrival.x,
 				y: firstInterior.returnArrival.y,
 				facing: 'up'
-			}
+			},
+			quests: allEightQuests(firstInterior)
 		})
 	);
 	await page.setViewportSize({ width: 640, height: 360 });
@@ -12404,7 +12496,7 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 		await page.keyboard.down(key);
 		try {
 			await page.waitForFunction(
-				(requested) => {
+				({ requested, key, keyCode }) => {
 					const probeWindow = window as GlieseProbeWindow;
 					const state = probeWindow.__glieseLastHudState;
 					if (requested.kind === 'map') return state?.mapId === requested.value;
@@ -12413,11 +12505,20 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 					const player = gate && gate.mapId === state?.mapId ? gate.player : state?.areaMap?.player;
 					if (typeof player?.x !== 'number' || typeof player.y !== 'number') return false;
 					const value = requested.axis === 'x' ? player.x : player.y;
-					return requested.direction === 'gte'
-						? value >= requested.value
-						: value <= requested.value;
+					const reached =
+						requested.direction === 'gte' ? value >= requested.value : value <= requested.value;
+					if (reached) {
+						// Release in this frame: a keyup over CDP lands a variable number of frames
+						// later, and at 240px/s every frame of delay is a few more pixels of overshoot.
+						const keyup = new KeyboardEvent('keyup', { bubbles: true, cancelable: true, key });
+						for (const field of ['keyCode', 'which'] as const) {
+							Object.defineProperty(keyup, field, { configurable: true, value: keyCode });
+						}
+						window.dispatchEvent(keyup);
+					}
+					return reached;
 				},
-				stop,
+				{ requested: stop, key, keyCode: key.toUpperCase().charCodeAt(0) },
 				{ timeout: timeoutMs }
 			);
 		} catch (error) {
@@ -12716,8 +12817,9 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 				mapId: 'overworld'
 			}));
 		});
+	// The first top-lane sample before the south turn, wherever in the lane the run walked.
 	const detourIndex = overworldTrace.findIndex(
-		(point) => point.x >= 4_900 && point.y >= 7_168 && point.y <= 7_204
+		(point) => point.x >= 4_900 && point.x < 5_136 && point.y >= 7_152 && point.y <= 7_216
 	);
 	expect(detourIndex).toBeGreaterThanOrEqual(0);
 	const detouredTrace = [
@@ -13074,7 +13176,8 @@ test('Guild Hall painted interior', async ({ page }) => {
 				x: guildHall.returnArrival.x,
 				y: guildHall.returnArrival.y,
 				facing: 'up'
-			}
+			},
+			quests: createBoarKingQuestFixture()
 		})
 	);
 	await page.setViewportSize({ width: 640, height: 360 });
@@ -13550,6 +13653,7 @@ test('Villager House 1 painted interior', async ({ page }) => {
 				expect(step.label).toBe('family-anchor');
 				expect(Math.abs(point.x - family.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
 				expect(Math.abs(point.y - family.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+				await walkToAmbientNpcStance(page, house.mapId, family, [48, 32]);
 				await page.locator('canvas').click();
 				await page.keyboard.press('e', { delay: 50 });
 				const noOneNearbyDialogue = page.getByRole('dialog', { name: 'Traveler' });
@@ -13563,6 +13667,7 @@ test('Villager House 1 painted interior', async ({ page }) => {
 				expect(familyHud?.mapId).toBe(house.mapId);
 				expect(familyHud?.dialogue ?? null).toBeNull();
 				expect(familyHud?.status ?? '').not.toContain(family.id);
+				await walkBackToStepPoint(page, house.mapId, point);
 
 				const resumed = await saveInteriorCheckpointAndReload(page, house.mapId, point);
 				assertVillagerHouse1PaintedDiagnostic(
@@ -13807,6 +13912,7 @@ test('Villager House 2 painted interior', async ({ page }) => {
 					await saveVillagerHouse2Canvas(page, 'toma-interaction-camera-640x360.png');
 				}
 				if (step.label === 'neighbor') {
+					await walkToAmbientNpcStance(page, house.mapId, neighbor, [48, 32]);
 					await page.locator('canvas').click();
 					await page.keyboard.press('e', { delay: 50 });
 					const noOneNearbyDialogue = page.getByRole('dialog', { name: 'Traveler' });
@@ -13820,6 +13926,7 @@ test('Villager House 2 painted interior', async ({ page }) => {
 					expect(neighborHud?.mapId).toBe(house.mapId);
 					expect(neighborHud?.dialogue ?? null).toBeNull();
 					expect(neighborHud?.status ?? '').not.toContain(neighbor.id);
+					await walkBackToStepPoint(page, house.mapId, point);
 				}
 				if (step.label !== house.persistAfterStep) return point;
 
@@ -13903,7 +14010,7 @@ test('Villager House 3 painted interior', async ({ page }) => {
 		({ id }) => id === 'villager-house-3-neighbor'
 	);
 	if (!io || !neighbor) throw new Error('Villager House 3 actor fixtures are missing');
-	expect(house.returnArrival).toEqual({ x: 1_472, y: 5_920 });
+	expect(house.returnArrival).toEqual({ x: 4_848, y: 7_504 });
 	expect(house.spawn).toEqual(layout.spawn);
 	expect(house.exit).toEqual(layout.exit);
 	expect(house.steps.map(({ label }) => label)).toEqual(
@@ -13954,6 +14061,8 @@ test('Villager House 3 painted interior', async ({ page }) => {
 					await saveVillagerHouse3Canvas(page, 'io-interaction-camera-640x360.png');
 				}
 				if (step.label === 'neighbor') {
+					// The step point is 96px east; the near side of the villager is a prop.
+					await walkToAmbientNpcStance(page, house.mapId, neighbor, [48]);
 					await page.locator('canvas').click();
 					await page.keyboard.press('e', { delay: 50 });
 					const noOneNearbyDialogue = page.getByRole('dialog', { name: 'Traveler' });
@@ -13967,6 +14076,7 @@ test('Villager House 3 painted interior', async ({ page }) => {
 					expect(neighborHud?.mapId).toBe(house.mapId);
 					expect(neighborHud?.dialogue ?? null).toBeNull();
 					expect(neighborHud?.status ?? '').not.toContain(neighbor.id);
+					await walkBackToStepPoint(page, house.mapId, point);
 				}
 				if (step.label !== house.persistAfterStep) return point;
 				expect(step.label).toBe('io-approach');
@@ -14046,7 +14156,7 @@ test('Shrine of Aurora painted interior', async ({ page }) => {
 	);
 	if (!shrine) throw new Error('Shrine of Aurora route constants are missing');
 	const layout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
-	expect(shrine.returnArrival).toEqual({ x: 2_272, y: 5_920 });
+	expect(shrine.returnArrival).toEqual({ x: 4_496, y: 6_320 });
 	expect(shrine.spawn).toEqual(layout.spawn);
 	expect(shrine.exit).toEqual(layout.exit);
 	expect(shrine.steps.map(({ label }) => label)).toEqual(
