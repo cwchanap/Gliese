@@ -10,7 +10,8 @@ import {
 	createInitialQuestState,
 	getCurrentObjective,
 	getStoryProgress,
-	type QuestState
+	type QuestState,
+	type StoryProgress
 } from '$lib/game/core/quests';
 import { applyStoryGates } from '$lib/game/core/story-gates';
 import { getQuestText } from '$lib/game/i18n/content';
@@ -69,11 +70,15 @@ export function buildAreaMapState({
 	locale: Locale;
 	seenDiscoveries?: string[];
 }): HudAreaMapState {
-	const knownEntrances = knownQuestEntranceIds(map, quests);
+	const objective = getCurrentObjective(quests);
+	const progress = getStoryProgress(quests);
+	const counted = new Set(quests.entries[progress.questId]?.countedSourceIds ?? []);
+
+	const knownEntrances = knownQuestEntranceIds(map, objective, progress, counted);
 	const markerCandidates = [
 		...buildLandmarkMarkers(map, locale),
 		...buildTransitionMarkers(map, locale, knownEntrances),
-		...buildMainQuestMarkers(map, quests, locale),
+		...buildMainQuestMarkers(map, objective, progress.questId, counted, locale),
 		...buildDiscoveryMarkers(map, seenDiscoveries, locale)
 	];
 
@@ -150,55 +155,6 @@ function buildTransitionMarkers(
 		}));
 }
 
-function knownQuestEntranceIds(map: WorldMapDefinition, quests: QuestState): ReadonlySet<string> {
-	const objective = getCurrentObjective(quests);
-	if (!objective || objective.kind !== 'talk-to-npc') return new Set();
-	const progress = getStoryProgress(quests);
-	const counted = new Set(quests.entries[progress.questId]?.countedSourceIds ?? []);
-	const npcIds = objective.npcIds.filter((npcId) => !counted.has(`npc:${npcId}`));
-	if (npcIds.length === 0) return new Set();
-	return new Set(
-		map.transitions
-			.filter((transition) => {
-				const destination = maps[transition.toMapId];
-				if (!destination) return false;
-				return (
-					applyStoryGates(destination, progress).npcs?.some((npc) =>
-						npcIds.includes(npc.dialogueId)
-					) ?? false
-				);
-			})
-			.map((transition) => transition.id)
-	);
-}
-
-/**
- * Pins the current main objective's targets on this map: the NPCs still to talk
- * to, the discoveries still to examine, the pickups still to gather, and the
- * encounters still to fight. Targets on other maps are left to the journal.
- */
-function buildMainQuestMarkers(
-	map: WorldMapDefinition,
-	quests: QuestState,
-	locale: Locale
-): HudAreaMapMarker[] {
-	const objective = getCurrentObjective(quests);
-	if (!objective) return [];
-
-	const { questId } = getStoryProgress(quests);
-	const counted = new Set(quests.entries[questId]?.countedSourceIds ?? []);
-	const label = getQuestText(locale, questId)?.title ?? t(locale, 'ui.quests');
-
-	return getObjectiveTargets(map, objective, counted).map((target) => ({
-		id: `${questId}:${objective.id}:${target.id}`,
-		kind: 'quest',
-		x: target.x,
-		y: target.y,
-		label,
-		emphasis: true
-	}));
-}
-
 function getObjectiveTargets(
 	map: WorldMapDefinition,
 	objective: QuestObjective,
@@ -229,6 +185,52 @@ function getObjectiveTargets(
 					![...counted].some((sourceId) => sourceId.startsWith(`encounter:${encounter.id}:`))
 			);
 	}
+}
+
+function knownQuestEntranceIds(
+	map: WorldMapDefinition,
+	objective: QuestObjective | null,
+	progress: StoryProgress,
+	counted: ReadonlySet<string>
+): ReadonlySet<string> {
+	if (!objective || objective.kind !== 'talk-to-npc') return new Set();
+	return new Set(
+		map.transitions
+			.filter((transition) => {
+				if (transition.toMapId === 'overworld') return false;
+				const destination = maps[transition.toMapId];
+				if (!destination) return false;
+				const gatedDestination = applyStoryGates(destination, progress);
+				return getObjectiveTargets(gatedDestination, objective, counted).length > 0;
+			})
+			.map((transition) => transition.id)
+	);
+}
+
+/**
+ * Pins the current main objective's targets on this map: the NPCs still to talk
+ * to, the discoveries still to examine, the pickups still to gather, and the
+ * encounters still to fight. Targets on other maps are left to the journal.
+ */
+function buildMainQuestMarkers(
+	map: WorldMapDefinition,
+	objective: QuestObjective | null,
+	questId: string,
+	counted: ReadonlySet<string>,
+	locale: Locale
+): HudAreaMapMarker[] {
+	if (!objective) return [];
+
+	const label = getQuestText(locale, questId)?.title ?? t(locale, 'ui.quests');
+
+	return getObjectiveTargets(map, objective, counted).map((target) => ({
+		id: `${questId}:${objective.id}:${target.id}`,
+		kind: 'quest',
+		x: target.x,
+		y: target.y,
+		label,
+		emphasis: true
+	}));
 }
 
 const areaNameKeys = {
@@ -267,19 +269,45 @@ export function clampedLocalMapView({
 	worldWidth: number;
 	worldHeight: number;
 }): AreaMapView {
+	const x =
+		width >= worldWidth
+			? (worldWidth - width) / 2
+			: Math.min(Math.max(centerX - width / 2, 0), worldWidth - width);
+	const y =
+		height >= worldHeight
+			? (worldHeight - height) / 2
+			: Math.min(Math.max(centerY - height / 2, 0), worldHeight - height);
 	return {
-		x: Math.min(Math.max(centerX - width / 2, 0), Math.max(0, worldWidth - width)),
-		y: Math.min(Math.max(centerY - height / 2, 0), Math.max(0, worldHeight - height)),
+		x,
+		y,
 		width,
 		height
 	};
 }
 
 export function areaMapLocalView(areaMap: HudAreaMapState): AreaMapView {
+	if (
+		areaMap.worldWidth <= AREA_MAP_VIEW_MIN_SPAN &&
+		areaMap.worldHeight <= AREA_MAP_VIEW_MIN_SPAN
+	) {
+		return {
+			x: 0,
+			y: 0,
+			width: areaMap.worldWidth,
+			height: areaMap.worldHeight
+		};
+	}
+
 	const focusPoints = [
 		{ x: areaMap.player.x, y: areaMap.player.y },
 		...areaMap.markers
-			.filter((marker) => marker.knownQuestEntrance === true)
+			.filter(
+				(marker) =>
+					marker.knownQuestEntrance === true ||
+					marker.kind === 'quest' ||
+					marker.kind === 'discovery' ||
+					marker.kind === 'building'
+			)
 			.flatMap((marker) => [
 				{ x: marker.x, y: marker.y },
 				{ x: marker.x + markerLabelExtent(marker), y: marker.y }
@@ -293,6 +321,16 @@ export function areaMapLocalView(areaMap: HudAreaMapState): AreaMapView {
 		Math.max(AREA_MAP_VIEW_MIN_SPAN, maxX - minX, maxY - minY),
 		Math.max(areaMap.worldWidth, areaMap.worldHeight)
 	);
+
+	if (span >= areaMap.worldWidth && span >= areaMap.worldHeight) {
+		return {
+			x: 0,
+			y: 0,
+			width: areaMap.worldWidth,
+			height: areaMap.worldHeight
+		};
+	}
+
 	return clampedLocalMapView({
 		centerX: (minX + maxX) / 2,
 		centerY: (minY + maxY) / 2,
@@ -360,7 +398,12 @@ export function areaMapMarkerFocusCoords(
 	return coords;
 }
 
-function markerLabelExtent(marker: HudAreaMapMarker): number {
+export function markerLabelExtent(marker: HudAreaMapMarker): number {
 	const fontPx = marker.emphasis ? AREA_MAP_MARKER_EMPHASIS_FONT_PX : AREA_MAP_MARKER_FONT_PX;
-	return AREA_MAP_MARKER_LABEL_DX + marker.label.length * fontPx;
+	let widthEm = 0;
+	for (const char of marker.label) {
+		const code = char.charCodeAt(0);
+		widthEm += code > 255 ? 1.0 : 0.55;
+	}
+	return AREA_MAP_MARKER_LABEL_DX + Math.ceil(widthEm * fontPx);
 }

@@ -1642,7 +1642,7 @@ describe('GameShell area map', () => {
 							id: 'ruins-gate',
 							kind: 'quest',
 							x: 2_048,
-							y: 5_568,
+							y: 5_504,
 							label: 'Ruins Gate',
 							emphasis: true
 						}
@@ -3370,7 +3370,7 @@ describe('GameShell pad layer', () => {
 							id: 'ruins-gate',
 							kind: 'quest',
 							x: 2_048,
-							y: 5_568,
+							y: 5_504,
 							label: 'Ruins Gate',
 							emphasis: true
 						}

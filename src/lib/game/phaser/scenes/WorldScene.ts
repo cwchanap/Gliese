@@ -80,12 +80,7 @@ import {
 	type RegionalBackgroundPlaneRenderDiagnosticEntry,
 	type RegionalBackgroundRenderStatus
 } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
-import {
-	emitHeroRenderProbe,
-	emitPlayerMovementDiagnostic,
-	onHeroRenderProbeRequest,
-	type DiagnosticCameraSnapshot
-} from '$lib/game/phaser/player-movement-diagnostics';
+import { emitPlayerMovementDiagnostic } from '$lib/game/phaser/player-movement-diagnostics';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import { buildAreaMapState } from '$lib/game/core/area-map';
 import {
@@ -477,9 +472,6 @@ export class WorldScene extends Phaser.Scene {
 	private storyDialogueSeq = 0;
 	private resolvedEncounterDrops: SaveState['flags']['resolvedEncounterDrops'] = {};
 	private removeHudCommandListener = () => {};
-	private removeHeroRenderProbeListener = () => {};
-	private pendingHeroRenderProbe: (() => void) | null = null;
-	private readonly cancelHeroRenderProbeOnDestroy = () => this.cancelHeroRenderProbe();
 	private renderOptions!: WorldRenderOptions;
 	private simulationPaused = false;
 	/** A quest effect (a scene or a fade) is playing; the next one waits for it. */
@@ -724,10 +716,6 @@ export class WorldScene extends Phaser.Scene {
 			: [];
 		this.removeHudCommandListener();
 		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
-		this.removeHeroRenderProbeListener();
-		this.removeHeroRenderProbeListener = this.renderOptions.movementDiagnostics
-			? onHeroRenderProbeRequest(() => this.answerHeroRenderProbe())
-			: () => {};
 		this.unsubscribePreferences?.();
 		let preferencesInitialized = false;
 		this.unsubscribePreferences = preferences.subscribe(() => {
@@ -740,16 +728,16 @@ export class WorldScene extends Phaser.Scene {
 			}
 			this.publishHudState(this.lastPublishedStatus);
 		});
-		this.events?.once?.('shutdown', () => {
+		const cleanup = () => {
 			this.renderEpoch += 1;
 			this.removeHudCommandListener();
-			this.removeHeroRenderProbeListener();
-			this.cancelHeroRenderProbe();
-			this.events?.off?.('destroy', this.cancelHeroRenderProbeOnDestroy);
 			this.unsubscribePreferences?.();
 			this.unsubscribePreferences = null;
-		});
-		this.events?.once?.('destroy', this.cancelHeroRenderProbeOnDestroy);
+			this.events?.off?.('shutdown', cleanup);
+			this.events?.off?.('destroy', cleanup);
+		};
+		this.events?.once?.('shutdown', cleanup);
+		this.events?.once?.('destroy', cleanup);
 
 		setAmbience(this, ambienceFor(map.id, getStoryProgress(this.quests)));
 		if (reason === 'transition') {
@@ -780,11 +768,7 @@ export class WorldScene extends Phaser.Scene {
 			this.cameras.main.fadeIn?.(WorldScene.storyFadeMs, 0, 0, 0);
 		}
 
-		const camera = this.cameras?.main;
-		if (camera) {
-			const screen = heroScreenPosition(camera, this.player);
-			this.heroOccluded = isHeroInHeroCardZone(screen.x, screen.y, camera.width, camera.height);
-		}
+		this.updateHeroOcclusion(false);
 
 		this.publishHudState(data.status ?? this.resolveInitialStatus(reason, Boolean(fledBounds)));
 	}
@@ -873,8 +857,7 @@ export class WorldScene extends Phaser.Scene {
 				previousPosition: { x: this.player.x, y: this.player.y },
 				requestedPosition: { x: targetX, y: targetY },
 				resolvedPosition,
-				blocked: resolvedPosition.x !== targetX || resolvedPosition.y !== targetY,
-				camera: this.diagnosticCameraSnapshot()
+				blocked: resolvedPosition.x !== targetX || resolvedPosition.y !== targetY
 			});
 		}
 
@@ -1343,7 +1326,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private updateHeroOcclusion() {
+	private updateHeroOcclusion(publish = true) {
 		const camera = this.cameras?.main;
 		if (!camera || !this.player) {
 			return;
@@ -1352,52 +1335,9 @@ export class WorldScene extends Phaser.Scene {
 		const occluded = isHeroInHeroCardZone(screen.x, screen.y, camera.width, camera.height);
 		if (occluded !== this.heroOccluded) {
 			this.heroOccluded = occluded;
-			this.publishHudState(this.lastPublishedStatus);
-		}
-	}
-
-	private diagnosticCameraSnapshot(): DiagnosticCameraSnapshot | null {
-		const camera = this.cameras?.main;
-		if (!camera) {
-			return null;
-		}
-		return {
-			scrollX: camera.scrollX,
-			scrollY: camera.scrollY,
-			zoomX: camera.zoomX,
-			zoomY: camera.zoomY,
-			width: camera.width,
-			height: camera.height,
-			x: camera.x,
-			y: camera.y
-		};
-	}
-
-	private answerHeroRenderProbe() {
-		if (!this.renderOptions.movementDiagnostics || this.pendingHeroRenderProbe) {
-			return;
-		}
-		const epoch = this.renderEpoch;
-		const respond = () => {
-			this.pendingHeroRenderProbe = null;
-			if (epoch !== this.renderEpoch || !this.renderOptions.movementDiagnostics) {
-				return;
+			if (publish) {
+				this.publishHudState(this.lastPublishedStatus);
 			}
-			emitHeroRenderProbe({
-				mapId: this.mapId,
-				spritePosition: this.player ? { x: this.player.x, y: this.player.y } : null,
-				camera: this.diagnosticCameraSnapshot()
-			});
-		};
-		this.pendingHeroRenderProbe = respond;
-		this.events?.once?.('render', respond);
-	}
-
-	private cancelHeroRenderProbe() {
-		const pending = this.pendingHeroRenderProbe;
-		this.pendingHeroRenderProbe = null;
-		if (pending) {
-			this.events?.off?.('render', pending);
 		}
 	}
 
@@ -3198,6 +3138,24 @@ export class WorldScene extends Phaser.Scene {
 		return this.enemies.some((enemy) => !enemy.defeated);
 	}
 
+	private isTrackedAmbientNpcNearby(ambientNpcId: string): boolean {
+		if (!this.player) {
+			return false;
+		}
+		const map = this.resolveMap(this.mapId);
+		const ambientNpc = map.ambientNpcs?.find((npc) => npc.id === ambientNpcId);
+		if (!ambientNpc) {
+			return false;
+		}
+		const distance = Phaser.Math.Distance.Between(
+			this.player.x,
+			this.player.y,
+			ambientNpc.x,
+			ambientNpc.y
+		);
+		return distance <= PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
+	}
+
 	private updateNpcDialogue() {
 		if (!this.player) {
 			return;
@@ -3206,6 +3164,10 @@ export class WorldScene extends Phaser.Scene {
 		const nearbyNpc = this.findNearbyNpc();
 
 		if (!nearbyNpc) {
+			if (this.currentNearbyNpcId && this.isTrackedAmbientNpcNearby(this.currentNearbyNpcId)) {
+				return;
+			}
+
 			const hadShop = this.nearbyShopId !== null;
 			const hadNearbyStatus =
 				this.currentNearbyNpcStatus !== null &&
@@ -3219,7 +3181,7 @@ export class WorldScene extends Phaser.Scene {
 			if (hadShop) {
 				this.publishHudState(this.status('status.shopOutOfReach'));
 			} else if (hadNearbyStatus) {
-				this.publishHudState(this.status('status.noOneNearby'));
+				this.publishHudState('');
 			}
 
 			return;
@@ -3452,6 +3414,7 @@ export class WorldScene extends Phaser.Scene {
 
 		if (!nearbyNpc) {
 			const ambientNpc = this.findNearbyAmbientNpc();
+			const statusKey = ambientNpc ? 'status.nothingToSay' : 'status.noOneNearby';
 			this.dialogueSession = buildDialogueFallback(
 				this.getTravelerSpeaker(),
 				this.status(
@@ -3460,7 +3423,12 @@ export class WorldScene extends Phaser.Scene {
 						: 'content.dialogue.system.noOneNearby'
 				)
 			);
-			this.publishHudState(this.status(ambientNpc ? 'status.nothingToSay' : 'status.noOneNearby'));
+			const publishedStatus = this.status(statusKey);
+			if (ambientNpc) {
+				this.currentNearbyNpcId = ambientNpc.id;
+				this.currentNearbyNpcStatus = publishedStatus;
+			}
+			this.publishHudState(publishedStatus);
 			return;
 		}
 
@@ -3516,18 +3484,20 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private findNearbyNpc(): MapNpc | undefined {
-		if (!this.player) {
+	private findNearbyCandidateNpc<TNpc extends MapNpc | MapAmbientNpc>(
+		npcs: readonly TNpc[] | undefined,
+		requireFacing = false
+	): TNpc | undefined {
+		if (!this.player || !npcs || npcs.length === 0) {
 			return undefined;
 		}
-
-		const map = this.resolveMap(this.mapId);
 
 		return selectNearbyCandidate({
 			origin: { x: this.player.x, y: this.player.y },
 			facing: this.facing,
 			reach: PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS,
-			candidates: (map.npcs ?? []).map((npc) => ({
+			requireFacing,
+			candidates: npcs.map((npc) => ({
 				npc,
 				id: npc.id,
 				x: npc.x,
@@ -3537,25 +3507,14 @@ export class WorldScene extends Phaser.Scene {
 		})?.npc;
 	}
 
-	private findNearbyAmbientNpc(): MapAmbientNpc | undefined {
-		if (!this.player) {
-			return undefined;
-		}
-
+	private findNearbyNpc(): MapNpc | undefined {
 		const map = this.resolveMap(this.mapId);
+		return this.findNearbyCandidateNpc(map.npcs);
+	}
 
-		return selectNearbyCandidate({
-			origin: { x: this.player.x, y: this.player.y },
-			facing: this.facing,
-			reach: PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS,
-			candidates: (map.ambientNpcs ?? []).map((npc) => ({
-				npc,
-				id: npc.id,
-				x: npc.x,
-				y: npc.y,
-				radius: this.getNpcCollisionRadius(npc)
-			}))
-		})?.npc;
+	private findNearbyAmbientNpc(): MapAmbientNpc | undefined {
+		const map = this.resolveMap(this.mapId);
+		return this.findNearbyCandidateNpc(map.ambientNpcs, true);
 	}
 
 	private tryCollectPickup() {
