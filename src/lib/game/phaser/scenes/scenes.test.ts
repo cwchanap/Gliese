@@ -9808,6 +9808,11 @@ describe('WorldScene', () => {
 			})
 		);
 
+		// Subsequent update while remaining in outer reach (distance 48 > 40, within 40 + npcRadius) preserves status
+		emitHudStateSpy.mockClear();
+		scene.update(40, 16);
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
+
 		// Leaving the ambient NPC's reach clears the status
 		emitHudStateSpy.mockClear();
 		Object.assign(phaserState.playerMarker, { x: 50, y: 50 });

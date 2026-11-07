@@ -11,12 +11,15 @@ export type HeroScreenCamera = {
 };
 
 const DESKTOP_CARD_ZONE = { width: 412, height: 240 } as const;
-const NARROW_CARD_ZONE = { width: 326, height: 222 } as const;
 const SHORT_CARD_ZONE = { width: 326, height: 148 } as const;
 
 export function heroCardZone(viewWidth: number, viewHeight: number) {
 	if (viewHeight <= 559) return SHORT_CARD_ZONE;
-	if (viewWidth <= 720) return NARROW_CARD_ZONE;
+	if (viewWidth <= 720) {
+		const renderedWidth = Math.min(304, Math.max(0, viewWidth - 112));
+		const width = Math.min(326, 12 + renderedWidth + 10);
+		return { width, height: 222 };
+	}
 	return DESKTOP_CARD_ZONE;
 }
 

@@ -11,6 +11,7 @@ describe('heroCardZone', () => {
 	it('picks the narrow-portrait zone for tall compact viewports', () => {
 		expect(heroCardZone(420, 760)).toEqual({ width: 326, height: 222 });
 		expect(heroCardZone(720, 560)).toEqual({ width: 326, height: 222 });
+		expect(heroCardZone(360, 760)).toEqual({ width: 270, height: 222 });
 	});
 
 	it('picks the desktop zone for large viewports', () => {
@@ -48,6 +49,15 @@ describe('isHeroInHeroCardZone', () => {
 		expect(isHeroInHeroCardZone(160, 316, 420, 760)).toBe(false);
 		expect(isHeroInHeroCardZone(100, 280, 420, 760)).toBe(false);
 		expect(isHeroInHeroCardZone(380, 60, 420, 760)).toBe(false);
+	});
+
+	it('scales the portrait zone to the responsive card width at 360x760', () => {
+		expect(isHeroInHeroCardZone(84, 176, 360, 760)).toBe(true);
+		expect(isHeroInHeroCardZone(0, 0, 360, 760)).toBe(true);
+		// Hero at x=340 has modeled left edge 295, clear of the responsive 270px zone
+		expect(isHeroInHeroCardZone(340, 100, 360, 760)).toBe(false);
+		expect(isHeroInHeroCardZone(160, 316, 360, 760)).toBe(false);
+		expect(isHeroInHeroCardZone(380, 60, 360, 760)).toBe(false);
 	});
 
 	it('flags heroes under the desktop card at 1280x800 and leaves clear spots alone', () => {
