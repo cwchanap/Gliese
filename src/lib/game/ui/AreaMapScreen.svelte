@@ -8,6 +8,7 @@
 		AREA_MAP_MARKER_FONT_PX,
 		AREA_MAP_MARKER_LABEL_DX,
 		areaMapLocalView,
+		areaMapMarkerFocusCoords,
 		areaMapMarkersInView,
 		type HudAreaMapState
 	} from '$lib/game/core/area-map';
@@ -44,27 +45,9 @@
 	});
 
 	// Pad/arrow focus geometry: markers join the resolveMenuFocusTarget
-	// lattice roughly by geography — rows are ~1/8-world-height bands walked
-	// top to bottom, columns are x-rank within a band (left to right).
-	const markerFocusCoords = $derived.by(() => {
-		const coords: Record<string, { row: number; column: number }> = {};
-		const sorted = [...visibleMarkers].sort((a, b) => a.y - b.y || a.x - b.x);
-		const rowBand = areaMap.worldHeight / 8;
-		let row = -1;
-		let column = 0;
-		let previousY = Number.NaN;
-		for (const marker of sorted) {
-			if (Number.isNaN(previousY) || marker.y - previousY > rowBand) {
-				row += 1;
-				column = 0;
-			} else {
-				column += 1;
-			}
-			coords[marker.id] = { row, column };
-			previousY = marker.y;
-		}
-		return coords;
-	});
+	// lattice by local mapView geometry — rows are bands across the local
+	// view walked top to bottom, columns are x-rank within each band.
+	const markerFocusCoords = $derived(areaMapMarkerFocusCoords(visibleMarkers, mapView));
 </script>
 
 {#if open}
