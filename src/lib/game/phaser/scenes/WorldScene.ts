@@ -103,6 +103,7 @@ import { resolveMovementVector } from '$lib/game/core/input';
 import { addItem, consumeStackItem } from '$lib/game/core/inventory';
 import { resolveLootDrops } from '$lib/game/core/loot';
 import {
+	entersUnrelatedDoorZone,
 	resolveMovementSegment,
 	type NavigationGrid,
 	type NavigationObstacle
@@ -2757,7 +2758,18 @@ export class WorldScene extends Phaser.Scene {
 			this.navigationObstacles,
 			{ x: currentX, y: currentY },
 			{ x: targetX, y: targetY },
-			WorldScene.playerRadius
+			WorldScene.playerRadius,
+			{
+				// A corner slide must not carry the player into a door they are not walking toward.
+				canSlideTo: (destination, from, to) =>
+					!entersUnrelatedDoorZone(
+						destination,
+						from,
+						to,
+						this.resolveMap(this.mapId).transitions,
+						WorldScene.playerRadius + WorldScene.transitionRadius
+					)
+			}
 		);
 	}
 

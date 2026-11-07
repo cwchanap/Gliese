@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { walk } from './navigation-test-utils';
+
 import {
 	compileNavigationGrid,
 	createOpenNavigationGrid,
+	entersUnrelatedDoorZone,
 	findNearestWalkablePosition,
 	findLandmarkDoorway,
 	getLandmarkCollisionRects,
@@ -553,14 +556,23 @@ describe('navigation movement and obstacle policies', () => {
 			x: 40,
 			y: 24
 		});
+		// The slide is vetoed so these two pin only the padding, not the corner slide around it.
+		const noSlide = { canSlideTo: () => false };
 		expect(
-			resolveMovementSegment(openGrid(8, 4), [rect], { x: 48, y: 24 }, { x: 60, y: 24 }, 4)
+			resolveMovementSegment(openGrid(8, 4), [rect], { x: 48, y: 24 }, { x: 60, y: 24 }, 4, noSlide)
 		).toEqual({
 			x: 48,
 			y: 24
 		});
 		expect(
-			resolveMovementSegment(openGrid(8, 4), [circle], { x: 8, y: 24 }, { x: 20, y: 24 }, 4)
+			resolveMovementSegment(
+				openGrid(8, 4),
+				[circle],
+				{ x: 8, y: 24 },
+				{ x: 20, y: 24 },
+				4,
+				noSlide
+			)
 		).toEqual({
 			x: 8,
 			y: 24
@@ -580,5 +592,149 @@ describe('navigation movement and obstacle policies', () => {
 
 		expect(isPositionWalkable(grid, [npc], { x: 48, y: 48 }, 12, 'movement-target')).toBe(false);
 		expect(isPositionWalkable(grid, [npc], { x: 48, y: 48 }, 12, 'resting-position')).toBe(true);
+	});
+});
+
+describe('corner slide', () => {
+	// A two-cell lane (x 32–64, y 32–80) through a wall; open ground above and below it.
+	const verticalLane = () =>
+		compileNavigationGrid(
+			source({
+				widthCells: 6,
+				heightCells: 8,
+				rows: ['......', '......', '##..##', '##..##', '##..##', '......', '......', '......']
+			})
+		);
+	// The same lane laid on its side (x 32–80, y 32–64).
+	const horizontalLane = () =>
+		compileNavigationGrid(
+			source({
+				widthCells: 8,
+				heightCells: 6,
+				rows: ['..###...', '..###...', '........', '........', '..###...', '..###...']
+			})
+		);
+	const south = { x: 0, y: 1 };
+	const east = { x: 1, y: 0 };
+
+	it('carries a straight push into a lane that is a few pixels off', () => {
+		const end = walk(verticalLane(), [], { x: 68, y: 24 }, south, 40);
+
+		expect(end.x).toBeGreaterThanOrEqual(32);
+		expect(end.x).toBeLessThan(64);
+		expect(end.y).toBeGreaterThan(96);
+	});
+
+	it('does the same for a push along the other axis', () => {
+		const end = walk(horizontalLane(), [], { x: 24, y: 68 }, east, 40);
+
+		expect(end.y).toBeGreaterThanOrEqual(32);
+		expect(end.y).toBeLessThan(64);
+		expect(end.x).toBeGreaterThan(96);
+	});
+
+	it('reaches at most one cell sideways', () => {
+		const grid = verticalLane();
+
+		// x = 79 needs 16px to reach the lane, x = 80 needs 17.
+		expect(resolveMovementSegment(grid, [], { x: 79, y: 24 }, { x: 79, y: 40 }, 0)).toEqual({
+			x: 63,
+			y: 40
+		});
+		expect(resolveMovementSegment(grid, [], { x: 80, y: 24 }, { x: 80, y: 40 }, 0)).toEqual({
+			x: 80,
+			y: 24
+		});
+	});
+
+	it('moves sideways no faster than the push, then goes forward once aligned', () => {
+		const grid = verticalLane();
+
+		// The lane is 5px away; a 2px push slides 2px and does not advance yet.
+		expect(resolveMovementSegment(grid, [], { x: 68, y: 31 }, { x: 68, y: 33 }, 0)).toEqual({
+			x: 66,
+			y: 31
+		});
+		// A 5px push is enough to slide the full 5px and advance.
+		expect(resolveMovementSegment(grid, [], { x: 68, y: 31 }, { x: 68, y: 36 }, 0)).toEqual({
+			x: 63,
+			y: 36
+		});
+	});
+
+	it('lets the caller veto a slide', () => {
+		const grid = verticalLane();
+		const from = { x: 68, y: 31 };
+		const to = { x: 68, y: 36 };
+
+		expect(resolveMovementSegment(grid, [], from, to, 0, { canSlideTo: () => false })).toEqual(
+			from
+		);
+		expect(
+			resolveMovementSegment(grid, [], from, to, 0, { canSlideTo: (point) => point.x < 64 })
+		).toEqual({ x: 63, y: 36 });
+	});
+
+	it('does not slide a diagonal push, which already slides along the wall', () => {
+		expect(
+			resolveMovementSegment(verticalLane(), [], { x: 68, y: 24 }, { x: 72, y: 40 }, 0)
+		).toEqual({ x: 72, y: 24 });
+	});
+
+	it('stays put at a dead end instead of sliding through the side walls', () => {
+		const grid = compileNavigationGrid(
+			source({ widthCells: 6, heightCells: 4, rows: ['......', '##..##', '##..##', '######'] })
+		);
+
+		expect(resolveMovementSegment(grid, [], { x: 60, y: 40 }, { x: 60, y: 60 }, 0)).toEqual({
+			x: 60,
+			y: 40
+		});
+	});
+
+	it('slides around an obstacle body as well as around grid corners', () => {
+		const grid = createOpenNavigationGrid({
+			id: 'open',
+			mapId: 'open-map',
+			cellSizePx: 16,
+			widthCells: 12,
+			heightCells: 12
+		});
+		const npc: NavigationObstacle = {
+			id: 'npc',
+			shape: 'circle',
+			center: { x: 96, y: 96 },
+			radius: 17,
+			movement: 'escape-aware',
+			invalidAtRest: false
+		};
+
+		// x = 76 is 20px from the NPC; it clears the 29px body 9px further west.
+		const end = walk(grid, [npc], { x: 76, y: 40 }, south, 40, undefined, 4);
+		expect(end.y).toBeGreaterThan(150);
+	});
+});
+
+describe('entersUnrelatedDoorZone', () => {
+	const doors = [{ x: 100, y: 100 }];
+
+	it('lets a slide end anywhere outside every door zone', () => {
+		expect(
+			entersUnrelatedDoorZone({ x: 100, y: 140 }, { x: 100, y: 136 }, { x: 100, y: 140 }, doors, 30)
+		).toBe(false);
+	});
+
+	it('vetoes a slide that ends in the zone of a door beside the push', () => {
+		// Pushing south at x = 131, 31px from the door; the slide steps west to 127.
+		expect(
+			entersUnrelatedDoorZone({ x: 127, y: 100 }, { x: 131, y: 100 }, { x: 131, y: 104 }, doors, 30)
+		).toBe(true);
+	});
+
+	it('allows a slide that ends in the zone of the door the push is heading for', () => {
+		// Pushing north at y = 131, straight at the door.
+		expect(
+			entersUnrelatedDoorZone({ x: 97, y: 131 }, { x: 100, y: 131 }, { x: 100, y: 127 }, doors, 30)
+		).toBe(false);
 	});
 });

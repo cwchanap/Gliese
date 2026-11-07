@@ -7,6 +7,7 @@ import {
 	findUnreachablePoints
 } from '$lib/game/content/maps/grid/layers';
 import { isWalkable } from '$lib/game/core/navigation';
+import { walk } from '$lib/game/core/navigation-test-utils';
 
 import { sundropChunk } from './chunks/sundrop';
 import { overworldMap } from './map';
@@ -224,5 +225,25 @@ describe('Sundrop forge connector', () => {
 		)!;
 		const last = samples.at(-1)!;
 		expect(Math.hypot(last.x - forge.x, last.y - forge.y)).toBeLessThan(DOOR_TRIGGER_PX);
+	});
+
+	it('slides off the stair-stepped corner in front of the forge instead of wedging', () => {
+		const navigation = buildGridNavigationGrid(
+			overworld.id,
+			overworld.grid.terrain,
+			overworld.grid.buildings
+		);
+		const forge = overworldMap.transitions.find(
+			(transition) => transition.id === FORGE_TRANSITION
+		)!;
+		// North and east are both closed here; one pixel west, north is open for two tiles.
+		const wedge = { x: 5712, y: 7216 };
+		expect(Math.hypot(wedge.x - forge.x, wedge.y - forge.y)).toBeLessThan(100);
+		expect(isWalkable(navigation, wedge.x, wedge.y)).toBe(true);
+
+		const end = walk(navigation, [], wedge, { x: 0, y: -1 }, 12);
+
+		expect(end.y).toBeLessThanOrEqual(7192);
+		expect(isWalkable(navigation, end.x, end.y)).toBe(true);
 	});
 });

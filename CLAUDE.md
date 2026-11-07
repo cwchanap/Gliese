@@ -267,7 +267,10 @@ or opens it with a story overlay if the story keeps it shut for a while;
   the terrain. `-` keeps the tile underneath and any legend glyph replaces it (fire during the
   raid, a gate that opens). `applyStoryGates` decides which overlays are live.
 - **Walkability**: corridors and gaps must be at least 2 tiles wide. A 1-tile gap is closed,
-  because the player keeps 12px of clearance.
+  because the player keeps 12px of clearance. A straight push that is blocked slides the player
+  up to one cell (16px) sideways around the corner (`resolveMovementSegment`), on every map, so
+  being slightly off a lane does not wedge. Authored walls stay solid, and a slide never ends
+  in the trigger zone of a door the player is not walking toward.
 - **Check your work**: run `bun run map:preview` for the continent, or `-- --chunk <id>` for one
   chunk, and look at the PNG (add `--overlay all` for story terrain). Chunks are outlined and
   named, anchors are magenta dots, and chunk views label every 16th tile `col,row`. The base

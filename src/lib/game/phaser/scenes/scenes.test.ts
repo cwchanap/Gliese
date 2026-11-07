@@ -3444,7 +3444,38 @@ describe('WorldScene', () => {
 				widthCells: 8,
 				heightCells: 4,
 				clearancePx: 0,
-				rows: ['........', '...#....', '........', '........']
+				// A full-height wall, so the corner slide has no way around it.
+				rows: ['...#....', '...#....', '...#....', '...#....']
+			})
+		};
+	}
+
+	/** A 32px lane through a wall (x 80-112, y 32-80), with `transitions` placed on the ground around it. */
+	function registerSceneCornerSlideTestMap(transitions: WorldMapDefinition['transitions'] = []) {
+		maps['scene-corner-slide-test'] = {
+			id: 'scene-corner-slide-test',
+			width: 6,
+			height: 4,
+			spawnDirection: 'down',
+			spawn: { x: 116, y: 24 },
+			transitions,
+			navigationGrid: compileNavigationGrid({
+				id: 'scene-corner-slide-test-authored',
+				mapId: 'scene-corner-slide-test',
+				cellSizePx: 16,
+				widthCells: 12,
+				heightCells: 8,
+				clearancePx: 0,
+				rows: [
+					'............',
+					'............',
+					'#####..#####',
+					'#####..#####',
+					'#####..#####',
+					'............',
+					'............',
+					'............'
+				]
 			})
 		};
 	}
@@ -3837,6 +3868,7 @@ describe('WorldScene', () => {
 		delete maps['scene-registry-default-test'];
 		delete maps['scene-collision-test'];
 		delete maps['scene-navigation-grid-test'];
+		delete maps['scene-corner-slide-test'];
 		delete maps['area-map-reveal-test'];
 	});
 
@@ -7719,6 +7751,46 @@ describe('WorldScene', () => {
 		scene.update(0, 250);
 
 		expect(phaserState.playerMarker).toMatchObject({ x: 80, y: 48 });
+	});
+
+	it('slides a straight push toward a lane that is a few pixels off', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		registerSceneCornerSlideTestMap();
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'scene-corner-slide-test' });
+		Object.assign(phaserState.playerMarker, { x: 116, y: 30 });
+		phaserState.cursorKeys.down.isDown = true;
+
+		scene.update(0, 16);
+
+		// One 3.84px step, spent entirely sideways: the lane is 5px west.
+		expect(phaserState.playerMarker.x).toBeCloseTo(116 - 3.84);
+		expect(phaserState.playerMarker.y).toBe(30);
+	});
+
+	it('does not slide the player into the trigger zone of a door beside the push', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		registerSceneCornerSlideTestMap([
+			{
+				id: 'scene-slide-door',
+				x: 84,
+				y: 30,
+				toMapId: 'hero-house',
+				arrival: { x: 352, y: 480, facing: 'up' }
+			}
+		]);
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'scene-corner-slide-test' });
+		Object.assign(phaserState.playerMarker, { x: 116, y: 30 });
+		phaserState.cursorKeys.down.isDown = true;
+
+		// The door is 32px away; the slide would end 28px from it, inside its 30px trigger zone.
+		scene.update(0, 16);
+
+		expect(phaserState.playerMarker).toMatchObject({ x: 116, y: 30 });
+		expect(scene.scene.restart).not.toHaveBeenCalled();
 	});
 
 	it('emits exact movement diagnostic coordinates and blocked state', async () => {

@@ -19,6 +19,7 @@ import {
 	isWalkable,
 	resolveMovementSegment
 } from '$lib/game/core/navigation';
+import { walk } from '$lib/game/core/navigation-test-utils';
 import { VILLAGE_INTERIOR_LAYOUTS, type VillageInteriorLayout } from './village-interiors-v2';
 
 const EXPECTED_INTERIOR_PROGRAMS = {
@@ -562,14 +563,16 @@ describe('village interior layout coordinate contracts', () => {
 				).toEqual(to);
 			}
 		}
-		for (const y of [120, 184]) {
+		// The frame stays solid; y = 120 and 184 are within a slide of the doorway, so they get
+		// their own checks below.
+		for (const y of [96, 200]) {
 			for (const [label, from, to] of [
 				['hall->bedroom', { x: 304, y }, { x: 224, y }],
 				['bedroom->hall', { x: 224, y }, { x: 304, y }]
 			] as const) {
 				expect(
 					resolveMovementSegment(grid, [], from, to, PLAYER_COLLISION_RADIUS),
-					`${label} doorframe at y=${y} is passable`
+					`${label} doorframe at y=${y} is solid`
 				).toEqual(from);
 			}
 		}
@@ -594,6 +597,16 @@ describe('village interior layout coordinate contracts', () => {
 				`south wall at x=${x} is passable`
 			).toEqual({ x, y: 520 });
 		}
+
+		// Eight pixels above the bedroom doorway the player slides into it, in both directions.
+		const intoBedroom = walk(grid, [], { x: 304, y: 120 }, { x: -1, y: 0 }, 40);
+		expect(intoBedroom.x, 'hall -> bedroom, 8px above the doorway').toBeLessThan(240);
+		expect(intoBedroom.y).toBeGreaterThanOrEqual(128);
+		expect(intoBedroom.y).toBeLessThan(176);
+		const intoHall = walk(grid, [], { x: 236, y: 120 }, { x: 1, y: 0 }, 40);
+		expect(intoHall.x, 'bedroom -> hall, 8px above the doorway').toBeGreaterThanOrEqual(304);
+		expect(intoHall.y).toBeGreaterThanOrEqual(128);
+		expect(intoHall.y).toBeLessThan(176);
 	});
 
 	it('pins the Villager House 1 family-cottage program, anchors, circulation, and camera envelope', () => {

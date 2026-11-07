@@ -49,6 +49,8 @@ import {
 } from '$lib/game/content/maps';
 import type { MapDecor, WorldMapDefinition } from '$lib/game/content/maps';
 import { compileNavigationGrid, isWalkable } from '$lib/game/core/navigation';
+import { walk } from '$lib/game/core/navigation-test-utils';
+import { buildMapNavigationObstacles } from '$lib/game/content/maps/navigation';
 import {
 	collectLandmarkRects,
 	collectStrictCollisionRects,
@@ -2143,6 +2145,21 @@ describe('Hero House Gate 2 coordinate and navigation contracts', () => {
 			'hero-spawn-to-tikka'
 		);
 		expect(Math.hypot(tikkaApproach.x - tikka.x, tikkaApproach.y - tikka.y)).toBe(40);
+	});
+
+	it('walks past Tikka in the living room instead of catching on her body', () => {
+		const obstacles = buildMapNavigationObstacles(heroHouseMap, { includeInteractableNpcs: true });
+
+		// x = 132 is 20px from Tikka's 29px body; the lane west of her is 9px further over.
+		const end = walk(
+			heroHouseMap.navigationGrid!,
+			obstacles,
+			{ x: 132, y: 392 },
+			{ x: 0, y: 1 },
+			50
+		);
+
+		expect(end.y).toBeGreaterThan(500);
 	});
 });
 
