@@ -144,24 +144,105 @@ export function isWalkable(grid: NavigationGrid, x: number, y: number): boolean 
 	return !isGridPositionBlocked(grid, { x, y });
 }
 
+export interface MovementOptions {
+	/** Vetoes a corner slide that would take a player pushing `from` -> `to` to `destination`. */
+	readonly canSlideTo?: (
+		destination: NavigationPoint,
+		from: NavigationPoint,
+		to: NavigationPoint
+	) => boolean;
+}
+
+/**
+ * The widest corner slide: one navigation cell, the padding clearance adds around every
+ * blocked tile. A player lined up with the visible gap between two props is at most that far
+ * from the lane the padding leaves open.
+ */
+const CORNER_SLIDE_MAX_PX = 16;
+
 export function resolveMovementSegment(
 	grid: NavigationGrid,
 	obstacles: readonly NavigationObstacle[],
 	from: NavigationPoint,
 	to: NavigationPoint,
-	radius: number
+	radius: number,
+	options: MovementOptions = {}
 ): NavigationPoint {
 	let x = to.x;
 	let y = to.y;
 
-	if (isSegmentBlocked(grid, obstacles, from, { x, y: from.y }, radius)) {
-		x = from.x;
-	}
-	if (isSegmentBlocked(grid, obstacles, { x, y: from.y }, { x, y }, radius)) {
-		y = from.y;
+	const blockedX = isSegmentBlocked(grid, obstacles, from, { x, y: from.y }, radius);
+	if (blockedX) x = from.x;
+	const blockedY = isSegmentBlocked(grid, obstacles, { x, y: from.y }, { x, y }, radius);
+	if (blockedY) y = from.y;
+
+	// Only a straight push slides: a diagonal one already slides along the wall on its open axis.
+	// A player already embedded in something keeps the outward-only escape policy instead.
+	const straightX = blockedX && to.x !== from.x && to.y === from.y;
+	const straightY = blockedY && to.y !== from.y && to.x === from.x;
+	if ((straightX || straightY) && isPositionWalkable(grid, obstacles, from, radius)) {
+		const side = straightX ? 'y' : 'x';
+		return slideAroundCorner(grid, obstacles, from, to, side, radius, options) ?? { x, y };
 	}
 
 	return { x, y };
+}
+
+/**
+ * A straight push `from` -> `to` is blocked: find the smallest sideways offset (on `sideAxis`,
+ * up to a cell) that lets the full push through, and take it. The sideways step is capped at
+ * the push length, so the player glides around the corner at walking speed instead of jumping;
+ * the push itself resumes once the player is lined up.
+ */
+function slideAroundCorner(
+	grid: NavigationGrid,
+	obstacles: readonly NavigationObstacle[],
+	from: NavigationPoint,
+	to: NavigationPoint,
+	sideAxis: 'x' | 'y',
+	radius: number,
+	options: MovementOptions
+): NavigationPoint | null {
+	const push = sideAxis === 'x' ? Math.abs(to.y - from.y) : Math.abs(to.x - from.x);
+	const shifted = (point: NavigationPoint, offset: number) =>
+		sideAxis === 'x' ? { x: point.x + offset, y: point.y } : { x: point.x, y: point.y + offset };
+
+	for (let offset = 1; offset <= CORNER_SLIDE_MAX_PX; offset += 1) {
+		for (const side of [-1, 1]) {
+			const aligned = shifted(from, side * offset);
+			const pushed = shifted(to, side * offset);
+			if (
+				isSegmentBlocked(grid, obstacles, from, aligned, radius) ||
+				isSegmentBlocked(grid, obstacles, aligned, pushed, radius)
+			) {
+				continue;
+			}
+			const destination = offset <= push ? pushed : shifted(from, side * push);
+			if (options.canSlideTo?.(destination, from, to) === false) continue;
+			return destination;
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Whether sliding to `destination` would walk a player pushing `from` -> `to` into the trigger
+ * zone of a door the push is not heading for. A door ahead of the push is fine: the player is
+ * going there anyway.
+ */
+export function entersUnrelatedDoorZone(
+	destination: NavigationPoint,
+	from: NavigationPoint,
+	to: NavigationPoint,
+	doors: readonly NavigationPoint[],
+	zoneRadius: number
+): boolean {
+	return doors.some(
+		(door) =>
+			distanceSquared(destination, door) <= zoneRadius * zoneRadius &&
+			(door.x - from.x) * (to.x - from.x) + (door.y - from.y) * (to.y - from.y) <= 0
+	);
 }
 
 export function isPositionWalkable(
