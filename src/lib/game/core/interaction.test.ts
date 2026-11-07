@@ -110,4 +110,17 @@ describe('selectNearbyCandidate', () => {
 			expect(selected).toBe(mott);
 		}
 	});
+
+	it('filters out unfaced candidates when requireFacing is true', () => {
+		const behind = candidate('behind-npc', 160, 432);
+		const selected = selectNearbyCandidate({
+			origin: { x: 160, y: 400 },
+			facing: 'up',
+			reach: 48,
+			candidates: [behind],
+			requireFacing: true
+		});
+
+		expect(selected).toBeUndefined();
+	});
 });

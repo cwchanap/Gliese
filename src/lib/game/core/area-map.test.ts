@@ -13,7 +13,6 @@ import { overworldAnchors } from '$lib/game/content/maps/overworld/world';
 import { storyWindows } from '$lib/game/content/quests';
 import {
 	AREA_MAP_MARKER_EMPHASIS_FONT_PX,
-	AREA_MAP_MARKER_FONT_PX,
 	AREA_MAP_MARKER_LABEL_DX,
 	areaMapLocalView,
 	areaMapMarkerFocusCoords,
@@ -21,6 +20,7 @@ import {
 	buildAreaMapState,
 	buildInitialAreaMapState,
 	clampedLocalMapView,
+	markerLabelExtent,
 	type HudAreaMapState
 } from '$lib/game/core/area-map';
 import { resolveMenuFocusTarget } from '$lib/game/core/menu-focus';
@@ -312,9 +312,7 @@ describe('known quest entrance hints', () => {
 			const hint = state.markers.find((marker) => marker.knownQuestEntrance === true);
 			expect(hint?.label).toBe(label);
 			const view = areaMapLocalView(state);
-			expect(view.x + view.width).toBeGreaterThanOrEqual(
-				hint!.x + AREA_MAP_MARKER_LABEL_DX + hint!.label.length * AREA_MAP_MARKER_EMPHASIS_FONT_PX
-			);
+			expect(view.x + view.width).toBeGreaterThanOrEqual(hint!.x + markerLabelExtent(hint!));
 		}
 	);
 
@@ -356,10 +354,7 @@ describe('local area map view', () => {
 			expect(point.y).toBeLessThanOrEqual(view.y + view.height);
 		}
 		const hint = state.markers.find((marker) => marker.knownQuestEntrance === true)!;
-		const fontPx = hint.emphasis ? AREA_MAP_MARKER_EMPHASIS_FONT_PX : AREA_MAP_MARKER_FONT_PX;
-		expect(view.x + view.width).toBeGreaterThanOrEqual(
-			hint.x + AREA_MAP_MARKER_LABEL_DX + hint.label.length * fontPx
-		);
+		expect(view.x + view.width).toBeGreaterThanOrEqual(hint.x + markerLabelExtent(hint));
 	});
 
 	it('drops markers outside the local view from the rendered set', () => {
@@ -434,8 +429,87 @@ describe('local area map view', () => {
 			quests: createInitialQuestState(),
 			locale: 'en'
 		});
-		const span = Math.max(state.worldWidth, state.worldHeight);
-		expect(areaMapLocalView(state)).toEqual({ x: 0, y: 0, width: span, height: span });
+		expect(areaMapLocalView(state)).toEqual({
+			x: 0,
+			y: 0,
+			width: state.worldWidth,
+			height: state.worldHeight
+		});
+	});
+
+	it('estimates Latin labels at roughly 0.55em and CJK labels at 1.0em', () => {
+		const latinMarker = {
+			id: 'forge',
+			kind: 'exit' as const,
+			x: 0,
+			y: 0,
+			label: 'Sundrop Forge',
+			emphasis: true
+		};
+		expect(markerLabelExtent(latinMarker)).toBe(
+			AREA_MAP_MARKER_LABEL_DX + Math.ceil(13 * 0.55 * AREA_MAP_MARKER_EMPHASIS_FONT_PX)
+		);
+
+		const cjkMarker = {
+			id: 'forge-ja',
+			kind: 'exit' as const,
+			x: 0,
+			y: 0,
+			label: 'サンドロップの鍛冶屋',
+			emphasis: true
+		};
+		expect(markerLabelExtent(cjkMarker)).toBe(
+			AREA_MAP_MARKER_LABEL_DX + 10 * AREA_MAP_MARKER_EMPHASIS_FONT_PX
+		);
+	});
+
+	it('never flags interior to overworld exits as known quest entrances', () => {
+		const quests = questStateAt('talk-to-mott');
+		const state = buildAreaMapState({
+			map: heroHouseMap,
+			player: heroHouseMap.spawn,
+			revealedCells: [],
+			quests,
+			locale: 'en'
+		});
+		expect(state.markers.some((marker) => marker.knownQuestEntrance === true)).toBe(false);
+	});
+
+	it('centers clampedLocalMapView when view width or height exceeds world dimensions', () => {
+		const centered = clampedLocalMapView({
+			centerX: 500,
+			centerY: 400,
+			width: 1000,
+			height: 800,
+			worldWidth: 800,
+			worldHeight: 600
+		});
+		expect(centered).toEqual({
+			x: -100,
+			y: -100,
+			width: 1000,
+			height: 800
+		});
+	});
+
+	it('frames revealed quest pins, discoveries, and landmarks even when distant from player', () => {
+		const quests = questStateAt('meet-lirra-forest');
+		const map = applyStoryGates(overworldMap, getStoryProgress(quests));
+		const lirra = overworldAnchors['wildwood-lirra-forest']!;
+		const state = buildAreaMapState({
+			map,
+			player: homeExit,
+			revealedCells: [...revealAround(homeExit), ...revealAround(lirra)],
+			quests,
+			locale: 'en'
+		});
+		const view = areaMapLocalView(state);
+		const questPin = state.markers.find((m) => m.kind === 'quest');
+		expect(questPin).toBeDefined();
+		expect(view.x).toBeLessThanOrEqual(questPin!.x);
+		expect(view.x + view.width).toBeGreaterThanOrEqual(questPin!.x);
+		expect(view.y).toBeLessThanOrEqual(questPin!.y);
+		expect(view.y + view.height).toBeGreaterThanOrEqual(questPin!.y);
 	});
 });
 

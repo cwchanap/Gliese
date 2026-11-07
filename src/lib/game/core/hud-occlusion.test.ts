@@ -20,16 +20,20 @@ describe('heroCardZone', () => {
 });
 
 describe('isHeroInHeroCardZone', () => {
-	it('flags heroes under the compact-height card at 640x480', () => {
+	it('flags heroes whose sprite extents enter the compact-height card at 640x480', () => {
 		expect(isHeroInHeroCardZone(80, 80, 640, 480)).toBe(true);
 		expect(isHeroInHeroCardZone(160, 120, 640, 480)).toBe(true);
 		expect(isHeroInHeroCardZone(0, 0, 640, 480)).toBe(true);
+		// Hero whose center is beside the card but left edge enters the card zone
+		expect(isHeroInHeroCardZone(350, 80, 640, 480)).toBe(true);
+		// Hero whose center is below the card but top edge enters the card zone
+		expect(isHeroInHeroCardZone(160, 170, 640, 480)).toBe(true);
 	});
 
 	it('leaves genuinely clear positions beside and below the 640x480 card untouched', () => {
 		expect(isHeroInHeroCardZone(160, 224, 640, 480)).toBe(false);
-		expect(isHeroInHeroCardZone(160, 160, 640, 480)).toBe(false);
-		expect(isHeroInHeroCardZone(330, 60, 640, 480)).toBe(false);
+		expect(isHeroInHeroCardZone(160, 200, 640, 480)).toBe(false);
+		expect(isHeroInHeroCardZone(380, 60, 640, 480)).toBe(false);
 		expect(isHeroInHeroCardZone(400, 40, 640, 480)).toBe(false);
 	});
 
@@ -37,27 +41,34 @@ describe('isHeroInHeroCardZone', () => {
 		expect(isHeroInHeroCardZone(84, 176, 420, 760)).toBe(true);
 		expect(isHeroInHeroCardZone(82, 146, 420, 760)).toBe(true);
 		expect(isHeroInHeroCardZone(0, 0, 420, 760)).toBe(true);
+		expect(isHeroInHeroCardZone(350, 100, 420, 760)).toBe(true);
 	});
 
 	it('leaves positions beside and below the 420x760 card untouched', () => {
 		expect(isHeroInHeroCardZone(160, 316, 420, 760)).toBe(false);
-		expect(isHeroInHeroCardZone(100, 240, 420, 760)).toBe(false);
-		expect(isHeroInHeroCardZone(330, 60, 420, 760)).toBe(false);
+		expect(isHeroInHeroCardZone(100, 280, 420, 760)).toBe(false);
+		expect(isHeroInHeroCardZone(380, 60, 420, 760)).toBe(false);
 	});
 
 	it('flags heroes under the desktop card at 1280x800 and leaves clear spots alone', () => {
 		expect(isHeroInHeroCardZone(370, 192, 1280, 800)).toBe(true);
 		expect(isHeroInHeroCardZone(82, 127, 1280, 800)).toBe(true);
 		expect(isHeroInHeroCardZone(448, 336, 1280, 800)).toBe(false);
-		expect(isHeroInHeroCardZone(430, 60, 1280, 800)).toBe(false);
-		expect(isHeroInHeroCardZone(200, 250, 1280, 800)).toBe(false);
+		expect(isHeroInHeroCardZone(460, 60, 1280, 800)).toBe(false);
+		expect(isHeroInHeroCardZone(200, 290, 1280, 800)).toBe(false);
 		expect(isHeroInHeroCardZone(640, 360, 1280, 800)).toBe(false);
 	});
 
-	it('stays half-open at the zone edge', () => {
-		expect(isHeroInHeroCardZone(325, 147, 640, 480)).toBe(true);
-		expect(isHeroInHeroCardZone(326, 147, 640, 480)).toBe(false);
-		expect(isHeroInHeroCardZone(325, 148, 640, 480)).toBe(false);
+	it('stays half-open at the zone edge accounting for hero sprite extents', () => {
+		// zone width 326, height 148. With heroHalfSize=45: threshold is 371 on X, 193 on Y.
+		expect(isHeroInHeroCardZone(370, 192, 640, 480)).toBe(true);
+		expect(isHeroInHeroCardZone(371, 192, 640, 480)).toBe(false);
+		expect(isHeroInHeroCardZone(370, 193, 640, 480)).toBe(false);
+
+		// With heroHalfSize=0 (center point only)
+		expect(isHeroInHeroCardZone(325, 147, 640, 480, 0)).toBe(true);
+		expect(isHeroInHeroCardZone(326, 147, 640, 480, 0)).toBe(false);
+		expect(isHeroInHeroCardZone(325, 148, 640, 480, 0)).toBe(false);
 	});
 });
 

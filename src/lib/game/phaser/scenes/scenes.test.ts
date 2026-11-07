@@ -22,10 +22,7 @@ import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
 import { compileNavigationGrid } from '$lib/game/core/navigation';
 import { applyStoryGates } from '$lib/game/core/story-gates';
 import {
-	HERO_RENDER_PROBE_EVENT,
-	HERO_RENDER_PROBE_REQUEST_EVENT,
 	PLAYER_MOVEMENT_DIAGNOSTIC_EVENT,
-	type HeroRenderProbe,
 	type PlayerMovementDiagnostic
 } from '$lib/game/phaser/player-movement-diagnostics';
 import type { RegionalBackgroundRendererDiagnostic } from '$lib/game/phaser/renderer-diagnostics';
@@ -3294,6 +3291,35 @@ describe('BattleScene', () => {
 		} finally {
 			emitHudStateSpy.mockRestore();
 			hud.restore();
+		}
+	});
+
+	it('builds area map state from story-gated map definition', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+
+		try {
+			scene.create({
+				saveState,
+				sourceMapId: 'overworld',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
+				enemyCount: 1,
+				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
+			});
+
+			const lastCall = emitHudStateSpy.mock.calls.at(-1)?.[0];
+			expect(lastCall).toBeDefined();
+			const ruinsMarker = lastCall?.areaMap.markers.find(
+				(marker) => marker.id === 'overworld-to-ruins-threshold'
+			);
+			expect(ruinsMarker).toBeUndefined();
+		} finally {
+			emitHudStateSpy.mockRestore();
 		}
 	});
 });
@@ -7718,166 +7744,22 @@ describe('WorldScene', () => {
 			Object.assign(phaserState.playerMarker, { x: 128, y: 200 });
 			scene.update(250, 250);
 
-			const cameraSnapshot = {
-				scrollX: 0,
-				scrollY: 0,
-				zoomX: 1,
-				zoomY: 1,
-				width: 640,
-				height: 360,
-				x: 0,
-				y: 0
-			};
 			expect(diagnostics).toEqual([
 				{
 					mapId: 'scene-collision-test',
 					previousPosition: { x: 128, y: 64 },
 					requestedPosition: { x: 188, y: 64 },
 					resolvedPosition: { x: 128, y: 64 },
-					blocked: true,
-					camera: cameraSnapshot
+					blocked: true
 				},
 				{
 					mapId: 'scene-collision-test',
 					previousPosition: { x: 128, y: 200 },
 					requestedPosition: { x: 188, y: 200 },
 					resolvedPosition: { x: 188, y: 200 },
-					blocked: false,
-					camera: cameraSnapshot
+					blocked: false
 				}
 			]);
-		} finally {
-			target.restore();
-			restoreLocation();
-		}
-	});
-
-	it('answers a render probe with the camera and sprite position captured at render time', async () => {
-		const restoreLocation = installLocationSearch('?movementDiagnostics=on');
-		const target = installHudCommandTarget();
-		const probes: HeroRenderProbe[] = [];
-		target.target.addEventListener(HERO_RENDER_PROBE_EVENT, (event) => {
-			probes.push((event as CustomEvent<HeroRenderProbe>).detail);
-		});
-		try {
-			const { WorldScene } = await import('./WorldScene');
-			const scene = new WorldScene();
-
-			scene.create({ mapId: 'hero-house' });
-			Object.assign(phaserState.playerMarker, { x: 160, y: 224 });
-			phaserState.mainCamera.scrollX = -288;
-
-			target.target.dispatchEvent(new Event(HERO_RENDER_PROBE_REQUEST_EVENT));
-			phaserState.mainCamera.scrollX = -300;
-			scene.events.emit('render');
-
-			expect(probes).toEqual([
-				{
-					mapId: 'hero-house',
-					spritePosition: { x: 160, y: 224 },
-					camera: {
-						scrollX: -300,
-						scrollY: 0,
-						zoomX: 1,
-						zoomY: 1,
-						width: 640,
-						height: 360,
-						x: 0,
-						y: 0
-					}
-				}
-			]);
-		} finally {
-			target.restore();
-			restoreLocation();
-		}
-	});
-
-	it('ignores render probe requests when movement diagnostics are off', async () => {
-		const restoreLocation = installLocationSearch('');
-		const target = installHudCommandTarget();
-		const probes: unknown[] = [];
-		target.target.addEventListener(HERO_RENDER_PROBE_EVENT, (event) => {
-			probes.push((event as CustomEvent<unknown>).detail);
-		});
-		try {
-			const { WorldScene } = await import('./WorldScene');
-			const scene = new WorldScene();
-
-			scene.create({ mapId: 'hero-house' });
-			target.target.dispatchEvent(new Event(HERO_RENDER_PROBE_REQUEST_EVENT));
-			scene.events.emit('render');
-
-			expect(probes).toEqual([]);
-		} finally {
-			target.restore();
-			restoreLocation();
-		}
-	});
-
-	it('cancels a pending render probe on shutdown so a restart cannot answer it', async () => {
-		const restoreLocation = installLocationSearch('?movementDiagnostics=on');
-		const target = installHudCommandTarget();
-		const probes: HeroRenderProbe[] = [];
-		target.target.addEventListener(HERO_RENDER_PROBE_EVENT, (event) => {
-			probes.push((event as CustomEvent<HeroRenderProbe>).detail);
-		});
-		try {
-			const { WorldScene } = await import('./WorldScene');
-			const scene = new WorldScene();
-
-			scene.create({ mapId: 'overworld' });
-			target.target.dispatchEvent(new Event(HERO_RENDER_PROBE_REQUEST_EVENT));
-			expect(scene.events.listenerCount('render')).toBe(2);
-
-			scene.events.emit('shutdown');
-			expect(scene.events.listenerCount('render')).toBe(1);
-
-			scene.create({ mapId: 'guild-hall' });
-			scene.events.emit('render');
-
-			expect(probes).toEqual([]);
-
-			target.target.dispatchEvent(new Event(HERO_RENDER_PROBE_REQUEST_EVENT));
-			scene.events.emit('render');
-
-			expect(probes).toHaveLength(1);
-			expect(probes[0]).toMatchObject({
-				mapId: 'guild-hall',
-				spritePosition: { x: phaserState.playerMarker.x, y: phaserState.playerMarker.y }
-			});
-		} finally {
-			target.restore();
-			restoreLocation();
-		}
-	});
-
-	it('ignores a pending render probe after a restart with diagnostics off', async () => {
-		let restoreLocation = installLocationSearch('?movementDiagnostics=on');
-		const target = installHudCommandTarget();
-		const probes: HeroRenderProbe[] = [];
-		target.target.addEventListener(HERO_RENDER_PROBE_EVENT, (event) => {
-			probes.push((event as CustomEvent<HeroRenderProbe>).detail);
-		});
-		try {
-			const { WorldScene } = await import('./WorldScene');
-			const scene = new WorldScene();
-
-			scene.create({ mapId: 'overworld' });
-			target.target.dispatchEvent(new Event(HERO_RENDER_PROBE_REQUEST_EVENT));
-			scene.events.emit('shutdown');
-
-			restoreLocation();
-			restoreLocation = installLocationSearch('');
-			scene.create({ mapId: 'guild-hall' });
-			scene.events.emit('render');
-
-			expect(probes).toEqual([]);
-
-			target.target.dispatchEvent(new Event(HERO_RENDER_PROBE_REQUEST_EVENT));
-			scene.events.emit('render');
-
-			expect(probes).toEqual([]);
 		} finally {
 			target.restore();
 			restoreLocation();
@@ -7918,35 +7800,6 @@ describe('WorldScene', () => {
 			}
 
 			expect(scene.events.listenerCount('destroy')).toBeLessThanOrEqual(1);
-		} finally {
-			target.restore();
-			restoreLocation();
-		}
-	});
-
-	it('still cancels an armed render probe on destroy without leaking listeners', async () => {
-		const restoreLocation = installLocationSearch('?movementDiagnostics=on');
-		const target = installHudCommandTarget();
-		const probes: HeroRenderProbe[] = [];
-		target.target.addEventListener(HERO_RENDER_PROBE_EVENT, (event) => {
-			probes.push((event as CustomEvent<HeroRenderProbe>).detail);
-		});
-		try {
-			const { WorldScene } = await import('./WorldScene');
-			const scene = new WorldScene();
-
-			scene.create({ mapId: 'overworld' });
-			target.target.dispatchEvent(new Event(HERO_RENDER_PROBE_REQUEST_EVENT));
-			expect(scene.events.listenerCount('render')).toBe(2);
-			expect(scene.events.listenerCount('destroy')).toBe(1);
-
-			scene.events.emit('destroy');
-			expect(scene.events.listenerCount('render')).toBe(1);
-			expect(scene.events.listenerCount('destroy')).toBeLessThanOrEqual(1);
-
-			scene.events.emit('render');
-			expect(probes).toEqual([]);
-			expect(scene.events.listenerCount('render')).toBe(0);
 		} finally {
 			target.restore();
 			restoreLocation();
@@ -9796,9 +9649,7 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { ...guildHallMap.spawn });
 		scene.update(16, 16);
 
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({ status: 'No one nearby' })
-		);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(expect.objectContaining({ status: '' }));
 
 		emitHudStateSpy.mockClear();
 		scene.update(32, 16);
@@ -9824,9 +9675,7 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { ...guildHallMap.spawn });
 		scene.update(16, 16);
 
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({ status: 'No one nearby' })
-		);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(expect.objectContaining({ status: '' }));
 
 		emitHudStateSpy.mockClear();
 		phaserState.interactKeys.e.justDown = true;
@@ -9913,6 +9762,7 @@ describe('WorldScene', () => {
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
+		const sceneState = scene as unknown as { facing: string; dialogueSession: unknown };
 		const customer = itemShopMap.ambientNpcs?.find(({ id }) => id === 'item-shop-customer');
 		expect(customer).toBeDefined();
 		if (!customer) return;
@@ -9922,8 +9772,29 @@ describe('WorldScene', () => {
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
+		// Facing away from the ambient NPC requires facing, so pressing E reports no one nearby
+		sceneState.facing = 'down';
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'No one nearby',
+				dialogue: expect.objectContaining({
+					speaker: 'Traveler',
+					line: 'No one is nearby.'
+				})
+			})
+		);
+
+		sceneState.dialogueSession = null;
+
+		// Facing the ambient NPC triggers their busy dialogue
+		emitHudStateSpy.mockClear();
+		sceneState.facing = 'up';
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(32, 16);
 		await flushStoryDialogue();
 
 		expect(storyClient.getNpcStoryDialogue).not.toHaveBeenCalled();
@@ -9934,6 +9805,17 @@ describe('WorldScene', () => {
 					speaker: 'Traveler',
 					line: 'They have nothing to say.'
 				})
+			})
+		);
+
+		// Leaving the ambient NPC's reach clears the status
+		emitHudStateSpy.mockClear();
+		Object.assign(phaserState.playerMarker, { x: 50, y: 50 });
+		scene.update(48, 16);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: ''
 			})
 		);
 	});

@@ -32,12 +32,20 @@ export function heroScreenPosition(
 	};
 }
 
+export const DEFAULT_HERO_HALF_SIZE = 45;
+
 export function isHeroInHeroCardZone(
 	screenX: number,
 	screenY: number,
 	viewWidth: number,
-	viewHeight: number
+	viewHeight: number,
+	heroHalfSize = DEFAULT_HERO_HALF_SIZE
 ): boolean {
 	const zone = heroCardZone(viewWidth, viewHeight);
-	return screenX >= 0 && screenX < zone.width && screenY >= 0 && screenY < zone.height;
+	return (
+		screenX + heroHalfSize > 0 &&
+		screenX - heroHalfSize < zone.width &&
+		screenY + heroHalfSize > 0 &&
+		screenY - heroHalfSize < zone.height
+	);
 }

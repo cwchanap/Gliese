@@ -46,7 +46,12 @@ import { createEmptyEquipment } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { consumeStackItem } from '$lib/game/core/inventory';
 import { resolveLootDrops } from '$lib/game/core/loot';
-import { buildHudQuestState, createInitialQuestState } from '$lib/game/core/quests';
+import {
+	buildHudQuestState,
+	createInitialQuestState,
+	getStoryProgress
+} from '$lib/game/core/quests';
+import { applyStoryGates } from '$lib/game/core/story-gates';
 import { clampHpToMax, deriveEffectiveStats } from '$lib/game/core/stats';
 import { getBaseMaxHp } from '$lib/game/core/progression';
 import { advanceBossPhase } from '$lib/game/core/boss';
@@ -1088,11 +1093,12 @@ export class BattleScene extends Phaser.Scene {
 	) {
 		const locale = getActiveLocale();
 		const saveState = appliedSaveState ?? this.payload?.saveState;
-		const map =
+		const rawMap =
 			maps[
 				appliedSaveState?.mapId ?? this.payload?.sourceMapId ?? saveState?.mapId ?? openingMapId
 			] ?? maps[openingMapId]!;
 		const questState = saveState?.quests ?? createInitialQuestState();
+		const map = applyStoryGates(rawMap, getStoryProgress(questState));
 		const heroStats = this.getHudHeroStats(appliedSaveState);
 		const hudSummary: HudState['battle']['summary'] = summary
 			? {

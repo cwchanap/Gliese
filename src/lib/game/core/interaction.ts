@@ -12,6 +12,7 @@ export interface NearbySelection<TCandidate extends NearbyCandidate> {
 	readonly facing: Direction;
 	readonly reach: number;
 	readonly candidates: readonly TCandidate[];
+	readonly requireFacing?: boolean;
 }
 
 function isFaced(dx: number, dy: number, facing: Direction): boolean {
@@ -30,7 +31,7 @@ function isFaced(dx: number, dy: number, facing: Direction): boolean {
 export function selectNearbyCandidate<TCandidate extends NearbyCandidate>(
 	selection: NearbySelection<TCandidate>
 ): TCandidate | undefined {
-	const { origin, facing, reach, candidates } = selection;
+	const { origin, facing, reach, candidates, requireFacing } = selection;
 
 	return candidates
 		.map((candidate) => {
@@ -38,7 +39,10 @@ export function selectNearbyCandidate<TCandidate extends NearbyCandidate>(
 			const dy = candidate.y - origin.y;
 			return { candidate, faced: isFaced(dx, dy, facing), distance: Math.hypot(dx, dy) };
 		})
-		.filter(({ candidate, distance }) => distance <= reach + candidate.radius)
+		.filter(
+			({ candidate, faced, distance }) =>
+				distance <= reach + candidate.radius && (!requireFacing || faced)
+		)
 		.sort((left, right) => {
 			if (left.faced !== right.faced) {
 				return left.faced ? -1 : 1;
