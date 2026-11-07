@@ -14,7 +14,7 @@ jobs:
   build-and-lint:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Build & Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,7 +50,7 @@ jobs:
   unit-test:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -91,7 +91,7 @@ jobs:
   rust-build-lint:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Rust Build & Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: src-tauri
@@ -130,7 +130,7 @@ jobs:
 
   rust-test:
     name: Rust Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: rust-build-lint
     defaults:
       run:
