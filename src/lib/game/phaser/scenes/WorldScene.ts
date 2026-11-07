@@ -3153,7 +3153,10 @@ export class WorldScene extends Phaser.Scene {
 			ambientNpc.x,
 			ambientNpc.y
 		);
-		return distance <= PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
+		return (
+			distance <=
+			PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + this.getNpcCollisionRadius(ambientNpc)
+		);
 	}
 
 	private updateNpcDialogue() {
