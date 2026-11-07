@@ -1642,7 +1642,7 @@ describe('GameShell area map', () => {
 							id: 'ruins-gate',
 							kind: 'quest',
 							x: 2_048,
-							y: 6_016,
+							y: 5_568,
 							label: 'Ruins Gate',
 							emphasis: true
 						}
@@ -1816,6 +1816,56 @@ describe('GameShell area map', () => {
 		await expect.element(mapDialog.getByTestId('area-map-marker').first()).toHaveFocus();
 		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
 		await expect.element(closeButton).toHaveFocus();
+	});
+
+	it('moves focus between area map markers using arrow keys', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				areaMap: {
+					...baseHudState().areaMap,
+					worldWidth: 12_288,
+					worldHeight: 12_288,
+					player: { x: 4_464, y: 7_312 },
+					markers: [
+						{
+							id: 'overworld-to-hero-house',
+							kind: 'exit',
+							x: 4_464,
+							y: 7_280,
+							label: 'Hero House'
+						},
+						{
+							id: 'overworld-to-blacksmith-interior',
+							kind: 'exit',
+							x: 5_648,
+							y: 7_184,
+							label: 'Sundrop Forge',
+							knownQuestEntrance: true
+						}
+					]
+				}
+			})
+		);
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /map/i }).click();
+		const mapDialog = page.getByRole('dialog');
+		await expect.element(mapDialog).toBeVisible();
+
+		// Tab to move focus from close button to first marker
+		await userEvent.keyboard('{Tab}');
+		const heroHouse = mapDialog.getByRole('img', { name: 'Hero House' });
+		const forge = mapDialog.getByRole('img', { name: 'Sundrop Forge' });
+		await expect.element(heroHouse).toHaveFocus();
+
+		// ArrowUp moves focus northward from Hero House to Sundrop Forge
+		await userEvent.keyboard('{ArrowUp}');
+		await expect.element(forge).toHaveFocus();
+
+		// ArrowDown moves focus southward from Sundrop Forge back to Hero House
+		await userEvent.keyboard('{ArrowDown}');
+		await expect.element(heroHouse).toHaveFocus();
 	});
 });
 
@@ -3320,7 +3370,7 @@ describe('GameShell pad layer', () => {
 							id: 'ruins-gate',
 							kind: 'quest',
 							x: 2_048,
-							y: 6_016,
+							y: 5_568,
 							label: 'Ruins Gate',
 							emphasis: true
 						}

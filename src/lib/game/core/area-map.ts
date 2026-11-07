@@ -316,6 +316,50 @@ export function areaMapMarkersInView(
 	);
 }
 
+/**
+ * Derives menu-focus grid coordinates for visible area-map markers.
+ *
+ * Rows are partitioned into bands across the local mapView geometry so that
+ * markers at distinct vertical heights receive separate focus rows, allowing
+ * vertical navigation (Up/Down) to reach them without grouping by consecutive
+ * y-gaps. Within each row band, markers are ordered horizontally by x.
+ *
+ * @param markers - Visible markers within the local view.
+ * @param view - The active local area-map view boundaries.
+ * @param bandCount - Number of row bands to partition the view height into (default: 10).
+ * @returns A mapping from marker ID to its assigned focus row and column.
+ */
+export function areaMapMarkerFocusCoords(
+	markers: readonly HudAreaMapMarker[],
+	view: AreaMapView,
+	bandCount = 10
+): Record<string, { row: number; column: number }> {
+	const coords: Record<string, { row: number; column: number }> = {};
+	if (markers.length === 0) return coords;
+
+	const rowBand = Math.max(1, view.height / bandCount);
+	const rowBuckets = new Map<number, HudAreaMapMarker[]>();
+
+	for (const marker of markers) {
+		const row = Math.max(0, Math.floor((marker.y - view.y) / rowBand));
+		const bucket = rowBuckets.get(row);
+		if (bucket) {
+			bucket.push(marker);
+		} else {
+			rowBuckets.set(row, [marker]);
+		}
+	}
+
+	for (const [row, bucket] of rowBuckets) {
+		bucket.sort((a, b) => a.x - b.x || a.id.localeCompare(b.id));
+		for (let column = 0; column < bucket.length; column++) {
+			coords[bucket[column].id] = { row, column };
+		}
+	}
+
+	return coords;
+}
+
 function markerLabelExtent(marker: HudAreaMapMarker): number {
 	const fontPx = marker.emphasis ? AREA_MAP_MARKER_EMPHASIS_FONT_PX : AREA_MAP_MARKER_FONT_PX;
 	return AREA_MAP_MARKER_LABEL_DX + marker.label.length * fontPx;

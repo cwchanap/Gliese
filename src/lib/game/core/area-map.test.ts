@@ -16,12 +16,14 @@ import {
 	AREA_MAP_MARKER_FONT_PX,
 	AREA_MAP_MARKER_LABEL_DX,
 	areaMapLocalView,
+	areaMapMarkerFocusCoords,
 	areaMapMarkersInView,
 	buildAreaMapState,
 	buildInitialAreaMapState,
 	clampedLocalMapView,
 	type HudAreaMapState
 } from '$lib/game/core/area-map';
+import { resolveMenuFocusTarget } from '$lib/game/core/menu-focus';
 import {
 	AREA_MAP_CELL_SIZE,
 	isWorldPositionRevealed,
@@ -461,5 +463,75 @@ describe('discovery markers', () => {
 			seenDiscoveries: [seen]
 		});
 		expect(shown.markers.some((m) => m.id === seen && m.kind === 'discovery')).toBe(true);
+	});
+});
+
+describe('areaMapMarkerFocusCoords', () => {
+	it('returns an empty record when given no markers', () => {
+		const coords = areaMapMarkerFocusCoords([], { x: 0, y: 0, width: 1000, height: 1000 });
+		expect(coords).toEqual({});
+	});
+
+	it('assigns separate focus rows to doors at different heights and supports arrow navigation', () => {
+		// Mock Sundrop doors at their real world coordinates:
+		// lodge: (5552, 6256), shrine: (4496, 6288) — upper village
+		// herb-hut: (4432, 6704) — mid-north
+		// neighbor-1: (4720, 7024) — mid village
+		// forge: (5648, 7184), neighbor-2: (5392, 7216) — east street
+		// grik-home: (4464, 7280) — south-west
+		// neighbor-3: (4848, 7472) — south lane
+		const sundropMarkers = [
+			{ id: 'shrine', x: 4_496, y: 6_288, label: 'Shrine', kind: 'building' as const },
+			{ id: 'lodge', x: 5_552, y: 6_256, label: 'Lodge', kind: 'building' as const },
+			{ id: 'herb-hut', x: 4_432, y: 6_704, label: 'Herb Hut', kind: 'building' as const },
+			{ id: 'neighbor-1', x: 4_720, y: 7_024, label: 'Neighbor 1', kind: 'building' as const },
+			{ id: 'forge', x: 5_648, y: 7_184, label: 'Forge', kind: 'building' as const },
+			{ id: 'neighbor-2', x: 5_392, y: 7_216, label: 'Neighbor 2', kind: 'building' as const },
+			{ id: 'grik-home', x: 4_464, y: 7_280, label: 'Grik Home', kind: 'building' as const },
+			{ id: 'neighbor-3', x: 4_848, y: 7_472, label: 'Neighbor 3', kind: 'building' as const }
+		];
+
+		const view = { x: 4_272, y: 6_166, width: 2_164, height: 2_164 };
+		const coords = areaMapMarkerFocusCoords(sundropMarkers, view);
+
+		// Doors at distinct heights should receive separate rows, not chained into a single row
+		expect(coords['shrine'].row).toBeLessThan(coords['herb-hut'].row);
+		expect(coords['herb-hut'].row).toBeLessThan(coords['neighbor-1'].row);
+		expect(coords['neighbor-1'].row).toBeLessThan(coords['grik-home'].row);
+		expect(coords['grik-home'].row).toBeLessThan(coords['neighbor-3'].row);
+
+		// Doors roughly at the same height share a row and have distinct columns
+		expect(coords['shrine'].row).toBe(coords['lodge'].row);
+		expect(coords['shrine'].column).toBe(0);
+		expect(coords['lodge'].column).toBe(1);
+
+		expect(coords['neighbor-2'].row).toBe(coords['forge'].row);
+		expect(coords['neighbor-2'].column).toBe(0);
+		expect(coords['forge'].column).toBe(1);
+
+		// Build MenuFocusNode lattice and verify directional arrow moves
+		const nodes = sundropMarkers.map((m) => ({
+			id: m.id,
+			row: coords[m.id].row,
+			column: coords[m.id].column
+		}));
+
+		// Vertical movement down from top to bottom
+		expect(resolveMenuFocusTarget(nodes, 'shrine', 'down')).toBe('herb-hut');
+		expect(resolveMenuFocusTarget(nodes, 'herb-hut', 'down')).toBe('neighbor-1');
+		expect(resolveMenuFocusTarget(nodes, 'neighbor-1', 'down')).toBe('neighbor-2');
+		expect(resolveMenuFocusTarget(nodes, 'grik-home', 'down')).toBe('neighbor-3');
+
+		// Vertical movement up from bottom to top
+		expect(resolveMenuFocusTarget(nodes, 'neighbor-3', 'up')).toBe('grik-home');
+		expect(resolveMenuFocusTarget(nodes, 'grik-home', 'up')).toBe('neighbor-2');
+		expect(resolveMenuFocusTarget(nodes, 'forge', 'up')).toBe('lodge');
+		expect(resolveMenuFocusTarget(nodes, 'herb-hut', 'up')).toBe('shrine');
+
+		// Horizontal movement between side-by-side buildings
+		expect(resolveMenuFocusTarget(nodes, 'shrine', 'right')).toBe('lodge');
+		expect(resolveMenuFocusTarget(nodes, 'lodge', 'left')).toBe('shrine');
+		expect(resolveMenuFocusTarget(nodes, 'neighbor-2', 'right')).toBe('forge');
+		expect(resolveMenuFocusTarget(nodes, 'forge', 'left')).toBe('neighbor-2');
 	});
 });
