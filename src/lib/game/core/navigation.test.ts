@@ -702,23 +702,28 @@ describe('corner slide', () => {
 		expect(result.y).toBe(31);
 	});
 
-	it('clamps slide destination to map edge margin bounds', () => {
-		// 3x3 cells (48x48px). Player radius = 12, so walkable margin is [12, 36].
-		const grid = compileNavigationGrid(
-			source({
-				widthCells: 3,
-				heightCells: 3,
-				rows: ['#..', '#..', '...']
-			})
-		);
-		// Player at x=14, y=10 (close to top margin y=12, close to left wall).
-		// Pushing south against an obstacle, sliding left toward x=0.
-		// Slide cannot push center below radius 12.
-		const from = { x: 14, y: 14 };
-		const to = { x: 14, y: 18 };
-		const result = resolveMovementSegment(grid, [], from, to, 12);
-		expect(result.x).toBeGreaterThanOrEqual(12);
-		expect(result.y).toBeGreaterThanOrEqual(12);
+	it('refuses a slide whose only open lane lies outside the map margin', () => {
+		// Open 48x48px grid, radius 12, so the walkable margin is [12, 36].
+		const grid = createOpenNavigationGrid({
+			id: 'open',
+			mapId: 'open-map',
+			cellSizePx: 16,
+			widthCells: 3,
+			heightCells: 3
+		});
+		// Inflated by the radius this wall spans x 4-60, y 16-52: the south push is
+		// blocked and the only lateral clearance is a 4px sliver along the west edge.
+		const wall: NavigationObstacle = {
+			id: 'edge-wall',
+			shape: 'rect',
+			bounds: { left: 16, right: 48, top: 28, bottom: 40 },
+			movement: 'strict',
+			invalidAtRest: true
+		};
+		// Without the margin guard, offset 15 would slide west to (10, 14) — inside
+		// the world but below the 12px margin.
+		const from = { x: 18, y: 14 };
+		expect(resolveMovementSegment(grid, [wall], from, { x: 18, y: 22 }, 12)).toEqual(from);
 	});
 
 	it('does not slide a diagonal push, which already slides along the wall', () => {

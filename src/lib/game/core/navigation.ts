@@ -251,22 +251,18 @@ function slideAroundCorner(
 			}
 
 			const destination = offset <= push ? pushed : shifted(from, side * push);
-			const clampedDestination = {
-				x: Math.min(Math.max(destination.x, minX), maxX),
-				y: Math.min(Math.max(destination.y, minY), maxY)
-			};
 
 			// Check canSlideTo against the aligned end point so the search does not greedily commit
 			// to a nearer side that later gets vetoed, as well as against the immediate destination.
 			if (options.canSlideTo?.(pushed, from, to) === false) continue;
 			if (
-				(clampedDestination.x !== pushed.x || clampedDestination.y !== pushed.y) &&
-				options.canSlideTo?.(clampedDestination, from, to) === false
+				(destination.x !== pushed.x || destination.y !== pushed.y) &&
+				options.canSlideTo?.(destination, from, to) === false
 			) {
 				continue;
 			}
 
-			return clampedDestination;
+			return destination;
 		}
 	}
 
