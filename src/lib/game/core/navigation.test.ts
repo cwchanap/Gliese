@@ -732,9 +732,9 @@ describe('entersUnrelatedDoorZone', () => {
 	});
 
 	it('allows a slide that ends in the zone of the door the push is heading for', () => {
-		// Pushing north at y = 131, straight at the door.
+		// Pushing north at y = 125, straight at the door; the slide ends 25px from it.
 		expect(
-			entersUnrelatedDoorZone({ x: 97, y: 131 }, { x: 100, y: 131 }, { x: 100, y: 127 }, doors, 30)
+			entersUnrelatedDoorZone({ x: 97, y: 125 }, { x: 100, y: 125 }, { x: 100, y: 121 }, doors, 30)
 		).toBe(false);
 	});
 });
