@@ -154,11 +154,12 @@ export interface MovementOptions {
 }
 
 /**
- * The widest corner slide: one navigation cell, the padding clearance adds around every
- * blocked tile. A player lined up with the visible gap between two props is at most that far
- * from the lane the padding leaves open.
+ * The widest corner slide: 16px, corresponding to one 16px navigation cell on overworld and
+ * interior grids (and half a 32px cell on open grids such as ruins). A player lined up with
+ * the visible gap between two props is at most that far from the lane the padding leaves open.
  */
 const CORNER_SLIDE_MAX_PX = 16;
+const CORNER_SLIDE_SIDES = [-1, 1] as const;
 
 export function resolveMovementSegment(
 	grid: NavigationGrid,
@@ -190,9 +191,10 @@ export function resolveMovementSegment(
 
 /**
  * A straight push `from` -> `to` is blocked: find the smallest sideways offset (on `sideAxis`,
- * up to a cell) that lets the full push through, and take it. The sideways step is capped at
- * the push length, so the player glides around the corner at walking speed instead of jumping;
- * the push itself resumes once the player is lined up.
+ * up to CORNER_SLIDE_MAX_PX) that lets the forward push through, and take it. When `offset <= push`,
+ * the player is aligned with the lane in a single step and advances to the pushed destination
+ * (combining the forward push and sideways offset). When `offset > push`, the sideways step is
+ * capped at the push length so the player glides sideways toward the opening over multiple frames.
  */
 function slideAroundCorner(
 	grid: NavigationGrid,
@@ -207,19 +209,64 @@ function slideAroundCorner(
 	const shifted = (point: NavigationPoint, offset: number) =>
 		sideAxis === 'x' ? { x: point.x + offset, y: point.y } : { x: point.x, y: point.y + offset };
 
+	const minX = radius;
+	const maxX = grid.widthPx - radius;
+	const minY = radius;
+	const maxY = grid.heightPx - radius;
+
+	let blockedNeg = false;
+	let blockedPos = false;
+
 	for (let offset = 1; offset <= CORNER_SLIDE_MAX_PX; offset += 1) {
-		for (const side of [-1, 1]) {
+		if (blockedNeg && blockedPos) break;
+
+		for (const side of CORNER_SLIDE_SIDES) {
+			if (side === -1 && blockedNeg) continue;
+			if (side === 1 && blockedPos) continue;
+
 			const aligned = shifted(from, side * offset);
+			if (aligned.x < minX || aligned.x > maxX || aligned.y < minY || aligned.y > maxY) {
+				if (side === -1) blockedNeg = true;
+				else blockedPos = true;
+				continue;
+			}
+
+			if (isSegmentBlocked(grid, obstacles, from, aligned, radius)) {
+				// Sideways blocking is monotone along that side: larger offsets in the same
+				// direction from `from` must also cross this blocked cell.
+				if (side === -1) blockedNeg = true;
+				else blockedPos = true;
+				continue;
+			}
+
 			const pushed = shifted(to, side * offset);
 			if (
-				isSegmentBlocked(grid, obstacles, from, aligned, radius) ||
+				pushed.x < minX ||
+				pushed.x > maxX ||
+				pushed.y < minY ||
+				pushed.y > maxY ||
 				isSegmentBlocked(grid, obstacles, aligned, pushed, radius)
 			) {
 				continue;
 			}
+
 			const destination = offset <= push ? pushed : shifted(from, side * push);
-			if (options.canSlideTo?.(destination, from, to) === false) continue;
-			return destination;
+			const clampedDestination = {
+				x: Math.min(Math.max(destination.x, minX), maxX),
+				y: Math.min(Math.max(destination.y, minY), maxY)
+			};
+
+			// Check canSlideTo against the aligned end point so the search does not greedily commit
+			// to a nearer side that later gets vetoed, as well as against the immediate destination.
+			if (options.canSlideTo?.(pushed, from, to) === false) continue;
+			if (
+				(clampedDestination.x !== pushed.x || clampedDestination.y !== pushed.y) &&
+				options.canSlideTo?.(clampedDestination, from, to) === false
+			) {
+				continue;
+			}
+
+			return clampedDestination;
 		}
 	}
 
@@ -228,8 +275,9 @@ function slideAroundCorner(
 
 /**
  * Whether sliding to `destination` would walk a player pushing `from` -> `to` into the trigger
- * zone of a door the push is not heading for. A door ahead of the push is fine: the player is
- * going there anyway.
+ * zone of a door the push is not heading for. A door ahead of the push within a forward heading
+ * cone (forward > 0 and forward >= lateral) is the door the push is heading for; any other door
+ * (behind, beside, or almost perpendicular to the push) is unrelated and vetoed.
  */
 export function entersUnrelatedDoorZone(
 	destination: NavigationPoint,
@@ -238,11 +286,19 @@ export function entersUnrelatedDoorZone(
 	doors: readonly NavigationPoint[],
 	zoneRadius: number
 ): boolean {
-	return doors.some(
-		(door) =>
-			distanceSquared(destination, door) <= zoneRadius * zoneRadius &&
-			(door.x - from.x) * (to.x - from.x) + (door.y - from.y) * (to.y - from.y) <= 0
-	);
+	const pushX = to.x - from.x;
+	const pushY = to.y - from.y;
+	const zoneRadiusSq = zoneRadius * zoneRadius;
+
+	return doors.some((door) => {
+		if (distanceSquared(destination, door) > zoneRadiusSq) {
+			return false;
+		}
+		const dot = (door.x - from.x) * pushX + (door.y - from.y) * pushY;
+		const cross = Math.abs((door.x - from.x) * pushY - (door.y - from.y) * pushX);
+		const isHeadingForDoor = dot > 0 && dot >= cross;
+		return !isHeadingForDoor;
+	});
 }
 
 export function isPositionWalkable(

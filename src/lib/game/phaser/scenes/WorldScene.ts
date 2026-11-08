@@ -91,6 +91,8 @@ import {
 } from '$lib/game/core/battle';
 import { canReceiveHit } from '$lib/game/core/combat';
 import {
+	MAP_TRANSITION_RADIUS,
+	MAP_TRANSITION_TRIGGER_RADIUS,
 	NPC_INTERACTION_RADIUS,
 	NPC_PACK_COLLISION_RADIUS,
 	PLAYER_COLLISION_RADIUS,
@@ -402,7 +404,8 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly terrainFrames = terrainFrameOrder;
 	private static readonly cameraFollowLerp = 0.14;
 	private static readonly bossPhaseTwoSpeedMultiplier = 1.5;
-	private static readonly transitionRadius = 18;
+	private static readonly transitionRadius = MAP_TRANSITION_RADIUS;
+	public static readonly doorTriggerRadius = MAP_TRANSITION_TRIGGER_RADIUS;
 	private static readonly pickupRadius = 18;
 	private static readonly enemyHealthBarOffsetY = 34;
 	private static readonly discoveryInteractRadius = 64;
@@ -422,6 +425,7 @@ export class WorldScene extends Phaser.Scene {
 	private clearedEncounterIds = new Set<string>();
 	private clearedEncounterUnitCounts: Record<string, number> = {};
 	private battleReturnTransitions = new Set<string>();
+	private transitions: readonly MapTransition[] = [];
 	private collisionDebugGraphics?: Phaser.GameObjects.Graphics;
 	private collectedPickupIds = new Set<string>();
 	private seenDiscoveryIds = new Set<string>();
@@ -538,6 +542,7 @@ export class WorldScene extends Phaser.Scene {
 		this.navigationObstacles = buildMapNavigationObstacles(map, {
 			includeInteractableNpcs: true
 		});
+		this.transitions = map.transitions;
 		const packageSelection: MapBackgroundPackageSelection =
 			requestedPackageSelection?.definition && requestedPackageSelection.definition.mapId !== map.id
 				? { mode: 'fallback', definition: null }
@@ -2137,11 +2142,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 		graphics.lineStyle(2, 0x22d3ee, 0.95);
 		for (const transition of map.transitions) {
-			graphics.strokeCircle(
-				transition.x,
-				transition.y,
-				WorldScene.playerRadius + WorldScene.transitionRadius
-			);
+			graphics.strokeCircle(transition.x, transition.y, WorldScene.doorTriggerRadius);
 		}
 		graphics.lineStyle(2, 0x4ade80, 0.95);
 		for (const pickup of map.pickups ?? []) {
@@ -2766,8 +2767,8 @@ export class WorldScene extends Phaser.Scene {
 						destination,
 						from,
 						to,
-						this.resolveMap(this.mapId).transitions,
-						WorldScene.playerRadius + WorldScene.transitionRadius
+						this.transitions,
+						WorldScene.doorTriggerRadius
 					)
 			}
 		);
@@ -3124,7 +3125,7 @@ export class WorldScene extends Phaser.Scene {
 				transition.y
 			);
 
-			if (distance > WorldScene.playerRadius + WorldScene.transitionRadius) {
+			if (distance > WorldScene.doorTriggerRadius) {
 				this.battleReturnTransitions.delete(transition.id);
 				continue;
 			}
