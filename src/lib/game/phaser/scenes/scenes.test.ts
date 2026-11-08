@@ -7739,7 +7739,7 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBeCloseTo(57.573593128807154);
 	});
 
-	it('consumes an authored map grid and prevents a large step through one blocked cell', async () => {
+	it('consumes an authored map grid and prevents a large step through an authored wall', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		registerSceneNavigationGridTestMap();
 		const scene = new WorldScene();
@@ -7832,6 +7832,39 @@ describe('WorldScene', () => {
 					blocked: false
 				}
 			]);
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
+	it('emits a movement diagnostic with blocked true and sideways resolved position during a corner slide', async () => {
+		const restoreLocation = installLocationSearch('?movementDiagnostics=on');
+		const target = installHudCommandTarget();
+		const diagnostics: PlayerMovementDiagnostic[] = [];
+		target.target.addEventListener(PLAYER_MOVEMENT_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<PlayerMovementDiagnostic>).detail);
+		});
+		try {
+			const { WorldScene } = await import('./WorldScene');
+			registerSceneCornerSlideTestMap();
+			const scene = new WorldScene();
+
+			scene.create({ mapId: 'scene-corner-slide-test' });
+			Object.assign(phaserState.playerMarker, { x: 116, y: 30 });
+			phaserState.cursorKeys.down.isDown = true;
+			scene.update(0, 16);
+
+			expect(diagnostics).toHaveLength(1);
+			expect(diagnostics[0]!).toMatchObject({
+				mapId: 'scene-corner-slide-test',
+				previousPosition: { x: 116, y: 30 },
+				blocked: true
+			});
+			expect(diagnostics[0]!.requestedPosition.x).toBe(116);
+			expect(diagnostics[0]!.requestedPosition.y).toBeCloseTo(30 + (240 * 16) / 1000);
+			expect(diagnostics[0]!.resolvedPosition.x).toBeCloseTo(116 - (240 * 16) / 1000);
+			expect(diagnostics[0]!.resolvedPosition.y).toBe(30);
 		} finally {
 			target.restore();
 			restoreLocation();

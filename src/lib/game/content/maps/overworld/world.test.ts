@@ -8,6 +8,7 @@ import {
 } from '$lib/game/content/maps/grid/layers';
 import { isWalkable } from '$lib/game/core/navigation';
 import { walk } from '$lib/game/core/navigation-test-utils';
+import { MAP_TRANSITION_TRIGGER_RADIUS } from '$lib/game/core/collision';
 
 import { sundropChunk } from './chunks/sundrop';
 import { overworldMap } from './map';
@@ -165,7 +166,7 @@ const FORGE_CORRIDOR: readonly { col: number; row: number }[] = [
 ];
 
 const FORGE_TRANSITION = 'overworld-to-blacksmith-interior';
-const DOOR_TRIGGER_PX = 30;
+const DOOR_TRIGGER_PX = MAP_TRANSITION_TRIGGER_RADIUS;
 const DOOR_CLEARANCE_PX = 48;
 
 describe('Sundrop forge connector', () => {
@@ -236,7 +237,7 @@ describe('Sundrop forge connector', () => {
 		const forge = overworldMap.transitions.find(
 			(transition) => transition.id === FORGE_TRANSITION
 		)!;
-		// North and east are both closed here; one pixel west, north is open for two tiles.
+		// North is closed here; one pixel west, north is open for two 16px cells (one tile). East is open.
 		const wedge = { x: 5712, y: 7216 };
 		expect(Math.hypot(wedge.x - forge.x, wedge.y - forge.y)).toBeLessThan(100);
 		expect(isWalkable(navigation, wedge.x, wedge.y)).toBe(true);

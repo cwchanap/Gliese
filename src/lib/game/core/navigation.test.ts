@@ -675,6 +675,52 @@ describe('corner slide', () => {
 		).toEqual({ x: 63, y: 36 });
 	});
 
+	it('checks canSlideTo against the aligned end point so a vetoed side does not strand the player', () => {
+		// Single 1-cell wide obstacle at col 3 (x: 48-64), row 2-3 (y: 32-64).
+		// Player at x=54, y=31 pushing south into row 2.
+		// West opening is at x < 48 (offset 7px west).
+		// East opening is at x >= 64 (offset 10px east).
+		// With a 2px push (push = 2), offset > push, so each frame only takes a 2px partial step.
+		// If canSlideTo vetoes the west aligned destination (x=47, y=33), the search must not greedily
+		// take a partial step west to (52, 31) and strand the player; it should take the east slide.
+		const singleCellObstacleGrid = compileNavigationGrid(
+			source({
+				widthCells: 8,
+				heightCells: 6,
+				rows: ['........', '........', '...#....', '...#....', '........', '........']
+			})
+		);
+		const from = { x: 54, y: 31 };
+		const to = { x: 54, y: 33 }; // 2px push south into row 2
+		// West lane needs offset 7px (x=47). East lane needs offset 10px (x=64).
+		// Veto any destination or aligned point on the west side (x < 54).
+		const result = resolveMovementSegment(singleCellObstacleGrid, [], from, to, 0, {
+			canSlideTo: (point) => point.x >= 54
+		});
+		// Should slide east (x > 54), taking a 2px step east to x = 56.
+		expect(result.x).toBe(56);
+		expect(result.y).toBe(31);
+	});
+
+	it('clamps slide destination to map edge margin bounds', () => {
+		// 3x3 cells (48x48px). Player radius = 12, so walkable margin is [12, 36].
+		const grid = compileNavigationGrid(
+			source({
+				widthCells: 3,
+				heightCells: 3,
+				rows: ['#..', '#..', '...']
+			})
+		);
+		// Player at x=14, y=10 (close to top margin y=12, close to left wall).
+		// Pushing south against an obstacle, sliding left toward x=0.
+		// Slide cannot push center below radius 12.
+		const from = { x: 14, y: 14 };
+		const to = { x: 14, y: 18 };
+		const result = resolveMovementSegment(grid, [], from, to, 12);
+		expect(result.x).toBeGreaterThanOrEqual(12);
+		expect(result.y).toBeGreaterThanOrEqual(12);
+	});
+
 	it('does not slide a diagonal push, which already slides along the wall', () => {
 		expect(
 			resolveMovementSegment(verticalLane(), [], { x: 68, y: 24 }, { x: 72, y: 40 }, 0)
@@ -736,5 +782,20 @@ describe('entersUnrelatedDoorZone', () => {
 		expect(
 			entersUnrelatedDoorZone({ x: 97, y: 125 }, { x: 100, y: 125 }, { x: 100, y: 121 }, doors, 30)
 		).toBe(false);
+	});
+
+	it('vetoes a door almost perpendicular to the push even with a tiny positive forward component', () => {
+		// Pushing south from (100, 100) to (100, 104). Door is at (128, 101), 28px east and 1px south.
+		// Slide moves 4px east to (104, 100), ending 24px from the door (inside the 30px zone).
+		const lateralDoors = [{ x: 128, y: 101 }];
+		expect(
+			entersUnrelatedDoorZone(
+				{ x: 104, y: 100 },
+				{ x: 100, y: 100 },
+				{ x: 100, y: 104 },
+				lateralDoors,
+				30
+			)
+		).toBe(true);
 	});
 });
