@@ -1,77 +1,99 @@
-# HPA-815 — Forge approach and wide interior exits (design)
+# HPA-815 — Forge approach and interior exits (design, review-reconciled)
 
-**Status:** Proposed design for a documentation-only draft PR; implementation and playtesting are not yet done.
+**Status:** Design proposal only; runtime implementation, tests, and manual UAT remain pending.
 **Issue:** https://linear.app/cwchanap/issue/HPA-815/the-forge-is-enterable-but-only-by-sliding-along-a-wall-through-a-one
-**Baseline:** Gliese main after merged PR #62 (HPA-760), and the November 7 follow-up on HPA-815.
+**PR:** https://github.com/cwchanap/Gliese/pull/64
+**Baseline:** Gliese main after merged PR #62 (HPA-760); reconciled against the November 7/8 PR #64 design review (https://github.com/cwchanap/Gliese/pull/64#issuecomment-6718253897).
 
-## Problem and evidence
+## What remains broken
 
-The first quest directs Grik to Oren's forge. Round-3 headless playtesting reached the forge only by finding a narrow band between the forge, the neighboring hut, and trees. The test harness makes navigation less precise than a real keyboard, so this is **not** evidence of a hard soft-lock; it is reliable evidence of avoidable first-quest friction.
+Round-3 headless playtesting found that Grik could reach Oren's forge only by locating a narrow lane, and that he needed to align precisely with some interior exits. This establishes **significant first-quest friction, not a proven soft-lock**. HPA-760 / PR #62 already supplied the Area Map forge hint and rerouted an obviously misleading straight dirt connector. HPA-817 separately fixed an open-grass collision slide.
 
-PR #62 already rerouted the visible dirt connector away from the neighboring hut's door and added a labeled forge entrance hint on the Area Map. The follow-up inspection found two residual defects:
+Two HPA-815 defects remain:
 
-1. **Forge approach geometry.** In **src/lib/game/content/maps/overworld/chunks/sundrop.ts**, the lone blocking-tree glyph Y at local column 43, row 43 sits directly below hut 2. Collision clearance leaves a thin band rather than a comfortable route. The existing **world.test.ts** route checks prove one centerline traversable and far enough from unrelated transitions; they do not assert usable corridor width. A player walking west from the forge doorstep can still hit hut 2's doorway trigger.
-2. **Interior exit activation.** **src/lib/game/phaser/scenes/WorldScene.ts** uses a point-distance threshold (30px = 12px player radius + 18px transition radius) for every transition. Yet **VILLAGE_INTERIOR_LAYOUTS** already defines 128px-wide exterior doorway rectangles for the blacksmith, Shrine of Aurora and villager houses 1–3. Their exit coordinates lie at the doorway center. Standing in the left or right walkable part of the painted doorway fails to exit.
+1. **Authored approach:** In **src/lib/game/content/maps/overworld/chunks/sundrop.ts**, the blocking tree \`Y\` at local tile (43, 43), just south of neighbor hut 2, pinches the route. The existing test in **world.test.ts** asserts one safe centerline but not three traversable side-by-side tracks. The neighboring hut door \`b\` must not activate while following the painted approach to forge door \`f\`.
+2. **Wide interior exits:** **WorldScene.tryTransition** currently uses a 30px circle around each exit point. The blacksmith, shrine and villager houses 1–3 have 128×32 authored doorway openings, but an off-center player can reach the southern boundary without triggering exit.
 
-Related work: HPA-817's open-grass corner-slide fix is completed; HPA-816 (talking to Oren across his counter) and HPA-818 (I/Esc shortcuts) are separate tasks. Do not reopen or absorb them.
+**Crucial review discovery:** The circle is used not only by \`tryTransition\` and \`battleReturnTransitions\`, but also by the **HPA-817 corner-slide veto** (\`entersUnrelatedDoorZone\`) and the **debug overlay**. All four must share the new trigger semantics. The first proposal's \`|dy| ≤ 30\` wide horizontal band reached above the doorway wall; at the blacksmith, it would classify a slide from (393, 660) into the jamb as a newly entered door zone, recreating the wedge. That band design is **rejected**.
 
-## Goals
+## Goals and invariants
 
-- A player following the visibly painted, first-quest route can approach, enter and leave the forge without pixel-perfect steering or an accidental hut transition.
-- The approach's constrained segment is **at least three adjacent 32px walkable tiles (96px raw width)**, with clearance checked using the actual player radius and the current story-gated map.
-- For each 128px exterior doorway, exiting works from left, middle and right **player-center positions that are physically reachable through the opening**.
-- Existing narrow (64px) exits, overworld entrances, transition destinations, save behavior and battle-return anti-bounce behavior remain unchanged.
-- One Linear issue, one PR, minimal source-owned changes, no new art or SFX.
+- Clear, keyboard-traversable route into and out of the **first-quest forge**; keep known forge map hint, quest/story IDs and the same exterior/interior anchors.
+- At the constrained forge connector, maintain a **local** three-adjacent-track width at 32px tile spacing under the **composed 16px navigation grid** and 12px clearance. This is an HPA-815 acceptance criterion, **not** a new global rule. Preserve the existing world-wide two-tile minimum.
+- All **eight** currently authored village interior exterior exits work over their physically traversable doorway openings without widening the collision aperture or altering arrivals.
+- Any 30px point transition remains valid as before: circle behavior is retained, not replaced.
+- A corner slide must not accidentally enter an unrelated door zone; a player sliding along a door jamb toward the correct doorway must remain able to enter/exit.
+- No new image art, audio, generalized movement/navigation system, save schema, or story changes. Keep HPA-816 and HPA-818 separate.
 
-## Decision A — repair the authored Sundrop lane, not movement physics
+## Decision A — minimal source-grid edit in Sundrop
 
-Modify **src/lib/game/content/maps/overworld/chunks/sundrop.ts** only where needed for the forge connector. Keep both anchors **sundrop-forge-door** (f) and **sundrop-neighbor-hut-2-door** (b), building footprints and story overlay semantics intact.
+Try **deleting**, not relocating, the lone obstructing \`Y\` at local (43, 43). Shift the visible dirt path's route on row 43 east toward col 48, then north along the existing dirt on (48, 42) and (48, 41) to \`f\`; preserve \`b\`, \`f\`, hut footprints, other vegetation, raid/story overlays, and all stable IDs.
 
-Start by shifting/removing the existing isolated Y obstruction at local (43, 43) and shaping the south-of-hut dirt/grass corridor so the obvious painted line crosses the open middle of a three-tile band, then turns north into f. Avoid a westward lane directly through b's 30px activation circle. Prefer the smallest glyph edit that keeps existing runtime sprites visually coherent; do **not** compensate by increasing walk speed, changing global collision radius, enlarging every door trigger, or introducing route/pathfinding machinery.
+This is a **hypothesis requiring a real collision probe**: removing one glyph may be sufficient, but it is not yet demonstrated. Keep changes to the minimum source glyphs that pass the route test. Do not move the same tree elsewhere without measuring the new collision, or solve a local map problem by changing \`PLAYER_COLLISION_RADIUS\`, \`resolveMovementSegment\`, global lane widths, transitions or adding pathfinding.
 
-Verify the real composed grid, not only the raw text. **GRID_NAVIGATION_CELL_SIZE = 16**, **GRID_NAVIGATION_CLEARANCE = 12** and tree/building blockers can make a visually three-tile corridor functionally narrower. The local test should check three adjacent traversable tile-center tracks through the constrained segment, plus sustained movement and clearance from unrelated door triggers. Preserve the existing pinned intended connector glyphs, updating them for the new line; prevent a regression back to the original misleading straight path.
+Extend **src/lib/game/content/maps/overworld/world.test.ts**:
 
-Outdoor terrain uses the existing glyph renderer; moving a tree glyph changes its existing sprite/ground placement without asking for new artwork. Capture a map preview and a painted/runtime screenshot. If the revised source visibly conflicts with any baked imagery or requires a replacement image, open **a separate art-generation task** rather than mixing art generation into this coding ticket.
+- Pin the intended \`FORGE_CORRIDOR\` glyphs, replacing its previous path waypoints with the visible revised route.
+- Sample the existing route's polylines plus **±32px perpendicular tracks where the three-track width matters**. Check all tracks in the *composed* nav grid, not just the text glyphs, and check clearance against every unrelated door (especially \`b\`).
+- Use existing \`walk()\` (same movement resolver) along straight route segments and in the reverse direction. Do not force ±32px tracks through sharp turn segments or across doorframes; define meaningful constrained sections.
+- Keep the existing raid-state route test and HPA-817 wedge regression; a one-tile pinch and the misleading straight connector should fail the new tests.
 
-## Decision B — give wide south-facing interior exits a source-derived activation width
+Use the existing tile/glyph renderer. A map preview and a brief in-game smoke walk check whether the new route *looks* as usable as its collisions. If entirely new or replacement artwork proves necessary, split it into a separate **art-generation** task rather than expanding this coding ticket.
 
-Add a single **optional triggerWidthPx** field to **MapTransition** in **src/lib/game/content/maps/types.ts**. Keep **x/y** as the transition's authoritative center, preserving markers, arrival coordinates and all ordinary point transitions.
+## Decision B — circular trigger OR authored exterior door rectangle
 
-For the five **128px** south-facing exterior doorways only, set **triggerWidthPx** from the existing **layout.doors.exterior.width** in **src/lib/game/content/maps.ts**:
+Use **\`MapTransition.triggerRect?: LayoutRect\`**, where \`LayoutRect\` is **top-left** \`{ x, y, width, height }\` as already authored by \`VILLAGE_INTERIOR_LAYOUTS[mapId].doors.exterior\`. It is **not** a centered \`MapRect\`; do not pass through \`toMapRect\` (which would offset x/y by half a width/height).
 
-- blacksmith-interior
-- shrine-of-aurora-interior
-- villager-house-1
-- villager-house-2
-- villager-house-3
+In **src/lib/game/content/maps.ts**, add \`triggerRect: <layout>.doors.exterior\` to **each of the eight** existing village interior exit transitions:
 
-Do not change 64px Hero House, Guild Hall or Item Shop exits. Those keep the existing 30px circular rule, which is already wider than a collision-safe 64px doorway span.
+- Hero House
+- Guild Hall
+- Item Shop
+- Blacksmith
+- Villager House 1
+- Villager House 2
+- Villager House 3
+- Shrine of Aurora
 
-Use one small pure **isTransitionTriggered(transition, playerPosition)** helper (suggested owner: **src/lib/game/content/maps/transition-trigger.ts**) for both **WorldScene.tryTransition** and initialization of **battleReturnTransitions**. For normal transitions retain the current circular distance. For a triggerWidthPx door use a horizontal collision-safe band:
+This avoids a five-door exception list that would be forgotten for future interiors. The original 64px door openings' collision-reachable area is already inside the 30px circle; these should experience no behavioral change, as verified in tests.
 
-~~~ts
-Math.abs(player.x - transition.x) <= triggerWidthPx / 2 - PLAYER_COLLISION_RADIUS
-  && Math.abs(player.y - transition.y) <= MAP_TRANSITION_TRIGGER_RADIUS
-~~~
+Implement a small pure **\`isInTransitionZone(transition, playerPoint)\`** predicate in existing **src/lib/game/core/navigation.ts**. Its semantics are:
 
-The horizontal player-center restriction prevents activation through the solid wall beside the painted opening. The vertical tolerance preserves the current activation depth. The feature is intentionally limited to the existing south-facing horizontal exits; no general-purpose polygon trigger framework is required. Keep **requiresClear** and anti-bounce checks exactly as before.
+1. **Existing circle:** distance from \`transition.x/y\` to player ≤ \`MAP_TRANSITION_TRIGGER_RADIUS\` (currently 30px).
+2. **Optional authored rect:** player center is within \`triggerRect\` (top-left x/y, width/height); compare directly, no extra 12px expansion and no synthetic vertical band.
+3. **Union:** trigger if either condition holds; when \`triggerRect\` is absent, behavior is precisely the old circle.
 
-If the development collision probe finds a doorframe makes a candidate x physically unreachable, test the closest truly traversable x rather than forcing the trigger to cover solid geometry. Visual opening, collision and interaction must agree.
+Use a **small structural type** accepted by the core predicate (center + optional rect) so core navigation does not depend on the content layer or import concrete \`MapTransition\` at runtime. Keep the content contract typed by \`LayoutRect\` (type-only import acceptable). Existing point-only tests/fixtures remain straightforward. The circle union deliberately preserves edge behavior that already existed; *newly covered off-center area* must be inside the authored opening, not above its wall.
 
-## Verification and acceptance
+Wire the shared predicate into **all four** existing call sites:
 
-1. **Route contract:** update **src/lib/game/content/maps/overworld/world.test.ts** to pin the new visible connector and assert three parallel collision-safe tracks across the constrained lane and a continuous approach to f without touching b or another transition. A reverted one-tile pinch/tree must fail.
-2. **Transition contract:** unit-test the helper on left/center/right player-center positions of all five wide doors, positions beyond both door jambs, the too-early y band, and an unchanged 64px/overworld point trigger. Check the real layouts, not invented width constants.
-3. **Scene contract:** extend **src/lib/game/phaser/scenes/scenes.test.ts** to exercise at least the forge, shrine and one villager-house exit through **WorldScene.update** at multiple x positions. Verify the overworld arrival point, no unintended re-entry, and battle-return suppression.
-4. **Manual keyboard UAT:** New Run → Mott → Area Map forge hint → normal continuous walk along painted dirt → forge → Oren → exit from left/middle/right, then another wide-door interior; capture map/door screenshots and the tested commit.
-5. **Gates:** targeted Vitest, full unit tests, **bun run world:check:navigation**, **bun run check**, **bun run lint**, **bun run build**, and the existing relevant Playwright test(s). Record commands and results; do not mark them passed in this planning PR.
+- \`WorldScene.tryTransition\` for actual map changes.
+- \`WorldScene\` initialization and clearing of the \`battleReturnTransitions\` set (no immediate retrigger on a battle return).
+- \`entersUnrelatedDoorZone\` / \`WorldScene.resolvePlayerCollision\` slide veto. It must accept transition definitions rather than a bare point list + independently computed radius; retain its existing forward-heading and *newly entered zone* rules, applying one shared zone predicate.
+- Collision debug overlay. Draw the existing circle plus \`triggerRect\` when present, so debug visualization matches active behavior.
 
-## Explicit non-goals
+Keep the rest of \`tryTransition\` semantics intact (\`requiresClear\`, save building, arrival, story gates, transition markers). Do **not** broaden \`WorldScene\` geometry, add a new content/maps helper file, or create a configurable trigger-shape framework.
 
-No redesign of the overworld or interior layout system; no new movement/corner-slide fix (HPA-817); no NPC counter interaction fix (HPA-816); no input shortcut fix (HPA-818); no asset generation; no new persistence fields, save migration, quest changes or duplicate PRs.
+### High-risk geometry test: blacksmith jamb slide
 
-## Open implementation checks
+The review gives a worked regression: at the blacksmith exit, \`triggerRect = { x: 384, y: 672, width: 128, height: 32 }\` and center \`(448, 688)\`. With the rejected ±30px vertical band, a southward push from \`(393, 660)\` could slide to about \`(397–409, 664)\`, enter the band while the straight target remains outside, and be vetoed.
 
-- Prove the chosen three-tile lane in the composed 16px grid and with the current 12px player clearance. Its exact glyph edits should be driven by that test, not by a screenshot alone.
-- Confirm a small source edit produces a consistent on-screen painted approach under all relevant story overlays.
-- Confirm that wide-door trigger positions are walkable, and that the transition check does not fire outside a visible opening.
+With **circle OR actual rect**, those \`y=664\` destinations are outside the rect; the unrelated-door veto must not newly block the slide. Add a regression using actual collision and \`walk()\` from this jamb area, then continue the walk into the doorway until the transition becomes active. Verify the player does not trigger early while running along the wall; the pre-existing circular activation remains unchanged.
+
+## Lean acceptance and validation
+
+1. **Authored route tests:** source glyph pins, composed three-track corridor, both-direction \`walk()\` on straight sections, no unrelated door trigger, existing raid-state route.
+2. **Pure trigger tests in existing \`core/navigation.test.ts\`:** circle fallback, rect-only off-center reach, bounds outside rect/door, original 64px exit, slide-veto behavior. For each of the eight interiors, start at left/center/right **collision-reachable** x positions near the exit, \`walk()\` downward on the real nav grid, then assert the resulting point is in the shared trigger zone. Reuse existing test helpers instead of inventing an E2E harness.
+3. **Scene wiring:** one off-center actual exit through \`WorldScene.update\` with correct overworld arrival, plus one representative wide-door \`battleReturnTransitions\` suppression case added near the existing scene test. No 3×5 scene matrix.
+4. **Explicit jamb-slide regression:** \`(393, 660)\` pushing south must be able to slide toward the blacksmith doorway rather than be blocked by the HPA-817 veto.
+5. **One manual smoke walk:** New Run → first-quest forge → exit off-center. Capture useful evidence and note tested SHA; no mandatory full raid-state manual replay or screenshots for each interior. Keep applicable existing automated checks and a normal build/check/lint gate.
+
+The \`world:check:navigation\` generator is optional for this change: no authored *interior navigation layout* changes are planned, so its passing result alone does **not** establish that the forge lane or trigger behavior works.
+
+## Out of scope
+
+HPA-817's generic corner-slide physics; HPA-816 Oren/counter interaction; HPA-818 keyboard shortcuts; village redesign, new authored art/SFX, save migrations, AI/pathfinding, new quest/story assets or duplicate implementation PRs. Keep this **one ticket / one PR**.
+
+## Review disposition
+
+Accepted PR #64 review findings 1–6: four call-site consistency including slide veto; actual rect ∪ circle instead of synthetic band; source-derived rects on all eight exits; core-owned predicate; reuse of \`walk()\` and a lean scene-test set; focused UAT and explicit jamb regression. The proposed tree deletion is accepted **as the first source edit to validate**, not as proof that the whole lane is already fixed.
