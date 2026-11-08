@@ -271,8 +271,10 @@ function slideAroundCorner(
 
 /**
  * Whether sliding to `destination` would walk a player pushing `from` -> `to` into the trigger
- * zone of a door the push is not heading for. A door ahead of the push within a forward heading
- * cone (forward > 0 and forward >= lateral) is the door the push is heading for; any other door
+ * zone of a door the push is not heading for. A slide that newly enters a zone the straight
+ * endpoint `to` misses is always vetoed — the push was never taking the player through that
+ * door. When `to` already ends inside the zone, a door inside the forward heading cone
+ * (forward > 0 and forward >= lateral) is the door the push is heading for; any other door
  * (behind, beside, or almost perpendicular to the push) is unrelated and vetoed.
  */
 export function entersUnrelatedDoorZone(
@@ -289,6 +291,9 @@ export function entersUnrelatedDoorZone(
 	return doors.some((door) => {
 		if (distanceSquared(destination, door) > zoneRadiusSq) {
 			return false;
+		}
+		if (distanceSquared(to, door) > zoneRadiusSq) {
+			return true;
 		}
 		const dot = (door.x - from.x) * pushX + (door.y - from.y) * pushY;
 		const cross = Math.abs((door.x - from.x) * pushY - (door.y - from.y) * pushX);

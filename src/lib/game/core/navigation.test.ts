@@ -789,6 +789,15 @@ describe('entersUnrelatedDoorZone', () => {
 		).toBe(false);
 	});
 
+	it('vetoes a slide that newly enters the zone of a door the straight push misses', () => {
+		// Pushing east at y = 124: the straight endpoint is ~31.9px from the door (outside the
+		// 30px zone) while the 4px north slide lands 29px from it (inside). The door sits inside
+		// the forward heading cone (dot = 100 >= cross = 96), so only the new-entry check vetoes.
+		expect(
+			entersUnrelatedDoorZone({ x: 79, y: 120 }, { x: 75, y: 124 }, { x: 79, y: 124 }, doors, 30)
+		).toBe(true);
+	});
+
 	it('vetoes a door almost perpendicular to the push even with a tiny positive forward component', () => {
 		// Pushing south from (100, 100) to (100, 104). Door is at (128, 101), 28px east and 1px south.
 		// Slide moves 4px east to (104, 100), ending 24px from the door (inside the 30px zone).
