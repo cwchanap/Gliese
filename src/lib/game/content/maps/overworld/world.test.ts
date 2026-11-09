@@ -159,8 +159,8 @@ const FORGE_CORRIDOR: readonly { col: number; row: number }[] = [
 	{ col: 36, row: 43 },
 	{ col: 39, row: 43 },
 	{ col: 42, row: 43 },
-	{ col: 42, row: 42 },
-	{ col: 45, row: 42 },
+	{ col: 45, row: 43 },
+	{ col: 48, row: 43 },
 	{ col: 48, row: 42 },
 	{ col: 48, row: 41 }
 ];
@@ -169,14 +169,64 @@ const FORGE_TRANSITION = 'overworld-to-blacksmith-interior';
 const DOOR_TRIGGER_PX = MAP_TRANSITION_TRIGGER_RADIUS;
 const DOOR_CLEARANCE_PX = 48;
 
+/**
+ * Constrained straight sections of the forge connector, in world pixels. The pinch is the
+ * four navigation columns between neighbour hut 2's collision clearance (north) and the old
+ * blocking tree's column (south); the run is the straight row-43 stretch into the col-48
+ * turn. Side tracks are only asserted on these straight sections, never across the sharp
+ * turn or the doorframe itself.
+ */
+const FORGE_TRACK_SECTIONS = [
+	{ name: 'hut-2 corner pinch', fromX: 5456, toX: 5520 },
+	{ name: 'row-43 run to the turn', fromX: 5520, toX: 5648 }
+] as const;
+
+/** Three parallel traversable tracks, 32px (one tile) apart, through the constrained lane. */
+const FORGE_TRACK_YS = [7224, 7256, 7288] as const;
+
 describe('Sundrop forge connector', () => {
-	it('paints dirt south of neighbour hut 2 and removes the straight-line connector', () => {
+	it('paints dirt along row 43 into the forge turn and erases the parallel row-42 lane', () => {
 		const terrain = parseGridRows(sundropChunk.terrain);
 		for (const { col, row } of FORGE_CORRIDOR) {
 			expect(terrain[row]![col], `terrain[${row}][${col}]`).toBe(',');
 		}
+		// The old lane one tile north of the connector is grass again; only the col-48 turn tile
+		// on row 42 stays dirt, so there is one painted connector, not a redundant parallel one.
+		for (const col of [43, 44, 45, 46, 47]) {
+			expect(terrain[42]![col], `terrain[42][${col}]`).toBe('.');
+		}
 		for (const col of [41, 42, 43, 44, 45, 46, 47]) {
 			expect(terrain[41]![col], `terrain[41][${col}]`).not.toBe(',');
+		}
+	});
+
+	it('keeps three traversable 32px-spaced tracks through the constrained lane by hut 2', () => {
+		const navigation = buildGridNavigationGrid(
+			overworld.id,
+			overworld.grid.terrain,
+			overworld.grid.buildings
+		);
+		const samples: { x: number; y: number }[] = [];
+		for (const section of FORGE_TRACK_SECTIONS) {
+			for (const y of FORGE_TRACK_YS) {
+				for (let x = section.fromX; x <= section.toX; x += 8) {
+					const point = { x, y };
+					expect(
+						isWalkable(navigation, point.x, point.y),
+						`${section.name} track y=${y} at ${x},${y}`
+					).toBe(true);
+					samples.push(point);
+				}
+			}
+		}
+		// The side tracks must stay clear of every other door, especially hut 2's door `b`, so
+		// the wide lane cannot funnel the player into villager-house-2.
+		for (const transition of overworldMap.transitions) {
+			if (transition.id === FORGE_TRANSITION) continue;
+			const nearest = Math.min(
+				...samples.map((point) => Math.hypot(point.x - transition.x, point.y - transition.y))
+			);
+			expect(nearest, `clearance to ${transition.id}`).toBeGreaterThanOrEqual(DOOR_CLEARANCE_PX);
 		}
 	});
 
@@ -192,9 +242,7 @@ describe('Sundrop forge connector', () => {
 			{ x: 4656, y: 7184 },
 			{ x: 5168, y: 7184 },
 			{ x: 5168, y: 7280 },
-			{ x: 5448, y: 7280 },
-			{ x: 5448, y: 7240 },
-			{ x: 5648, y: 7240 },
+			{ x: 5648, y: 7280 },
 			{ x: 5648, y: 7184 }
 		] as const;
 		const samples: { x: number; y: number }[] = [];
@@ -226,6 +274,31 @@ describe('Sundrop forge connector', () => {
 		)!;
 		const last = samples.at(-1)!;
 		expect(Math.hypot(last.x - forge.x, last.y - forge.y)).toBeLessThan(DOOR_TRIGGER_PX);
+	});
+
+	it('holds a straight key along the connector and the turn in both directions', () => {
+		const navigation = buildGridNavigationGrid(
+			overworld.id,
+			overworld.grid.terrain,
+			overworld.grid.buildings
+		);
+		// East and west along the straight row-43 run, then up and down the col-48 turn.
+		expect(walk(navigation, [], { x: 5168, y: 7280 }, { x: 1, y: 0 }, 120)).toEqual({
+			x: 5648,
+			y: 7280
+		});
+		expect(walk(navigation, [], { x: 5648, y: 7280 }, { x: -1, y: 0 }, 120)).toEqual({
+			x: 5168,
+			y: 7280
+		});
+		expect(walk(navigation, [], { x: 5648, y: 7280 }, { x: 0, y: -1 }, 24)).toEqual({
+			x: 5648,
+			y: 7184
+		});
+		expect(walk(navigation, [], { x: 5648, y: 7184 }, { x: 0, y: 1 }, 24)).toEqual({
+			x: 5648,
+			y: 7280
+		});
 	});
 
 	it('slides off the stair-stepped corner in front of the forge instead of wedging', () => {
