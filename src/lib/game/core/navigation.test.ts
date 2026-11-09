@@ -885,6 +885,12 @@ describe('isInTransitionZone', () => {
 		expect(isInTransitionZone(wideDoorway, { x: 384, y: 672 })).toBe(true);
 	});
 
+	it('still covers circle-only points when a triggerRect is authored', () => {
+		// 23px straight above the exit point: outside the rect (y 665 < 672) but inside the
+		// canonical 30px circle — the union keeps legacy centre coverage for authored doorways.
+		expect(isInTransitionZone(wideDoorway, { x: 448, y: 665 })).toBe(true);
+	});
+
 	it('rejects points beyond the rect edges, including above the south wall', () => {
 		expect(isInTransitionZone(wideDoorway, { x: 383, y: 688 })).toBe(false);
 		expect(isInTransitionZone(wideDoorway, { x: 513, y: 688 })).toBe(false);

@@ -595,6 +595,7 @@ export const heroHouseMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'hero-house-to-overworld',
 			...heroHouseLayout.exit,
+			triggerRect: heroHouseLayout.doors.exterior,
 			toMapId: openingMapId,
 			arrival: overworldDoorArrival('hero-house')
 		}
@@ -694,6 +695,7 @@ export const guildHallMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'guild-hall-to-overworld',
 			...guildHallLayout.exit,
+			triggerRect: guildHallLayout.doors.exterior,
 			toMapId: openingMapId,
 			arrival: overworldDoorArrival('guild-hall')
 		}
@@ -824,6 +826,7 @@ export const itemShopMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'item-shop-to-overworld',
 			...itemShopLayout.exit,
+			triggerRect: itemShopLayout.doors.exterior,
 			toMapId: openingMapId,
 			arrival: overworldDoorArrival('item-shop')
 		}
@@ -915,6 +918,7 @@ export const blacksmithInteriorMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'blacksmith-to-overworld',
 			...blacksmithLayout.exit,
+			triggerRect: blacksmithLayout.doors.exterior,
 			toMapId: openingMapId,
 			arrival: overworldDoorArrival('blacksmith-interior')
 		}
@@ -991,6 +995,7 @@ export const villagerHouse1Map: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'villager-house-1-to-overworld',
 			...villagerHouse1Layout.exit,
+			triggerRect: villagerHouse1Layout.doors.exterior,
 			toMapId: openingMapId,
 			arrival: overworldDoorArrival('villager-house-1')
 		}
@@ -1064,6 +1069,7 @@ export const villagerHouse2Map: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'villager-house-2-to-overworld',
 			...villagerHouse2Layout.exit,
+			triggerRect: villagerHouse2Layout.doors.exterior,
 			toMapId: openingMapId,
 			arrival: overworldDoorArrival('villager-house-2')
 		}
@@ -1142,6 +1148,7 @@ export const villagerHouse3Map: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'villager-house-3-to-overworld',
 			...villagerHouse3Layout.exit,
+			triggerRect: villagerHouse3Layout.doors.exterior,
 			toMapId: openingMapId,
 			arrival: overworldDoorArrival('villager-house-3')
 		}
@@ -1228,6 +1235,7 @@ export const shrineOfAuroraInteriorMap: WorldMapDefinition = addEnglishMapText({
 		{
 			id: 'shrine-of-aurora-to-overworld',
 			...shrineOfAuroraLayout.exit,
+			triggerRect: shrineOfAuroraLayout.doors.exterior,
 			toMapId: openingMapId,
 			arrival: overworldDoorArrival('shrine-of-aurora-interior')
 		}

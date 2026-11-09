@@ -16,6 +16,7 @@ import type {
 	VillageDressingFrameName
 } from '$lib/game/content/assets';
 import type { GridBuildingType } from '$lib/game/content/maps/grid/buildings';
+import type { LayoutRect } from '$lib/game/content/maps/layouts/layout-rects';
 import type { QuestId } from '$lib/game/content/quests';
 import type { MapDefinition } from '$lib/game/core/types';
 import type { NavigationGrid } from '$lib/game/core/navigation';
@@ -40,6 +41,13 @@ export interface MapTransition extends StoryGated {
 	id: string;
 	x: number;
 	y: number;
+	/**
+	 * Authored doorway trigger geometry in top-left `x/y/width/height` pixels, taken
+	 * straight from the interior layout (`doors.exterior`). Unlike `MapRect`, these
+	 * coordinates are not centred — do not convert with `toMapRect`. A transition
+	 * without it keeps the canonical 30px circle around `x/y`.
+	 */
+	triggerRect?: LayoutRect;
 	toMapId: string;
 	requiresClear?: boolean;
 	showMarker?: boolean;

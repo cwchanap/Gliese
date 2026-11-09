@@ -1,3 +1,5 @@
+import { MAP_TRANSITION_TRIGGER_RADIUS } from '$lib/game/core/collision';
+
 export interface NavigationPoint {
 	readonly x: number;
 	readonly y: number;
@@ -270,33 +272,76 @@ function slideAroundCorner(
 }
 
 /**
+ * A transition-like door definition: the trigger point plus an optional authored
+ * doorway rectangle in top-left `x/y/width/height` pixels. Structurally compatible
+ * with content's `MapTransition`, so map transitions pass through unchanged.
+ */
+export interface TransitionZoneTarget extends NavigationPoint {
+	readonly triggerRect?: {
+		readonly x: number;
+		readonly y: number;
+		readonly width: number;
+		readonly height: number;
+	};
+}
+
+/**
+ * Whether the player point sits inside the transition's trigger zone: the authored
+ * doorway rectangle when present, unioned with the canonical 30px circle around the
+ * transition point so authored doorways keep their legacy centre coverage.
+ */
+export function isInTransitionZone(
+	transition: TransitionZoneTarget,
+	playerPoint: NavigationPoint
+): boolean {
+	const rect = transition.triggerRect;
+	if (
+		rect &&
+		playerPoint.x >= rect.x &&
+		playerPoint.x <= rect.x + rect.width &&
+		playerPoint.y >= rect.y &&
+		playerPoint.y <= rect.y + rect.height
+	) {
+		return true;
+	}
+	return distanceSquared(playerPoint, transition) <= MAP_TRANSITION_TRIGGER_RADIUS ** 2;
+}
+
+/**
  * Whether sliding to `destination` would walk a player pushing `from` -> `to` into the trigger
  * zone of a door the push is not heading for. A slide that newly enters a zone the straight
  * endpoint `to` misses is always vetoed — the push was never taking the player through that
- * door. When `to` already ends inside the zone, a door inside the forward heading cone
- * (forward > 0 and forward >= lateral) is the door the push is heading for; any other door
- * (behind, beside, or almost perpendicular to the push) is unrelated and vetoed.
+ * door. When `to` already ends inside the zone, the heading cone aims at the closest point of
+ * the door: the door point itself, or for an authored doorway rect the nearest point on that
+ * rect. A door inside the forward heading cone (forward > 0 and forward >= lateral) is the
+ * door the push is heading for; any other door (behind, beside, or almost perpendicular to
+ * the push) is unrelated and vetoed. An origin already inside the doorway rect clamps to
+ * itself, leaving no heading; a move that stays inside the same doorway is never unrelated.
  */
 export function entersUnrelatedDoorZone(
 	destination: NavigationPoint,
 	from: NavigationPoint,
 	to: NavigationPoint,
-	doors: readonly NavigationPoint[],
-	zoneRadius: number
+	doors: readonly TransitionZoneTarget[]
 ): boolean {
 	const pushX = to.x - from.x;
 	const pushY = to.y - from.y;
-	const zoneRadiusSq = zoneRadius * zoneRadius;
 
 	return doors.some((door) => {
-		if (distanceSquared(destination, door) > zoneRadiusSq) {
+		if (!isInTransitionZone(door, destination)) {
 			return false;
 		}
-		if (distanceSquared(to, door) > zoneRadiusSq) {
+		if (!isInTransitionZone(door, to)) {
 			return true;
 		}
-		const dot = (door.x - from.x) * pushX + (door.y - from.y) * pushY;
-		const cross = Math.abs((door.x - from.x) * pushY - (door.y - from.y) * pushX);
+		const rect = door.triggerRect;
+		const aimX = rect ? Math.min(Math.max(from.x, rect.x), rect.x + rect.width) : door.x;
+		const aimY = rect ? Math.min(Math.max(from.y, rect.y), rect.y + rect.height) : door.y;
+		if (aimX === from.x && aimY === from.y) {
+			return false;
+		}
+		const dot = (aimX - from.x) * pushX + (aimY - from.y) * pushY;
+		const cross = Math.abs((aimX - from.x) * pushY - (aimY - from.y) * pushX);
 		const isHeadingForDoor = dot > 0 && dot >= cross;
 		return !isHeadingForDoor;
 	});

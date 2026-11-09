@@ -355,6 +355,7 @@ describe('opening map content', () => {
 				id: 'hero-house-to-overworld',
 				x: 352,
 				y: 560,
+				triggerRect: VILLAGE_INTERIOR_LAYOUTS['hero-house'].doors.exterior,
 				toMapId: 'overworld',
 				arrival: overworldDoorArrival('hero-house')
 			}
@@ -1070,6 +1071,7 @@ describe('opening map content', () => {
 				id: 'hero-house-to-overworld',
 				x: 352,
 				y: 560,
+				triggerRect: VILLAGE_INTERIOR_LAYOUTS['hero-house'].doors.exterior,
 				toMapId: 'overworld',
 				arrival: overworldDoorArrival('hero-house')
 			}
