@@ -89,8 +89,8 @@ TTTTP...GGGGGGG,h,,,....TTTT.,,,,.Y....22222.FFFFFFF..~~...PTTTT
 TTTTP...GGGGGGG..,,,,.........,,,......22222XFFFFFFF..~~...PTTTT
 TTTTP...GGGGGGG..,,,,,,,,,,,,,,,,,.Y...22222....f..Y..~~WW.PTTTT
 TTTTP.Y.GGGGGGG..,..,,,.,..,,,,,,,......b.......,...Y~~.WW.PTTTT
-TTTTPYR.GGGGGGG..,....,,,,,,,.,,,,....,,..,,,,,,,...Y~~....PTTTT
-TTTTPP.....g,,,,,,..Y..........,,,,,,,,,,,,Y......Y..~~...PPTTTT
+TTTTPYR.GGGGGGG..,....,,,,,,,.,,,,....,,..,.....,...Y~~....PTTTT
+TTTTPP.....g,,,,,,..Y..........,,,,,,,,,,,,,,,,,,.Y..~~...PPTTTT
 TTTTTP..........n..........NNN.,,,,,.................~~Y..PTTTTT
 TTTTTP..............333333.NNN.,,,,...NNN.Y......Y..~~....PTTTTT
 TTTTTPP.....NNN.....333333.NNN.,,,,...NNN.R......Y.~~.Y..PPTTTTT
