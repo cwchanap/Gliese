@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { walk } from './navigation-test-utils';
 
+import { buildVillageInteriorNavigationSource } from '$lib/game/content/backgrounds/village-interior-package';
+import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
+import { MAP_TRANSITION_TRIGGER_RADIUS } from '$lib/game/core/collision';
+
 import {
 	compileNavigationGrid,
 	createOpenNavigationGrid,
@@ -9,13 +13,15 @@ import {
 	findNearestWalkablePosition,
 	findLandmarkDoorway,
 	getLandmarkCollisionRects,
+	isInTransitionZone,
 	isWalkable,
 	isPointInsideAnyRect,
 	isPointInsideRect,
 	isPositionWalkable,
 	resolveMovementSegment,
 	type NavigationObstacle,
-	type NavigationMaskSource
+	type NavigationMaskSource,
+	type NavigationPoint
 } from '$lib/game/core/navigation';
 
 function source(overrides: Partial<NavigationMaskSource> = {}): NavigationMaskSource {
@@ -767,25 +773,27 @@ describe('corner slide', () => {
 });
 
 describe('entersUnrelatedDoorZone', () => {
+	// Point-only transitions stay supported: they are the transition-like shape with
+	// no authored triggerRect, and keep the canonical 30px zone.
 	const doors = [{ x: 100, y: 100 }];
 
 	it('lets a slide end anywhere outside every door zone', () => {
 		expect(
-			entersUnrelatedDoorZone({ x: 100, y: 140 }, { x: 100, y: 136 }, { x: 100, y: 140 }, doors, 30)
+			entersUnrelatedDoorZone({ x: 100, y: 140 }, { x: 100, y: 136 }, { x: 100, y: 140 }, doors)
 		).toBe(false);
 	});
 
 	it('vetoes a slide that ends in the zone of a door beside the push', () => {
 		// Pushing south at x = 131, 31px from the door; the slide steps west to 127.
 		expect(
-			entersUnrelatedDoorZone({ x: 127, y: 100 }, { x: 131, y: 100 }, { x: 131, y: 104 }, doors, 30)
+			entersUnrelatedDoorZone({ x: 127, y: 100 }, { x: 131, y: 100 }, { x: 131, y: 104 }, doors)
 		).toBe(true);
 	});
 
 	it('allows a slide that ends in the zone of the door the push is heading for', () => {
 		// Pushing north at y = 125, straight at the door; the slide ends 25px from it.
 		expect(
-			entersUnrelatedDoorZone({ x: 97, y: 125 }, { x: 100, y: 125 }, { x: 100, y: 121 }, doors, 30)
+			entersUnrelatedDoorZone({ x: 97, y: 125 }, { x: 100, y: 125 }, { x: 100, y: 121 }, doors)
 		).toBe(false);
 	});
 
@@ -794,7 +802,7 @@ describe('entersUnrelatedDoorZone', () => {
 		// 30px zone) while the 4px north slide lands 29px from it (inside). The door sits inside
 		// the forward heading cone (dot = 100 >= cross = 96), so only the new-entry check vetoes.
 		expect(
-			entersUnrelatedDoorZone({ x: 79, y: 120 }, { x: 75, y: 124 }, { x: 79, y: 124 }, doors, 30)
+			entersUnrelatedDoorZone({ x: 79, y: 120 }, { x: 75, y: 124 }, { x: 79, y: 124 }, doors)
 		).toBe(true);
 	});
 
@@ -807,9 +815,161 @@ describe('entersUnrelatedDoorZone', () => {
 				{ x: 104, y: 100 },
 				{ x: 100, y: 100 },
 				{ x: 100, y: 104 },
-				lateralDoors,
-				30
+				lateralDoors
 			)
 		).toBe(true);
+	});
+});
+
+describe('entersUnrelatedDoorZone with wide doorway rects', () => {
+	const blacksmithDoorway = {
+		x: 448,
+		y: 688,
+		triggerRect: { x: 384, y: 672, width: 128, height: 32 }
+	};
+
+	it('does not veto an off-center southward push into the doorway it is heading for', () => {
+		// A straight south push at the doorway's west side: aiming the heading cone at the
+		// doorway centre fails (dot 72 < cross 208); aiming at the nearest rect point
+		// (396, 672) passes (dot 8 > cross 0).
+		expect(
+			entersUnrelatedDoorZone({ x: 400, y: 674 }, { x: 396, y: 670 }, { x: 396, y: 674 }, [
+				blacksmithDoorway
+			])
+		).toBe(false);
+	});
+
+	it('still vetoes a lateral push whose slide newly enters the doorway zone', () => {
+		// Pushing west along the south face: the straight endpoint misses the doorway, so
+		// the slide landing inside the rect is a newly entered, unrelated door zone.
+		expect(
+			entersUnrelatedDoorZone({ x: 510, y: 688 }, { x: 524, y: 688 }, { x: 520, y: 688 }, [
+				blacksmithDoorway
+			])
+		).toBe(true);
+	});
+
+	it('permits an ongoing move wholly inside the same doorway rect despite the zero clamped vector', () => {
+		// Clamping an origin already inside the rect yields a zero aim vector; that must
+		// not turn an ordinary move within the doorway into an unrelated-door veto.
+		expect(
+			entersUnrelatedDoorZone({ x: 400, y: 694 }, { x: 396, y: 690 }, { x: 396, y: 694 }, [
+				blacksmithDoorway
+			])
+		).toBe(false);
+	});
+});
+
+describe('isInTransitionZone', () => {
+	const wideDoorway = {
+		x: 448,
+		y: 688,
+		triggerRect: { x: 384, y: 672, width: 128, height: 32 }
+	};
+
+	it('keeps the existing 30px circle around x/y when no triggerRect is authored', () => {
+		const pointTransition = { x: 100, y: 100 };
+
+		expect(isInTransitionZone(pointTransition, { x: 100, y: 125 })).toBe(true);
+		// The circle boundary stays inside, matching tryTransition's `distance > radius` rule.
+		expect(isInTransitionZone(pointTransition, { x: 100, y: 130 })).toBe(true);
+		expect(isInTransitionZone(pointTransition, { x: 121, y: 100 })).toBe(true);
+		expect(isInTransitionZone(pointTransition, { x: 100, y: 131 })).toBe(false);
+		expect(isInTransitionZone(pointTransition, { x: 131, y: 121 })).toBe(false);
+	});
+
+	it('covers the off-center portion of a 128px doorway through its triggerRect', () => {
+		// 52px west of the doorway centre: far outside the 30px circle, inside the rect.
+		expect(isInTransitionZone(wideDoorway, { x: 396, y: 680 })).toBe(true);
+		expect(isInTransitionZone(wideDoorway, { x: 508, y: 700 })).toBe(true);
+		expect(isInTransitionZone(wideDoorway, { x: 384, y: 672 })).toBe(true);
+	});
+
+	it('rejects points beyond the rect edges, including above the south wall', () => {
+		expect(isInTransitionZone(wideDoorway, { x: 383, y: 688 })).toBe(false);
+		expect(isInTransitionZone(wideDoorway, { x: 513, y: 688 })).toBe(false);
+		expect(isInTransitionZone(wideDoorway, { x: 448, y: 719 })).toBe(false);
+		// The rejected width-band design would have started the rectangle at y=658 and
+		// contained this point above the wall.
+		expect(isInTransitionZone(wideDoorway, { x: 396, y: 665 })).toBe(false);
+	});
+});
+
+describe('village interior exterior exits', () => {
+	const south = { x: 0, y: 1 };
+	const layoutIds = Object.keys(
+		VILLAGE_INTERIOR_LAYOUTS
+	) as (keyof typeof VILLAGE_INTERIOR_LAYOUTS)[];
+
+	it.each(layoutIds)('%s: left, center and right opening approaches reach the zone', (layoutId) => {
+		const layout = VILLAGE_INTERIOR_LAYOUTS[layoutId];
+		const grid = compileNavigationGrid(
+			buildVillageInteriorNavigationSource({ mapId: layoutId, layout })
+		);
+		const doorway = layout.doors.exterior;
+		const transition = { x: layout.exit.x, y: layout.exit.y, triggerRect: doorway };
+		const approachY = doorway.y - 8;
+
+		// Collision-walkable positions just north of the opening. Points painted inside
+		// the doorway but blocked by wall or player-radius clearance are not starts.
+		const walkableStarts: number[] = [];
+		for (let x = doorway.x; x < doorway.x + doorway.width; x += 1) {
+			if (isWalkable(grid, x, approachY)) walkableStarts.push(x);
+		}
+		expect(walkableStarts.length).toBeGreaterThan(0);
+		expect(isWalkable(grid, layout.exit.x, approachY)).toBe(true);
+
+		const starts = [walkableStarts[0], layout.exit.x, walkableStarts[walkableStarts.length - 1]];
+		for (const startX of starts) {
+			const end = walk(grid, [], { x: startX, y: approachY }, south, 40);
+
+			expect(end.y).toBeGreaterThan(approachY);
+			expect(isInTransitionZone(transition, end)).toBe(true);
+			if (doorway.width < 128) {
+				// Narrow 64px exits were already fully covered by the legacy 30px circle.
+				expect(Math.hypot(end.x - layout.exit.x, end.y - layout.exit.y)).toBeLessThanOrEqual(
+					MAP_TRANSITION_TRIGGER_RADIUS
+				);
+			}
+		}
+	});
+});
+
+describe('blacksmith jamb slide (HPA-817 regression)', () => {
+	const south = { x: 0, y: 1 };
+	const blacksmithDoorway = {
+		x: 448,
+		y: 688,
+		triggerRect: VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'].doors.exterior
+	};
+	const jambGrid = () =>
+		compileNavigationGrid(
+			buildVillageInteriorNavigationSource({
+				mapId: 'blacksmith-interior',
+				layout: VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior']
+			})
+		);
+	// The corner-slide veto, wired exactly as WorldScene.resolvePlayerCollision wires it.
+	const doorVeto = () => ({
+		canSlideTo: (destination: NavigationPoint, from: NavigationPoint, to: NavigationPoint) =>
+			!entersUnrelatedDoorZone(destination, from, to, [blacksmithDoorway])
+	});
+
+	it('slides from beside the west jamb toward the opening without a false unrelated-door veto', () => {
+		// (393, 660) itself sits inside the wall-clearance band, so the walk starts on
+		// the nearest walkable row north of the jamb on the same column.
+		const end = walk(jambGrid(), [], { x: 393, y: 652 }, south, 40, doorVeto());
+
+		expect(end.x).toBeGreaterThanOrEqual(400);
+		expect(end.y).toBeGreaterThanOrEqual(672);
+	});
+
+	it('continues that walk to an active transition without activating above the south wall', () => {
+		const end = walk(jambGrid(), [], { x: 393, y: 652 }, south, 40, doorVeto());
+
+		expect(isInTransitionZone(blacksmithDoorway, end)).toBe(true);
+		// Above the south wall the zone must stay empty — the rejected width-band
+		// rectangle (starting at y=658) would have contained this point.
+		expect(isInTransitionZone(blacksmithDoorway, { x: 396, y: 665 })).toBe(false);
 	});
 });
