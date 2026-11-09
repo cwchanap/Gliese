@@ -106,6 +106,7 @@ import { addItem, consumeStackItem } from '$lib/game/core/inventory';
 import { resolveLootDrops } from '$lib/game/core/loot';
 import {
 	entersUnrelatedDoorZone,
+	isInTransitionZone,
 	resolveMovementSegment,
 	type NavigationGrid,
 	type NavigationObstacle
@@ -650,15 +651,8 @@ export class WorldScene extends Phaser.Scene {
 		this.battleReturnTransitions = new Set(
 			battleApplication
 				? map.transitions
-						.filter(
-							(transition) =>
-								Phaser.Math.Distance.Between(
-									this.player!.x,
-									this.player!.y,
-									transition.x,
-									transition.y
-								) <=
-								WorldScene.playerRadius + WorldScene.transitionRadius
+						.filter((transition) =>
+							isInTransitionZone(transition, { x: this.player!.x, y: this.player!.y })
 						)
 						.map((transition) => transition.id)
 				: []
@@ -2143,6 +2137,14 @@ export class WorldScene extends Phaser.Scene {
 		graphics.lineStyle(2, 0x22d3ee, 0.95);
 		for (const transition of map.transitions) {
 			graphics.strokeCircle(transition.x, transition.y, WorldScene.doorTriggerRadius);
+			if (transition.triggerRect) {
+				graphics.strokeRect(
+					transition.triggerRect.x,
+					transition.triggerRect.y,
+					transition.triggerRect.width,
+					transition.triggerRect.height
+				);
+			}
 		}
 		graphics.lineStyle(2, 0x4ade80, 0.95);
 		for (const pickup of map.pickups ?? []) {
@@ -2763,13 +2765,7 @@ export class WorldScene extends Phaser.Scene {
 			{
 				// A corner slide must not carry the player into a door they are not walking toward.
 				canSlideTo: (destination, from, to) =>
-					!entersUnrelatedDoorZone(
-						destination,
-						from,
-						to,
-						this.transitions,
-						WorldScene.doorTriggerRadius
-					)
+					!entersUnrelatedDoorZone(destination, from, to, this.transitions)
 			}
 		);
 	}
@@ -3118,14 +3114,7 @@ export class WorldScene extends Phaser.Scene {
 		const hasLivingEnemies = this.hasLivingEnemies();
 
 		for (const transition of map.transitions) {
-			const distance = Phaser.Math.Distance.Between(
-				this.player.x,
-				this.player.y,
-				transition.x,
-				transition.y
-			);
-
-			if (distance > WorldScene.doorTriggerRadius) {
+			if (!isInTransitionZone(transition, { x: this.player.x, y: this.player.y })) {
 				this.battleReturnTransitions.delete(transition.id);
 				continue;
 			}
