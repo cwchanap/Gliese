@@ -8306,6 +8306,51 @@ describe('WorldScene', () => {
 		});
 	});
 
+	it('holds a wide doorway after battle until the player leaves the whole union zone', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const save = {
+			...createNewSaveState(),
+			mapId: 'blacksmith-interior',
+			player: { ...createNewSaveState().player, x: 408, y: 688 }
+		};
+		const scene = new WorldScene();
+
+		// Returned from battle off-centre inside the authored rect, outside the 30px circle.
+		scene.create({
+			saveState: save,
+			reason: 'battle-result',
+			battleResult: {
+				outcome: 'victory',
+				sourceMapId: 'blacksmith-interior',
+				sourceEncounterId: 'forge-skirmish',
+				sourceEnemyId: 'tunnel-crawler',
+				finalHeroHp: 12,
+				inventory: save.inventory,
+				defeatedUnits: []
+			}
+		});
+		scene.update(0, 16);
+		// Still inside the union zone (via the rect): re-entering the doorway stays suppressed.
+		expect(scene.scene.restart).not.toHaveBeenCalled();
+
+		// Step clear of both the rect and the circle — the suppression clears without firing.
+		Object.assign(phaserState.playerMarker, { x: 448, y: 640 });
+		scene.update(16, 16);
+		expect(scene.scene.restart).not.toHaveBeenCalled();
+
+		// Re-entering off-centre now fires the same wide-exit arrival as a plain exit.
+		Object.assign(phaserState.playerMarker, { x: 408, y: 688 });
+		scene.update(32, 16);
+		expect(scene.scene.restart).toHaveBeenCalledWith({
+			reason: 'transition',
+			saveState: expect.objectContaining({
+				mapId: 'overworld',
+				player: expect.objectContaining(overworldDoorArrival('blacksmith-interior'))
+			})
+		});
+	});
+
 	it('ignores battle summary dismissal commands when no battle is active', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
@@ -10904,6 +10949,37 @@ describe('WorldScene', () => {
 			saveState: expect.objectContaining({
 				mapId: 'overworld',
 				player: expect.objectContaining(overworldDoorArrival('hero-house'))
+			})
+		});
+	});
+
+	it('exits the blacksmith through an off-center point of the wide exterior doorway', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'blacksmith-interior',
+				player: { ...createNewSaveState().player, x: 448, y: 576 }
+			}
+		});
+
+		// Flush against the west jamb: outside the doorway rect and the 30px circle alike.
+		Object.assign(phaserState.playerMarker, { x: 368, y: 688 });
+		scene.update(0, 16);
+		expect(scene.scene.restart).not.toHaveBeenCalled();
+
+		// 40px west of the exit point: outside the legacy circle, inside the authored rect.
+		Object.assign(phaserState.playerMarker, { x: 408, y: 688 });
+		scene.update(16, 16);
+
+		expect(scene.scene.restart).toHaveBeenCalledWith({
+			reason: 'transition',
+			saveState: expect.objectContaining({
+				mapId: 'overworld',
+				player: expect.objectContaining(overworldDoorArrival('blacksmith-interior'))
 			})
 		});
 	});
