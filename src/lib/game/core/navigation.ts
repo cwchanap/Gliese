@@ -295,16 +295,22 @@ export function isInTransitionZone(
 	playerPoint: NavigationPoint
 ): boolean {
 	const rect = transition.triggerRect;
-	if (
-		rect &&
-		playerPoint.x >= rect.x &&
-		playerPoint.x <= rect.x + rect.width &&
-		playerPoint.y >= rect.y &&
-		playerPoint.y <= rect.y + rect.height
-	) {
+	if (rect && isPointInTriggerRect(playerPoint, rect)) {
 		return true;
 	}
 	return distanceSquared(playerPoint, transition) <= MAP_TRANSITION_TRIGGER_RADIUS ** 2;
+}
+
+function isPointInTriggerRect(
+	point: NavigationPoint,
+	rect: NonNullable<TransitionZoneTarget['triggerRect']>
+): boolean {
+	return (
+		point.x >= rect.x &&
+		point.x <= rect.x + rect.width &&
+		point.y >= rect.y &&
+		point.y <= rect.y + rect.height
+	);
 }
 
 /**
@@ -316,7 +322,9 @@ export function isInTransitionZone(
  * rect. A door inside the forward heading cone (forward > 0 and forward >= lateral) is the
  * door the push is heading for; any other door (behind, beside, or almost perpendicular to
  * the push) is unrelated and vetoed. An origin already inside the doorway rect clamps to
- * itself, leaving no heading; a move that stays inside the same doorway is never unrelated.
+ * itself, leaving no heading; a move where `from`, `to` and `destination` all remain inside
+ * that same authored rect is never unrelated. Point doors keep the heading test unchanged,
+ * so a zero aim vector there still vetoes as it always did.
  */
 export function entersUnrelatedDoorZone(
 	destination: NavigationPoint,
@@ -337,7 +345,13 @@ export function entersUnrelatedDoorZone(
 		const rect = door.triggerRect;
 		const aimX = rect ? Math.min(Math.max(from.x, rect.x), rect.x + rect.width) : door.x;
 		const aimY = rect ? Math.min(Math.max(from.y, rect.y), rect.y + rect.height) : door.y;
-		if (aimX === from.x && aimY === from.y) {
+		if (
+			rect &&
+			aimX === from.x &&
+			aimY === from.y &&
+			isPointInTriggerRect(to, rect) &&
+			isPointInTriggerRect(destination, rect)
+		) {
 			return false;
 		}
 		const dot = (aimX - from.x) * pushX + (aimY - from.y) * pushY;

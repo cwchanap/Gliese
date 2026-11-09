@@ -819,6 +819,15 @@ describe('entersUnrelatedDoorZone', () => {
 			)
 		).toBe(true);
 	});
+
+	it('keeps the heading veto for point doors when the origin sits exactly on the door point', () => {
+		// The zero-vector permit exists for authored doorway rects only. A point door aimed
+		// from its own point degenerates the heading test (dot = 0), which the legacy code
+		// treated as unrelated — the lateral slide to (104, 100) stays vetoed.
+		expect(
+			entersUnrelatedDoorZone({ x: 104, y: 100 }, { x: 100, y: 100 }, { x: 100, y: 104 }, doors)
+		).toBe(true);
+	});
 });
 
 describe('entersUnrelatedDoorZone with wide doorway rects', () => {
@@ -857,6 +866,17 @@ describe('entersUnrelatedDoorZone with wide doorway rects', () => {
 				blacksmithDoorway
 			])
 		).toBe(false);
+	});
+
+	it('does not extend the zero-vector permit past the authored rect', () => {
+		// Origin inside the rect but the slide destination leaves it (still inside the
+		// 30px circle): the permit needs from, to and destination inside the same rect,
+		// so the zero heading falls back to the legacy veto.
+		expect(
+			entersUnrelatedDoorZone({ x: 448, y: 665 }, { x: 448, y: 690 }, { x: 448, y: 694 }, [
+				blacksmithDoorway
+			])
+		).toBe(true);
 	});
 });
 
