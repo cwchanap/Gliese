@@ -1,6 +1,6 @@
 # HPA-815 — Implementation plan: forge lane and interior exits
 
-**Status:** Review-reconciled **planning only**, no runtime fix or test result claimed.
+**Status:** Implemented and validated at tested commit `1cb580d` — focused and full unit suites, check, lint, build, forge/blacksmith e2e and a keyboard-driven Chromium smoke all passed; see PR #64 verification. Independent visual screenshot inspection remains a documented limitation (the implementer could not receive image input; approved to proceed regardless).
 **Linear:** https://linear.app/cwchanap/issue/HPA-815/the-forge-is-enterable-but-only-by-sliding-along-a-wall-through-a-one
 **Design:** ../specs/2026-11-07-hpa-815-forge-access-wide-exits-design.md
 **Reviews:** https://github.com/cwchanap/Gliese/pull/64#issuecomment-6718253897 and https://github.com/cwchanap/Gliese/pull/64#pullrequestreview-5817013627
@@ -81,14 +81,14 @@ bun run build
 
 `bun run world:check:navigation` may be run as a sanity check, but it validates the generated interior grid and **does not prove** a Sundrop path or transition logic fix; the layout is not being changed. If run, do not substitute it for the tests above.
 
-## Completion criteria (not yet met)
+## Completion criteria (met at tested commit `1cb580d`)
 
-- [ ] Source glyphs and composed nav tests show an honest ≥3-track *local* forge route to/from the doorstep, clear of hut 2's door, with row 42 columns 43–47 reverted to grass so there is only one painted dirt connector.
-- [ ] All eight interiors' actual walkable exterior openings trigger on left/center/right; existing point/circle transitions retain old behavior.
-- [ ] HPA-817 jamb-slide regression at blacksmith (around 393,660) **and off-center forward-heading example (396,670 → 396,674)** are covered, including a lateral-veto negative and zero-vector-inside-rect case, without introducing early/adjacent-wall exits.
-- [ ] All four trigger consumers share consistent behavior, including `battleReturnTransitions` and debug overlay.
-- [ ] Focused/full checks pass with recorded command output, and a keyboard New Run→forge→off-center-exit smoke succeeds.
-- [ ] Add tested commit and evidence to this existing PR; mark ready only after implementing, and do **not** close HPA-815 for documentation alone.
+- [x] Source glyphs and composed nav tests show an honest ≥3-track *local* forge route to/from the doorstep, clear of hut 2's door, with row 42 columns 43–47 reverted to grass so there is only one painted dirt connector.
+- [x] All eight interiors' actual walkable exterior openings trigger on left/center/right; existing point/circle transitions retain old behavior.
+- [x] HPA-817 jamb-slide regression at blacksmith (around 393,660) **and off-center forward-heading example (396,670 → 396,674)** are covered, including a lateral-veto negative and zero-vector-inside-rect case, without introducing early/adjacent-wall exits.
+- [x] All four trigger consumers share consistent behavior, including `battleReturnTransitions` and debug overlay.
+- [x] Focused/full checks pass with recorded command output, and a keyboard New Run→forge→off-center-exit smoke succeeds.
+- [x] Add tested commit and evidence to this existing PR; mark ready only after implementing, and do **not** close HPA-815 for documentation alone.
 
 ## Scope guard / why this is smaller
 
