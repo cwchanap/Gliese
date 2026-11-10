@@ -1,6 +1,6 @@
 # HPA-815 — Forge approach and interior exits (design, review-reconciled)
 
-**Status:** Design proposal only; runtime implementation, tests, and manual UAT remain pending.
+**Status:** Implemented and validated at tested commit `1cb580d` — unit suites, check, lint, build, targeted e2e and a keyboard-driven Chromium smoke passed (see PR #64 verification). Independent visual screenshot inspection remains a documented limitation; the implementer could not receive image input.
 **Issue:** https://linear.app/cwchanap/issue/HPA-815/the-forge-is-enterable-but-only-by-sliding-along-a-wall-through-a-one
 **PR:** https://github.com/cwchanap/Gliese/pull/64
 **Baseline:** Gliese main after merged PR #62 (HPA-760); reconciled against [first design review](https://github.com/cwchanap/Gliese/pull/64#issuecomment-6718253897) and [follow-up review](https://github.com/cwchanap/Gliese/pull/64#pullrequestreview-5817013627).
