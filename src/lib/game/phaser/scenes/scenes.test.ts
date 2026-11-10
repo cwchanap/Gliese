@@ -8306,50 +8306,82 @@ describe('WorldScene', () => {
 		});
 	});
 
-	it('holds a wide doorway after battle until the player leaves the whole union zone', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { WorldScene } = await import('./WorldScene');
-		const save = {
-			...createNewSaveState(),
-			mapId: 'blacksmith-interior',
-			player: { ...createNewSaveState().player, x: 408, y: 688 }
-		};
-		const scene = new WorldScene();
+	it.each([
+		{
+			description: 'inside authored rect, outside circle',
+			start: { x: 408, y: 688 }
+		},
+		{
+			description: 'inside circle, outside authored rect',
+			start: { x: 448, y: 665 }
+		}
+	])(
+		'holds a wide doorway after battle until the player leaves the whole union zone ($description)',
+		async ({ start }) => {
+			const { createNewSaveState } = await import('$lib/game/save/save-state');
+			const { WorldScene } = await import('./WorldScene');
+			const { blacksmithInteriorMap } = await import('$lib/game/content/maps');
 
-		// Returned from battle off-centre inside the authored rect, outside the 30px circle.
-		scene.create({
-			saveState: save,
-			reason: 'battle-result',
-			battleResult: {
-				outcome: 'victory',
-				sourceMapId: 'blacksmith-interior',
-				sourceEncounterId: 'forge-skirmish',
-				sourceEnemyId: 'tunnel-crawler',
-				finalHeroHp: 12,
-				inventory: save.inventory,
-				defeatedUnits: []
+			const encounter = {
+				id: 'forge-skirmish',
+				x: 448,
+				y: 448,
+				enemyId: 'tunnel-crawler'
+			};
+			const previousEncounters = blacksmithInteriorMap.encounters;
+			blacksmithInteriorMap.encounters = [encounter];
+
+			try {
+				const save = {
+					...createNewSaveState(),
+					mapId: 'blacksmith-interior',
+					player: { ...createNewSaveState().player, ...start }
+				};
+				const scene = new WorldScene();
+
+				scene.create({
+					saveState: save,
+					reason: 'battle-result',
+					battleResult: {
+						outcome: 'victory',
+						sourceMapId: 'blacksmith-interior',
+						sourceEncounterId: encounter.id,
+						sourceEnemyId: encounter.enemyId,
+						finalHeroHp: 12,
+						inventory: save.inventory,
+						defeatedUnits: []
+					}
+				});
+				scene.update(0, 16);
+				// Still inside the union zone: re-entering the doorway stays suppressed.
+				expect(scene.scene.restart).not.toHaveBeenCalled();
+
+				// Moving to the other part of the union zone before leaving must keep suppression active.
+				const alternateInZone = start.x === 408 ? { x: 448, y: 665 } : { x: 408, y: 688 };
+				Object.assign(phaserState.playerMarker, alternateInZone);
+				scene.update(16, 16);
+				expect(scene.scene.restart).not.toHaveBeenCalled();
+
+				// Step clear of both the rect and the circle — the suppression clears without firing.
+				Object.assign(phaserState.playerMarker, { x: 448, y: 640 });
+				scene.update(32, 16);
+				expect(scene.scene.restart).not.toHaveBeenCalled();
+
+				// Re-entering now fires the same wide-exit arrival as a plain exit.
+				Object.assign(phaserState.playerMarker, { x: 408, y: 688 });
+				scene.update(48, 16);
+				expect(scene.scene.restart).toHaveBeenCalledWith({
+					reason: 'transition',
+					saveState: expect.objectContaining({
+						mapId: 'overworld',
+						player: expect.objectContaining(overworldDoorArrival('blacksmith-interior'))
+					})
+				});
+			} finally {
+				blacksmithInteriorMap.encounters = previousEncounters;
 			}
-		});
-		scene.update(0, 16);
-		// Still inside the union zone (via the rect): re-entering the doorway stays suppressed.
-		expect(scene.scene.restart).not.toHaveBeenCalled();
-
-		// Step clear of both the rect and the circle — the suppression clears without firing.
-		Object.assign(phaserState.playerMarker, { x: 448, y: 640 });
-		scene.update(16, 16);
-		expect(scene.scene.restart).not.toHaveBeenCalled();
-
-		// Re-entering off-centre now fires the same wide-exit arrival as a plain exit.
-		Object.assign(phaserState.playerMarker, { x: 408, y: 688 });
-		scene.update(32, 16);
-		expect(scene.scene.restart).toHaveBeenCalledWith({
-			reason: 'transition',
-			saveState: expect.objectContaining({
-				mapId: 'overworld',
-				player: expect.objectContaining(overworldDoorArrival('blacksmith-interior'))
-			})
-		});
-	});
+		}
+	);
 
 	it('ignores battle summary dismissal commands when no battle is active', async () => {
 		const events = await import('$lib/game/ui-bridge/events');

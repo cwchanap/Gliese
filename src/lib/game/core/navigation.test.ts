@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { walk } from './navigation-test-utils';
 
 import { buildVillageInteriorNavigationSource } from '$lib/game/content/backgrounds/village-interior-package';
+import { maps, openingMapId } from '$lib/game/content/maps';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import { MAP_TRANSITION_TRIGGER_RADIUS } from '$lib/game/core/collision';
 
@@ -929,12 +930,24 @@ describe('village interior exterior exits', () => {
 
 	it.each(layoutIds)('%s: left, center and right opening approaches reach the zone', (layoutId) => {
 		const layout = VILLAGE_INTERIOR_LAYOUTS[layoutId];
+		const mapDef = maps[layoutId];
+		expect(mapDef).toBeDefined();
+		const transition =
+			mapDef.transitions.find((t) => t.toMapId === openingMapId) ?? mapDef.transitions[0];
+		expect(transition).toBeDefined();
+		expect(transition.triggerRect).toEqual(layout.doors.exterior);
+
 		const grid = compileNavigationGrid(
 			buildVillageInteriorNavigationSource({ mapId: layoutId, layout })
 		);
 		const doorway = layout.doors.exterior;
-		const transition = { x: layout.exit.x, y: layout.exit.y, triggerRect: doorway };
 		const approachY = doorway.y - 8;
+
+		// The corner-slide veto, wired exactly as WorldScene.resolvePlayerCollision wires it.
+		const doorVeto = {
+			canSlideTo: (destination: NavigationPoint, from: NavigationPoint, to: NavigationPoint) =>
+				!entersUnrelatedDoorZone(destination, from, to, mapDef.transitions)
+		};
 
 		// Collision-walkable positions just north of the opening. Points painted inside
 		// the doorway but blocked by wall or player-radius clearance are not starts.
@@ -947,7 +960,7 @@ describe('village interior exterior exits', () => {
 
 		const starts = [walkableStarts[0], layout.exit.x, walkableStarts[walkableStarts.length - 1]];
 		for (const startX of starts) {
-			const end = walk(grid, [], { x: startX, y: approachY }, south, 40);
+			const end = walk(grid, [], { x: startX, y: approachY }, south, 40, doorVeto);
 
 			expect(end.y).toBeGreaterThan(approachY);
 			expect(isInTransitionZone(transition, end)).toBe(true);
