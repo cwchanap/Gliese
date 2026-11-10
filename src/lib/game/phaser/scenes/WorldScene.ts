@@ -651,9 +651,7 @@ export class WorldScene extends Phaser.Scene {
 		this.battleReturnTransitions = new Set(
 			battleApplication
 				? map.transitions
-						.filter((transition) =>
-							isInTransitionZone(transition, { x: this.player!.x, y: this.player!.y })
-						)
+						.filter((transition) => isInTransitionZone(transition, this.player!))
 						.map((transition) => transition.id)
 				: []
 		);
@@ -3114,7 +3112,7 @@ export class WorldScene extends Phaser.Scene {
 		const hasLivingEnemies = this.hasLivingEnemies();
 
 		for (const transition of map.transitions) {
-			if (!isInTransitionZone(transition, { x: this.player.x, y: this.player.y })) {
+			if (!isInTransitionZone(transition, this.player)) {
 				this.battleReturnTransitions.delete(transition.id);
 				continue;
 			}

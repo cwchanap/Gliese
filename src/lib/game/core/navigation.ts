@@ -271,6 +271,8 @@ function slideAroundCorner(
 	return null;
 }
 
+const MAP_TRANSITION_TRIGGER_RADIUS_SQUARED = MAP_TRANSITION_TRIGGER_RADIUS ** 2;
+
 /**
  * A transition-like door definition: the trigger point plus an optional authored
  * doorway rectangle in top-left `x/y/width/height` pixels. Structurally compatible
@@ -298,7 +300,7 @@ export function isInTransitionZone(
 	if (rect && isPointInTriggerRect(playerPoint, rect)) {
 		return true;
 	}
-	return distanceSquared(playerPoint, transition) <= MAP_TRANSITION_TRIGGER_RADIUS ** 2;
+	return distanceSquared(playerPoint, transition) <= MAP_TRANSITION_TRIGGER_RADIUS_SQUARED;
 }
 
 function isPointInTriggerRect(
@@ -347,8 +349,7 @@ export function entersUnrelatedDoorZone(
 		const aimY = rect ? Math.min(Math.max(from.y, rect.y), rect.y + rect.height) : door.y;
 		if (
 			rect &&
-			aimX === from.x &&
-			aimY === from.y &&
+			isPointInTriggerRect(from, rect) &&
 			isPointInTriggerRect(to, rect) &&
 			isPointInTriggerRect(destination, rect)
 		) {

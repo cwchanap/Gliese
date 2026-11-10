@@ -853,6 +853,56 @@ describe('opening map content', () => {
 		}
 	});
 
+	it('validates that every transition triggerRect is sane and top-left oriented', () => {
+		let checkedCount = 0;
+		for (const map of Object.values(maps)) {
+			for (const transition of map.transitions) {
+				const rect = transition.triggerRect;
+				if (!rect) continue;
+
+				checkedCount += 1;
+				const label = `${map.id}:${transition.id}`;
+
+				// triggerRect must have positive dimensions
+				expect(rect.width, `${label} width`).toBeGreaterThan(0);
+				expect(rect.height, `${label} height`).toBeGreaterThan(0);
+
+				// triggerRect must stay completely inside map bounds
+				expect(rect.x, `${label} left`).toBeGreaterThanOrEqual(0);
+				expect(rect.y, `${label} top`).toBeGreaterThanOrEqual(0);
+				expect(rect.x + rect.width, `${label} right`).toBeLessThanOrEqual(map.width * 32);
+				expect(rect.y + rect.height, `${label} bottom`).toBeLessThanOrEqual(map.height * 32);
+
+				// triggerRect must contain the transition's own exit point
+				expect(transition.x, `${label} x inside triggerRect`).toBeGreaterThanOrEqual(rect.x);
+				expect(transition.x, `${label} x inside triggerRect`).toBeLessThanOrEqual(
+					rect.x + rect.width
+				);
+				expect(transition.y, `${label} y inside triggerRect`).toBeGreaterThanOrEqual(rect.y);
+				expect(transition.y, `${label} y inside triggerRect`).toBeLessThanOrEqual(
+					rect.y + rect.height
+				);
+
+				// Must be measured from its top-left corner (not centered via toMapRect).
+				// The doorway exit point sits at the horizontal center of the doorway width.
+				expect(
+					rect.x + rect.width / 2,
+					`${label} top-left orientation (not shifted by toMapRect)`
+				).toBe(transition.x);
+				expect(
+					rect.y + rect.height / 2,
+					`${label} top-left orientation (not shifted by toMapRect)`
+				).toBe(transition.y);
+
+				// If someone mistakenly passed rect through toMapRect, it would be shifted by width/2 and height/2
+				const mistakenlyShifted = toMapRect('test', rect);
+				expect(mistakenlyShifted.x, `${label} differs from toMapRect`).not.toBe(rect.x);
+				expect(mistakenlyShifted.y, `${label} differs from toMapRect`).not.toBe(rect.y);
+			}
+		}
+		expect(checkedCount).toBe(8);
+	});
+
 	it('keeps required ruin progression corridors and Guild Hall routes clear', () => {
 		expectRouteClear(
 			ruinsThresholdMap,
