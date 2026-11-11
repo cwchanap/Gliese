@@ -12386,35 +12386,46 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	const layout = VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'];
 	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'oren');
 	if (!oren) throw new Error('Oren fixture is missing');
-	const orenApproachPoint = layout.npcApproaches.oren.approach;
-	await moveRoute(page, [
-		blacksmith.spawn,
-		{ x: 448, y: 640 },
-		{ x: 800, y: 640 },
-		{ x: 240, y: 640 },
-		{ x: 240, y: 480 },
-		orenApproachPoint
-	]);
-	await moveRoute(
-		page,
-		[
-			orenApproachPoint,
-			{ x: 240, y: 480 },
-			{ x: 240, y: 400 },
-			blacksmithOrenInteractionStagingPoint
-		],
-		INTERIOR_ROUTE_SETTLE_TOLERANCE,
-		undefined,
-		undefined,
-		TIGHT_HANDOFF_REACH_TOLERANCE
+	const counter = layout.propCollisions.serviceCounter;
+	const counterBottom = counter.y + counter.height;
+
+	// HPA-816: walk up the centre customer aisle from spawn and keep holding
+	// north until the service counter stops the player. The pre-fix 18px counter
+	// core left the compiled grid's last walkable row at y=480 (64px from Oren),
+	// so the y<480 bound fails on that geometry even though the authored
+	// orenApproachPoint=(448,480) is reachable.
+	await page.locator('canvas').click();
+	await page.keyboard.down('w');
+	try {
+		await page.waitForFunction(
+			({ requestedMapId, requestedCounterBottom }) => {
+				const probeWindow = window as GlieseProbeWindow;
+				const diagnostic = probeWindow.__glieseLastMovementDiagnostic;
+				if (probeWindow.__glieseLastHudState?.mapId !== requestedMapId) return false;
+				return (
+					diagnostic?.mapId === requestedMapId &&
+					diagnostic.blocked === true &&
+					diagnostic.resolvedPosition.y > requestedCounterBottom &&
+					diagnostic.resolvedPosition.y < 480
+				);
+			},
+			{ requestedMapId: blacksmith.mapId, requestedCounterBottom: counterBottom },
+			{ timeout: 30_000 }
+		);
+	} finally {
+		await page.keyboard.up('w');
+	}
+
+	const stopEvidence = await currentHudPlayerEvidence(page, blacksmith.mapId);
+	const stopPoint = stopEvidence.selectedPoint;
+	expect(stopEvidence.diagnostic?.blocked).toBe(true);
+	expect(stopPoint.y).toBeGreaterThan(counterBottom);
+	expect(stopPoint.y).toBeLessThan(480);
+	expect(Math.abs(stopPoint.x - blacksmith.spawn.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(Math.hypot(stopPoint.x - oren.x, stopPoint.y - oren.y)).toBeLessThanOrEqual(
+		PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + NPC_PACK_COLLISION_RADIUS
 	);
-	await approachNpcWithTrustedKeyboard(page, {
-		mapId: blacksmith.mapId,
-		speaker: 'Oren',
-		stagingPoint: blacksmithOrenInteractionStagingPoint,
-		npc: { x: oren.x, y: oren.y },
-		propCollision: layout.propCollisions.serviceCounter
-	});
+
 	await page.locator('canvas').click();
 	await page.keyboard.press('e', { delay: 50 });
 
