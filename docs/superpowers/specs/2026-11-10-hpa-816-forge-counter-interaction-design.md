@@ -2,7 +2,7 @@
 
 **Status:** Review-reconciled design; no implementation committed.
 **Linear:** https://linear.app/cwchanap/issue/HPA-816/i-cant-talk-to-oren-across-his-own-workbench
-**Review:** https://github.com/cwchanap/Gliese/pull/65#pullrequestreview-5853651066
+**Reviews:** [root-cause correction](https://github.com/cwchanap/Gliese/pull/65#pullrequestreview-5853651066); [implementation safeguards](https://github.com/cwchanap/Gliese/pull/65#pullrequestreview-5863664605)
 **Related, separate:** HPA-815 (forge access), HPA-760 (NPC selection/status), HPA-818 (Gear shortcuts).
 **Delivery:** One ticket, one existing draft PR (#65) for spec, plan, implementation, and tests.
 
@@ -58,7 +58,7 @@ bun run world:generate:navigation
 bun run world:check:navigation
 ~~~
 
-Commit the changed generated grid alongside the source and tests. Do **not** hand-edit bytes. Existing navigation-source and generated-runtime checks must pass.
+Commit the changed generated grid alongside the source and tests. Do **not** hand-edit bytes. Existing navigation-source and generated-runtime checks must pass. Because the core CI workflow does not currently run `world:check:navigation`, add a **small test in the existing `content/maps.test.ts` interior registration coverage** that compares the Blacksmith generated grid with `compileNavigationGrid(buildVillageInteriorNavigationSource({ mapId: 'blacksmith-interior', layout: VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'] }))`. Reuse existing imports; do not create a new CI job or global generator framework.
 
 ## Decisions retained and alternatives rejected
 
@@ -82,7 +82,7 @@ Commit the changed generated grid alongside the source and tests. Do **not** han
 - **Extend**, don't duplicate, the existing `layouts.test.ts` “keeps every interior rectangle in bounds and every approach clear” loop: use the real compiled interior grid and `walk()` toward each NPC. Assert the stopping distance plus one normal 4px movement step fits inside the existing 65px reach. Its prior Oren-specific `64` approach allowance stays as an authored-coordinate contract, not a waiver for failed runtime walk-up.
 - Update the Blacksmith counter-collision pin (`height: 18 → 16`) in the existing layout test.
 - **Scene regression:** replace the artificially favourable `(448,480)` setup with held upward movement from spawn at `delta=17ms` per update. Old grid should fail (stops ~`y=482.16`); new grid should pass (stops ~`y=465.84`). Assert status → E → Oren dialogue → shop, with one clearly out-of-range control.
-- **E2E:** update the existing “Blacksmith Oren equipment shop” test to approach the counter from the **front** instead of the legacy `(384,400)` staging point behind it. Require player arrival **north of y=480** after held-up movement, then interact and preserve purchase/save/reload coverage; merely routing to `(448,480)` is insufficient.
+- **E2E:** update the existing “Blacksmith Oren equipment shop” test to approach the counter from the **front** instead of the legacy `(384,400)` staging point behind it. Start the held-`w` collision probe from the centre aisle (e.g. `(448,512)` or spawn), **not** `approachNpcWithTrustedKeyboard` at `(448,480)`; that helper returns as soon as the 65px interaction distance is reached, before the player walks into the counter. Require player arrival **north of y=480** after held-up movement, then interact and preserve purchase/save/reload coverage.
 - **Manual:** one normal New Run → forge → walk straight to counter → E → Shop smoke, with a screenshot for the painted workbench and a brief fallback check when practical. Verify ~4–5px overlap against the bottom shadow does not look like clipping.
 - Run focused unit tests, relevant E2E, type check, lint, build, and the navigation-generation check; report observed results separately. **No verification has been executed as part of this design-doc revision.**
 
