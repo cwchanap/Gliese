@@ -1,76 +1,89 @@
 # HPA-816 — Oren's forge counter interaction (design spec)
 
-**Status:** Proposed design for review; implementation has not started.
+**Status:** Review-reconciled design; no implementation committed.
 **Linear:** https://linear.app/cwchanap/issue/HPA-816/i-cant-talk-to-oren-across-his-own-workbench
-**Related:** HPA-815 (forge entrance/exit), HPA-760 (interaction feedback and NPC selection), HPA-818 (separate Gear keyboard UX).
-**Target:** One issue, one PR, with this spec and its implementation plan updated in the same PR as the eventual fix.
+**Review:** https://github.com/cwchanap/Gliese/pull/65#pullrequestreview-5853651066
+**Related, separate:** HPA-815 (forge access), HPA-760 (NPC selection/status), HPA-818 (Gear shortcuts).
+**Delivery:** One ticket, one existing draft PR (#65) for spec, plan, implementation, and tests.
 
-## Problem and verified cause
+## Problem and corrected diagnosis
 
-In the Round 3 playtest, the player walked straight up to Oren behind the Blacksmith service counter and pressed E, but received “Traveler: No one is nearby.” Walking around the counter eventually worked. An existing Linear investigation reproduced the failure against main on 2026-11-07.
+In the Round 3 playtest, walking straight up to Oren's Blacksmith counter and pressing E returned “Traveler: No one is nearby.” Circling around the west end of the counter worked. The original plan proposed moving Oren toward the customer side; the design review found that would violate the authored collision-clearance contract and place his rendered feet in front of the painted counter.
 
-Current authored geometry and runtime:
-
-| Item | Current geometry |
+| Element | Current baseline |
 | --- | --- |
-| Oren | `blacksmithLayout.npcApproaches.oren.npc = (448, 416)` |
-| Intended customer approach | `blacksmithLayout.npcApproaches.oren.approach = (448, 480)` |
-| Service counter collision | Rect `x=284, y=440, width=324, height=18` |
-| Normal NPC reach | `PLAYER_COLLISION_RADIUS 12 + NPC_INTERACTION_RADIUS 36 + NPC_PACK_COLLISION_RADIUS 17 = 65px` |
-| Actual normal upward walk | Navigation/collision stops around `(448, 482)`, **66px** from Oren |
+| Oren's NPC position | `(448, 416)` |
+| Authored customer approach | `(448, 480)` |
+| Counter collision | `rect(284, 440, 324, 18)` (top-left layout coordinates) |
+| NPC interaction threshold | `PLAYER_COLLISION_RADIUS 12 + NPC_INTERACTION_RADIUS 36 + NPC_PACK_COLLISION_RADIUS 17 = 65px` |
+| Observed normal walk stop | ~`y=482` → distance 66px, one pixel **out** of range |
+| Existing scene-test seed | `(448, 480)` → 64px, just **in** range; misses bug |
 
-Thus the designed customer approach is barely within reach on paper, but the normal walk-to-counter stopping position is **1px outside**. The problem is not a missing E binding or a separate dialogue selector: `WorldScene.updateNpcDialogue`, `handleInteractInput`, and shop/dialogue reach already resolve through `findNearbyNpc`.
+The immediate failure is caused by **16px navigation-grid quantization and 12px clearance**, not a missing interaction binding. The current counter covers grid cell centres on rows 27 and 28; clearance also blocks the next row, so a normal northward walk stops at or just south of `y=480` (depending on frame size). Even the authored `(448, 480)` approach has only 1px of reach margin.
 
-Existing `scenes.test.ts` Oren coverage teleports the player to `(448, 480)`, which is 64px away and therefore narrowly passes. It does not model the normal movement stopping point.
+`WorldScene.updateNpcDialogue`, `handleInteractInput`, the shop/dialogue reach check, and `selectNearbyCandidate` already use the same NPC selector. Widening interaction globally would hide the actual geometry issue and affect every NPC.
 
-## Goal
+## Decision — shrink the local counter collision by 2px; do not move Oren
 
-A player who approaches the counter normally from the entrance should reliably see “Oren nearby,” press E, receive his dialogue, complete the existing first-quest talk objective, and open the Sundrop Forge shop. No special sideways movement, coordinate hunting, or pixel-perfect positioning.
+Change only `VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'].propCollisions.serviceCounter` from
 
-Preserve the visual impression of Oren standing **behind** the counter. The painted Blacksmith package and the fallback scene must agree with the authoritative layout and collision.
+~~~ts
+serviceCounter: rect(284, 440, 324, 18)
+~~~
 
-## Decision: correct local placement before changing interaction rules
+to
 
-**Preferred minimal change:** move Oren's authored NPC position **20px toward the customer side**, from `(448, 416)` to **`(448, 436)`** in `src/lib/game/content/maps/layouts/village-interiors-v2.ts`. Keep the customer approach `(448, 480)` and the service counter collision exactly as authored.
+~~~ts
+serviceCounter: rect(284, 440, 324, 16)
+~~~
 
-The computed change is deliberately small:
+Keep Oren at **`(448, 416)`**, his customer approach at `(448, 480)`, and the counter's `propZones.serviceCounter` unchanged.
 
-- At the observed `(448, 482)` normal stopping point, distance changes from 66px (1px outside) to 46px (**19px inside** normal reach).
-- At `(448, 496)`, still near the counter, distance becomes 60px (5px inside).
-- At `(448, 560)`, distance remains 124px (outside reach).
-- Oren's center remains north of the collision strip starting at `y=440`; the NPC and counter may visually overlap at their edges, as is natural for a shopkeeper behind a counter.
+**Why this specific change:**
 
-This is a **candidate geometry adjustment**, not permission to silently break the painted scene. The implementation must inspect an in-game screenshot and a normal keyboard approach. If the repositioned sprite visibly crosses the front edge of the counter or interferes with navigation, revise the **local** geometry within this PR before accepting it. Do not call it fixed solely because a teleported unit test passes.
+- Navigation rows are marked blocked when their 16px cell **centre** lies inside an authored collision rectangle (upper boundary inclusive, bottom exclusive). Reducing the bottom from `y=458` to `y=456` frees the cell centred at `y=456`.
+- After the existing 12px nav clearance, the first walkable player-centre row moves toward `y=464`; expected keyboard stopping positions at common frame steps are ~`y=464–466` instead of `y=480–485`.
+- From Oren at `y=416`, that is ~48–50px, giving ~15–17px of real interaction margin under the unchanged 65px threshold.
+- The remaining collision strip `y=440–456` stays within the reviewed painted workbench `y≈438–457`. Oren's placement remains visually behind the counter and still meets existing NPC-clearance tests.
+- A player-circle edge at `y≈452–454` may overlap up to ~4–5px of the painted bottom shadow; **inspect this** in an actual game screenshot, rather than claiming perfect visual parity from the numbers alone.
 
-### Alternatives considered
+This is a deliberately local correction to how the counter occupies the 16px navigation grid, not a new collision rule.
 
-- **Raise the global NPC interaction radius:** rejected. It changes every NPC's reach and risks talking through unrelated barriers.
-- **Introduce per-NPC interaction overrides/rectangles:** deferred. They add schema/runtime complexity for an issue that has a straightforward local placement root cause. Reconsider only with concrete evidence that a geometry-only change cannot work.
-- **Move or weaken the counter collision:** not preferred, because it can let the player walk into the visibly solid workbench; reserve this for a demonstrated mismatch between painted counter and collision.
-- **Rewrite NPC dialogue/shop/quest flow:** rejected; the existing shared selection path already provides consistent behavior.
+### Required generated artifact
 
-## Ownership and constraints
+The running game uses the checked-in `src/lib/game/content/generated/navigation-grids.generated.ts` bitset through `content/maps.ts`. Changing the layout **without regenerating the bitset leaves runtime movement unchanged**. After the source edit, run:
 
-- **Geometry source of truth:** `src/lib/game/content/maps/layouts/village-interiors-v2.ts`; `content/maps.ts` already reads Oren's authored position from there. Do not duplicate a second Oren coordinate.
-- **Existing engine:** `src/lib/game/phaser/scenes/WorldScene.ts` and `src/lib/game/core/interaction.ts` should need no changes.
-- **No map redesign:** preserve forge entrance, exit trigger, service counter rectangle, navigation-grid source, doorway, shop stock, dialogue, quest IDs, and save data.
-- **No assets:** no new art or SFX. If a new painted asset truly becomes necessary, scope art generation to a separate task rather than mixing it into this ticket.
-- **No compatibility work:** there are no production users requiring save migration.
+~~~sh
+bun run world:generate:navigation
+bun run world:check:navigation
+~~~
+
+Commit the changed generated grid alongside the source and tests. Do **not** hand-edit bytes. Existing navigation-source and generated-runtime checks must pass.
+
+## Decisions retained and alternatives rejected
+
+- **Keep:** one PR, layout as source of truth, unchanged `WorldScene` / `core/interaction.ts` / global collision constants, unchanged shop/quest/dialogue IDs and existing story flow.
+- **Reject previous recommendation (`Oren → (448, 436)`):** the padded counter collision spans approximately `y=428–470`, so the new NPC centre would be inside it, failing `layouts.test.ts` and leaving Oren in front of the base-only painted counter (there is no foreground plane to hide the sprite).
+- **Reject global reach increase, per-NPC reach overrides, or a new interaction framework:** unnecessary for the verified defect.
+- **Reject moving the entire counter or removing its collision:** only trim the excess that changes grid-cell occupancy; keep the authored visible solid counter.
+- **If the 2px trim looks wrong in-game:** stop and reassess the **smallest** counter/nav-art alignment adjustment in the same PR. Do not silently substitute the rejected Oren relocation, add an NPC collision exemption, or commission replacement art. If genuinely new image art is needed, create a **separate art-generation task**.
 
 ## Acceptance criteria
 
-1. **Walk-up interaction:** a normal keyboard approach reaches the counter and leaves Grik comfortably within Oren's 65px interaction range, with at least ~12px margin at the observed stop. The current geometry's 1px shortfall is eliminated.
-2. **Same target across UI and E:** “Oren nearby” appears; pressing E opens *Oren*, not “No one is nearby.” Choosing “Shop” still opens `sundrop-forge`, and the existing talk-to-Oren quest event remains intact.
-3. **No remote talking:** standing substantially away from the counter still gives normal out-of-range behavior; other NPC behavior and selection ordering remain unchanged.
-4. **Visual and collision parity:** Oren is visibly behind the counter in both painted and fallback views; player movement stays outside collision props and does not wedge.
-5. **No unrelated scope:** HPA-818 keyboard behavior and HPA-815 exterior doorway changes are untouched.
+1. **Normal approach:** from the Blacksmith spawn, holding up into the front of the service counter (not walking around it or teleporting behind it) stops Grik comfortably inside normal interaction reach with at least **12px margin** at the tested frame step.
+2. **HUD/E/shop:** “Oren nearby” appears; pressing E opens Oren dialogue and the existing first-quest talk objective; Shop still opens `sundrop-forge`. Status, E, and shop must resolve the same target.
+3. **Real grid in release:** source layout and committed generated navigation bitset agree; `world:check:navigation` passes and runtime movement actually reaches the new stopping band.
+4. **Boundaries:** a clearly distant player still cannot speak to Oren; other NPCs, quest logic, and collision rules are unchanged.
+5. **Visual:** Oren remains behind the painted counter, player does not visually walk through the main workbench, movement does not wedge, and the graybox fallback remains usable.
+6. **Scope:** no changes for HPA-818, HPA-815 geometry, new images, SFX, or save format.
 
-## Review/verification evidence required
+## Verification strategy
 
-- A failing-before/passing-after regression using a **walk-reachable customer-side point** (especially `(448, 482)`), not solely the old seeded `(448, 480)` test.
-- A small data-contract test over actual authored interior NPC approach coordinates and existing interaction constants, checking that a normal walk-up has an intentional margin rather than 1px luck.
-- Targeted scene test for status → E dialogue → existing shop choice, plus out-of-range control.
-- One manual keyboard smoke from the normal New Run route into the forge, including a screenshot and confirmation of the same behavior with the painted interior; verify fallback if available.
-- Targeted unit/e2e checks, plus `bun run check` and `bun run lint`.
+- **Extend**, don't duplicate, the existing `layouts.test.ts` “keeps every interior rectangle in bounds and every approach clear” loop: use the real compiled interior grid and `walk()` toward each NPC. Assert the stopping distance plus one normal 4px movement step fits inside the existing 65px reach. Its prior Oren-specific `64` approach allowance stays as an authored-coordinate contract, not a waiver for failed runtime walk-up.
+- Update the Blacksmith counter-collision pin (`height: 18 → 16`) in the existing layout test.
+- **Scene regression:** replace the artificially favourable `(448,480)` setup with held upward movement from spawn at `delta=17ms` per update. Old grid should fail (stops ~`y=482.16`); new grid should pass (stops ~`y=465.84`). Assert status → E → Oren dialogue → shop, with one clearly out-of-range control.
+- **E2E:** update the existing “Blacksmith Oren equipment shop” test to approach the counter from the **front** instead of the legacy `(384,400)` staging point behind it. Require player arrival **north of y=480** after held-up movement, then interact and preserve purchase/save/reload coverage; merely routing to `(448,480)` is insufficient.
+- **Manual:** one normal New Run → forge → walk straight to counter → E → Shop smoke, with a screenshot for the painted workbench and a brief fallback check when practical. Verify ~4–5px overlap against the bottom shadow does not look like clipping.
+- Run focused unit tests, relevant E2E, type check, lint, build, and the navigation-generation check; report observed results separately. **No verification has been executed as part of this design-doc revision.**
 
-**Deliberately out of scope:** interaction-system refactor, new generic proximity API, pathfinding, world relayout, Gear keybindings, NPC/story copy changes, audio, art generation, and save migrations.
+**Out of scope:** new NPC interaction shapes, global radius changes, custom pathfinding, map redesign, keyboard inventory shortcuts, localization/story rewriting, audio/art generation, and compatibility migrations.
