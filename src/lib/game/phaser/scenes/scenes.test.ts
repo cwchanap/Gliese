@@ -18,7 +18,11 @@ import {
 	villagerHouse3Map
 } from '$lib/game/content/maps';
 import type { MapBackgroundImage, WorldMapDefinition } from '$lib/game/content/maps/types';
-import { PLAYER_COLLISION_RADIUS } from '$lib/game/core/collision';
+import {
+	NPC_INTERACTION_RADIUS,
+	NPC_PACK_COLLISION_RADIUS,
+	PLAYER_COLLISION_RADIUS
+} from '$lib/game/core/collision';
 import { compileNavigationGrid } from '$lib/game/core/navigation';
 import { applyStoryGates } from '$lib/game/core/story-gates';
 import {
@@ -9665,21 +9669,109 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('starts Oren dialogue and opens the Sundrop Forge shop', async () => {
+	it('walks up to the forge counter, advances Oren’s first-quest objective, and opens the Sundrop Forge shop', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		const sceneState = scene as unknown as { handleHudCommand: (command: HudCommand) => void };
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			buildSaveState: () => ReturnType<typeof createNewSaveState>;
+		};
+		const oren = { x: 448, y: 416 };
+		// 12px player radius + 36px interaction radius + Oren's 17px npc-pack body.
+		const interactionReach =
+			PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + NPC_PACK_COLLISION_RADIUS;
+		// The spec requires the reachable stop to leave at least this much reach spare.
+		const minimumInteractionMargin = 12;
+		const save = createNewSaveState();
 
-		scene.create({ mapId: 'blacksmith-interior' });
-		expect(scene.add.image).toHaveBeenCalledWith(448, 416, 'npc-pack', 'woodcutterNpc');
-		Object.assign(phaserState.playerMarker, { x: 448, y: 480 });
+		scene.create({
+			saveState: {
+				...save,
+				mapId: 'blacksmith-interior',
+				player: { ...save.player, x: 448, y: 576, facing: 'up' },
+				quests: questStateAt('collect-practice-spear')
+			}
+		});
+		expect(scene.add.image).toHaveBeenCalledWith(oren.x, oren.y, 'npc-pack', 'woodcutterNpc');
+		expect({ x: phaserState.playerMarker.x, y: phaserState.playerMarker.y }).toEqual({
+			x: 448,
+			y: 576
+		});
+
+		// Out-of-range control: the normal spawn is 160px from Oren, so "Oren nearby"
+		// must stay off unless the interaction reach is globally relaxed.
+		expect(Math.abs(576 - oren.y)).toBeGreaterThan(interactionReach);
 		scene.update(0, 16);
-		emitHudStateSpy.mockClear();
+		expect(emitHudStateSpy).not.toHaveBeenCalledWith(
+			expect.objectContaining({ status: 'Oren nearby' })
+		);
+
+		// Hold north from the normal spawn. Each 17ms frame moves 4.08px; the old 18px
+		// counter stopped Grik at ~482.16 (66.16px from Oren), outside the 65px reach.
+		const frameDeltaMs = 17;
+		const movementStepPx = (240 * frameDeltaMs) / 1000;
+		const northSteps: number[] = [];
+		phaserState.cursorKeys.up.isDown = true;
+		let elapsed = 0;
+		let previousY = phaserState.playerMarker.y;
+		for (let frame = 0; frame < 64; frame += 1) {
+			elapsed += frameDeltaMs;
+			scene.update(elapsed, frameDeltaMs);
+			const y = phaserState.playerMarker.y;
+			if (y === previousY) break;
+			northSteps.push(previousY - y);
+			previousY = y;
+		}
+		phaserState.cursorKeys.up.isDown = false;
+
+		expect(northSteps.length).toBeGreaterThan(20);
+		expect(northSteps.every((step) => Math.abs(step - movementStepPx) < 1e-6)).toBe(true);
+
+		const counter = VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'].propCollisions.serviceCounter;
+		const stopped = { x: phaserState.playerMarker.x, y: phaserState.playerMarker.y };
+		const stoppedDistance = Math.hypot(stopped.x - oren.x, stopped.y - oren.y);
+
+		// Stopped square in front of the counter (the old 18px core stopped at 482.16,
+		// one grid cell lower), within reach with margin to spare.
+		expect(stopped.x).toBe(oren.x);
+		expect(interactionReach - stoppedDistance).toBeGreaterThanOrEqual(minimumInteractionMargin);
+		expect(stopped.y).toBeGreaterThan(counter.y + counter.height);
+		expect(stopped.y).toBeLessThanOrEqual(counter.y + counter.height + 24);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Oren nearby' })
+		);
 
 		phaserState.interactKeys.e.justDown = true;
-		scene.update(16, 16);
+		scene.update(elapsed + 16, 16);
+		await flushStoryDialogue();
+
+		// The customer-side walk-up reaches Oren, and talking records the first quest's
+		// Oren objective, handing the next objective to Mira.
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'Oren nearby',
+				dialogue: expect.objectContaining({
+					speaker: 'Oren',
+					line: "Borak's boy! Your father paid for this a week ago and made me swear not to tell you."
+				})
+			})
+		);
+		const questsAfterWalkUp = sceneState.buildSaveState().quests;
+		expect(questsAfterWalkUp.entries['prologue-proving-morning']).toMatchObject({
+			currentObjectiveId: 'collect-herb-pouch'
+		});
+		expect(questsAfterWalkUp.completedObjectives['prologue-proving-morning']).toContain(
+			'collect-practice-spear'
+		);
+
+		// With the objective done, the same counter position gets the everyday shop branch.
+		sceneState.handleHudCommand({ type: 'dialogue-close' });
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(elapsed + 32, 16);
 		await flushStoryDialogue();
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(

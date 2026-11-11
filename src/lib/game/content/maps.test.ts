@@ -1051,6 +1051,15 @@ describe('opening map content', () => {
 			toMapId: 'overworld',
 			arrival: overworldDoorArrival('blacksmith-interior')
 		});
+		// Freshness gate: the checked-in bitset must match the authored layout.
+		expect(GENERATED_NAVIGATION_GRIDS['blacksmith-interior-navigation']).toEqual(
+			compileNavigationGrid(
+				buildVillageInteriorNavigationSource({
+					mapId: 'blacksmith-interior',
+					layout: VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior']
+				})
+			)
+		);
 
 		expect(maps['guild-hall']).toBe(guildHallMap);
 		expect(guildHallMap.width).toBe(32);
