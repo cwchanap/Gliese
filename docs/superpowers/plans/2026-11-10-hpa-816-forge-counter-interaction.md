@@ -54,7 +54,7 @@ Commit `src/lib/game/content/generated/navigation-grids.generated.ts` alongside 
 In `src/lib/game/content/maps/layouts/layouts.test.ts`:
 
 1. Update the Blacksmith `propCollisions.serviceCounter` fixture/pin to height `16`.
-2. In the already present `it('keeps every interior rectangle in bounds and every approach clear', ...)` loop near line 1609, use the same `buildVillageInteriorNavigationSource`, `compileNavigationGrid`, and `walk()` helpers already imported by this file. For each authored `{npc, approach}`, walk from the **customer approach toward the NPC**, using the derived real grid and an appropriate cardinal step. Compare the resulting front-stop distance to `PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + NPC_PACK_COLLISION_RADIUS`.
+2. In the already present `it('keeps every interior rectangle in bounds and every approach clear', ...)` loop near line 1609, use the same `buildVillageInteriorNavigationSource`, `compileNavigationGrid`, and `walk()` helpers already imported by this file. For each authored `{npc, approach}`, walk from the **customer approach toward the NPC** using the derived real grid and an appropriate cardinal step. Include the same **NPC circle obstacle** as gameplay (centre at `npc`, radius `NPC_PACK_COLLISION_RADIUS`, escape-aware, `invalidAtRest: false`), so an unobstructed approach stops at the NPC instead of walking straight through it. Compare the resulting front-stop distance to `PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + NPC_PACK_COLLISION_RADIUS`.
 3. Require **`distance + 4 <= 65`** (one normal 60fps frame of margin). On current layout Oren fails (64 + 4 = 68 > 65) even if the `walk()` stops at `y=480`; after the fix he approaches close enough. Other named interior NPC approaches should continue passing.
 4. Keep existing collision-clear, spawn-reachability, and `isInteriorWalkable` assertions. Preserve Oren's current authored-approach distance allowance (`64`); the new assertion, not the authored coordinate, tests the real walk-up.
 
@@ -97,6 +97,6 @@ Perform **one keyboard smoke**: New Run → forge via HPA-815 route → straight
 - Oren remains behind the counter and away from the padded blocking area; distant interactions still fail.
 - The branch/PR includes layout, generated grid, focused tests, and reported validation evidence, without a second PR.
 
-**Fallback gate:** if the collision trim makes Grik visibly overlap solid art (rather than only the lower shadow), do not silently relocate Oren into the blocked/pained counter. Revisit the smallest viable local counter geometry and seek review. If replacement image art is actually required, create a separate art-generation ticket.
+**Fallback gate:** if the collision trim makes Grik visibly overlap solid art (rather than only the lower shadow), do not silently relocate Oren into the blocked/painted counter. Revisit the smallest viable local counter geometry and seek review. If replacement image art is actually required, create a separate art-generation ticket.
 
 **Out of scope:** HPA-818 keyboard UX, HPA-815 exterior fixes, interaction-system refactors, global radius changes, art/SFX generation, save migrations.
