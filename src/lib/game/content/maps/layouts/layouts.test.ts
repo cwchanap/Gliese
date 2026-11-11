@@ -275,7 +275,7 @@ describe('village interior layout coordinate contracts', () => {
 			propCollisions: {
 				forge: { x: 112, y: 112, width: 96, height: 128 },
 				anvil: { x: 288, y: 176, width: 64, height: 64 },
-				serviceCounter: { x: 284, y: 440, width: 324, height: 18 },
+				serviceCounter: { x: 284, y: 440, width: 324, height: 16 },
 				weaponRacks: { x: 624, y: 112, width: 128, height: 160 },
 				coalStorage: { x: 112, y: 304, width: 192, height: 32 },
 				showroomDisplay: { x: 656, y: 496, width: 112, height: 96 }
