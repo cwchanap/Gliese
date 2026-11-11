@@ -1546,6 +1546,8 @@ describe('village interior layout coordinate contracts', () => {
 	it('keeps every interior rectangle in bounds and every approach clear', () => {
 		const minimumApproach = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
 		const maximumApproach = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
+		const interactionReach =
+			PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + NPC_PACK_COLLISION_RADIUS;
 
 		for (const [mapId, layout] of Object.entries(VILLAGE_INTERIOR_LAYOUTS)) {
 			const bounds = rect(0, 0, layout.widthTiles * 32, layout.heightTiles * 32);
@@ -1606,7 +1608,13 @@ describe('village interior layout coordinate contracts', () => {
 				}
 			}
 
-			for (const { npc, approach } of Object.values(layout.npcApproaches)) {
+			const source = buildVillageInteriorNavigationSource({
+				mapId: mapId as keyof typeof VILLAGE_INTERIOR_LAYOUTS,
+				layout
+			});
+			const grid = compileNavigationGrid(source);
+
+			for (const [npcId, { npc, approach }] of Object.entries(layout.npcApproaches)) {
 				const distance = Math.hypot(npc.x - approach.x, npc.y - approach.y);
 				expect(distance).toBeGreaterThanOrEqual(minimumApproach);
 				expect(distance).toBeLessThanOrEqual(
@@ -1630,6 +1638,35 @@ describe('village interior layout coordinate contracts', () => {
 					isInteriorWalkable(layout, approach),
 					`${mapId} approach is not authored-walkable`
 				).toBe(true);
+
+				// Hold straight at the NPC from the customer side with the NPC's gameplay body.
+				// Corner slides are vetoed so this reports the front stop in front of the NPC
+				// instead of sliding around it. 32 frames cover the longest 64px approach.
+				const deltaX = npc.x - approach.x;
+				const deltaY = npc.y - approach.y;
+				const direction =
+					Math.abs(deltaX) >= Math.abs(deltaY)
+						? { x: Math.sign(deltaX), y: 0 }
+						: { x: 0, y: Math.sign(deltaY) };
+				const obstacles = [
+					{
+						id: npcId,
+						shape: 'circle' as const,
+						center: npc,
+						radius: NPC_PACK_COLLISION_RADIUS,
+						movement: 'escape-aware' as const,
+						invalidAtRest: false
+					}
+				];
+				const stopped = walk(grid, obstacles, approach, direction, 32, {
+					canSlideTo: () => false
+				});
+				const frontStopDistance = Math.hypot(stopped.x - npc.x, stopped.y - npc.y);
+				// One 4px frame of margin: the stop is up to one step short of the real boundary.
+				expect(
+					frontStopDistance + 4,
+					`${mapId}:${npcId} front stop settles out of interaction reach`
+				).toBeLessThanOrEqual(interactionReach);
 			}
 
 			const reachable = reachableInteriorSamples(layout);
