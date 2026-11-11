@@ -1,87 +1,102 @@
 # HPA-816 — Oren counter interaction implementation plan
 
-**Design:** [2026-11-10-hpa-816-forge-counter-interaction-design.md](../specs/2026-11-10-hpa-816-forge-counter-interaction-design.md)
+**Design:** [review-reconciled design](../specs/2026-11-10-hpa-816-forge-counter-interaction-design.md)
 **Issue:** https://linear.app/cwchanap/issue/HPA-816/i-cant-talk-to-oren-across-his-own-workbench
-**PR strategy:** Exactly **one PR for HPA-816**. Start with design/plan as a draft; add implementation and tests to this **same branch/PR**, not a second implementation PR.
-**State:** Plan only — no code or tests have been executed for this proposal.
+**Review addressed:** https://github.com/cwchanap/Gliese/pull/65#pullrequestreview-5853651066
+**PR strategy:** **One ticket, one PR #65.** Add code/tests in the existing draft PR; do not create an implementation PR.
+**State:** Implementation plan only. No code or tests have been run for this revision.
 
-## Files and approach
+## Minimal change set
 
-| File | Expected change |
+| File | Required work |
 | --- | --- |
-| `src/lib/game/content/maps/layouts/village-interiors-v2.ts` | Move only Oren's `npcApproaches.oren.npc` from `(448,416)` to provisional `(448,436)`, subject to visual validation. Keep `approach`, counter and exits unchanged. |
-| `src/lib/game/content/maps/layouts/layouts.test.ts` | Update Oren pinned coordinate and assert usable margin for interior NPC approach geometry; keep existing reachability/collision checks. |
-| `src/lib/game/content/maps.test.ts` | Only update a fixture if the existing content contract asserts Oren's old coordinate; do not add duplicate fixtures needlessly. |
-| `src/lib/game/phaser/scenes/scenes.test.ts` | Reproduce the counter walk-up and verify hint, E dialogue, shop choice, and out-of-range behavior. |
+| `src/lib/game/content/maps/layouts/village-interiors-v2.ts` | Change only `propCollisions.serviceCounter` height `18 → 16`. **Do not move Oren** from `(448,416)` or modify `approach=(448,480)`. |
+| `src/lib/game/content/generated/navigation-grids.generated.ts` | Regenerate with `bun run world:generate:navigation`, commit generated output; inspect that only expected Blacksmith navigation bits change. |
+| `src/lib/game/content/maps/layouts/layouts.test.ts` | Change pinned counter height, and extend the **existing** NPC-approach loop with walk-to-counter clearance validation; do not make a parallel data-contract test. |
+| `src/lib/game/phaser/scenes/scenes.test.ts` | Extend the existing Oren scene test to hold up from spawn with controlled 17ms frames, then verify status → E dialogue → Shop, including an out-of-range case. |
+| `tests/e2e/game.e2e.ts` | Change the existing “Blacksmith Oren equipment shop” test to use the customer-facing route, not the behind-counter staging point; preserve purchase/save/reload checks. |
 
-**No expected production changes** to `WorldScene.ts`, `core/interaction.ts`, `core/collision.ts`, shop/story data, navigation generator, or art assets.
+**No expected edits:** `WorldScene.ts`, `core/interaction.ts`, `core/collision.ts`, counter visual assets/manifest, dialogue, quest IDs, other interior geometry, or save schema.
 
-## Task 1 — pin the failing behavior before the layout change
+## Step 1 — make the original failure reproducible (RED)
 
-Extend the existing “starts Oren dialogue and opens the Sundrop Forge shop” scene coverage, or add one adjacent targeted regression:
+In the existing `scenes.test.ts` case for Oren:
 
-1. Create the normal `blacksmith-interior` scene.
-2. Set Grik at `(448, 482)`, the measured customer-side collision stop rather than the historical test's `(448, 480)`. Verify the point is walkable in the real `blacksmith-interior-navigation` grid (do not assume a teleport makes it walkable).
-3. Assert that current main fails to select Oren at this point (the documented 66px versus 65px mismatch). The test should be red *before* the coordinate change.
-4. After the fix, assert HUD displays `Oren nearby`; pressing E starts Oren dialogue; selecting `shop` opens `sundrop-forge`. Keep existing quest completion behavior as an invariant.
-5. Check a nearby but not pixel-perfect customer position, e.g. `(448, 496)`, and a clearly distant position, e.g. `(448, 560)`. Confirm out-of-range does not trigger Oren.
-6. Preserve existing status/dialogue tests that guard stale proximity hints and matching E targets.
+1. Start `blacksmith-interior` from normal spawn `(448,576)`; no teleport near Oren.
+2. Hold `phaserState.cursorKeys.up.isDown = true` and call `scene.update(t, 17)` repeatedly until the player can no longer move north; release up before E. At 240px/s, each 17ms frame moves ~4.08px. The **current** grid should stop at ~`y=482.16`, outside the 65px reach.
+3. Assert the stopped position is at the front of the counter (same x); assert the player must be within 65px for “Oren nearby” to appear, and then E starts his actual dialogue and Shop opens `sundrop-forge`. The new positive assertions should **fail on main**.
+4. Retain/introduce one unambiguously distant control (e.g. original spawn `(448,576)` gives 160px separation), so an accidental global reach relaxation fails.
+5. Preserve existing NPC selection, dialogue, and shop tests; no new harness. Ensure the test is testing actual movement, not just fixed-coordinate selection.
 
-Prefer a **small scene test** over creating a new end-to-end harness. If reaching `(448,482)` from normal movement differs from the earlier Linear measurement, derive the real stopped point using the game's navigation/movement resolver and update the test accordingly.
+The previous plan's `(448,482)` **teleport** was the wrong regression: it tests a fixed distance and cannot prove that the geometry change altered the reachable stopping point. Avoid an alternate 4px-grid walk that happens to stop at `y=480` and passes pre-fix.
 
-## Task 2 — local geometry fix
+## Step 2 — fix the counter and regenerate runtime movement
 
-In `VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior']`, try:
+In `VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior']`, edit the one collision rectangle:
 
 ~~~ts
-npcApproaches: {
-  oren: { npc: point(448, 436), approach: point(448, 480) }
-}
+serviceCounter: rect(284, 440, 324, 16)
 ~~~
 
-Do **not** touch the authored `serviceCounter` collision or navigation source. `content/maps.ts` consumes this NPC placement directly.
+Keep `npcApproaches.oren = { npc: point(448,416), approach: point(448,480) }` unchanged.
 
-Before finalizing, verify the new Oren collision circle does not push the player away from the normal customer approach, and that his sprite remains credibly behind the low counter in the painted view. If needed, adjust only the same local NPC coordinate and document the measured margin and reason. Avoid any global interaction radius change.
-
-## Task 3 — inexpensive regression contract
-
-In the existing interior layout/content tests, add a compact contract:
-
-- For each named `npcApproaches` placement, locate the corresponding actual map NPC (match by authored anchor, not by assuming the layout key matches dialogue ID).
-- Confirm the authored approach remains in the reachable interior walkable region.
-- Compute effective reach from existing `PLAYER_COLLISION_RADIUS` + `NPC_INTERACTION_RADIUS` + the real sprite-family collision radius (`NPC_PACK_COLLISION_RADIUS` or `STARTER_NPC_COLLISION_RADIUS`).
-- Require a meaningful positive approach margin (suggested **at least 12px**, subject to checking current authored interiors). This would have failed Oren's previous 64px versus 65px 1px margin and should pass after the local repositioning.
-- Keep this as one small data test. Do not introduce a general geometry framework or duplicate engine logic.
-
-For Oren, retain a separate scene-level regression at the real `y≈482` collision stop, because the static authored approach is `y=480` and can otherwise conceal the problem again.
-
-## Task 4 — validate gameplay and no regressions
-
-Run focused checks first:
+**Critical runtime dependency:** `content/maps.ts` references `GENERATED_NAVIGATION_GRIDS['blacksmith-interior-navigation']`. The derived navigation source will change when the layout does, but the running app will not until the checked-in bitset is regenerated. Run:
 
 ~~~sh
-bun run test:unit -- --run src/lib/game/content/maps/layouts/layouts.test.ts src/lib/game/content/maps.test.ts src/lib/game/phaser/scenes/scenes.test.ts
+bun run world:generate:navigation
+bun run world:check:navigation
+~~~
+
+Commit `src/lib/game/content/generated/navigation-grids.generated.ts` alongside the authored layout edit. Avoid hand-editing generated bytes; inspect the diff for unrelated map changes.
+
+## Step 3 — extend existing geometry contract, not another test subsystem
+
+In `src/lib/game/content/maps/layouts/layouts.test.ts`:
+
+1. Update the Blacksmith `propCollisions.serviceCounter` fixture/pin to height `16`.
+2. In the already present `it('keeps every interior rectangle in bounds and every approach clear', ...)` loop near line 1609, use the same `buildVillageInteriorNavigationSource`, `compileNavigationGrid`, and `walk()` helpers already imported by this file. For each authored `{npc, approach}`, walk from the **customer approach toward the NPC**, using the derived real grid and an appropriate cardinal step. Compare the resulting front-stop distance to `PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + NPC_PACK_COLLISION_RADIUS`.
+3. Require **`distance + 4 <= 65`** (one normal 60fps frame of margin). On current layout Oren fails (64 + 4 = 68 > 65) even if the `walk()` stops at `y=480`; after the fix he approaches close enough. Other named interior NPC approaches should continue passing.
+4. Keep existing collision-clear, spawn-reachability, and `isInteriorWalkable` assertions. Preserve Oren's current authored-approach distance allowance (`64`); the new assertion, not the authored coordinate, tests the real walk-up.
+
+Avoid new NPC ID lookup maps, a duplicate contract file, or changes to the interaction selector.
+
+## Step 4 — make the existing E2E test actually cross the counter
+
+The “Blacksmith Oren equipment shop” test in `tests/e2e/game.e2e.ts` currently routes to `blacksmithOrenInteractionStagingPoint=(384,400)`, on the **staff side**. That bypasses HPA-816.
+
+- Preserve its initial Blacksmith entry and surrounding tour only as needed; stage on the **customer side** (e.g. from spawn on the centre aisle) and hold north into the service counter until movement stops.
+- Remove the **staff-side detour for this test**; if the staging constant is used by other tests, keep it for those unaffected cases.
+- Assert the final HUD/player position is on the correct side and **y < 480** before pressing E. This is a reliable failure on the old grid; merely reaching the authored `orenApproachPoint=(448,480)` is not a regression.
+- Press E: assert Oren dialogue; choose Shop; preserve existing iron-cap purchase, wallet/stock persistence, save, reload, and reopened shop assertions.
+- Reuse existing movement helpers and runtime probe; do not introduce another E2E framework. If the existing approach helper routes around the counter, replace its use in **this test** with a simple trusted held-up movement at the centre aisle.
+
+E2E frame timing may vary; bounded movement/position assertions should tolerate plausible `y≈464–468` stops after the fix while still rejecting `y≥480`.
+
+## Step 5 — verify and hand off
+
+Run:
+
+~~~sh
+bun run world:check:navigation
+bun run test:unit -- --run src/lib/game/content/maps/layouts/layouts.test.ts src/lib/game/phaser/scenes/scenes.test.ts
 bun run check
 bun run lint
 bun run build
 bun run test:e2e -- --grep "Blacksmith Oren equipment shop"
 ~~~
 
-Then make one manual keyboard smoke pass:
+Check relevant existing map/asset consistency tests and optionally the broader unit suite if targeted tests reveal overlap. Record tested SHA and actual pass/fail outcomes (the plan does not imply tests were run).
 
-1. Start a **normal New Run** (not only a `?startMap=` teleport), follow the first quest to Sundrop Forge, and enter via the HPA-815 repaired route.
-2. Walk **straight toward the service counter**, stop when collision blocks the approach, and press E. Confirm Oren's nearby label and story dialogue.
-3. Choose Shop; confirm shop opens, then exit and retry interaction after returning.
-4. Inspect Oren against the painted counter, the player's collision, and (if available) the graybox fallback. Record screenshot(s) and any mismatch without generating replacement art.
+Perform **one keyboard smoke**: New Run → forge via HPA-815 route → straight customer-side walk into counter → E → Oren → Shop. Inspect a screenshot in painted view, and fallback if practical. Confirm the player does not clip visibly through the counter; the review estimates only ~4–5px shadow overlap. No new art or SFX in this coding task.
 
-Do not claim passing checks until they actually run. Test failure due to unrelated baseline issues should be recorded, not silently waived.
+## Done when
 
-## Exit criteria and review handoff
+- Original scene movement test fails on baseline and passes after regenerated geometry.
+- Normal walk stops close enough for ≥12px reach margin; no staff-side detour.
+- Existing interior NPC placement/collision tests, Oren shop and save/reload E2E, and generated-navigation check pass.
+- Oren remains behind the counter and away from the padded blocking area; distant interactions still fail.
+- The branch/PR includes layout, generated grid, focused tests, and reported validation evidence, without a second PR.
 
-- Reproduction test is red before the change and green after it.
-- The normal customer-side walk has >=12px reliable interaction margin and the front-counter status/E/shop route works.
-- No move-through-counter, sprite-on-counter, duplicate target, stale status, or out-of-range talk regression.
-- Targeted tests, check, lint, build, e2e and one keyboard smoke are reported with outcomes.
-- PR body links both planning docs, describes the final single local geometry change, and provides observed validation evidence.
+**Fallback gate:** if the collision trim makes Grik visibly overlap solid art (rather than only the lower shadow), do not silently relocate Oren into the blocked/pained counter. Revisit the smallest viable local counter geometry and seek review. If replacement image art is actually required, create a separate art-generation ticket.
 
-**Do not include** HPA-818 Gear keyboard changes, new images, SFX, generic NPC interaction overrides, or other village cleanup in this PR.
+**Out of scope:** HPA-818 keyboard UX, HPA-815 exterior fixes, interaction-system refactors, global radius changes, art/SFX generation, save migrations.
