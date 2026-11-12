@@ -30,9 +30,6 @@ test-results
 # Local generated previews and validation output
 .artifacts/
 
-# Local playtest screenshots
-docs/superpowers/reports/entry-map-playtest/
-
 # Local generated reports and evidence images
 docs/superpowers/reports/
 
