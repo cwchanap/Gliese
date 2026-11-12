@@ -87,8 +87,8 @@ Commit the changed generated grid alongside the source and tests. Do **not** han
 - Run focused unit tests, relevant E2E, type check, lint, build, and the navigation-generation check; report observed results separately.
 
 **Verification (2026-11-11):** the focused navigation, layout, map, and scene suites pass
-(420 tests); the full unit suite passes 1290/1290; `svelte-check`, `lint`, and
-`world:check:navigation` pass. The Oren E2E was not run because port 4173 is occupied by another
-preview server.
+(420 tests); the full unit suite passes 1290/1290; `svelte-check`, `lint`,
+`world:check:navigation`, and `bun run build` pass; the `Blacksmith Oren equipment shop` E2E test
+passes against a fresh build.
 
 **Out of scope:** new NPC interaction shapes, global radius changes, custom pathfinding, map redesign, keyboard inventory shortcuts, localization/story rewriting, audio/art generation, and compatibility migrations.
