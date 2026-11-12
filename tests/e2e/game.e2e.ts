@@ -12350,10 +12350,10 @@ test('Blacksmith graybox entrance', async ({ page }) => {
 	await exitInteriorWithTrustedKeyboard(page, blacksmith);
 });
 
-// A `blocked` diagnostic means one requested frame step did not fully fit, not
-// that the player cannot advance: at y=471 a 12px step to 459 is rejected while
-// a later 4px step to 467 moves. A stop is only real once a bounded window of
-// distinct fresh attempts are all blocked at one unchanged resolved position.
+// A `blocked` diagnostic means one requested frame step did not fully fit and
+// was clamped to the furthest free point, not that the player cannot advance.
+// A stop is only real once a bounded window of fresh attempts all resolve to
+// one unchanged position.
 const COUNTER_SETTLE_ATTEMPTS = 10;
 
 function settledBlockedWindow(input: {
