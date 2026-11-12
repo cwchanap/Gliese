@@ -1677,6 +1677,23 @@ describe('village interior layout coordinate contracts', () => {
 					frontStopDistance + 4,
 					`${mapId}:${npcId} front stop settles out of interaction reach`
 				).toBeLessThanOrEqual(interactionReach);
+
+				// A 10fps step (24px) must settle at the same wall, not a frame-step short.
+				const stoppedAtLowFps = walk(
+					grid,
+					obstacles,
+					approach,
+					direction,
+					32,
+					{
+						canSlideTo: () => false
+					},
+					24
+				);
+				expect(
+					Math.hypot(stoppedAtLowFps.x - npc.x, stoppedAtLowFps.y - npc.y),
+					`${mapId}:${npcId} low-fps front stop settles out of interaction reach`
+				).toBeLessThanOrEqual(interactionReach);
 			}
 
 			const reachable = reachableInteriorSamples(layout);
