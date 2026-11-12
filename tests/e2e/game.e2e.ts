@@ -12421,6 +12421,7 @@ test('blocked movement window rejects a transient block and accepts a sustained 
 	expect(check(drifting)).toBe(false);
 	// Blocked frames emitted before the hold started are not fresh attempts.
 	const sustained = Array.from({ length: COUNTER_SETTLE_ATTEMPTS }, () => attempt(466.59, true));
+	expect(check(sustained, sustained.length)).toBe(false);
 	expect(check([...sustained, ...advancing], sustained.length)).toBe(false);
 	expect(check([...advancing, ...sustained], advancing.length)).toEqual(sustained);
 });
