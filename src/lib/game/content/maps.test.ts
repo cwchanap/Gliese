@@ -25,6 +25,7 @@ import {
 	VILLAGE_INTERIOR_NAVIGATION_OWNED_SOURCES
 } from '$lib/game/content/backgrounds/village-interior-package';
 import { VILLAGE_INTERIOR_NAVIGATION_SOURCES } from '$lib/game/content/backgrounds/village-interior-navigation-sources';
+import { NAVIGATION_MASK_SOURCES } from '$lib/game/content/backgrounds/navigation-source-registry';
 import { GENERATED_NAVIGATION_GRIDS } from '$lib/game/content/generated/navigation-grids.generated';
 import {
 	NPC_INTERACTION_RADIUS,
@@ -1051,15 +1052,12 @@ describe('opening map content', () => {
 			toMapId: 'overworld',
 			arrival: overworldDoorArrival('blacksmith-interior')
 		});
-		// Freshness gate: the checked-in bitset must match the authored layout.
-		expect(GENERATED_NAVIGATION_GRIDS['blacksmith-interior-navigation']).toEqual(
-			compileNavigationGrid(
-				buildVillageInteriorNavigationSource({
-					mapId: 'blacksmith-interior',
-					layout: VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior']
-				})
-			)
-		);
+		// Freshness gate: every checked-in bitset must match its authored source.
+		for (const source of NAVIGATION_MASK_SOURCES) {
+			expect(
+				GENERATED_NAVIGATION_GRIDS[source.id as keyof typeof GENERATED_NAVIGATION_GRIDS]
+			).toEqual(compileNavigationGrid(source));
+		}
 
 		expect(maps['guild-hall']).toBe(guildHallMap);
 		expect(guildHallMap.width).toBe(32);

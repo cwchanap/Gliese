@@ -323,33 +323,41 @@ describe('navigation movement and obstacle policies', () => {
 		expect(findNearestWalkablePosition(grid, [], { x: 1, y: 1 }, 0)).toEqual(expected);
 	});
 
-	it('blocks a large step when its segment crosses a blocked cell despite open endpoints', () => {
+	it('stops a blocked step at the furthest free point instead of discarding it', () => {
 		const grid = compileNavigationGrid(source({ widthCells: 4, heightCells: 1, rows: ['..#.'] }));
 
 		expect(isWalkable(grid, 8, 8)).toBe(true);
 		expect(isWalkable(grid, 56, 8)).toBe(true);
-		expect(resolveMovementSegment(grid, [], { x: 8, y: 8 }, { x: 56, y: 8 }, 12)).toEqual({
-			x: 8,
-			y: 8
-		});
+		const stopped = resolveMovementSegment(grid, [], { x: 8, y: 8 }, { x: 56, y: 8 }, 12);
+
+		expect(stopped.y).toBe(8);
+		expect(stopped.x).toBeGreaterThan(31.9);
+		expect(stopped.x).toBeLessThan(32);
+	});
+
+	it('settles at the same wall stop for small and large steps', () => {
+		const grid = compileNavigationGrid(source({ widthCells: 4, heightCells: 1, rows: ['..#.'] }));
+		const step = (size: number) =>
+			resolveMovementSegment(grid, [], { x: 28, y: 8 }, { x: 28 + size, y: 8 }, 12);
+
+		expect(step(4).x).toBeCloseTo(32, 2);
+		expect(step(24).x).toBeCloseTo(32, 2);
 	});
 
 	it('resolves a blocked diagonal onto its open Y axis after testing X first', () => {
 		const grid = compileNavigationGrid(source({ widthCells: 4, rows: ['..#.', '....', '....'] }));
+		const resolved = resolveMovementSegment(grid, [], { x: 8, y: 8 }, { x: 56, y: 40 }, 0);
 
-		expect(resolveMovementSegment(grid, [], { x: 8, y: 8 }, { x: 56, y: 40 }, 0)).toEqual({
-			x: 8,
-			y: 40
-		});
+		expect(resolved.y).toBe(40);
+		expect(resolved.x).toBeCloseTo(32, 1);
 	});
 
 	it('resolves a blocked diagonal onto its open X axis when the Y leg is blocked', () => {
 		const grid = compileNavigationGrid(source({ rows: ['...', '..#', '...'] }));
+		const resolved = resolveMovementSegment(grid, [], { x: 8, y: 8 }, { x: 40, y: 40 }, 0);
 
-		expect(resolveMovementSegment(grid, [], { x: 8, y: 8 }, { x: 40, y: 40 }, 0)).toEqual({
-			x: 40,
-			y: 8
-		});
+		expect(resolved.x).toBe(40);
+		expect(resolved.y).toBeCloseTo(16, 1);
 	});
 
 	it('keeps a straight open segment unchanged', () => {
@@ -386,10 +394,9 @@ describe('navigation movement and obstacle policies', () => {
 			invalidAtRest: true
 		};
 
-		expect(resolveMovementSegment(grid, [obstacle], { x: 8, y: 48 }, { x: 40, y: 48 }, 0)).toEqual({
-			x: 8,
-			y: 48
-		});
+		const stopped = resolveMovementSegment(grid, [obstacle], { x: 8, y: 48 }, { x: 40, y: 48 }, 0);
+		expect(stopped.y).toBe(48);
+		expect(stopped.x).toBeCloseTo(32, 1);
 		expect(resolveMovementSegment(grid, [obstacle], { x: 40, y: 48 }, { x: 48, y: 48 }, 0)).toEqual(
 			{
 				x: 40,
@@ -465,12 +472,34 @@ describe('navigation movement and obstacle policies', () => {
 			invalidAtRest: true
 		};
 
-		expect(resolveMovementSegment(grid, [landmark], { x: 16, y: 64 }, { x: 48, y: 64 }, 0)).toEqual(
-			{
-				x: 16,
-				y: 64
-			}
+		const stopped = resolveMovementSegment(grid, [landmark], { x: 16, y: 64 }, { x: 48, y: 64 }, 0);
+		expect(stopped.y).toBe(64);
+		expect(stopped.x).toBeCloseTo(32, 1);
+	});
+
+	it('stops before a landmark body bottom with player radius when approached from below', () => {
+		const grid = openGrid(10, 10);
+		const landmark: NavigationObstacle = {
+			id: 'house',
+			shape: 'landmark',
+			landmarkId: 'hero-house-exterior',
+			bounds: { left: 32, right: 96, top: 32, bottom: 96 },
+			doorCandidates: [{ id: 'unrelated-exit', point: { x: 64, y: 64 } }],
+			doorwayWidthPx: 24,
+			transitionRadiusPx: 10,
+			invalidAtRest: true
+		};
+
+		const stopped = resolveMovementSegment(
+			grid,
+			[landmark],
+			{ x: 64, y: 120 },
+			{ x: 64, y: 100 },
+			12
 		);
+
+		expect(stopped.x).toBe(64);
+		expect(stopped.y).toBeCloseTo(108, 1);
 	});
 
 	it('matches a landmark doorway by candidate ID and point, carves body sides, and passes below it', () => {
@@ -495,18 +524,12 @@ describe('navigation movement and obstacle policies', () => {
 				y: 48
 			}
 		);
-		expect(resolveMovementSegment(grid, [landmark], { x: 64, y: 64 }, { x: 40, y: 64 }, 0)).toEqual(
-			{
-				x: 64,
-				y: 64
-			}
-		);
-		expect(resolveMovementSegment(grid, [landmark], { x: 64, y: 64 }, { x: 88, y: 64 }, 0)).toEqual(
-			{
-				x: 64,
-				y: 64
-			}
-		);
+		const west = resolveMovementSegment(grid, [landmark], { x: 64, y: 64 }, { x: 40, y: 64 }, 0);
+		expect(west.y).toBe(64);
+		expect(west.x).toBeCloseTo(52, 1);
+		const east = resolveMovementSegment(grid, [landmark], { x: 64, y: 64 }, { x: 88, y: 64 }, 0);
+		expect(east.y).toBe(64);
+		expect(east.x).toBeCloseTo(76, 1);
 		expect(
 			resolveMovementSegment(grid, [landmark], { x: 64, y: 112 }, { x: 64, y: 128 }, 0)
 		).toEqual({
@@ -565,25 +588,26 @@ describe('navigation movement and obstacle policies', () => {
 		});
 		// The slide is vetoed so these two pin only the padding, not the corner slide around it.
 		const noSlide = { canSlideTo: () => false };
-		expect(
-			resolveMovementSegment(openGrid(8, 4), [rect], { x: 48, y: 24 }, { x: 60, y: 24 }, 4, noSlide)
-		).toEqual({
-			x: 48,
-			y: 24
-		});
-		expect(
-			resolveMovementSegment(
-				openGrid(8, 4),
-				[circle],
-				{ x: 8, y: 24 },
-				{ x: 20, y: 24 },
-				4,
-				noSlide
-			)
-		).toEqual({
-			x: 8,
-			y: 24
-		});
+		const stoppedByRect = resolveMovementSegment(
+			openGrid(8, 4),
+			[rect],
+			{ x: 48, y: 24 },
+			{ x: 60, y: 24 },
+			4,
+			noSlide
+		);
+		expect(stoppedByRect.y).toBe(24);
+		expect(stoppedByRect.x).toBeCloseTo(60, 1);
+		const stoppedByCircle = resolveMovementSegment(
+			openGrid(8, 4),
+			[circle],
+			{ x: 8, y: 24 },
+			{ x: 20, y: 24 },
+			4,
+			noSlide
+		);
+		expect(stoppedByCircle.y).toBe(24);
+		expect(stoppedByCircle.x).toBeCloseTo(18, 1);
 	});
 
 	it('does not treat NPC circles marked valid at rest as save-position blockers', () => {
@@ -643,15 +667,14 @@ describe('corner slide', () => {
 	it('reaches at most one cell sideways', () => {
 		const grid = verticalLane();
 
-		// x = 79 needs 16px to reach the lane, x = 80 needs 17.
+		// x = 79 needs 16px to reach the lane, x = 80 needs 17 and stops at the wall.
 		expect(resolveMovementSegment(grid, [], { x: 79, y: 24 }, { x: 79, y: 40 }, 0)).toEqual({
 			x: 63,
 			y: 40
 		});
-		expect(resolveMovementSegment(grid, [], { x: 80, y: 24 }, { x: 80, y: 40 }, 0)).toEqual({
-			x: 80,
-			y: 24
-		});
+		const stopped = resolveMovementSegment(grid, [], { x: 80, y: 24 }, { x: 80, y: 40 }, 0);
+		expect(stopped.x).toBe(80);
+		expect(stopped.y).toBeCloseTo(32, 1);
 	});
 
 	it('moves sideways no faster than the push, then goes forward once aligned', () => {
@@ -674,9 +697,9 @@ describe('corner slide', () => {
 		const from = { x: 68, y: 31 };
 		const to = { x: 68, y: 36 };
 
-		expect(resolveMovementSegment(grid, [], from, to, 0, { canSlideTo: () => false })).toEqual(
-			from
-		);
+		const vetoed = resolveMovementSegment(grid, [], from, to, 0, { canSlideTo: () => false });
+		expect(vetoed.x).toBe(from.x);
+		expect(vetoed.y).toBeCloseTo(32, 1);
 		expect(
 			resolveMovementSegment(grid, [], from, to, 0, { canSlideTo: (point) => point.x < 64 })
 		).toEqual({ x: 63, y: 36 });
@@ -730,24 +753,31 @@ describe('corner slide', () => {
 		// Without the margin guard, offset 15 would slide west to (10, 14) — inside
 		// the world but below the 12px margin.
 		const from = { x: 18, y: 14 };
-		expect(resolveMovementSegment(grid, [wall], from, { x: 18, y: 22 }, 12)).toEqual(from);
+		const stopped = resolveMovementSegment(grid, [wall], from, { x: 18, y: 22 }, 12);
+		expect(stopped.x).toBe(from.x);
+		expect(stopped.y).toBeCloseTo(16, 1);
 	});
 
 	it('does not slide a diagonal push, which already slides along the wall', () => {
-		expect(
-			resolveMovementSegment(verticalLane(), [], { x: 68, y: 24 }, { x: 72, y: 40 }, 0)
-		).toEqual({ x: 72, y: 24 });
+		const stopped = resolveMovementSegment(
+			verticalLane(),
+			[],
+			{ x: 68, y: 24 },
+			{ x: 72, y: 40 },
+			0
+		);
+		expect(stopped.x).toBe(72);
+		expect(stopped.y).toBeCloseTo(32, 1);
 	});
 
-	it('stays put at a dead end instead of sliding through the side walls', () => {
+	it('stops at a dead end instead of sliding through the side walls', () => {
 		const grid = compileNavigationGrid(
 			source({ widthCells: 6, heightCells: 4, rows: ['......', '##..##', '##..##', '######'] })
 		);
+		const stopped = resolveMovementSegment(grid, [], { x: 60, y: 40 }, { x: 60, y: 60 }, 0);
 
-		expect(resolveMovementSegment(grid, [], { x: 60, y: 40 }, { x: 60, y: 60 }, 0)).toEqual({
-			x: 60,
-			y: 40
-		});
+		expect(stopped.x).toBe(60);
+		expect(stopped.y).toBeCloseTo(48, 1);
 	});
 
 	it('slides around an obstacle body as well as around grid corners', () => {

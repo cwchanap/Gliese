@@ -163,6 +163,12 @@ export interface MovementOptions {
 const CORNER_SLIDE_MAX_PX = 16;
 const CORNER_SLIDE_SIDES = [-1, 1] as const;
 
+/**
+ * Bisection depth for clamping a blocked step to the near edge of the first blocked
+ * interval. Twelve halves resolve a 24px step to ~0.006px.
+ */
+const FURTHEST_FREE_STEPS = 12;
+
 export function resolveMovementSegment(
 	grid: NavigationGrid,
 	obstacles: readonly NavigationObstacle[],
@@ -171,13 +177,14 @@ export function resolveMovementSegment(
 	radius: number,
 	options: MovementOptions = {}
 ): NavigationPoint {
-	let x = to.x;
-	let y = to.y;
-
-	const blockedX = isSegmentBlocked(grid, obstacles, from, { x, y: from.y }, radius);
-	if (blockedX) x = from.x;
-	const blockedY = isSegmentBlocked(grid, obstacles, { x, y: from.y }, { x, y }, radius);
-	if (blockedY) y = from.y;
+	const blockedX = isSegmentBlocked(grid, obstacles, from, { x: to.x, y: from.y }, radius);
+	const x = blockedX
+		? furthestFreePoint(grid, obstacles, from, { x: to.x, y: from.y }, radius).x
+		: to.x;
+	const blockedY = isSegmentBlocked(grid, obstacles, { x, y: from.y }, { x, y: to.y }, radius);
+	const y = blockedY
+		? furthestFreePoint(grid, obstacles, { x, y: from.y }, { x, y: to.y }, radius).y
+		: to.y;
 
 	// Only a straight push slides: a diagonal one already slides along the wall on its open axis.
 	// A player already embedded in something keeps the outward-only escape policy instead.
@@ -189,6 +196,37 @@ export function resolveMovementSegment(
 	}
 
 	return { x, y };
+}
+
+/**
+ * Drops a blocked step only as far as it must: the player advances to the last free point
+ * instead of staying put. Dropping the whole step makes the stop one frame-step short of
+ * the wall, so the resting distance changes with frame length.
+ */
+function furthestFreePoint(
+	grid: NavigationGrid,
+	obstacles: readonly NavigationObstacle[],
+	from: NavigationPoint,
+	to: NavigationPoint,
+	radius: number
+): NavigationPoint {
+	let free = 0;
+	let blocked = 1;
+
+	for (let step = 0; step < FURTHEST_FREE_STEPS; step += 1) {
+		const ratio = (free + blocked) / 2;
+		const candidate = {
+			x: from.x + (to.x - from.x) * ratio,
+			y: from.y + (to.y - from.y) * ratio
+		};
+		if (isSegmentBlocked(grid, obstacles, from, candidate, radius)) blocked = ratio;
+		else free = ratio;
+	}
+
+	return {
+		x: from.x + (to.x - from.x) * free,
+		y: from.y + (to.y - from.y) * free
+	};
 }
 
 /**
@@ -601,8 +639,8 @@ function isSegmentBlockedByObstacle(
 	return rects.some((rect) => {
 		if (
 			obstacle.shape === 'landmark' &&
-			from.y >= obstacle.bounds.bottom &&
-			to.y >= obstacle.bounds.bottom
+			from.y >= obstacle.bounds.bottom + radius &&
+			to.y >= obstacle.bounds.bottom + radius
 		) {
 			return false;
 		}

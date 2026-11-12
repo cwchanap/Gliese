@@ -1,6 +1,6 @@
 # HPA-816 — Oren's forge counter interaction (design spec)
 
-**Status:** Review-reconciled design; no implementation committed.
+**Status:** Implemented and verified on the HPA-816 branch.
 **Linear:** https://linear.app/cwchanap/issue/HPA-816/i-cant-talk-to-oren-across-his-own-workbench
 **Reviews:** [root-cause correction](https://github.com/cwchanap/Gliese/pull/65#pullrequestreview-5853651066); [implementation safeguards](https://github.com/cwchanap/Gliese/pull/65#pullrequestreview-5863664605)
 **Related, separate:** HPA-815 (forge access), HPA-760 (NPC selection/status), HPA-818 (Gear shortcuts).
@@ -84,6 +84,11 @@ Commit the changed generated grid alongside the source and tests. Do **not** han
 - **Scene regression:** replace the artificially favourable `(448,480)` setup with held upward movement from spawn at `delta=17ms` per update. Old grid should fail (stops ~`y=482.16`); new grid should pass (stops ~`y=465.84`). Assert status → E → Oren dialogue → shop, with one clearly out-of-range control.
 - **E2E:** update the existing “Blacksmith Oren equipment shop” test to approach the counter from the **front** instead of the legacy `(384,400)` staging point behind it. Start the held-`w` collision probe from the centre aisle (e.g. `(448,512)` or spawn), **not** `approachNpcWithTrustedKeyboard` at `(448,480)`; that helper returns as soon as the 65px interaction distance is reached, before the player walks into the counter. Require player arrival **north of y=480** after held-up movement, then interact and preserve purchase/save/reload coverage.
 - **Manual:** one normal New Run → forge → walk straight to counter → E → Shop smoke, with a screenshot for the painted workbench and a brief fallback check when practical. Verify ~4–5px overlap against the bottom shadow does not look like clipping.
-- Run focused unit tests, relevant E2E, type check, lint, build, and the navigation-generation check; report observed results separately. **No verification has been executed as part of this design-doc revision.**
+- Run focused unit tests, relevant E2E, type check, lint, build, and the navigation-generation check; report observed results separately.
+
+**Verification (2026-11-11):** the focused navigation, layout, map, and scene suites pass
+(420 tests); the full unit suite passes 1290/1290; `svelte-check`, `lint`, and
+`world:check:navigation` pass. The Oren E2E was not run because port 4173 is occupied by another
+preview server.
 
 **Out of scope:** new NPC interaction shapes, global radius changes, custom pathfinding, map redesign, keyboard inventory shortcuts, localization/story rewriting, audio/art generation, and compatibility migrations.

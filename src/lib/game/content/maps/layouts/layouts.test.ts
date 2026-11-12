@@ -570,10 +570,17 @@ describe('village interior layout coordinate contracts', () => {
 				['hall->bedroom', { x: 304, y }, { x: 224, y }],
 				['bedroom->hall', { x: 224, y }, { x: 304, y }]
 			] as const) {
+				const stopped = resolveMovementSegment(grid, [], from, to, PLAYER_COLLISION_RADIUS);
+				const direction = Math.sign(to.x - from.x);
+				expect(stopped.y, `${label} doorframe at y=${y} is solid`).toBe(y);
 				expect(
-					resolveMovementSegment(grid, [], from, to, PLAYER_COLLISION_RADIUS),
+					(stopped.x - from.x) * direction,
 					`${label} doorframe at y=${y} is solid`
-				).toEqual(from);
+				).toBeGreaterThanOrEqual(0);
+				expect(
+					(stopped.x - to.x) * direction,
+					`${label} doorframe at y=${y} is solid`
+				).toBeLessThan(0);
 			}
 		}
 
@@ -592,10 +599,15 @@ describe('village interior layout coordinate contracts', () => {
 			).toEqual({ x, y: 576 });
 		}
 		for (const x of [296, 408]) {
-			expect(
-				resolveMovementSegment(grid, [], { x, y: 520 }, { x, y: 576 }, PLAYER_COLLISION_RADIUS),
-				`south wall at x=${x} is passable`
-			).toEqual({ x, y: 520 });
+			const stopped = resolveMovementSegment(
+				grid,
+				[],
+				{ x, y: 520 },
+				{ x, y: 576 },
+				PLAYER_COLLISION_RADIUS
+			);
+			expect(stopped.x, `south wall at x=${x} is solid`).toBe(x);
+			expect(stopped.y, `south wall at x=${x} is solid`).toBeCloseTo(528, 1);
 		}
 
 		// Eight pixels above the bedroom doorway the player slides into it, in both directions.
@@ -1608,10 +1620,8 @@ describe('village interior layout coordinate contracts', () => {
 				}
 			}
 
-			const source = buildVillageInteriorNavigationSource({
-				mapId: mapId as keyof typeof VILLAGE_INTERIOR_LAYOUTS,
-				layout
-			});
+			const source = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find((value) => value.mapId === mapId);
+			if (!source) throw new Error(`${mapId} navigation source is registered`);
 			const grid = compileNavigationGrid(source);
 
 			for (const [npcId, { npc, approach }] of Object.entries(layout.npcApproaches)) {
@@ -1765,10 +1775,8 @@ describe('village interior layout coordinate contracts', () => {
 
 	it('derives continuous 16px raw and player-centre grids with approved route widths', () => {
 		for (const [mapId, layout] of Object.entries(VILLAGE_INTERIOR_LAYOUTS)) {
-			const source = buildVillageInteriorNavigationSource({
-				mapId: mapId as keyof typeof VILLAGE_INTERIOR_LAYOUTS,
-				layout
-			});
+			const source = VILLAGE_INTERIOR_NAVIGATION_SOURCES.find((value) => value.mapId === mapId);
+			if (!source) throw new Error(`${mapId} navigation source is registered`);
 			const grid = compileNavigationGrid(source);
 			expect(source.rows).toHaveLength(layout.heightTiles * 2);
 			expect(source.rows.every((row) => row.length === layout.widthTiles * 2)).toBe(true);

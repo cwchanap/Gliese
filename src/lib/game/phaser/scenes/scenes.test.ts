@@ -5873,7 +5873,8 @@ describe('WorldScene', () => {
 			phaserState.cursorKeys.down.isDown = true;
 			scene.update(0, 250);
 
-			expect(phaserState.playerMarker).toMatchObject({ x: 96, y: 96 });
+			expect(phaserState.playerMarker.x).toBe(96);
+			expect(phaserState.playerMarker.y).toBeCloseTo(116, 1);
 		} finally {
 			restoreLocation();
 		}
@@ -6447,7 +6448,7 @@ describe('WorldScene', () => {
 		);
 		expect(verticalWall?.setDisplaySize).toHaveBeenCalledWith(32, 48);
 		expect(horizontalHedge?.setDisplaySize).toHaveBeenCalledWith(48, 32);
-		expect(phaserState.playerMarker.x).toBe(spawn.x);
+		expect(phaserState.playerMarker.x).toBeCloseTo(132, 1);
 		expect(phaserState.playerMarker.y).toBe(spawn.y);
 	});
 
@@ -7579,7 +7580,8 @@ describe('WorldScene', () => {
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker).toMatchObject({ x: 128, y: 64 });
+		expect(phaserState.playerMarker.x).toBeCloseTo(132, 1);
+		expect(phaserState.playerMarker.y).toBe(64);
 	});
 
 	it('blocks movement through a fence in the scene harness', async () => {
@@ -7596,7 +7598,8 @@ describe('WorldScene', () => {
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker).toMatchObject({ x: 128, y: 64 });
+		expect(phaserState.playerMarker.x).toBeCloseTo(132, 1);
+		expect(phaserState.playerMarker.y).toBe(64);
 	});
 
 	it('blocks movement through collidable map decor in the scene harness', async () => {
@@ -7628,7 +7631,8 @@ describe('WorldScene', () => {
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker).toMatchObject({ x: 128, y: 64 });
+		expect(phaserState.playerMarker.x).toBeCloseTo(132, 1);
+		expect(phaserState.playerMarker.y).toBe(64);
 	});
 
 	it('blocks entry into and allows an embedded player to escape an interior prop', async () => {
@@ -7659,7 +7663,8 @@ describe('WorldScene', () => {
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker).toMatchObject({ x: 100, y: 64 });
+		expect(phaserState.playerMarker.x).toBeCloseTo(116, 1);
+		expect(phaserState.playerMarker.y).toBe(64);
 
 		Object.assign(phaserState.playerMarker, { x: 160, y: 64 });
 		phaserState.cursorKeys.right.isDown = false;
@@ -7682,7 +7687,8 @@ describe('WorldScene', () => {
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker).toMatchObject({ x: 128, y: 64 });
+		expect(phaserState.playerMarker.x).toBeCloseTo(131, 1);
+		expect(phaserState.playerMarker.y).toBe(64);
 	});
 
 	it('keeps landmark doorway movement open while blocking its body', async () => {
@@ -7720,7 +7726,8 @@ describe('WorldScene', () => {
 
 		bodyScene.update(0, 250);
 
-		expect(phaserState.playerMarker).toMatchObject({ x: 280, y: 410 });
+		expect(phaserState.playerMarker.x).toBe(280);
+		expect(phaserState.playerMarker.y).toBeCloseTo(380, 1);
 		expect(bodyScene.scene.restart).not.toHaveBeenCalled();
 	});
 
@@ -7739,7 +7746,7 @@ describe('WorldScene', () => {
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBe(128);
+		expect(phaserState.playerMarker.x).toBeCloseTo(132, 1);
 		expect(phaserState.playerMarker.y).toBeCloseTo(57.573593128807154);
 	});
 
@@ -7754,7 +7761,8 @@ describe('WorldScene', () => {
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker).toMatchObject({ x: 80, y: 48 });
+		expect(phaserState.playerMarker.x).toBeCloseTo(96, 1);
+		expect(phaserState.playerMarker.y).toBe(48);
 	});
 
 	it('slides a straight push toward a lane that is a few pixels off', async () => {
@@ -7793,7 +7801,8 @@ describe('WorldScene', () => {
 		// The door is 32px away; the slide would end 28px from it, inside its 30px trigger zone.
 		scene.update(0, 16);
 
-		expect(phaserState.playerMarker).toMatchObject({ x: 116, y: 30 });
+		expect(phaserState.playerMarker.x).toBe(116);
+		expect(phaserState.playerMarker.y).toBeCloseTo(32, 1);
 		expect(scene.scene.restart).not.toHaveBeenCalled();
 	});
 
@@ -7820,22 +7829,22 @@ describe('WorldScene', () => {
 			Object.assign(phaserState.playerMarker, { x: 128, y: 200 });
 			scene.update(250, 250);
 
-			expect(diagnostics).toEqual([
-				{
-					mapId: 'scene-collision-test',
-					previousPosition: { x: 128, y: 64 },
-					requestedPosition: { x: 188, y: 64 },
-					resolvedPosition: { x: 128, y: 64 },
-					blocked: true
-				},
-				{
-					mapId: 'scene-collision-test',
-					previousPosition: { x: 128, y: 200 },
-					requestedPosition: { x: 188, y: 200 },
-					resolvedPosition: { x: 188, y: 200 },
-					blocked: false
-				}
-			]);
+			expect(diagnostics).toHaveLength(2);
+			expect(diagnostics[0]).toMatchObject({
+				mapId: 'scene-collision-test',
+				previousPosition: { x: 128, y: 64 },
+				requestedPosition: { x: 188, y: 64 },
+				resolvedPosition: { y: 64 },
+				blocked: true
+			});
+			expect(diagnostics[0]!.resolvedPosition.x).toBeCloseTo(132, 1);
+			expect(diagnostics[1]).toEqual({
+				mapId: 'scene-collision-test',
+				previousPosition: { x: 128, y: 200 },
+				requestedPosition: { x: 188, y: 200 },
+				resolvedPosition: { x: 188, y: 200 },
+				blocked: false
+			});
 		} finally {
 			target.restore();
 			restoreLocation();
@@ -7926,7 +7935,7 @@ describe('WorldScene', () => {
 		scene.update(0, 250);
 
 		expect(phaserState.playerMarker.x).toBe(816);
-		expect(phaserState.playerMarker.y).toBe(569);
+		expect(phaserState.playerMarker.y).toBeCloseTo(564, 1);
 	});
 
 	it('slides along an NPC when only one movement axis is blocked', async () => {
@@ -7941,7 +7950,10 @@ describe('WorldScene', () => {
 		scene.update(0, 250);
 
 		expect(phaserState.playerMarker.x).toBeGreaterThan(776);
-		expect(phaserState.playerMarker.y).toBe(184);
+		expect(phaserState.playerMarker.y).toBeLessThan(184);
+		expect(
+			Math.hypot(phaserState.playerMarker.x - 800, phaserState.playerMarker.y - 144)
+		).toBeGreaterThanOrEqual(PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS);
 	});
 
 	it('allows player movement away from an existing NPC collision overlap', async () => {
@@ -8000,14 +8012,15 @@ describe('WorldScene', () => {
 		scene.update(0, 250);
 
 		expect(phaserState.playerMarker.x).toBe(aboveWall.x);
-		expect(phaserState.playerMarker.y).toBe(aboveWall.y);
+		expect(phaserState.playerMarker.y).toBeCloseTo(7088, 1);
+		const stoppedY = phaserState.playerMarker.y;
 
 		// Walking away from the wall is free, so it was the footprint that stopped him.
 		phaserState.cursorKeys.down.isDown = false;
 		phaserState.cursorKeys.up.isDown = true;
 		scene.update(250, 250);
 
-		expect(phaserState.playerMarker.y).toBeLessThan(aboveWall.y);
+		expect(phaserState.playerMarker.y).toBeLessThan(stoppedY);
 	});
 
 	it('blocks movement through ruin walls and future gates', async () => {
@@ -8020,7 +8033,7 @@ describe('WorldScene', () => {
 
 		scene.update(0, 250);
 
-		expect(phaserState.playerMarker.x).toBe(900);
+		expect(phaserState.playerMarker.x).toBeCloseTo(844, 1);
 		expect(phaserState.playerMarker.y).toBe(2_080);
 
 		Object.assign(phaserState.playerMarker, { x: 4_520, y: 2_816 });
@@ -8029,7 +8042,7 @@ describe('WorldScene', () => {
 
 		scene.update(250, 250);
 
-		expect(phaserState.playerMarker.x).toBe(4_520);
+		expect(phaserState.playerMarker.x).toBeCloseTo(4_548, 1);
 		expect(phaserState.playerMarker.y).toBe(2_816);
 	});
 
@@ -9679,6 +9692,7 @@ describe('WorldScene', () => {
 		const sceneState = scene as unknown as {
 			handleHudCommand: (command: HudCommand) => void;
 			buildSaveState: () => ReturnType<typeof createNewSaveState>;
+			dialogueSession: { speaker: string; npcId: string | null } | null;
 		};
 		const oren = { x: 448, y: 416 };
 		// 12px player radius + 36px interaction radius + Oren's 17px npc-pack body.
@@ -9709,6 +9723,11 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).not.toHaveBeenCalledWith(
 			expect.objectContaining({ status: 'Oren nearby' })
 		);
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+		expect(sceneState.dialogueSession).toMatchObject({ speaker: 'Traveler', npcId: null });
+		sceneState.handleHudCommand({ type: 'dialogue-close' });
 
 		// Hold north from the normal spawn. Each 17ms frame moves 4.08px; the old 18px
 		// counter stopped Grik at ~482.16 (66.16px from Oren), outside the 65px reach.
@@ -9729,9 +9748,11 @@ describe('WorldScene', () => {
 		phaserState.cursorKeys.up.isDown = false;
 
 		expect(northSteps.length).toBeGreaterThan(20);
-		expect(northSteps.every((step) => Math.abs(step - movementStepPx) < 1e-6)).toBe(true);
+		// Every step is a full frame except the last, which is clamped at the counter edge.
+		expect(northSteps.every((step) => step <= movementStepPx + 1e-6)).toBe(true);
 
 		const counter = VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'].propCollisions.serviceCounter;
+		const counterBottom = counter.y + counter.height;
 		const stopped = { x: phaserState.playerMarker.x, y: phaserState.playerMarker.y };
 		const stoppedDistance = Math.hypot(stopped.x - oren.x, stopped.y - oren.y);
 
@@ -9739,8 +9760,9 @@ describe('WorldScene', () => {
 		// one grid cell lower), within reach with margin to spare.
 		expect(stopped.x).toBe(oren.x);
 		expect(interactionReach - stoppedDistance).toBeGreaterThanOrEqual(minimumInteractionMargin);
-		expect(stopped.y).toBeGreaterThan(counter.y + counter.height);
-		expect(stopped.y).toBeLessThanOrEqual(counter.y + counter.height + 24);
+		// The body edge may clip at most 5px into the painted counter.
+		expect(stopped.y).toBeGreaterThanOrEqual(counterBottom + PLAYER_COLLISION_RADIUS - 5);
+		expect(stopped.y).toBeLessThanOrEqual(counterBottom + 24);
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({ status: 'Oren nearby' })
 		);

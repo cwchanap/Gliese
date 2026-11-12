@@ -4,7 +4,7 @@
 **Issue:** https://linear.app/cwchanap/issue/HPA-816/i-cant-talk-to-oren-across-his-own-workbench
 **Reviews addressed:** [original geometry review](https://github.com/cwchanap/Gliese/pull/65#pullrequestreview-5853651066), [follow-up implementation safeguards](https://github.com/cwchanap/Gliese/pull/65#pullrequestreview-5863664605)
 **PR strategy:** **One ticket, one PR #65.** Add code/tests in the existing draft PR; do not create an implementation PR.
-**State:** Implementation plan only. No code or tests have been run for this revision.
+**State:** Implemented on the HPA-816 branch; verification results are recorded in the design spec.
 
 ## Minimal change set
 
