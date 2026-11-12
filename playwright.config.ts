@@ -13,9 +13,9 @@ const retiredV1RegionalBackgroundProofs =
 // prior local behavior.
 //
 // 'Blacksmith Oren equipment shop' lived here too (hero blocked at the
-// service-counter corridor); fcb824d re-staged the Oren approach on the open
-// row (y = 400) and it now passes repeatedly, so it returned to the gate. The
-// painted-interior asset proof for the same map stays gated.
+// service-counter corridor); it now walks up from the customer aisle on the
+// compiled grid and returns to the gate. The painted-interior asset proof for
+// the same map stays gated.
 const flakyRouteWalkTests =
 	/(Crossroads gameplay loop|traverses every map in fallback mode|Hero House painted interior preserves runtime)/;
 

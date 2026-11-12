@@ -317,6 +317,8 @@ export const VILLAGE_INTERIOR_LAYOUTS = {
 		propCollisions: {
 			forge: rect(112, 112, 96, 128),
 			anvil: rect(288, 176, 64, 64),
+			// Bottom stays above y=456: the 16px cell centred there stays walkable after
+			// the 12px nav clearance, leaving the customer row at y=464 within Oren's reach.
 			serviceCounter: rect(284, 440, 324, 16),
 			weaponRacks: rect(624, 112, 128, 160),
 			coalStorage: rect(112, 304, 192, 32),
