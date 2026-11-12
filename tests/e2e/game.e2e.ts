@@ -12351,6 +12351,80 @@ test('Blacksmith graybox entrance', async ({ page }) => {
 	await exitInteriorWithTrustedKeyboard(page, blacksmith);
 });
 
+// A `blocked` diagnostic means one requested frame step did not fully fit, not
+// that the player cannot advance: at y=471 a 12px step to 459 is rejected while
+// a later 4px step to 467 moves. A stop is only real once a bounded window of
+// distinct fresh attempts are all blocked at one unchanged resolved position.
+const COUNTER_SETTLE_ATTEMPTS = 10;
+
+function settledBlockedWindow(input: {
+	mapId: string;
+	counterBottom: number;
+	maxY: number;
+	windowSize: number;
+	startIndex: number;
+	attempts?: PlayerMovementDiagnostic[];
+}): PlayerMovementDiagnostic[] | false {
+	const diagnostics =
+		input.attempts ?? (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
+	const fresh = diagnostics.slice(input.startIndex);
+	if (fresh.length < input.windowSize) return false;
+	const recent = fresh.slice(-input.windowSize);
+	const first = recent[0];
+	if (
+		first.mapId !== input.mapId ||
+		first.blocked !== true ||
+		first.resolvedPosition.y <= input.counterBottom ||
+		first.resolvedPosition.y >= input.maxY
+	) {
+		return false;
+	}
+	const settled = recent.every(
+		(attempt) =>
+			attempt.mapId === input.mapId &&
+			attempt.blocked === true &&
+			attempt.resolvedPosition.x === first.resolvedPosition.x &&
+			attempt.resolvedPosition.y === first.resolvedPosition.y
+	);
+	return settled ? recent : false;
+}
+
+test('blocked movement window rejects a transient block and accepts a sustained stop', () => {
+	const attempt = (y: number, blocked: boolean): PlayerMovementDiagnostic => ({
+		mapId: 'blacksmith-interior',
+		previousPosition: { x: 448, y: blocked ? y : y + 4 },
+		requestedPosition: { x: 448, y: y - 4 },
+		resolvedPosition: { x: 448, y },
+		blocked
+	});
+	const check = (attempts: PlayerMovementDiagnostic[], startIndex = 0) =>
+		settledBlockedWindow({
+			mapId: 'blacksmith-interior',
+			counterBottom: 456,
+			maxY: 480,
+			windowSize: COUNTER_SETTLE_ATTEMPTS,
+			startIndex,
+			attempts
+		});
+	// In-bounds unblocked frames, so only the blocked-window rule can accept them.
+	const advancing = Array.from({ length: COUNTER_SETTLE_ATTEMPTS }, (_, index) =>
+		attempt(478 - index, false)
+	);
+
+	// The old single-sample check accepted either of these transient blocks.
+	expect(check([...advancing, attempt(471, true)])).toBe(false);
+	expect(check([...advancing, attempt(471, true), attempt(467, false)])).toBe(false);
+	// Blocked frames that still drift are not a stop either.
+	const drifting = Array.from({ length: COUNTER_SETTLE_ATTEMPTS }, (_, index) =>
+		attempt(474 - index, true)
+	);
+	expect(check(drifting)).toBe(false);
+	// Blocked frames emitted before the hold started are not fresh attempts.
+	const sustained = Array.from({ length: COUNTER_SETTLE_ATTEMPTS }, () => attempt(466.59, true));
+	expect(check([...sustained, ...advancing], sustained.length)).toBe(false);
+	expect(check([...advancing, ...sustained], advancing.length)).toEqual(sustained);
+});
+
 test('Blacksmith Oren equipment shop', async ({ page }) => {
 	test.setTimeout(180_000);
 	const blacksmith: InteriorGrayboxCase = {
@@ -12390,35 +12464,40 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	const counterBottom = counter.y + counter.height;
 
 	// HPA-816: walk up the centre customer aisle from spawn and keep holding
-	// north until the service counter stops the player. The pre-fix 18px counter
-	// core left the compiled grid's last walkable row at y=480 (64px from Oren),
-	// so the y<480 bound fails on that geometry even though the authored
-	// orenApproachPoint=(448,480) is reachable.
+	// north until the service counter has stopped the player for a bounded window
+	// of emitted movement attempts at one unchanged position. A lone blocked
+	// diagnostic is not a stop: that frame's step can be rejected whole while the
+	// next smaller step advances. The pre-fix 18px counter core left the compiled
+	// grid's last walkable row at y=480 (64px from Oren), so y<480 also rejects
+	// that geometry even though the authored orenApproachPoint=(448,480) is
+	// reachable.
+	const movementStart = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
+	);
 	await page.locator('canvas').click();
 	await page.keyboard.down('w');
-	try {
-		await page.waitForFunction(
-			({ requestedMapId, requestedCounterBottom }) => {
-				const probeWindow = window as GlieseProbeWindow;
-				const diagnostic = probeWindow.__glieseLastMovementDiagnostic;
-				if (probeWindow.__glieseLastHudState?.mapId !== requestedMapId) return false;
-				return (
-					diagnostic?.mapId === requestedMapId &&
-					diagnostic.blocked === true &&
-					diagnostic.resolvedPosition.y > requestedCounterBottom &&
-					diagnostic.resolvedPosition.y < 480
-				);
+	// Release the key in `finally` even when the bounded wait times out.
+	const settled = await page
+		.waitForFunction(
+			settledBlockedWindow,
+			{
+				mapId: blacksmith.mapId,
+				counterBottom,
+				maxY: 480,
+				windowSize: COUNTER_SETTLE_ATTEMPTS,
+				startIndex: movementStart
 			},
-			{ requestedMapId: blacksmith.mapId, requestedCounterBottom: counterBottom },
 			{ timeout: 30_000 }
-		);
-	} finally {
-		await page.keyboard.up('w');
-	}
+		)
+		.finally(() => page.keyboard.up('w'));
+	const settledWindow = (await settled.jsonValue()) as PlayerMovementDiagnostic[];
 
-	const stopEvidence = await currentHudPlayerEvidence(page, blacksmith.mapId);
-	const stopPoint = stopEvidence.selectedPoint;
-	expect(stopEvidence.diagnostic?.blocked).toBe(true);
+	expect(settledWindow).toHaveLength(COUNTER_SETTLE_ATTEMPTS);
+	const stopPoint = settledWindow[0].resolvedPosition;
+	for (const attempt of settledWindow) {
+		expect(attempt.blocked).toBe(true);
+		expect(attempt.resolvedPosition).toEqual(stopPoint);
+	}
 	expect(stopPoint.y).toBeGreaterThan(counterBottom);
 	expect(stopPoint.y).toBeLessThan(480);
 	expect(Math.abs(stopPoint.x - blacksmith.spawn.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
