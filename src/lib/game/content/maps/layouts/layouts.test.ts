@@ -1672,7 +1672,7 @@ describe('village interior layout coordinate contracts', () => {
 					canSlideTo: () => false
 				});
 				const frontStopDistance = Math.hypot(stopped.x - npc.x, stopped.y - npc.y);
-				// One 4px frame of margin: the stop is up to one step short of the real boundary.
+				// The clamp stops at the real boundary; keep a 4px cushion for its rounding.
 				expect(
 					frontStopDistance + 4,
 					`${mapId}:${npcId} front stop settles out of interaction reach`
