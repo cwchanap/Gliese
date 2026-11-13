@@ -679,7 +679,7 @@
 	/* Narrow portrait: flow the card above the command-grid / side-HUD row so
 	   the gap is real no matter how tall the card renders — a fixed top anchor
 	   silently overlapped the card once its content grew past min-height. */
-	@media (max-width: 720px) and (min-height: 560px) {
+	@media (max-width: 832px) and (min-height: 560px) {
 		.heroic-hud-top {
 			position: absolute;
 			top: 0.75rem;
