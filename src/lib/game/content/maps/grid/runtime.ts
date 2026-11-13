@@ -1,6 +1,8 @@
 import type { MapTileGrid, WorldMapDefinition } from '$lib/game/content/maps/types';
 import type { NavigationGrid } from '$lib/game/core/navigation';
+import type { Direction } from '$lib/game/core/types';
 
+import { GRID_TILE_SIZE } from './compile';
 import {
 	applyTileOverlays,
 	buildGridNavigationGrid,
@@ -42,6 +44,32 @@ export function resolveGridNavigationGrid(map: GridWorldMap): NavigationGrid {
 	const resolved = resolveGrid(map);
 	resolved.navigation ??= buildGridNavigationGrid(map.id, resolved.terrain, map.tileGrid.buildings);
 	return resolved.navigation;
+}
+
+export function resolveGridTerrain(map: GridWorldMap): readonly string[] {
+	return resolveGrid(map).terrain;
+}
+
+const sealedGateGlyph = '!';
+
+const gateFacingOffsets: Record<Direction, { x: number; y: number }> = {
+	up: { x: 0, y: -GRID_TILE_SIZE },
+	down: { x: 0, y: GRID_TILE_SIZE },
+	left: { x: -GRID_TILE_SIZE, y: 0 },
+	right: { x: GRID_TILE_SIZE, y: 0 }
+};
+
+export function facesSealedGate(
+	map: WorldMapDefinition,
+	x: number,
+	y: number,
+	facing: Direction
+): boolean {
+	if (!isGridWorldMap(map)) return false;
+	const offset = gateFacingOffsets[facing];
+	const col = Math.floor((x + offset.x) / GRID_TILE_SIZE);
+	const row = Math.floor((y + offset.y) / GRID_TILE_SIZE);
+	return resolveGridTerrain(map)[row]?.[col] === sealedGateGlyph;
 }
 
 /** `map` should already be story-gated (see `applyStoryGates`), so only live overlays apply. */

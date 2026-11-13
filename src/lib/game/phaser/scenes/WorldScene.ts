@@ -65,6 +65,7 @@ import {
 } from '$lib/game/content/maps/navigation';
 import { GRID_OBJECT_SHEET, type GridObject } from '$lib/game/content/maps/grid/objects';
 import {
+	facesSealedGate,
 	isGridWorldMap,
 	resolveGridObjects,
 	resolveGridTileLayers,
@@ -794,6 +795,7 @@ export class WorldScene extends Phaser.Scene {
 		this.updateHeroOcclusion();
 
 		if (this.simulationPaused) {
+			this.hasInteractJustDown();
 			return;
 		}
 
@@ -3417,20 +3419,20 @@ export class WorldScene extends Phaser.Scene {
 
 		if (!nearbyNpc) {
 			const ambientNpc = this.findNearbyAmbientNpc();
-			const statusKey = ambientNpc ? 'status.nothingToSay' : 'status.noOneNearby';
+			if (!ambientNpc) {
+				const map = this.resolveMap(this.mapId);
+				if (this.player && facesSealedGate(map, this.player.x, this.player.y, this.facing)) {
+					this.publishHudState(this.status('status.wayBarred'));
+				}
+				return;
+			}
 			this.dialogueSession = buildDialogueFallback(
 				this.getTravelerSpeaker(),
-				this.status(
-					ambientNpc
-						? 'content.dialogue.system.nothingToSay'
-						: 'content.dialogue.system.noOneNearby'
-				)
+				this.status('content.dialogue.system.nothingToSay')
 			);
-			const publishedStatus = this.status(statusKey);
-			if (ambientNpc) {
-				this.currentNearbyNpcId = ambientNpc.id;
-				this.currentNearbyNpcStatus = publishedStatus;
-			}
+			const publishedStatus = this.status('status.nothingToSay');
+			this.currentNearbyNpcId = ambientNpc.id;
+			this.currentNearbyNpcStatus = publishedStatus;
 			this.publishHudState(publishedStatus);
 			return;
 		}

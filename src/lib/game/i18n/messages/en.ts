@@ -231,8 +231,8 @@ export const en = {
 		itemNotOwned: 'Item not owned',
 		itemCannotBeSold: 'Item cannot be sold',
 		noDialogueOpen: 'No dialogue open',
-		noOneNearby: 'No one nearby',
 		nothingToSay: 'They have nothing to say',
+		wayBarred: 'The way is barred',
 		dialogueClosed: 'Dialogue closed',
 		dialogueUpdated: 'Dialogue updated',
 		saved: 'Saved',
@@ -549,7 +549,6 @@ export const en = {
 				noDialogueAvailable: 'No dialogue is available.',
 				optionNotAvailable: 'That option is not available.',
 				noDialogueOpen: 'No dialogue is open.',
-				noOneNearby: 'No one is nearby.',
 				nothingToSay: 'They have nothing to say.',
 				shopOutOfReach: 'Shop out of reach.'
 			}
