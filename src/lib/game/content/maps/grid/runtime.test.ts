@@ -64,9 +64,6 @@ describe('grid map runtime', () => {
 	});
 });
 
-// The sealed-gate check is a pure read of the compiled terrain plus a 32px
-// facing probe. The helpers land with the WorldScene wiring, so these pin
-// the contract through the module until they exist (RED: both absent).
 const gateRuntime = gridRuntime as unknown as {
 	resolveGridTerrain?: (map: GridWorldMap) => readonly string[];
 	facesSealedGate?: (
@@ -77,8 +74,6 @@ const gateRuntime = gridRuntime as unknown as {
 	) => boolean;
 };
 
-// A one-tile-deep `!` seal in a `P` wall, `^` rock above the approach, walkable
-// ground on both sides of the seal so a long probe could overshoot past it.
 const gateWorld = compileGridWorld({
 	id: 'runtime-gate-test',
 	width: 3,
@@ -113,8 +108,6 @@ function gatedGate(questId: 'prologue-proving-morning' | 'prologue-raid'): GridW
 const sealed = gatedGate('prologue-proving-morning');
 const opened = gatedGate('prologue-raid');
 
-// `overworld` is authored through the same compiler the test worlds use; its
-// live overlays are already filtered on the map definition.
 const overworld = overworldMap as GridWorldMap;
 const overworldTerrain = overworld.tileGrid.terrain;
 
@@ -126,17 +119,12 @@ describe('grid gate terrain', () => {
 		expect(sealRows).toHaveLength(2);
 		expect(sealRows[1]!.index).toBe(sealRows[0]!.index + 1);
 
-		// The corridor's `,` floor runs into the seal from the north: the walk-up
-		// row directly above the first seal row is plain `,` between `T`s.
 		const gateRow = sealRows[0]!.index;
 		const bangColumn = sealRows[0]!.row.indexOf('!');
 		expect(overworldTerrain[gateRow - 1]![bangColumn + 1]).toBe(',');
 	});
 
 	it('pins the Silverpine sealed rows with their P wall and ^ flank', () => {
-		// The gate is two rows deep: the corridor approaches the LAST seal row.
-		// Two regions share `PP!!!PP` on these rows — the Silverpine one is the
-		// `!` column whose tile below is corridor `,`.
 		const index = overworldTerrain.findIndex(
 			(row, i) => row.includes('PP!!!PP') && !(overworldTerrain[i + 1] ?? '').includes('!')
 		);
@@ -146,14 +134,9 @@ describe('grid gate terrain', () => {
 		);
 		expect(bangColumn).toBeGreaterThan(0);
 
-		// The seal sits inside the palisade (`P`) — the wall itself stays an
-		// ordinary blocker, not a gate.
 		expect(overworldTerrain[index]![bangColumn - 1]).toBe('P');
 		expect(overworldTerrain[index]![bangColumn + 3]).toBe('P');
-		// The `,` corridor approaches from the south.
 		expect(overworldTerrain[index + 1]![bangColumn + 1]).toBe(',');
-		// Rock (`^`) flanks the corridor at the same step — an ordinary
-		// blocker a facing probe can legitimately hit.
 		expect(overworldTerrain[index + 1]![bangColumn - 1]).toBe('^');
 	});
 
@@ -162,38 +145,64 @@ describe('grid gate terrain', () => {
 			gateRuntime.resolveGridTerrain,
 			'resolveGridTerrain is the planned pure helper'
 		).toBeTypeOf('function');
-		expect(gateRuntime.resolveGridTerrain!(sealed)).toEqual(['P^P', 'P.P', 'P!P', 'P.P']);
+		expect(gateRuntime.resolveGridTerrain!(sealed)).toEqual(['P^P', 'P.P', 'P.P', 'P.P']);
 	});
 
 	it('drops the seal from the pure answer once its overlay is live', () => {
 		expect(gateRuntime.resolveGridTerrain!(opened)).toEqual(['P^P', 'P.P', 'P.P', 'P.P']);
 	});
 
-	it('probes the tile 32px ahead along facing from the hero’s collision spot', () => {
+	it.each([
+		{
+			label: 'Silverpine’s sealed rows above its corridor',
+			x: 190 * 32 + 16,
+			y: 57 * 32 + 16,
+			facing: 'up' as const,
+			cell: [56, 190] as const
+		},
+		{
+			label: 'Wildwood East’s sealed columns east of its corridor',
+			x: 254 * 32 + 16,
+			y: 223 * 32 + 16,
+			facing: 'right' as const,
+			cell: [223, 255] as const
+		}
+	])('detects the authored one-tile-thick gate: $label', ({ x, y, facing, cell }) => {
+		expect(overworldTerrain[cell[0]]![cell[1]]).toBe('!');
 		expect(gateRuntime.facesSealedGate, 'facesSealedGate is the planned pure helper').toBeTypeOf(
 			'function'
 		);
-		// South-road corridor's last `,` step: the collision margin leaves the
-		// hero ~16px short of the seal, so the probe must reach a full tile.
+		expect(gateRuntime.facesSealedGate!(overworld, x, y, facing)).toBe(true);
+	});
+
+	it('probes a full 32px ahead from a collision-limited south-road spot', () => {
 		const gateRow = overworldTerrain.findIndex((row) => row.includes('TPP!!!PPT'));
 		const gateCol = overworldTerrain[gateRow]!.indexOf('!') + 1;
-		const hero = { x: gateCol * 32 + 16, y: (gateRow - 1) * 32 + 16 };
+		const hero = { x: gateCol * 32 + 16, y: gateRow * 32 - 32 };
+		expect(overworldTerrain[Math.floor(hero.y / 32)]![gateCol]).toBe(',');
+		expect(overworldTerrain[Math.floor((hero.y + 16) / 32)]![gateCol]).toBe(',');
+		expect(overworldTerrain[Math.floor((hero.y + 32) / 32)]![gateCol]).toBe('!');
 		expect(gateRuntime.facesSealedGate!(overworld, hero.x, hero.y, 'down')).toBe(true);
 
-		// And it must land inside the seal, not past it: the tile between the
-		// hero and the gate is the walkable `,` the hero stands on.
-		expect(overworldTerrain[gateRow - 1]![gateCol]).toBe(',');
-		expect(overworldTerrain[gateRow]![gateCol]).toBe('!');
+		const walkedUp = { x: hero.x, y: gateRow * 32 - 16 };
+		expect(gateRuntime.facesSealedGate!(overworld, walkedUp.x, walkedUp.y, 'down')).toBe(true);
 	});
 
 	it('does not skip a one-tile-deep seal with clear ground beyond it', () => {
-		// The synthetic seal has `.` on the far side — a probe longer than the
-		// tile would read plain ground and miss the gate entirely. (The spawn
-		// anchor compiles to `.` ground.)
 		expect(gateWorld.grid.terrain[1]![1]).toBe('.');
 		expect(gateWorld.grid.terrain[2]![1]).toBe('!');
 		expect(gateWorld.grid.terrain[3]![1]).toBe('.');
-		expect(gateRuntime.facesSealedGate!(sealed, 1 * 32 + 16, 3 * 32 + 16, 'up')).toBe(true);
+
+		const overshootProne = { x: 48, y: 97 };
+		expect(gateWorld.grid.terrain[Math.floor((overshootProne.y - 32) / 32)]![1]).toBe('!');
+		expect(gateWorld.grid.terrain[Math.floor((overshootProne.y - 48) / 32)]![1]).toBe('.');
+		expect(gateRuntime.facesSealedGate!(sealed, overshootProne.x, overshootProne.y, 'up')).toBe(
+			true
+		);
+
+		const deeper = { x: 48, y: 120 };
+		expect(gateWorld.grid.terrain[Math.floor((deeper.y - 16) / 32)]![1]).toBe('.');
+		expect(gateRuntime.facesSealedGate!(sealed, deeper.x, deeper.y, 'up')).toBe(true);
 	});
 
 	it('stops reporting the seal once its overlay removes it', () => {
@@ -201,12 +210,37 @@ describe('grid gate terrain', () => {
 	});
 
 	it.each([
-		{ label: 'a P wall left of the approach', x: 16, y: 48, facing: 'left' as const },
-		{ label: 'a P wall right of the approach', x: 80, y: 48, facing: 'right' as const },
-		{ label: 'the ^ rock above the approach', x: 48, y: 48, facing: 'up' as const },
-		{ label: 'ground outside the grid', x: 48, y: 112, facing: 'down' as const }
-	])('ignores ordinary blockers: $label', ({ x, y, facing }) => {
+		{
+			label: 'a P wall left of the approach',
+			x: 48,
+			y: 48,
+			facing: 'left' as const,
+			cell: [1, 0] as const,
+			glyph: 'P'
+		},
+		{
+			label: 'a P wall right of the approach',
+			x: 48,
+			y: 48,
+			facing: 'right' as const,
+			cell: [1, 2] as const,
+			glyph: 'P'
+		},
+		{
+			label: 'the ^ rock above the approach',
+			x: 48,
+			y: 48,
+			facing: 'up' as const,
+			cell: [0, 1] as const,
+			glyph: '^'
+		}
+	])('ignores ordinary blockers: $label', ({ x, y, facing, cell, glyph }) => {
+		expect(gateWorld.grid.terrain[cell[0]]![cell[1]]).toBe(glyph);
 		expect(gateRuntime.facesSealedGate!(sealed, x, y, facing)).toBe(false);
+	});
+
+	it('ignores ground outside the grid', () => {
+		expect(gateRuntime.facesSealedGate!(sealed, 48, 112, 'down')).toBe(false);
 	});
 
 	it('ignores non-grid maps instead of throwing', () => {
