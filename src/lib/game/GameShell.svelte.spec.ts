@@ -18,6 +18,7 @@ import { setSaveStorage } from '$lib/game/save/storage';
 import { setLastInputModality } from '$lib/game/core/gamepad';
 import { PREFERENCES_STORAGE_KEY } from '$lib/game/i18n/preferences';
 import { updatePreferences } from '$lib/game/i18n/store';
+import { t } from '$lib/game/i18n/translate';
 import type { ConsumableDefinition, EquipmentDefinition } from '$lib/game/content/items';
 import { getAreaName } from '$lib/game/core/area-map';
 import type { HudQuestEntry } from '$lib/game/core/quests';
@@ -1197,7 +1198,7 @@ describe('GameShell overlay return paths', () => {
 
 			const inventory = page.getByRole('dialog', { name: 'Inventory' });
 			await expect.element(inventory).toBeVisible();
-			await inventory.getByRole('button', { name: 'Close', exact: true }).click();
+			await inventory.getByRole('button', { name: /Close$/ }).click();
 
 			expect(inventory.elements()).toHaveLength(0);
 			await expect.element(commandPanel).toBeVisible();
@@ -4467,26 +4468,37 @@ describe('GameShell menu toggle placement', () => {
 		await expect.element(menuButton).toHaveAttribute('aria-keyshortcuts', 'Escape');
 		const glyph = menuButton.element().querySelector<HTMLElement>('.heroic-prompt-glyph');
 		expect(glyph).not.toBeNull();
-		expect(glyph!.getAttribute('aria-hidden')).toBe('true');
+		expect(glyph!.getAttribute('aria-hidden')).not.toBe('true');
+		expect(glyph!.parentElement!.getAttribute('aria-hidden')).toBe('true');
 		expect(Number(getComputedStyle(menuButton.element()).opacity)).toBe(1);
 	});
 
-	it.each([
-		{ width: 1280, height: 720 },
-		{ width: 640, height: 360 }
-	])(
-		'does not intersect the field HUD cards at $width×$height, prompt glyph included',
-		async ({ width, height }) => {
+	it.each(
+		(
+			[
+				{ width: 1280, height: 720 },
+				{ width: 640, height: 360 }
+			] as const
+		).flatMap((viewport) =>
+			(['en', 'zh-Hant', 'ja'] as const).flatMap((locale) =>
+				(['keys', 'pad'] as const).map((promptMode) => ({ ...viewport, locale, promptMode }))
+			)
+		)
+	)(
+		'does not intersect the field HUD cards at $width×$height ($locale/$promptMode), prompt glyph included',
+		async ({ width, height, locale, promptMode }) => {
+			updatePreferences({ locale, promptMode });
 			await page.viewport(width, height);
 			render(GameShell);
 			emitHudState(baseHudState({ quests: { main: mockMainQuest(), completed: [] } }));
 
-			const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+			const menuButton = page.getByRole('button', { name: t(locale, 'ui.menu'), exact: true });
 			await expect.element(menuButton).toBeVisible();
 			expect(Number(getComputedStyle(menuButton.element()).opacity)).toBeGreaterThan(0);
 
 			const glyph = menuButton.element().querySelector<HTMLElement>('.heroic-prompt-glyph');
 			expect(glyph).not.toBeNull();
+			expect(glyph!.textContent?.trim()).toBe(promptMode === 'pad' ? 'Start' : 'Esc');
 			const glyphBox = glyph!.getBoundingClientRect();
 			expect(glyphBox.width).toBeGreaterThan(0);
 			expect(glyphBox.height).toBeGreaterThan(0);

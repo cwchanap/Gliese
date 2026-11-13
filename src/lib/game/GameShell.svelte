@@ -425,6 +425,8 @@
 	function closeSystem() {
 		if (!systemOpen) return;
 		systemOpen = false;
+		// Title mode restores to the opening Title card; playing mode falls
+		// back to the menu button when the opener sat in the command grid.
 		leaveOverlay('system');
 	}
 
@@ -562,8 +564,6 @@
 		if (isEditableTarget(event.target)) return;
 
 		if (event.key === 'Escape') {
-			// DialoguePanel owns Escape inside a conversation; battle owns the
-			// field entirely (handlePadCancel's battle branch means flee).
 			if (mode !== 'playing' || $hudState.dialogue || battleLocked) return;
 			event.preventDefault();
 			if (overlaySurfaceOpen) handlePadCancel();
@@ -1040,7 +1040,9 @@
 					aria-controls="game-command-panel"
 					aria-keyshortcuts="Escape"
 				>
-					<PromptGlyph mode={$preferences.promptMode} keys="Esc" pad="Start" />
+					<span class="menu-glyph" aria-hidden="true">
+						<PromptGlyph mode={$preferences.promptMode} keys="Esc" pad="Start" />
+					</span>
 					{t($locale, 'ui.menu')}
 				</button>
 			</div>
@@ -1205,6 +1207,13 @@
 		gap: 0.55rem;
 		padding: 0.7rem 0.9rem;
 		font-size: 0.72rem;
+		/* Mockup parity: Menu lives in the dialogue bar, so the toggle reveals
+		   only on keyboard focus / hover on desktop. It stays in the DOM —
+		   focus restoration and e2e/unit hooks click it regardless. */
+	}
+
+	.menu-glyph {
+		display: contents;
 	}
 
 	/* New-run overwrite confirm: same treatment as the save screen's
@@ -1247,6 +1256,8 @@
 
 		.jrpg-command-toggle {
 			padding: 0.6rem 0.72rem;
+			/* No mockup exists for small screens: keep the toggle visible so
+			   touch players retain menu access. */
 		}
 	}
 
@@ -1260,6 +1271,18 @@
 		.jrpg-menu-anchor {
 			top: 0.75rem;
 			right: 12.25rem;
+		}
+
+		.jrpg-command-toggle {
+			gap: 0.3rem;
+			padding: 0.45rem 0.4rem;
+			font-size: 0.62rem;
+		}
+
+		.jrpg-command-toggle :global(.heroic-prompt-glyph) {
+			min-width: 1.7rem;
+			padding: 0.1rem 0.35rem;
+			font-size: 0.68rem;
 		}
 	}
 </style>

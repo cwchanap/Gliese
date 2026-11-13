@@ -22,6 +22,6 @@
 	const resolvedTone = $derived(resolved === 'pad' ? tone : 'enter');
 </script>
 
-<kbd class="heroic-prompt-glyph" data-prompt={resolved} data-tone={resolvedTone} aria-hidden="true">
+<kbd class="heroic-prompt-glyph" data-prompt={resolved} data-tone={resolvedTone}>
 	{resolved === 'pad' ? pad : keys}
 </kbd>

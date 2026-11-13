@@ -51,4 +51,20 @@ describe('PromptGlyph', () => {
 		await expect.element(glyph).toHaveAttribute('data-prompt', 'keys');
 		await expect.element(glyph).toHaveAttribute('data-tone', 'enter');
 	});
+
+	it('keeps the shared hint exposed to assistive technology', async () => {
+		renderGlyph('keys');
+
+		const glyph = page.getByText('Enter');
+		await expect.element(glyph).not.toHaveAttribute('aria-hidden');
+
+		// Consumers that embed the glyph inside a control keep the hint in that
+		// control's accessible name (Bag/Shop "Esc Close", dialogue "↵ Next").
+		const kbd = glyph.element() as HTMLElement;
+		const button = document.createElement('button');
+		button.append(kbd, document.createTextNode('Close'));
+		document.body.append(button);
+		await expect.element(page.getByRole('button', { name: /Enter/ })).toBeVisible();
+		button.remove();
+	});
 });
