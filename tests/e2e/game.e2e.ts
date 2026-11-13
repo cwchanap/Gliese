@@ -12151,6 +12151,38 @@ test('trusted Space activates the focused field Menu without world interaction',
 	await expect(traveler).toHaveCount(0);
 });
 
+test('trusted Enter activates a focused command tile opened by pointer exactly once', async ({
+	page
+}) => {
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
+		})
+	);
+	await continueFromTitle(page);
+	await installActivationProbe(page);
+
+	const menu = page.getByRole('button', { name: 'Menu' });
+	await menu.click();
+	const command = commandBox(page);
+	await expect(command).toBeVisible();
+	let probe = await readActivationProbe(page);
+	expect(probe.menuClicks).toBe(1);
+
+	const mapTile = command.getByRole('button', { name: 'Map', exact: true });
+	await mapTile.focus();
+	await page.keyboard.press('Enter');
+
+	probe = await readActivationProbe(page);
+	expect(probe.commandClicks).toBe(1);
+	expect(probe.windowKeys).toEqual([]);
+	const mapDialog = page.getByRole('dialog', { name: /map$/i });
+	await expect(mapDialog).toBeVisible();
+	await expect(page.getByRole('dialog', { name: 'Traveler' })).toHaveCount(0);
+	expect(probe.interactions).toBe(0);
+});
+
 test('Escape ladder returns through Command one level at a time', async ({ page }) => {
 	await injectSave(
 		page,
