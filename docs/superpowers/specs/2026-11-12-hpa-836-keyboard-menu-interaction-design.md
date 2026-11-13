@@ -35,7 +35,8 @@ The existing **Phaser↔Svelte event bridge**, Svelte command grid, menu focus l
 | --- | --- | --- |
 | Ready field | Escape opens Command | First enabled tile; field paused |
 | Command grid | Escape/Back closes grid | Menu toggle; field resumes |
-| Gear, Map, Shop, Quest, Save, Skill, or System opened from Command | Back closes **only that overlay** and restores Command | Original command tile (fallback first enabled); field remains paused |
+| Gear, Map, Quest, Save, Skill, or System opened from Command | Back closes **only that overlay** and restores Command | Original command tile (fallback first enabled); field remains paused |
+| Shop opened by talking to a merchant | Back closes Shop | Returns to the field; preserves existing merchant interaction |
 | Gear directly opened with I or Map directly opened with M | Back closes the overlay | Field resumes; restore previous valid element or Menu toggle |
 | Dialogue, title prompt/load confirmation, active battle or battle summary | Keep existing owner behavior | No background Command screen; never route Escape through battle Flee |
 
