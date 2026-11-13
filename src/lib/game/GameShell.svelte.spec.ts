@@ -935,6 +935,326 @@ describe('GameShell command menu', () => {
 	});
 });
 
+// Phaser's KeyboardPlugin listens on window and preventDefaults every
+// registered key, which cancels native button activation (Enter fires on
+// keydown, Space on keyup). GameShell's root must stop those events from
+// reaching window while a shell control is focused — without touching
+// presses aimed at the unfocused field. This installs a capture-shaped
+// double of that layer; the real one is exercised by the Playwright e2e.
+function installWindowKeyCapture() {
+	const seen: string[] = [];
+	const capture = (event: Event) => {
+		const { key } = event as KeyboardEvent;
+		if (key !== 'Enter' && key !== ' ') return;
+		seen.push(`${event.type}:${key}`);
+		(event as KeyboardEvent).preventDefault();
+	};
+	window.addEventListener('keydown', capture);
+	window.addEventListener('keyup', capture);
+	return {
+		seen,
+		remove() {
+			window.removeEventListener('keydown', capture);
+			window.removeEventListener('keyup', capture);
+		}
+	};
+}
+
+describe('GameShell keyboard activation under captured keys', () => {
+	it('Enter keydown still natively activates the focused Menu button', async () => {
+		const capture = installWindowKeyCapture();
+		try {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+			await expect.element(menuButton).toBeVisible();
+			menuButton.element().focus();
+
+			await userEvent.keyboard('{Enter}');
+
+			// The press must never reach Phaser's window layer…
+			expect(capture.seen).toEqual([]);
+			// …while the browser's own activation still ran exactly once.
+			await expect.element(page.getByRole('region', { name: 'Command' })).toBeVisible();
+			await expect.element(menuButton).toHaveAttribute('aria-expanded', 'true');
+		} finally {
+			capture.remove();
+		}
+	});
+
+	it('Space keyup still natively activates the focused Menu button', async () => {
+		const capture = installWindowKeyCapture();
+		try {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+			await expect.element(menuButton).toBeVisible();
+			menuButton.element().focus();
+
+			// Space activates on keyup — the capture covers that phase too.
+			await userEvent.keyboard(' ');
+
+			expect(capture.seen).toEqual([]);
+			await expect.element(page.getByRole('region', { name: 'Command' })).toBeVisible();
+			await expect.element(menuButton).toHaveAttribute('aria-expanded', 'true');
+		} finally {
+			capture.remove();
+		}
+	});
+
+	it('Enter keydown still natively activates a focused command tile', async () => {
+		const capture = installWindowKeyCapture();
+		try {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			const mapTile = page.getByRole('button', { name: 'Map' });
+			await expect.element(mapTile).toBeVisible();
+			mapTile.element().focus();
+
+			await userEvent.keyboard('{Enter}');
+
+			expect(capture.seen).toEqual([]);
+			await expect.element(page.getByTestId('area-map-svg')).toBeVisible();
+		} finally {
+			capture.remove();
+		}
+	});
+
+	it('Space keyup still natively activates a focused command tile', async () => {
+		const capture = installWindowKeyCapture();
+		try {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			const mapTile = page.getByRole('button', { name: 'Map' });
+			await expect.element(mapTile).toBeVisible();
+			mapTile.element().focus();
+
+			await userEvent.keyboard(' ');
+
+			expect(capture.seen).toEqual([]);
+			await expect.element(page.getByTestId('area-map-svg')).toBeVisible();
+		} finally {
+			capture.remove();
+		}
+	});
+
+	it('lets captured keys through to the field when no shell control is focused', async () => {
+		const capture = installWindowKeyCapture();
+		try {
+			render(GameShell);
+			emitHudState(baseHudState());
+			// The field is up (Menu visible) but nothing inside the shell holds
+			// focus — body.focus() is a no-op on non-focusable bodies, so blur
+			// whatever the title/field flow left focused.
+			await expect.element(page.getByRole('button', { name: 'Menu', exact: true })).toBeVisible();
+			(document.activeElement as HTMLElement | null)?.blur();
+			expect(document.activeElement).toBe(document.body);
+
+			await userEvent.keyboard('{Enter}');
+			await userEvent.keyboard(' ');
+
+			// Field input belongs to Phaser: the shell must not swallow it.
+			expect(capture.seen).toEqual(['keydown:Enter', 'keyup:Enter', 'keydown: ', 'keyup: ']);
+			expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
+		} finally {
+			capture.remove();
+		}
+	});
+
+	it('does not activate a disabled command tile', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState({ heals: 0 }));
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			const restTile = page.getByRole('button', { name: 'Rest' });
+			await expect.element(restTile).toBeDisabled();
+			// Disabled controls are still programmatically focusable (pad focus
+			// restoration can land on one before the disabled flag repaints).
+			restTile.element().focus();
+
+			await userEvent.keyboard('{Enter}');
+
+			expect(commands).not.toContainEqual({ type: 'heal' });
+		});
+	});
+});
+
+describe('GameShell overlay return paths', () => {
+	it('walks the Escape ladder: field → Command → Gear → Command → field', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			// Escape on the ready field opens Command with its first tile focused.
+			await userEvent.keyboard('{Escape}');
+			const commandPanel = page.getByRole('region', { name: 'Command' });
+			await expect.element(commandPanel).toBeVisible();
+			await expect.element(page.getByRole('button', { name: 'Bag' })).toHaveFocus();
+
+			// Enter on the focused Gear tile opens the Gear overlay.
+			page.getByRole('button', { name: 'Gear' }).element().focus();
+			await userEvent.keyboard('{Enter}');
+			const inventory = page.getByRole('dialog', { name: 'Inventory' });
+			await expect.element(inventory).toBeVisible();
+
+			// Escape closes Gear back to Command — one level, no resume flicker.
+			commands.length = 0;
+			await userEvent.keyboard('{Escape}');
+			expect(inventory.elements()).toHaveLength(0);
+			await expect.element(commandPanel).toBeVisible();
+			await expect.element(page.getByRole('button', { name: 'Gear' })).toHaveFocus();
+			expect(commands).not.toContainEqual({ type: 'resume-game' });
+
+			// A second Escape returns to the field and resumes the game.
+			await userEvent.keyboard('{Escape}');
+			expect(commandPanel.elements()).toHaveLength(0);
+			await expect.element(page.getByRole('button', { name: 'Menu', exact: true })).toHaveFocus();
+			expect(commands).toContainEqual({ type: 'resume-game' });
+		});
+	});
+
+	it('opens Gear directly with I and returns to the field on Escape', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await userEvent.keyboard('i');
+
+		const inventory = page.getByRole('dialog', { name: 'Inventory' });
+		await expect.element(inventory).toBeVisible();
+		await expect
+			.element(page.getByRole('tab', { name: 'Gear' }))
+			.toHaveAttribute('aria-selected', 'true');
+
+		await userEvent.keyboard('{Escape}');
+		expect(inventory.elements()).toHaveLength(0);
+		expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
+		await expect.element(page.getByRole('button', { name: 'Menu', exact: true })).toHaveFocus();
+	});
+
+	it('toggles the Map overlay with M and returns to the field on M and on Escape', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+		const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+		const mapSvg = page.getByTestId('area-map-svg');
+
+		await userEvent.keyboard('m');
+		await expect.element(mapSvg).toBeVisible();
+
+		await userEvent.keyboard('m');
+		expect(mapSvg.elements()).toHaveLength(0);
+		await expect.element(menuButton).toHaveFocus();
+
+		await userEvent.keyboard('m');
+		await expect.element(mapSvg).toBeVisible();
+
+		await userEvent.keyboard('{Escape}');
+		expect(mapSvg.elements()).toHaveLength(0);
+		await expect.element(menuButton).toHaveFocus();
+	});
+
+	// Command-origin overlays close one level up: back into the command grid
+	// with the tile that opened them still focused.
+	it.each([
+		{ tile: 'Map', dialogName: /map$/i, closeName: 'Close' },
+		{ tile: 'Save', dialogName: /save/i, closeName: 'Back' },
+		{ tile: 'Skill', dialogName: 'Skill', closeName: 'Back' },
+		{ tile: 'Quest', dialogName: /quest log/i, closeName: 'Close' },
+		{ tile: 'System', dialogName: /display & text/i, closeName: 'Close' }
+	])(
+		'returns from $tile to the command grid with its tile focused via the on-screen Back',
+		async ({ tile, dialogName, closeName }) => {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: tile, exact: true }).click();
+			const overlay = page.getByRole('dialog', { name: dialogName });
+			await expect.element(overlay).toBeVisible();
+
+			await overlay.getByRole('button', { name: closeName, exact: true }).click();
+
+			expect(overlay.elements()).toHaveLength(0);
+			const commandPanel = page.getByRole('region', { name: 'Command' });
+			await expect.element(commandPanel).toBeVisible();
+			await expect
+				.element(commandPanel.getByRole('button', { name: tile, exact: true }))
+				.toHaveFocus();
+		}
+	);
+
+	// macOS WebKit does not focus a button on mousedown: a pointer-picked
+	// command tile must still own the return focus, even when keyboard
+	// focus sat on a different tile when the pointer landed.
+	it('returns to the pointer-clicked command tile, not stale keyboard focus', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		const commandPanel = page.getByRole('region', { name: 'Command' });
+		await expect.element(commandPanel).toBeVisible();
+
+		// Stale focus on Bag while the pointer picks Gear without focusing it.
+		page.getByRole('button', { name: 'Bag' }).element().focus();
+		commandPanel
+			.getByRole('button', { name: 'Gear', exact: true })
+			.element()
+			.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+		const inventory = page.getByRole('dialog', { name: 'Inventory' });
+		await expect.element(inventory).toBeVisible();
+		await inventory.getByRole('button', { name: 'Close', exact: true }).click();
+
+		expect(inventory.elements()).toHaveLength(0);
+		await expect.element(commandPanel).toBeVisible();
+		await expect
+			.element(commandPanel.getByRole('button', { name: 'Gear', exact: true }))
+			.toHaveFocus();
+	});
+
+	it('returns a shop opened by an NPC to the field', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				shop: {
+					shopId: 'miras-item-shop',
+					name: "Mira's Item Shop",
+					merchantName: 'Mira',
+					buy: [mockShopBuyEntry()],
+					sell: []
+				}
+			})
+		);
+
+		const shop = page.getByRole('dialog', { name: "Mira's Item Shop" });
+		await expect.element(shop).toBeVisible();
+
+		// WorldScene bridge: close-shop clears the published shop state so the
+		// auto-open effect does not immediately re-open the dialog.
+		const clearShopOnClose = (event: Event) => {
+			if ((event as CustomEvent).detail?.type === 'close-shop') {
+				emitHudState(baseHudState());
+			}
+		};
+		window.addEventListener(HUD_COMMAND_EVENT, clearShopOnClose);
+		try {
+			await shop.getByRole('button', { name: 'Close' }).click();
+
+			expect(shop.elements()).toHaveLength(0);
+			expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
+			await expect.element(page.getByRole('button', { name: 'Menu', exact: true })).toHaveFocus();
+		} finally {
+			window.removeEventListener(HUD_COMMAND_EVENT, clearShopOnClose);
+		}
+	});
+});
+
 describe('GameShell inventory', () => {
 	it('emits pause-game when the Bag overlay opens', async () => {
 		await withCommands(async (commands) => {
@@ -2112,6 +2432,55 @@ describe('GameShell save screen', () => {
 		expect(saveDialog.elements()).toHaveLength(0);
 	});
 
+	it.each([
+		{
+			focusName: 'the Save screen Back button',
+			focus: async (saveDialog: ReturnType<typeof page.getByRole>) => {
+				// Two Back-labelled buttons exist while the prompt is up; the
+				// screen-level one sits outside the alertdialog.
+				saveDialog.element().querySelector<HTMLElement>('.save-back')?.focus();
+			}
+		},
+		{
+			focusName: 'the Save dialog root',
+			focus: async (saveDialog: ReturnType<typeof page.getByRole>) => {
+				saveDialog.element().focus();
+			}
+		}
+	])('Escape cancels the overwrite prompt first when $focusName has focus', async ({ focus }) => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
+
+		const saveDialog = page.getByRole('dialog', { name: /save/i });
+		await expect.element(saveDialog).toBeVisible();
+
+		window.addEventListener(HUD_COMMAND_EVENT, (event) => {
+			const command = (event as CustomEvent).detail as { type?: string; slot?: 1 | 2 };
+			if (command?.type === 'save-slot' && command.slot) {
+				writeSaveSlot(command.slot, createSlotRecord());
+			}
+		});
+
+		await saveDialog.getByTestId('save-slot-1').click();
+		emitHudState(baseHudState({ status: 'Saved.' }));
+		await saveDialog.getByTestId('save-slot-1').click();
+		await expect.element(saveDialog.getByTestId('confirm-overwrite')).toBeVisible();
+
+		await focus(saveDialog);
+		await userEvent.keyboard('{Escape}');
+
+		// The alertdialog is the topmost surface: Escape must cancel it and
+		// keep the Save screen open, whatever held focus.
+		expect(saveDialog.getByTestId('confirm-overwrite').elements()).toHaveLength(0);
+		await expect.element(saveDialog).toBeVisible();
+
+		await userEvent.keyboard('{Escape}');
+		expect(saveDialog.elements()).toHaveLength(0);
+	});
+
 	it('blocks pointer input to the underlying screen while the overwrite alertdialog is open', async () => {
 		await withCommands(async (commands) => {
 			render(GameShell);
@@ -2314,6 +2683,60 @@ describe('GameShell inventory actions', () => {
 		await page.getByRole('tab', { name: /key/i }).click();
 
 		await expect.element(page.getByRole('button', { name: /Ancient Key/i })).toBeVisible();
+	});
+
+	it('closes Gear on the first Escape after the Equip action unmounts under focus', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			const sword = {
+				itemId: 'practice-sword',
+				name: 'Practice Sword',
+				description: 'A blade.',
+				iconPath: '/icon.png',
+				slot: 'weapon' as const,
+				equipped: false,
+				modifiers: { attack: 1 }
+			};
+			const inventory = (equipped: boolean) => ({
+				consumables: [],
+				equipment: [{ ...sword, equipped }],
+				keyItems: [],
+				equipped: {
+					weapon: equipped ? 'practice-sword' : null,
+					head: null,
+					body: null,
+					hands: null,
+					accessory: null
+				}
+			});
+			emitHudState(baseHudState({ inventory: inventory(false) }));
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: 'Gear', exact: true }).click();
+			const dialog = page.getByRole('dialog', { name: 'Inventory' });
+			await expect.element(dialog).toBeVisible();
+
+			await dialog.getByRole('button', { name: 'Practice Sword' }).click();
+			const equip = dialog.getByRole('button', { name: /equip/i });
+			await expect.element(equip).toBeVisible();
+			await equip.click();
+			expect(commands).toContainEqual({ type: 'equip-item', itemId: 'practice-sword' });
+
+			// WorldScene equips and republishes: the action unmounts under focus.
+			emitHudState(baseHudState({ inventory: inventory(true) }));
+			await expect.poll(() => document.activeElement).toBe(document.body);
+
+			// The dialog's own key handler never sees a body-targeted Escape —
+			// the shell must still route it to the topmost surface.
+			await userEvent.keyboard('{Escape}');
+			expect(dialog.elements()).toHaveLength(0);
+			// Gear was command-origin: the grid comes back with its tile focused.
+			const commandPanel = page.getByRole('region', { name: 'Command' });
+			await expect.element(commandPanel).toBeVisible();
+			await expect
+				.element(commandPanel.getByRole('button', { name: 'Gear', exact: true }))
+				.toHaveFocus();
+		});
 	});
 });
 
@@ -3849,6 +4272,28 @@ describe('GameShell pad layer', () => {
 		await userEvent.keyboard('{ArrowDown}');
 		expect(focusedFocusId()).toBe('system-locale-en');
 	});
+
+	it('B from a command-origin overlay returns to the grid with its tile focused', async () => {
+		installPadStub();
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await press(9);
+		// Same Start-opened entry as the lattice tests: focus begins unset and
+		// the first direction lands on Bag.
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('field-cmd-bag');
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('field-cmd-gear');
+
+		await press(0);
+		await expect.element(page.getByRole('dialog', { name: 'Inventory' })).toBeVisible();
+
+		await press(1);
+		expect(page.getByRole('dialog', { name: 'Inventory' }).elements()).toHaveLength(0);
+		await expect.element(page.getByRole('region', { name: 'Command' })).toBeVisible();
+		expect(focusedFocusId()).toBe('field-cmd-gear');
+	});
 });
 
 describe('GameShell prompt glyph honesty', () => {
@@ -3967,5 +4412,60 @@ describe('GameShell reduced motion', () => {
 		expect(getComputedStyle(party.element() as HTMLElement).animationName).toBe(
 			'heroic-danger-pulse'
 		);
+	});
+});
+
+describe('GameShell menu toggle placement', () => {
+	it('keeps the Menu toggle visible with its device prompt glyph at desktop size', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+		await expect.element(menuButton).toBeVisible();
+		// The glyph doubles as the shortcut hint: hidden from the accessible
+		// name so 'Menu' stays exact, exposed via aria-keyshortcuts.
+		await expect.element(menuButton).toHaveAttribute('aria-keyshortcuts', 'Escape');
+		const glyph = menuButton.element().querySelector<HTMLElement>('.heroic-prompt-glyph');
+		expect(glyph).not.toBeNull();
+		expect(glyph!.getAttribute('aria-hidden')).toBe('true');
+		// Visible without hover/focus — including the opacity that used to hide
+		// it on desktop until :focus-visible.
+		expect(Number(getComputedStyle(menuButton.element()).opacity)).toBe(1);
+	});
+
+	// The toggle must stay clear of the HUD cards around it at both supported
+	// field viewports — minimap/quest rail on the right, hero card on the left.
+	it.each([
+		{ width: 1280, height: 720 },
+		{ width: 640, height: 360 }
+	])('does not intersect the field HUD cards at $width×$height', async ({ width, height }) => {
+		await page.viewport(width, height);
+		render(GameShell);
+		emitHudState(baseHudState({ quests: { main: mockMainQuest(), completed: [] } }));
+
+		const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+		await expect.element(menuButton).toBeVisible();
+		expect(Number(getComputedStyle(menuButton.element()).opacity)).toBeGreaterThan(0);
+
+		const menuBox = menuButton.element().getBoundingClientRect();
+		const surfaces = [
+			{ id: 'hud-minimap', element: page.getByTestId('hud-minimap').element() },
+			{ id: 'hud-party-panel', element: page.getByTestId('hud-party-panel').element() },
+			{
+				id: 'quest-banner',
+				element: document.querySelector<HTMLElement>('.quest-banner')
+			}
+		];
+		for (const surface of surfaces) {
+			expect(surface.element, surface.id).not.toBeNull();
+			const box = (surface.element as HTMLElement).getBoundingClientRect();
+			const intersects = !(
+				menuBox.right <= box.left ||
+				menuBox.left >= box.right ||
+				menuBox.bottom <= box.top ||
+				menuBox.top >= box.bottom
+			);
+			expect(intersects, `${surface.id} ${JSON.stringify(box)}`).toBe(false);
+		}
 	});
 });

@@ -12004,6 +12004,163 @@ test('area map opens from the menu and closes back to field HUD', async ({ page 
 	await expect(fieldStatus(page)).toBeVisible();
 });
 
+// Open Sundrop ground with nothing interactable in reach — the same fixture
+// point the node scene harness uses for empty-ground checks.
+const openFieldPosition = { x: 4_336, y: 7_856, facing: 'down' };
+
+async function tabFocusMenu(page: Page) {
+	const menu = page.getByRole('button', { name: 'Menu' });
+	for (let attempt = 0; attempt < 10; attempt += 1) {
+		if (await menu.evaluate((element) => element === document.activeElement)) return;
+		await page.keyboard.press('Tab');
+	}
+}
+
+test('trusted Enter activates the focused field Menu and command tiles without world interaction', async ({
+	page
+}) => {
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
+		})
+	);
+	await continueFromTitle(page);
+
+	const menu = page.getByRole('button', { name: 'Menu' });
+	const traveler = page.getByRole('dialog', { name: 'Traveler' });
+	await tabFocusMenu(page);
+	await expect(menu).toBeFocused();
+
+	// Trusted Enter must natively activate the focused Menu button exactly
+	// once; Phaser's window key capture must not cancel it, and the same key
+	// must not leak into a world interaction.
+	await page.keyboard.press('Enter');
+	const command = commandBox(page);
+	await expect(command).toBeVisible();
+	await expect(traveler).toHaveCount(0);
+
+	// A focused command tile activates on trusted Enter too.
+	await command.getByRole('button', { name: 'Map' }).focus();
+	await page.keyboard.press('Enter');
+	const mapDialog = page.getByRole('dialog', { name: /map$/i });
+	await expect(mapDialog).toBeVisible();
+	await expect(traveler).toHaveCount(0);
+
+	// Back out through Command to the field; no delayed world interaction may
+	// fire once the surfaces are closed.
+	await page.keyboard.press('Escape');
+	await expect(command).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(command).toHaveCount(0);
+	await expect(menu).toBeFocused();
+	await page.waitForTimeout(300);
+	await expect(traveler).toHaveCount(0);
+});
+
+test('trusted Space activates the focused field Menu without world interaction', async ({
+	page
+}) => {
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
+		})
+	);
+	await continueFromTitle(page);
+
+	const menu = page.getByRole('button', { name: 'Menu' });
+	const traveler = page.getByRole('dialog', { name: 'Traveler' });
+	await tabFocusMenu(page);
+	await expect(menu).toBeFocused();
+
+	// Space activates on keyup — Phaser captures that phase too.
+	await page.keyboard.press('Space');
+	const command = commandBox(page);
+	await expect(command).toBeVisible();
+	await expect(traveler).toHaveCount(0);
+});
+
+test('Escape ladder returns through Command one level at a time', async ({ page }) => {
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
+		})
+	);
+	await continueFromTitle(page);
+
+	const menu = page.getByRole('button', { name: 'Menu' });
+	const command = commandBox(page);
+
+	// Field → Command (keyboard-opened Command focuses its first tile).
+	await page.keyboard.press('Escape');
+	await expect(command).toBeVisible();
+	await expect(command.getByRole('button', { name: 'Bag' })).toBeFocused();
+
+	// Command → Gear via the lattice and trusted Enter.
+	await page.keyboard.press('ArrowRight');
+	await expect(command.getByRole('button', { name: 'Gear' })).toBeFocused();
+	await page.keyboard.press('Enter');
+	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
+	await expect(inventoryDialog).toBeVisible();
+	await expect(inventoryDialog.getByRole('tab', { name: 'Gear' })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+
+	// Gear → Command one level up, origin tile still focused.
+	await page.keyboard.press('Escape');
+	await expect(inventoryDialog).toHaveCount(0);
+	await expect(command).toBeVisible();
+	await expect(command.getByRole('button', { name: 'Gear' })).toBeFocused();
+
+	// Command → field.
+	await page.keyboard.press('Escape');
+	await expect(command).toHaveCount(0);
+	await expect(menu).toBeFocused();
+});
+
+test('E on genuinely empty ground opens no dialogue and publishes no status', async ({ page }) => {
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
+		})
+	);
+	await continueFromTitle(page);
+
+	const statusBefore = await fieldStatus(page).textContent();
+	await page.keyboard.press('e');
+	await page.waitForTimeout(300);
+
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await expect(fieldStatus(page)).toHaveText(statusBefore ?? '');
+});
+
+// The south-road gate's `!!!` tiles cap the corridor at world rows 272-273:
+// Grik on the corridor's last `,` step (row 271, col 168), facing the seal
+// one grid row ahead.
+const southGateApproach = { x: 5_392, y: 8_688, facing: 'down' };
+
+test('E facing the south-road sealed gate reports the way barred without a dialogue', async ({
+	page
+}) => {
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 20, attack: 3, ...southGateApproach }
+		})
+	);
+	await continueFromTitle(page);
+
+	await page.keyboard.press('e');
+	await page.waitForTimeout(300);
+
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await expect(fieldStatus(page)).toContainText(/barred/i);
+});
+
 test('language preference shows Japanese chrome and keeps Japanese selected', async ({ page }) => {
 	await startNewRunThroughOpening(page);
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();

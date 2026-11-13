@@ -10121,6 +10121,162 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('stays silent when E is pressed on genuinely empty ground', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'overworld' });
+		Object.assign(phaserState.playerMarker, openGround);
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		// Nothing faced, nobody near: E must not manufacture a Traveler
+		// fallback or repaint the status line — the field stays quiet.
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
+	});
+
+	it('keeps the ambient busy line when E faces an ambient NPC', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as { facing: string };
+		const customer = itemShopMap.ambientNpcs?.find(({ id }) => id === 'item-shop-customer');
+		expect(customer).toBeDefined();
+		if (!customer) return;
+
+		scene.create({ mapId: 'item-shop' });
+		Object.assign(phaserState.playerMarker, { x: customer.x, y: customer.y + 48 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		sceneState.facing = 'up';
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'They have nothing to say',
+				dialogue: expect.objectContaining({
+					speaker: 'Traveler',
+					line: 'They have nothing to say.'
+				})
+			})
+		);
+	});
+
+	// The south-road gate's `!!!` caps the corridor at world rows 272-273;
+	// the hero stands on the corridor's last `,` step (row 271, col 168).
+	const southGateHero = { x: 5_392, y: 8_688 };
+
+	it('reports the way barred — and no dialogue — when E faces a sealed gate', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as { facing: string };
+
+		scene.create({ mapId: 'overworld' });
+		Object.assign(phaserState.playerMarker, southGateHero);
+		sceneState.facing = 'down';
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		const publish = emitHudStateSpy.mock.calls.at(-1)?.[0] as
+			| { dialogue?: { speaker?: string } | null; status?: string }
+			| undefined;
+		expect(publish?.dialogue ?? null).toBeNull();
+		expect(publish?.status).toMatch(/barred/i);
+	});
+
+	// Silverpine's sealed rows sit directly north of its `,` corridor: rock
+	// (`^`) flanks the corridor at the same step.
+	const silverpineGateHero = { x: 6_064, y: 1_840 };
+
+	it('reports the way barred when E faces Silverpine’s sealed rows', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as { facing: string };
+
+		scene.create({ mapId: 'overworld' });
+		Object.assign(phaserState.playerMarker, silverpineGateHero);
+		sceneState.facing = 'up';
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		const publish = emitHudStateSpy.mock.calls.at(-1)?.[0] as
+			| { dialogue?: { speaker?: string } | null; status?: string }
+			| undefined;
+		expect(publish?.dialogue ?? null).toBeNull();
+		expect(publish?.status).toMatch(/barred/i);
+	});
+
+	it('stays silent when E faces an ordinary rock blocker beside the gate', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as { facing: string };
+
+		scene.create({ mapId: 'overworld' });
+		Object.assign(phaserState.playerMarker, silverpineGateHero);
+		// One step left is `^` rock — an ordinary blocker, not a `!` seal.
+		sceneState.facing = 'left';
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
+	});
+
+	it('drops an E edge pressed while paused instead of firing it after resume', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+
+		scene.create({ mapId: 'overworld' });
+		Object.assign(phaserState.playerMarker, openGround);
+		scene.update(0, 16);
+
+		sceneState.handleHudCommand({ type: 'pause-game' });
+		emitHudStateSpy.mockClear();
+
+		// The edge pressed while paused must be swallowed — it must not
+		// interact during the paused frame and must not replay after resume.
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+
+		sceneState.handleHudCommand({ type: 'resume-game' });
+		scene.update(32, 16);
+		await flushStoryDialogue();
+
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
+	});
+
 	it('localizes the ambient busy fallback for Japanese', async () => {
 		localeState.activeLocale = 'ja';
 		const events = await import('$lib/game/ui-bridge/events');
