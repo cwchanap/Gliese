@@ -295,6 +295,10 @@
 		background: transparent;
 	}
 
+	.jrpg-dialogue-panel:focus {
+		outline: none;
+	}
+
 	/* Choices share the dialogue panel's 44px inset and grow upward. */
 	.jrpg-dialogue-choices {
 		position: absolute;
