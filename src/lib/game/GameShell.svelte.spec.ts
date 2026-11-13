@@ -930,7 +930,11 @@ describe('GameShell command menu', () => {
 
 			await userEvent.keyboard('{Escape}');
 			expect(dialog.elements()).toHaveLength(0);
-			await expect.element(page.getByRole('button', { name: /menu/i })).toHaveFocus();
+			const commandPanel = page.getByRole('region', { name: 'Command' });
+			await expect.element(commandPanel).toBeVisible();
+			await expect
+				.element(commandPanel.getByRole('button', { name: 'Skill', exact: true }))
+				.toHaveFocus();
 		});
 	});
 });
@@ -1176,6 +1180,7 @@ describe('GameShell overlay return paths', () => {
 
 			const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
 			if (open === 'keyboard') {
+				await expect.element(menuButton).toBeVisible();
 				menuButton.element().focus();
 				await userEvent.keyboard('{Enter}');
 			} else {
@@ -1919,7 +1924,7 @@ describe('GameShell area map', () => {
 		await expect.element(page.getByTestId('area-map-svg')).toBeVisible();
 
 		await page.getByRole('button', { name: /close/i }).click();
-		await expect.element(menuButton).toHaveAttribute('aria-expanded', 'false');
+		await expect.element(menuButton).toHaveAttribute('aria-expanded', 'true');
 	});
 
 	it('closes on Escape and returns focus to the Map command tile', async () => {

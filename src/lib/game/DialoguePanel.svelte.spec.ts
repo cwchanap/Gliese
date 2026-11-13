@@ -935,7 +935,11 @@ describe('DialoguePanel.svelte', () => {
 		await mapDialog.getByRole('button', { name: 'Close' }).click();
 
 		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
-		await expect.element(page.getByRole('button', { name: 'Menu' })).toHaveFocus();
+		const commandPanel = page.getByRole('region', { name: 'Command' });
+		await expect.element(commandPanel).toBeVisible();
+		await expect
+			.element(commandPanel.getByRole('button', { name: 'Map', exact: true }))
+			.toHaveFocus();
 	});
 
 	it('cycles keyboard focus through the area map markers and closes it with Escape', async () => {
@@ -969,7 +973,11 @@ describe('DialoguePanel.svelte', () => {
 		await userEvent.keyboard('{Escape}');
 
 		expect(document.querySelector('[role="dialog"][aria-label="Sundrop Meadows map"]')).toBeNull();
-		await expect.element(page.getByRole('button', { name: 'Menu' })).toHaveFocus();
+		const commandPanel = page.getByRole('region', { name: 'Command' });
+		await expect.element(commandPanel).toBeVisible();
+		await expect
+			.element(commandPanel.getByRole('button', { name: 'Map', exact: true }))
+			.toHaveFocus();
 	});
 
 	it('shows the selected marker name when a map marker is focused', async () => {
@@ -1134,7 +1142,6 @@ describe('DialoguePanel.svelte', () => {
 		expect(inventoryDialog.querySelector('[data-testid="inventory-worn"]')).not.toBeNull();
 
 		await page.getByRole('button', { name: 'Close' }).click();
-		await page.getByRole('button', { name: 'Menu' }).click();
 		await page.getByRole('button', { name: 'Quest', exact: true }).click();
 
 		const questDialog = page.getByRole('dialog', { name: 'Quest Log' }).element();

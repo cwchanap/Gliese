@@ -12000,6 +12000,9 @@ test('area map opens from the menu and closes back to field HUD', async ({ page 
 
 	await mapDialog.getByRole('button', { name: 'Close' }).click();
 	await expect(mapDialog).toHaveCount(0);
+	await expect(commandBox(page)).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(commandBox(page)).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 	await expect(fieldStatus(page)).toBeVisible();
 });
@@ -12030,8 +12033,8 @@ async function installActivationProbe(page: Page) {
 			interactions: 0
 		};
 		(window as unknown as { __glieseKeyProbe: ActivationProbe }).__glieseKeyProbe = probe;
-		const menu = Array.from(document.querySelectorAll('button')).find(
-			(button) => button.textContent?.trim() === 'Menu'
+		const menu = document.querySelector<HTMLButtonElement>(
+			'button[aria-controls="game-command-panel"]'
 		);
 		menu?.addEventListener('click', () => {
 			probe.menuClicks += 1;
@@ -12305,7 +12308,6 @@ test('language preference shows Japanese chrome and keeps Japanese selected', as
 	await expect(japaneseDialog).toHaveCount(0);
 
 	// The command chrome flips to Japanese; the bag opens on the Potions rail.
-	await page.getByRole('button', { name: 'メニュー' }).click();
 	await commandBox(page, 'コマンド').getByRole('button', { name: 'バッグ' }).click();
 
 	const inventoryDialog = page.getByRole('dialog', { name: '持ち物' });
@@ -12314,7 +12316,6 @@ test('language preference shows Japanese chrome and keeps Japanese selected', as
 	await expect(inventoryDialog.getByRole('tab', { name: 'ポーション', exact: true })).toBeVisible();
 	await inventoryDialog.getByRole('button', { name: '閉じる' }).click();
 
-	await page.getByRole('button', { name: 'メニュー' }).click();
 	await commandBox(page, 'コマンド').getByRole('button', { name: 'システム' }).click();
 	await expect(
 		page.getByRole('dialog', { name: '表示とテキスト' }).getByRole('button', { name: '日本語' })
@@ -12340,6 +12341,7 @@ test('full hp potions explain why they cannot be consumed', async ({ page }) => 
 	await expect(page.getByTestId('inventory-detail')).toContainText('Restores 8 HP.');
 	await fieldPotionSlot.dblclick();
 	await inventoryDialog.getByRole('button', { name: 'Close' }).click();
+	await page.keyboard.press('Escape');
 	// The status pill only renders while the command grid is closed (Task 4).
 	await expect(fieldStatus(page)).toContainText('HP already full');
 });
@@ -13010,6 +13012,7 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	);
 	await mapDialog.getByRole('button', { name: 'Close' }).click();
 	await expect(mapDialog).toHaveCount(0);
+	await page.keyboard.press('Escape');
 
 	await page.locator('canvas').click();
 	await page.evaluate(() => {
@@ -14729,6 +14732,7 @@ test('quest log shows main quest and completes proving morning at Borak', async 
 	await questDialog.getByTestId('quest-entry-completed').click();
 	await expect(detailPanel).toContainText('Reported to Borak: 1 / 1');
 	await questDialog.getByRole('button', { name: 'Close' }).click();
+	await page.keyboard.press('Escape');
 	// The status pill only renders while the command grid is closed (Task 4).
 	await expect(fieldStatus(page)).toHaveText('Dialogue closed');
 });
