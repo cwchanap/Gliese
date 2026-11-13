@@ -7,13 +7,14 @@
 	import BattleSummary from '$lib/game/ui/BattleSummary.svelte';
 	import type { FieldCommand } from '$lib/game/ui/CommandGrid.svelte';
 	import FieldHud from '$lib/game/ui/FieldHud.svelte';
+	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
 	import QuestJournal from '$lib/game/ui/QuestJournal.svelte';
 	import SaveScreen from '$lib/game/ui/SaveScreen.svelte';
 	import ShopScreen from '$lib/game/ui/ShopScreen.svelte';
 	import SkillScreen from '$lib/game/ui/SkillScreen.svelte';
 	import SystemScreen from '$lib/game/ui/SystemScreen.svelte';
 	import TitleScreen from '$lib/game/ui/TitleScreen.svelte';
-	import { locale, motionReduced } from '$lib/game/i18n/store';
+	import { locale, motionReduced, preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import { resetPlaytime, formatPlaytimeSeconds } from '$lib/game/save/playtime';
 	import { getAreaName } from '$lib/game/core/area-map';
@@ -221,6 +222,11 @@
 	});
 
 	function handleFieldCommand(command: FieldCommand) {
+		if (command !== 'rest') {
+			document
+				.querySelector<HTMLElement>(`[data-focus-id="field-cmd-${command}"]:not([disabled])`)
+				?.focus();
+		}
 		switch (command) {
 			case 'bag':
 				openInventory('potions');
@@ -274,12 +280,26 @@
 		requestResumeGame();
 	}
 
-	function openCommand() {
+	function openCommand(focusFirstTile = false) {
 		// Start / the Menu button must not raise the grid behind an open
 		// overlay or dialogue (final review); closing stays the toggle's job.
 		if (overlaySurfaceOpen) return;
 		commandOpen = true;
 		pauseForOverlay('settings');
+		if (focusFirstTile) void focusCommandTile();
+	}
+
+	async function focusCommandTile(focusId?: string) {
+		await tick();
+		const preferred = focusId
+			? document.querySelector<HTMLElement>(
+					`[data-focus-id="${CSS.escape(focusId)}"]:not([disabled])`
+				)
+			: null;
+		(
+			preferred ??
+			document.querySelector<HTMLElement>('[data-focus-id^="field-cmd-"]:not([disabled])')
+		)?.focus();
 	}
 
 	function closeCommand() {
@@ -304,8 +324,7 @@
 	function closeInventory() {
 		if (!inventoryOpen) return;
 		inventoryOpen = false;
-		resumeForOverlay('inventory');
-		void restoreOverlayFocus();
+		leaveOverlay('inventory');
 	}
 
 	function rememberOverlayFocus() {
@@ -332,12 +351,25 @@
 		menuButton?.focus();
 	}
 
+	function leaveOverlay(owner: OverlayPauseOwner) {
+		const opener = overlayFocusRestoreTarget;
+		const commandFocusId = opener?.getAttribute('data-focus-id') ?? '';
+		if (commandFocusId.startsWith('field-cmd-')) {
+			overlayFocusRestoreTarget = null;
+			commandOpen = true;
+			if (pauseOwner === owner) pauseOwner = 'settings';
+			void focusCommandTile(commandFocusId);
+			return;
+		}
+		resumeForOverlay(owner);
+		void restoreOverlayFocus();
+	}
+
 	function closeShop() {
 		if (!shopOpen) return;
 		shopOpen = false;
 		requestCloseShop();
-		resumeForOverlay('shop');
-		void restoreOverlayFocus();
+		leaveOverlay('shop');
 	}
 
 	function openQuestLog() {
@@ -352,12 +384,12 @@
 	function closeQuestLog() {
 		if (!questLogOpen) return;
 		questLogOpen = false;
-		resumeForOverlay('questLog');
-		void restoreOverlayFocus();
+		leaveOverlay('questLog');
 	}
 
 	function openAreaMap() {
 		if (areaMapOpen || battleLocked) return;
+		rememberOverlayFocus();
 		commandOpen = false;
 		areaMapOpen = true;
 		pauseForOverlay('areaMap');
@@ -366,6 +398,7 @@
 
 	function openSkill() {
 		if (skillOpen) return;
+		rememberOverlayFocus();
 		commandOpen = false;
 		skillOpen = true;
 		pauseForOverlay('skill');
@@ -375,8 +408,7 @@
 	function closeSkill() {
 		if (!skillOpen) return;
 		skillOpen = false;
-		resumeForOverlay('skill');
-		menuButton?.focus();
+		leaveOverlay('skill');
 	}
 
 	function openSystem() {
@@ -393,16 +425,12 @@
 	function closeSystem() {
 		if (!systemOpen) return;
 		systemOpen = false;
-		if (mode === 'playing') {
-			resumeForOverlay('system');
-		}
-		// Title mode restores to the opening Title card; playing mode falls
-		// back to the menu button when the opener sat in the command grid.
-		void restoreOverlayFocus();
+		leaveOverlay('system');
 	}
 
 	function openSave() {
 		if (saveOpen || battleLocked || !$hudState.ready) return;
+		rememberOverlayFocus();
 		commandOpen = false;
 		saveOpen = true;
 		pauseForOverlay('save');
@@ -412,15 +440,13 @@
 	function closeSave() {
 		if (!saveOpen) return;
 		saveOpen = false;
-		resumeForOverlay('save');
-		menuButton?.focus();
+		leaveOverlay('save');
 	}
 
 	function closeAreaMap() {
 		if (!areaMapOpen) return;
 		areaMapOpen = false;
-		resumeForOverlay('areaMap');
-		void restoreAreaMapFocus();
+		leaveOverlay('areaMap');
 	}
 
 	function isEditableTarget(target: EventTarget | null): boolean {
@@ -528,18 +554,32 @@
 	function handleGlobalKeydown(event: KeyboardEvent) {
 		setLastInputModality('keys');
 
+		if (event.defaultPrevented) return;
 		if (handleMenuArrowKeys(event)) return;
 
-		if (event.key === 'Escape' && commandOpen) {
+		if (event.repeat) return;
+		if (event.ctrlKey || event.metaKey || event.altKey) return;
+		if (isEditableTarget(event.target)) return;
+
+		if (event.key === 'Escape') {
+			// DialoguePanel owns Escape inside a conversation; battle owns the
+			// field entirely (handlePadCancel's battle branch means flee).
+			if (mode !== 'playing' || $hudState.dialogue || battleLocked) return;
 			event.preventDefault();
-			closeCommand();
+			if (overlaySurfaceOpen) handlePadCancel();
+			else if ($hudState.ready) openCommand(true);
+			return;
+		}
+
+		if (event.key === 'i' || event.key === 'I') {
+			if (overlaySurfaceOpen || battleLocked || !$hudState.ready) return;
+			event.preventDefault();
+			openInventory('gear');
 			return;
 		}
 
 		if (event.key !== 'm' && event.key !== 'M') return;
-		if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
-		if (event.repeat) return;
-		if (isEditableTarget(event.target)) return;
+		if (event.shiftKey) return;
 
 		if (areaMapOpen) {
 			event.preventDefault();
@@ -802,11 +842,6 @@
 		(battleSummaryContinueButton ?? battleSummaryDialog)?.focus();
 	}
 
-	async function restoreAreaMapFocus() {
-		await tick();
-		menuButton?.focus();
-	}
-
 	function handleInventoryDialogKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
 			event.preventDefault();
@@ -855,7 +890,7 @@
 	function handleSaveDialogKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
 			event.preventDefault();
-			closeSave();
+			handlePadCancel();
 			return;
 		}
 		trapTabFocus(event, saveDialog);
@@ -1000,10 +1035,12 @@
 					bind:this={menuButton}
 					type="button"
 					class="heroic-chip-button jrpg-command-toggle"
-					onclick={() => (commandOpen ? closeCommand() : openCommand())}
+					onclick={(event) => (commandOpen ? closeCommand() : openCommand(event.detail === 0))}
 					aria-expanded={commandOpen}
 					aria-controls="game-command-panel"
+					aria-keyshortcuts="Escape"
 				>
+					<PromptGlyph mode={$preferences.promptMode} keys="Esc" pad="Start" />
 					{t($locale, 'ui.menu')}
 				</button>
 			</div>
@@ -1157,24 +1194,17 @@
 	.jrpg-menu-anchor {
 		position: absolute;
 		top: 0.9rem;
-		right: 15rem;
+		right: 16.5rem;
 		/* Above the command-grid backdrop so Menu stays clickable to close. */
 		z-index: 40;
 	}
 
 	.jrpg-command-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.55rem;
 		padding: 0.7rem 0.9rem;
 		font-size: 0.72rem;
-		/* Mockup parity: Menu lives in the dialogue bar, so the toggle reveals
-		   only on keyboard focus / hover on desktop. It stays in the DOM —
-		   focus restoration and e2e/unit hooks click it regardless. */
-		opacity: 0;
-		transition: opacity 160ms ease;
-	}
-
-	.jrpg-command-toggle:focus-visible,
-	.jrpg-command-toggle:hover {
-		opacity: 1;
 	}
 
 	/* New-run overwrite confirm: same treatment as the save screen's
@@ -1217,9 +1247,19 @@
 
 		.jrpg-command-toggle {
 			padding: 0.6rem 0.72rem;
-			/* No mockup exists for small screens: keep the toggle visible so
-			   touch players retain menu access. */
-			opacity: 1;
+		}
+	}
+
+	@media (max-width: 560px) {
+		.jrpg-command-toggle :global(.heroic-prompt-glyph) {
+			display: none;
+		}
+	}
+
+	@media (max-height: 559px) {
+		.jrpg-menu-anchor {
+			top: 0.75rem;
+			right: 12.25rem;
 		}
 	}
 </style>
