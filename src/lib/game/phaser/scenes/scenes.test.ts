@@ -9113,19 +9113,26 @@ describe('WorldScene', () => {
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
+		const sceneState = scene as unknown as { facing: string };
+		const member = guildHallMap.ambientNpcs?.find(({ id }) => id === 'guild-hall-member-west');
+		expect(member).toBeDefined();
+		if (!member) return;
 
 		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: member.x, y: member.y + 48 });
+		sceneState.facing = 'up';
+		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
 		phaserState.interactKeys.e.justDown = true;
-		scene.update(0, 16);
+		scene.update(16, 16);
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: '近くに誰もいません',
+				status: '話すことはないようだ',
 				dialogue: expect.objectContaining({
 					speaker: 'JP Traveler',
-					line: '近くに誰もいません。'
+					line: '話すことはないようだ。'
 				})
 			})
 		);
@@ -9324,7 +9331,7 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('starts Borak dialogue after a no-NPC fallback prompt', async () => {
+	it('starts Borak dialogue after a silent empty-ground press', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
@@ -9336,15 +9343,7 @@ describe('WorldScene', () => {
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(0, 16);
 
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({
-				status: 'No one nearby',
-				dialogue: expect.objectContaining({
-					speaker: 'Traveler',
-					line: 'No one is nearby.'
-				})
-			})
-		);
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
 
 		Object.assign(phaserState.playerMarker, borakApproach);
 		scene.update(16, 16);
@@ -9408,9 +9407,15 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
 			handleHudCommand: (command: HudCommand) => void;
+			facing: string;
 		};
+		const member = guildHallMap.ambientNpcs?.find(({ id }) => id === 'guild-hall-member-west');
+		expect(member).toBeDefined();
+		if (!member) return;
 
 		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, { x: member.x, y: member.y + 48 });
+		sceneState.facing = 'up';
 		emitHudStateSpy.mockClear();
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(0, 16);
@@ -9726,8 +9731,7 @@ describe('WorldScene', () => {
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
 		await flushStoryDialogue();
-		expect(sceneState.dialogueSession).toMatchObject({ speaker: 'Traveler', npcId: null });
-		sceneState.handleHudCommand({ type: 'dialogue-close' });
+		expect(sceneState.dialogueSession).toBeNull();
 
 		// Hold north from the normal spawn. Each 17ms frame moves 4.08px; the old 18px
 		// counter stopped Grik at ~482.16 (66.16px from Oren), outside the 65px reach.
@@ -9846,7 +9850,7 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('publishes no one nearby when Enter is pressed away from NPCs', async () => {
+	it('stays silent when Enter is pressed away from NPCs', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
@@ -9858,12 +9862,7 @@ describe('WorldScene', () => {
 		phaserState.interactKeys.enter.justDown = true;
 		scene.update(16, 16);
 
-		expect(emitHudStateSpy).toHaveBeenCalledOnce();
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({
-				status: 'No one nearby'
-			})
-		);
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
 	});
 
 	it('targets the faced NPC and its dialogue when two NPCs share the range', async () => {
@@ -9979,18 +9978,10 @@ describe('WorldScene', () => {
 		await flushStoryDialogue();
 
 		expect(storyClient.getNpcStoryDialogue).not.toHaveBeenCalled();
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({
-				status: 'No one nearby',
-				dialogue: expect.objectContaining({
-					speaker: 'Traveler',
-					line: 'No one is nearby.'
-				})
-			})
-		);
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
 	});
 
-	it('never offers a story-gated NPC as nearby, even while a fallback dialogue is open', async () => {
+	it('never offers a story-gated NPC as nearby, even on a repeat press', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const storyClient = await import('$lib/game/story/client');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
@@ -10006,15 +9997,14 @@ describe('WorldScene', () => {
 			expect.objectContaining({ status: 'Borak nearby' })
 		);
 
+		emitHudStateSpy.mockClear();
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
 		await flushStoryDialogue();
 
 		expect(storyClient.getNpcStoryDialogue).not.toHaveBeenCalled();
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({ status: 'No one nearby' })
-		);
-		expect(sceneState.dialogueSession).not.toBeNull();
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
+		expect(sceneState.dialogueSession).toBeNull();
 
 		emitHudStateSpy.mockClear();
 		phaserState.interactKeys.e.justDown = true;
@@ -10052,13 +10042,13 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('shows a busy fallback instead of no one nearby beside an ambient villager', async () => {
+	it('stays silent facing away, then shows the busy fallback beside an ambient villager', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const storyClient = await import('$lib/game/story/client');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
-		const sceneState = scene as unknown as { facing: string; dialogueSession: unknown };
+		const sceneState = scene as unknown as { facing: string };
 		const customer = itemShopMap.ambientNpcs?.find(({ id }) => id === 'item-shop-customer');
 		expect(customer).toBeDefined();
 		if (!customer) return;
@@ -10068,23 +10058,13 @@ describe('WorldScene', () => {
 		scene.update(0, 16);
 		emitHudStateSpy.mockClear();
 
-		// Facing away from the ambient NPC requires facing, so pressing E reports no one nearby
+		// Facing away from the ambient NPC requires facing, so pressing E stays silent
 		sceneState.facing = 'down';
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(16, 16);
 		await flushStoryDialogue();
 
-		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-			expect.objectContaining({
-				status: 'No one nearby',
-				dialogue: expect.objectContaining({
-					speaker: 'Traveler',
-					line: 'No one is nearby.'
-				})
-			})
-		);
-
-		sceneState.dialogueSession = null;
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
 
 		// Facing the ambient NPC triggers their busy dialogue
 		emitHudStateSpy.mockClear();
