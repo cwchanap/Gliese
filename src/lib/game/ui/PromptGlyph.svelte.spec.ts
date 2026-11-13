@@ -58,8 +58,6 @@ describe('PromptGlyph', () => {
 		const glyph = page.getByText('Enter');
 		await expect.element(glyph).not.toHaveAttribute('aria-hidden');
 
-		// Consumers that embed the glyph inside a control keep the hint in that
-		// control's accessible name (Bag/Shop "Esc Close", dialogue "↵ Next").
 		const kbd = glyph.element() as HTMLElement;
 		const button = document.createElement('button');
 		button.append(kbd, document.createTextNode('Close'));
