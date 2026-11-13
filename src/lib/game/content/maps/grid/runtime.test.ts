@@ -205,6 +205,13 @@ describe('grid gate terrain', () => {
 			'function'
 		);
 		expect(
+			isWalkable(
+				resolveGridNavigationGrid(silverpineChunkMap),
+				(sealCol + 1) * 32 + 16,
+				(sealRow + 1) * 32 + 16
+			)
+		).toBe(true);
+		expect(
 			gateRuntime.facesSealedGate!(
 				silverpineChunkMap,
 				(sealCol + 1) * 32 + 16,
@@ -227,13 +234,28 @@ describe('grid gate terrain', () => {
 		}
 		expect(terrain[sealRow]![sealCol - 1]).toBe(',');
 		expect(terrain[sealRow]![sealCol + 1]).toBe('^');
+
+		const nav = resolveGridNavigationGrid(wildwoodEastChunkMap);
+		const start = { x: (sealCol - 2) * 32 + 16, y: sealRow * 32 + 16 };
+		expect(terrain[sealRow]![sealCol - 2]).toBe(',');
+		expect(isWalkable(nav, start.x, start.y)).toBe(true);
+		const approach = resolveMovementSegment(
+			nav,
+			[],
+			start,
+			{ x: sealCol * 32 + 64, y: start.y },
+			PLAYER_COLLISION_RADIUS
+		);
+		expect(Math.floor(approach.x / 32)).toBe(sealCol - 1);
+		expect(approach.x).toBeLessThan(sealCol * 32);
+		expect(isWalkable(nav, approach.x, approach.y)).toBe(true);
+		expect(isWalkable(nav, approach.x + 1, approach.y)).toBe(false);
+
+		expect(terrain[sealRow]![Math.floor((approach.x + 8) / 32)]).toBe(',');
+		expect(terrain[sealRow]![Math.floor((approach.x + 32) / 32)]).toBe('!');
+		expect(terrain[sealRow]![Math.floor((approach.x + 64) / 32)]).toBe('^');
 		expect(
-			gateRuntime.facesSealedGate!(
-				wildwoodEastChunkMap,
-				(sealCol - 1) * 32 + 16,
-				sealRow * 32 + 16,
-				'right'
-			)
+			gateRuntime.facesSealedGate!(wildwoodEastChunkMap, approach.x, approach.y, 'right')
 		).toBe(true);
 	});
 
