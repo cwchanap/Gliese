@@ -249,17 +249,12 @@ describe('DialoguePanel.svelte', () => {
 	});
 
 	it('shows no browser focus outline on the focused dialogue root', async () => {
-		// Switch the browser to keyboard modality first so :focus-visible
-		// applies when the panel grabs focus on mount.
 		await userEvent.keyboard('{Tab}');
 		renderDialogue(conversationDialogue);
 
 		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
 		await expect.element(panel).toHaveFocus();
 
-		// The panel shell is a container, not a control: the UA focus ring on
-		// it reads as a stray box around the whole dialogue. Controls inside
-		// carry their own indicator.
 		expect(getComputedStyle(panel.element() as HTMLElement).outlineStyle).toBe('none');
 	});
 
@@ -268,8 +263,6 @@ describe('DialoguePanel.svelte', () => {
 		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
 		await expect.element(panel).toHaveFocus();
 
-		// Reveal the line, then Tab the trapped lattice into the controls —
-		// keyboard-driven focus always matches :focus-visible.
 		await userEvent.keyboard('{Enter}');
 		const firstChoice = panel.getByRole('button', { name: 'Thin Village Slimes' });
 		await expect.element(firstChoice).toBeEnabled();
@@ -279,7 +272,6 @@ describe('DialoguePanel.svelte', () => {
 		expect(getComputedStyle(firstChoice.element() as HTMLElement).outlineStyle).toBe('solid');
 
 		const next = panel.getByRole('button', { name: 'Next' });
-		// Choice → choice → action bar: Next is the third tab stop.
 		await userEvent.keyboard('{Tab}{Tab}');
 		await expect.element(next).toHaveFocus();
 		expect(getComputedStyle(next.element() as HTMLElement).outlineStyle).toBe('solid');

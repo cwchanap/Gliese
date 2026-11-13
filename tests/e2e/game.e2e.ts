@@ -12004,8 +12004,6 @@ test('area map opens from the menu and closes back to field HUD', async ({ page 
 	await expect(fieldStatus(page)).toBeVisible();
 });
 
-// Open Sundrop ground with nothing interactable in reach — the same fixture
-// point the node scene harness uses for empty-ground checks.
 const openFieldPosition = { x: 4_336, y: 7_856, facing: 'down' };
 
 async function tabFocusMenu(page: Page) {
@@ -12014,6 +12012,57 @@ async function tabFocusMenu(page: Page) {
 		if (await menu.evaluate((element) => element === document.activeElement)) return;
 		await page.keyboard.press('Tab');
 	}
+}
+
+type ActivationProbe = {
+	menuClicks: number;
+	commandClicks: number;
+	windowKeys: string[];
+	interactions: number;
+};
+
+async function installActivationProbe(page: Page) {
+	await page.evaluate(() => {
+		const probe: ActivationProbe = {
+			menuClicks: 0,
+			commandClicks: 0,
+			windowKeys: [],
+			interactions: 0
+		};
+		(window as unknown as { __glieseKeyProbe: ActivationProbe }).__glieseKeyProbe = probe;
+		const menu = Array.from(document.querySelectorAll('button')).find(
+			(button) => button.textContent?.trim() === 'Menu'
+		);
+		menu?.addEventListener('click', () => {
+			probe.menuClicks += 1;
+		});
+		document.addEventListener('click', (event) => {
+			const target = event.target as HTMLElement | null;
+			if (target?.closest('[role="region"][aria-label="Command"]')) probe.commandClicks += 1;
+		});
+		window.addEventListener('keydown', (event) => {
+			if (event.key === 'Enter' || event.key === ' ') {
+				probe.windowKeys.push(`keydown:${event.key}`);
+			}
+		});
+		window.addEventListener('keyup', (event) => {
+			if (event.key === 'Enter' || event.key === ' ') {
+				probe.windowKeys.push(`keyup:${event.key}`);
+			}
+		});
+		window.addEventListener('gliese:hud-state', (event) => {
+			const detail = (event as CustomEvent).detail as
+				| { dialogue?: unknown; status?: unknown }
+				| undefined;
+			if (detail?.dialogue || detail?.status) probe.interactions += 1;
+		});
+	});
+}
+
+function readActivationProbe(page: Page): Promise<ActivationProbe> {
+	return page.evaluate(
+		() => (window as unknown as { __glieseKeyProbe: ActivationProbe }).__glieseKeyProbe
+	);
 }
 
 test('trusted Enter activates the focused field Menu and command tiles without world interaction', async ({
@@ -12026,35 +12075,42 @@ test('trusted Enter activates the focused field Menu and command tiles without w
 		})
 	);
 	await continueFromTitle(page);
+	await installActivationProbe(page);
 
 	const menu = page.getByRole('button', { name: 'Menu' });
+	const command = commandBox(page);
 	const traveler = page.getByRole('dialog', { name: 'Traveler' });
 	await tabFocusMenu(page);
 	await expect(menu).toBeFocused();
 
-	// Trusted Enter must natively activate the focused Menu button exactly
-	// once; Phaser's window key capture must not cancel it, and the same key
-	// must not leak into a world interaction.
 	await page.keyboard.press('Enter');
-	const command = commandBox(page);
+	let probe = await readActivationProbe(page);
+	expect(probe.menuClicks).toBe(1);
+	expect(probe.windowKeys).toEqual([]);
 	await expect(command).toBeVisible();
 	await expect(traveler).toHaveCount(0);
 
-	// A focused command tile activates on trusted Enter too.
 	await command.getByRole('button', { name: 'Map' }).focus();
 	await page.keyboard.press('Enter');
+	probe = await readActivationProbe(page);
+	expect(probe.commandClicks).toBe(1);
+	expect(probe.windowKeys).toEqual([]);
 	const mapDialog = page.getByRole('dialog', { name: /map$/i });
 	await expect(mapDialog).toBeVisible();
 	await expect(traveler).toHaveCount(0);
 
-	// Back out through Command to the field; no delayed world interaction may
-	// fire once the surfaces are closed.
 	await page.keyboard.press('Escape');
 	await expect(command).toBeVisible();
 	await page.keyboard.press('Escape');
 	await expect(command).toHaveCount(0);
 	await expect(menu).toBeFocused();
-	await page.waitForTimeout(300);
+	await page.waitForTimeout(400);
+
+	probe = await readActivationProbe(page);
+	expect(probe.menuClicks).toBe(1);
+	expect(probe.commandClicks).toBe(1);
+	expect(probe.windowKeys).toEqual([]);
+	expect(probe.interactions).toBe(0);
 	await expect(traveler).toHaveCount(0);
 });
 
@@ -12068,16 +12124,30 @@ test('trusted Space activates the focused field Menu without world interaction',
 		})
 	);
 	await continueFromTitle(page);
+	await installActivationProbe(page);
 
 	const menu = page.getByRole('button', { name: 'Menu' });
+	const command = commandBox(page);
 	const traveler = page.getByRole('dialog', { name: 'Traveler' });
 	await tabFocusMenu(page);
 	await expect(menu).toBeFocused();
 
-	// Space activates on keyup — Phaser captures that phase too.
 	await page.keyboard.press('Space');
-	const command = commandBox(page);
+	let probe = await readActivationProbe(page);
+	expect(probe.menuClicks).toBe(1);
+	expect(probe.windowKeys).toEqual([]);
 	await expect(command).toBeVisible();
+	await expect(traveler).toHaveCount(0);
+
+	await page.keyboard.press('Escape');
+	await expect(command).toHaveCount(0);
+	await expect(menu).toBeFocused();
+	await page.waitForTimeout(400);
+
+	probe = await readActivationProbe(page);
+	expect(probe.menuClicks).toBe(1);
+	expect(probe.windowKeys).toEqual([]);
+	expect(probe.interactions).toBe(0);
 	await expect(traveler).toHaveCount(0);
 });
 
@@ -12093,12 +12163,10 @@ test('Escape ladder returns through Command one level at a time', async ({ page 
 	const menu = page.getByRole('button', { name: 'Menu' });
 	const command = commandBox(page);
 
-	// Field → Command (keyboard-opened Command focuses its first tile).
 	await page.keyboard.press('Escape');
 	await expect(command).toBeVisible();
 	await expect(command.getByRole('button', { name: 'Bag' })).toBeFocused();
 
-	// Command → Gear via the lattice and trusted Enter.
 	await page.keyboard.press('ArrowRight');
 	await expect(command.getByRole('button', { name: 'Gear' })).toBeFocused();
 	await page.keyboard.press('Enter');
@@ -12109,16 +12177,43 @@ test('Escape ladder returns through Command one level at a time', async ({ page 
 		'true'
 	);
 
-	// Gear → Command one level up, origin tile still focused.
 	await page.keyboard.press('Escape');
 	await expect(inventoryDialog).toHaveCount(0);
 	await expect(command).toBeVisible();
 	await expect(command.getByRole('button', { name: 'Gear' })).toBeFocused();
 
-	// Command → field.
 	await page.keyboard.press('Escape');
 	await expect(command).toHaveCount(0);
 	await expect(menu).toBeFocused();
+});
+
+test('a pointer-picked command tile owns the return focus in a keyboard-opened Command', async ({
+	page
+}) => {
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
+		})
+	);
+	await continueFromTitle(page);
+
+	const command = commandBox(page);
+	await page.keyboard.press('Escape');
+	await expect(command).toBeVisible();
+
+	const bagTile = command.getByRole('button', { name: 'Bag', exact: true });
+	await bagTile.focus();
+	const mapTile = command.getByRole('button', { name: 'Map', exact: true });
+	await mapTile.dispatchEvent('click');
+
+	const mapDialog = page.getByRole('dialog', { name: /map$/i });
+	await expect(mapDialog).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(mapDialog).toHaveCount(0);
+
+	await expect(command).toBeVisible();
+	await expect(mapTile).toBeFocused();
 });
 
 test('E on genuinely empty ground opens no dialogue and publishes no status', async ({ page }) => {
@@ -12138,9 +12233,6 @@ test('E on genuinely empty ground opens no dialogue and publishes no status', as
 	await expect(fieldStatus(page)).toHaveText(statusBefore ?? '');
 });
 
-// The south-road gate's `!!!` tiles cap the corridor at world rows 272-273:
-// Grik on the corridor's last `,` step (row 271, col 168), facing the seal
-// one grid row ahead.
 const southGateApproach = { x: 5_392, y: 8_688, facing: 'down' };
 
 test('E facing the south-road sealed gate reports the way barred without a dialogue', async ({
