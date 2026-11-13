@@ -11,12 +11,13 @@ describe('heroCardZone', () => {
 	it('picks the narrow-portrait zone for tall compact viewports', () => {
 		expect(heroCardZone(420, 760)).toEqual({ width: 326, height: 222 });
 		expect(heroCardZone(720, 560)).toEqual({ width: 326, height: 222 });
+		expect(heroCardZone(832, 560)).toEqual({ width: 326, height: 222 });
 		expect(heroCardZone(360, 760)).toEqual({ width: 270, height: 222 });
 	});
 
 	it('picks the desktop zone for large viewports', () => {
 		expect(heroCardZone(1280, 800)).toEqual({ width: 412, height: 240 });
-		expect(heroCardZone(721, 560)).toEqual({ width: 412, height: 240 });
+		expect(heroCardZone(833, 560)).toEqual({ width: 412, height: 240 });
 	});
 });
 

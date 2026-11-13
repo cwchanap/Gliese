@@ -2961,6 +2961,210 @@ describe('GameShell keyboard shortcuts', () => {
 		await expect.element(page.getByRole('dialog', { name: 'Mira' })).toBeVisible();
 	});
 
+	function lockedBattle(phase: 'active' | 'summary'): Partial<HudState> {
+		if (phase === 'summary') {
+			return {
+				battle: {
+					phase,
+					summary: {
+						outcome: 'victory',
+						enemiesDefeated: 1,
+						xpGained: 4,
+						coinsGained: 2,
+						drops: [],
+						leveledUp: false,
+						completedQuestTitles: [],
+						questRewards: [],
+						questProgress: []
+					},
+					active: null
+				}
+			};
+		}
+		return {
+			battle: {
+				phase,
+				summary: null,
+				active: {
+					targetUnitId: 'encounter:unit:0',
+					enemies: [
+						{
+							unitId: 'encounter:unit:0',
+							enemyId: 'slime-scout',
+							name: 'Slime Scout',
+							hp: 5,
+							maxHp: 8,
+							defeated: false,
+							artPath: '/game/assets/heroic-ui/enemies/forest-wolf.png'
+						}
+					],
+					ribbon: [{ unitId: 'hero', readyAt: 0 }],
+					feed: [],
+					heals: 1,
+					items: 0,
+					flee: { status: 'idle', progress: 0 },
+					now: 0
+				}
+			}
+		};
+	}
+
+	it.each(['active', 'summary'] as const)(
+		'never emits battle-flee on Escape while a battle is in the $phase phase',
+		async (phase) => {
+			await withCommands(async (commands) => {
+				render(GameShell);
+				emitHudState(baseHudState(lockedBattle(phase)));
+				const battleSurface = page.getByTestId(
+					phase === 'active' ? 'battle-hud' : 'battle-summary'
+				);
+				await expect.element(battleSurface).toBeVisible();
+
+				await userEvent.keyboard('{Escape}');
+
+				expect(commands).not.toContainEqual({ type: 'battle-flee' });
+				expect(commands).not.toContainEqual({ type: 'dismiss-battle-summary' });
+				expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
+				await expect.element(battleSurface).toBeVisible();
+			});
+		}
+	);
+
+	it.each(['i', 'm'] as const)('ignores $key while a dialogue is open', async (key) => {
+		render(GameShell);
+		emitHudState(baseHudState({ dialogue: conversationDialogue('dialogue-hotkey-guard') }));
+		const dialogue = page.getByRole('dialog', { name: 'Mira' });
+		await expect.element(dialogue).toBeVisible();
+
+		await userEvent.keyboard(key);
+
+		expect(page.getByRole('dialog', { name: 'Inventory' }).elements()).toHaveLength(0);
+		expect(page.getByTestId('area-map-svg').elements()).toHaveLength(0);
+		await expect.element(dialogue).toBeVisible();
+	});
+
+	it.each(['active', 'summary'] as const)(
+		'ignores I and M while a battle is in the $phase phase',
+		async (phase) => {
+			render(GameShell);
+			emitHudState(baseHudState(lockedBattle(phase)));
+			const battleSurface = page.getByTestId(phase === 'active' ? 'battle-hud' : 'battle-summary');
+			await expect.element(battleSurface).toBeVisible();
+
+			await userEvent.keyboard('im');
+
+			expect(page.getByRole('dialog', { name: 'Inventory' }).elements()).toHaveLength(0);
+			expect(page.getByTestId('area-map-svg').elements()).toHaveLength(0);
+			await expect.element(battleSurface).toBeVisible();
+		}
+	);
+
+	it('ignores I, M and Escape on the Title screen', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ ready: false }));
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		await userEvent.keyboard('im{Escape}');
+
+		expect(page.getByRole('dialog', { name: 'Inventory' }).elements()).toHaveLength(0);
+		expect(page.getByTestId('area-map-svg').elements()).toHaveLength(0);
+		expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+	});
+
+	it('ignores I and M while another overlay surface is open', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await userEvent.keyboard('{Escape}');
+		const commandPanel = page.getByRole('region', { name: 'Command' });
+		await expect.element(commandPanel).toBeVisible();
+
+		await userEvent.keyboard('i');
+		expect(page.getByRole('dialog', { name: 'Inventory' }).elements()).toHaveLength(0);
+		await expect.element(commandPanel).toBeVisible();
+
+		await page.getByRole('button', { name: 'Save', exact: true }).click();
+		const saveDialog = page.getByRole('dialog', { name: /save/i });
+		await expect.element(saveDialog).toBeVisible();
+
+		await userEvent.keyboard('im');
+		expect(page.getByRole('dialog', { name: 'Inventory' }).elements()).toHaveLength(0);
+		expect(page.getByTestId('area-map-svg').elements()).toHaveLength(0);
+		await expect.element(saveDialog).toBeVisible();
+	});
+
+	it('ignores repeated and modified I and M presses', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+
+		for (const init of [
+			{ key: 'i', repeat: true },
+			{ key: 'i', ctrlKey: true },
+			{ key: 'i', metaKey: true },
+			{ key: 'i', altKey: true },
+			{ key: 'm', repeat: true },
+			{ key: 'm', ctrlKey: true },
+			{ key: 'm', metaKey: true },
+			{ key: 'm', altKey: true },
+			{ key: 'M', shiftKey: true }
+		]) {
+			window.dispatchEvent(
+				new KeyboardEvent('keydown', { ...init, bubbles: true, cancelable: true })
+			);
+		}
+
+		expect(page.getByRole('dialog', { name: 'Inventory' }).elements()).toHaveLength(0);
+		expect(page.getByTestId('area-map-svg').elements()).toHaveLength(0);
+	});
+
+	it('ignores hotkeys while the event target is an editable field', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+
+		const input = document.createElement('input');
+		document.body.appendChild(input);
+		const editable = document.createElement('div');
+		editable.contentEditable = 'true';
+		document.body.appendChild(editable);
+		try {
+			input.focus();
+			await userEvent.keyboard('im{Escape}');
+			expect(input.value).toBe('im');
+			expect(page.getByRole('dialog', { name: 'Inventory' }).elements()).toHaveLength(0);
+			expect(page.getByTestId('area-map-svg').elements()).toHaveLength(0);
+			expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
+
+			editable.dispatchEvent(
+				new KeyboardEvent('keydown', { key: 'i', bubbles: true, cancelable: true })
+			);
+			editable.dispatchEvent(
+				new KeyboardEvent('keydown', { key: 'm', bubbles: true, cancelable: true })
+			);
+			expect(page.getByRole('dialog', { name: 'Inventory' }).elements()).toHaveLength(0);
+			expect(page.getByTestId('area-map-svg').elements()).toHaveLength(0);
+		} finally {
+			input.remove();
+			editable.remove();
+		}
+	});
+
+	it('routes Escape to the dialogue close path without opening the command grid', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState({ dialogue: conversationDialogue('dialogue-escape-guard') }));
+			await expect.element(page.getByRole('dialog', { name: 'Mira' })).toBeVisible();
+
+			await userEvent.keyboard('{Escape}');
+
+			expect(commands).toContainEqual({ type: 'dialogue-close' });
+			expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
+			expect(commands).not.toContainEqual({ type: 'resume-game' });
+		});
+	});
+
 	it('moves arrows through revealed dialogue choices like the pad does', async () => {
 		updatePreferences({ textSpeed: 'instant' });
 		render(GameShell);
@@ -4477,6 +4681,21 @@ describe('GameShell menu toggle placement', () => {
 		(
 			[
 				{ width: 1280, height: 720 },
+				{ width: 1280, height: 560 },
+				{ width: 1024, height: 600 },
+				{ width: 833, height: 600 },
+				{ width: 832, height: 600 },
+				{ width: 832, height: 560 },
+				{ width: 760, height: 600 },
+				{ width: 760, height: 560 },
+				{ width: 760, height: 559 },
+				{ width: 721, height: 600 },
+				{ width: 721, height: 560 },
+				{ width: 720, height: 600 },
+				{ width: 720, height: 560 },
+				{ width: 720, height: 360 },
+				{ width: 640, height: 560 },
+				{ width: 640, height: 559 },
 				{ width: 640, height: 360 }
 			] as const
 		).flatMap((viewport) =>
@@ -4528,7 +4747,10 @@ describe('GameShell menu toggle placement', () => {
 					union.bottom <= box.top ||
 					union.top >= box.bottom
 				);
-				expect(intersects, `${surface.id} ${JSON.stringify(box)}`).toBe(false);
+				expect(
+					intersects,
+					`${surface.id} ${JSON.stringify(box)} vs menu union ${JSON.stringify(union)}`
+				).toBe(false);
 			}
 		}
 	);

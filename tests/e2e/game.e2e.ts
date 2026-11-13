@@ -10103,6 +10103,29 @@ async function enterInteriorWithTrustedKeyboard(page: Page, interior: InteriorGr
 	});
 }
 
+function unblockedSouthProgressWitness(input: {
+	mapId: string;
+	minimumY: number;
+	startIndex?: number;
+	attempts?: PlayerMovementDiagnostic[];
+}): PlayerMovementDiagnostic | false {
+	const diagnostics =
+		input.attempts ?? (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
+	return (
+		diagnostics
+			.slice(input.startIndex ?? 0)
+			.find(
+				(attempt) =>
+					attempt.mapId === input.mapId &&
+					attempt.blocked === false &&
+					Number.isFinite(attempt.resolvedPosition.x) &&
+					Number.isFinite(attempt.resolvedPosition.y) &&
+					attempt.resolvedPosition.y > input.minimumY &&
+					attempt.resolvedPosition.y > attempt.previousPosition.y
+			) ?? false
+	);
+}
+
 async function exitInteriorWithTrustedKeyboard(
 	page: Page,
 	interior: InteriorGrayboxCase
@@ -10152,39 +10175,30 @@ async function exitInteriorWithTrustedKeyboard(
 		x: typeof player?.x === 'number' ? player.x : interior.returnArrival.x,
 		y: typeof player?.y === 'number' ? player.y : interior.returnArrival.y
 	};
+	const movementStart = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
+	);
 	await page.locator('canvas').click();
 	await page.keyboard.down('ArrowDown');
-	try {
-		await page.waitForFunction(
-			(previous) => {
-				const state = (window as GlieseProbeWindow).__glieseLastHudState;
-				const current = (window as GlieseProbeWindow).__glieseLastMovementDiagnostic
-					?.resolvedPosition;
-				return (
-					state?.mapId === 'overworld' &&
-					typeof current?.x === 'number' &&
-					typeof current.y === 'number' &&
-					current.y > previous.y
-				);
-			},
-			before,
+	const progressWitness = await page
+		.waitForFunction(
+			unblockedSouthProgressWitness,
+			{ mapId: 'overworld', minimumY: before.y, startIndex: movementStart },
 			{ timeout: 5_000 }
-		);
-	} finally {
-		await page.keyboard.up('ArrowDown');
-	}
+		)
+		.finally(() => page.keyboard.up('ArrowDown'));
 	const moved = await page.evaluate(() => {
 		const probeWindow = window as GlieseProbeWindow;
 		return {
-			state: probeWindow.__glieseLastHudState ?? null,
-			diagnostic: probeWindow.__glieseLastMovementDiagnostic ?? null
+			state: probeWindow.__glieseLastHudState ?? null
 		};
 	});
+	const diagnostic = (await progressWitness.jsonValue()) as PlayerMovementDiagnostic;
 	expect(moved.state?.mapId).toBe('overworld');
-	expect(moved.diagnostic?.mapId).toBe('overworld');
-	expect(moved.diagnostic?.resolvedPosition.y).toBeGreaterThan(before.y);
-	expect(moved.diagnostic?.blocked).toBe(false);
-	const postWitness = moved.diagnostic?.resolvedPosition ?? moved.state?.areaMap?.player;
+	expect(diagnostic?.mapId).toBe('overworld');
+	expect(diagnostic?.resolvedPosition.y).toBeGreaterThan(before.y);
+	expect(diagnostic?.blocked).toBe(false);
+	const postWitness = diagnostic?.resolvedPosition ?? moved.state?.areaMap?.player;
 	expect(postWitness).toEqual(
 		expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) })
 	);
@@ -12706,6 +12720,31 @@ test('blocked movement window rejects a transient block and accepts a sustained 
 	expect(check(sustained, sustained.length)).toBe(false);
 	expect(check([...sustained, ...advancing], sustained.length)).toBe(false);
 	expect(check([...advancing, ...sustained], advancing.length)).toEqual(sustained);
+});
+
+test('interior exit witness keeps the actual unblocked progress frame', () => {
+	const frame = (
+		previousY: number,
+		resolvedY: number,
+		blocked: boolean,
+		mapId = 'overworld'
+	): PlayerMovementDiagnostic => ({
+		mapId,
+		previousPosition: { x: 448, y: previousY },
+		requestedPosition: { x: 448, y: resolvedY },
+		resolvedPosition: { x: 448, y: resolvedY },
+		blocked
+	});
+	const witness = (attempts: PlayerMovementDiagnostic[], startIndex = 0) =>
+		unblockedSouthProgressWitness({ mapId: 'overworld', minimumY: 5_600, startIndex, attempts });
+
+	const progress = frame(5_600, 5_616, false);
+	expect(witness([progress, frame(5_616, 5_616, true), frame(5_616, 5_616, true)])).toBe(progress);
+	expect(witness([frame(5_600, 5_608, true)])).toBe(false);
+	expect(witness([frame(5_616, 5_616, false)])).toBe(false);
+	expect(witness([frame(5_600, 5_616, false, 'hero-house')])).toBe(false);
+	expect(witness([progress], 1)).toBe(false);
+	expect(witness([frame(5_584, 5_600, false), progress], 1)).toBe(progress);
 });
 
 test('Blacksmith Oren equipment shop', async ({ page }) => {

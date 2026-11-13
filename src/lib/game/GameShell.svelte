@@ -1248,7 +1248,7 @@
 		font-weight: 800;
 	}
 
-	@media (max-width: 720px) {
+	@media (max-width: 832px) {
 		.jrpg-menu-anchor {
 			top: 0.75rem;
 			right: 0.75rem;
