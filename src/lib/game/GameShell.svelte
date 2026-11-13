@@ -514,6 +514,17 @@
 		return true;
 	}
 
+	function handleShellActivationKey(event: KeyboardEvent) {
+		if (event.key !== 'Enter' && event.key !== ' ') return;
+		const control =
+			event.target instanceof Element
+				? event.target.closest('button, [role="button"], [role="tab"]')
+				: null;
+		if (!control || control.matches(':disabled, [aria-disabled="true"]')) return;
+		event.stopPropagation();
+		setLastInputModality('keys');
+	}
+
 	function handleGlobalKeydown(event: KeyboardEvent) {
 		setLastInputModality('keys');
 
@@ -916,6 +927,9 @@
 <section
 	class="game-shell relative h-screen w-screen bg-ink font-body text-parchment"
 	class:heroic-motion-reduced={$motionReduced}
+	role="presentation"
+	onkeydown={handleShellActivationKey}
+	onkeyup={handleShellActivationKey}
 >
 	{#if loadError}
 		<div
