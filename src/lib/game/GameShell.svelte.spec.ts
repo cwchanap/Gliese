@@ -4677,6 +4677,60 @@ describe('GameShell menu toggle placement', () => {
 		expect(Number(getComputedStyle(menuButton.element()).opacity)).toBe(1);
 	});
 
+	it('gives the aria-hidden Menu glyph wrapper a real box so Esc cannot leak into the accessible name', async () => {
+		await page.viewport(1280, 720);
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		// Native WKWebView inspection showed the Menu AXButton title as
+		// `ESC MENU`: WebKit folds `display: contents` descendants into the
+		// name computation even through aria-hidden. AreaMapScreen avoids the
+		// leak because its glyph wrapper is inline-flex, a real box — the
+		// Menu wrapper must make one too.
+		const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+		await expect.element(menuButton).toBeVisible();
+
+		const glyph = menuButton.element().querySelector<HTMLElement>('.heroic-prompt-glyph');
+		expect(glyph).not.toBeNull();
+		expect(glyph!.textContent?.trim()).toBe('Esc');
+		const wrapper = glyph!.parentElement!;
+		expect(wrapper.classList.contains('menu-glyph')).toBe(true);
+		expect(wrapper.getAttribute('aria-hidden')).toBe('true');
+		expect(getComputedStyle(wrapper).display).not.toBe('contents');
+
+		const glyphBox = glyph!.getBoundingClientRect();
+		expect(glyphBox.width).toBeGreaterThan(0);
+		expect(glyphBox.height).toBeGreaterThan(0);
+		const wrapperBox = wrapper.getBoundingClientRect();
+		expect(wrapperBox.width).toBeGreaterThan(0);
+		expect(wrapperBox.height).toBeGreaterThan(0);
+		expect(wrapperBox.left).toBeLessThanOrEqual(glyphBox.left);
+		expect(wrapperBox.top).toBeLessThanOrEqual(glyphBox.top);
+		expect(wrapperBox.right).toBeGreaterThanOrEqual(glyphBox.right);
+		expect(wrapperBox.bottom).toBeGreaterThanOrEqual(glyphBox.bottom);
+	});
+
+	it.each([{ width: 560 }, { width: 480 }] as const)(
+		'hides the Menu glyph wrapper box at $width px wide so no empty flex gap remains',
+		async ({ width }) => {
+			await page.viewport(width, 640);
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+			await expect.element(menuButton).toBeVisible();
+			const wrapper = menuButton.element().querySelector<HTMLElement>('.menu-glyph');
+			expect(wrapper).not.toBeNull();
+			// An inline-flex wrapper would stay an empty flex item under the
+			// glyph's own display:none and leave a stray 0.55rem gap; hiding
+			// the wrapper removes the box entirely.
+			expect(getComputedStyle(wrapper!).display).toBe('none');
+			expect(wrapper!.getClientRects().length).toBe(0);
+			const glyph = wrapper!.querySelector<HTMLElement>('.heroic-prompt-glyph');
+			expect(glyph!.getClientRects().length).toBe(0);
+		}
+	);
+
 	it.each(
 		(
 			[
