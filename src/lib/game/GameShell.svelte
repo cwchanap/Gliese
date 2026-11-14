@@ -1213,7 +1213,7 @@
 	}
 
 	.menu-glyph {
-		display: contents;
+		display: inline-flex;
 	}
 
 	/* New-run overwrite confirm: same treatment as the save screen's
@@ -1262,7 +1262,7 @@
 	}
 
 	@media (max-width: 560px) {
-		.jrpg-command-toggle :global(.heroic-prompt-glyph) {
+		.jrpg-command-toggle .menu-glyph {
 			display: none;
 		}
 	}
