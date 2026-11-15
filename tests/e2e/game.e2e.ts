@@ -189,7 +189,18 @@ type GlieseProbeWindow = Window & {
 	__glieseRouteBlurAt?: number;
 	__glieseRouteFocusAt?: number;
 	__glieseJourneyTrace?: { x: number; y: number; mapId?: string }[];
-	__glieseHoldUntil?: { reached: boolean };
+	__glieseHoldUntil?: {
+		id: number;
+		reached: boolean;
+		started: boolean;
+		raf: number;
+		onKeydown: (event: KeyboardEvent) => void;
+	};
+	__glieseRafTrap?: {
+		queue: Map<number, FrameRequestCallback>;
+		requestAnimationFrame: (callback: FrameRequestCallback) => number;
+		cancelAnimationFrame: (handle: number) => void;
+	};
 	__glieseRouteRunner?: {
 		start: (plan: BrowserRoutePlan) => BrowserRouteResult;
 		get: (token: string) => BrowserRouteResult | null;
@@ -10290,10 +10301,6 @@ test('Item Shop stockroom entry checks only its initial fixed-x northward phase'
 });
 
 test('Item Shop service-return-west doorway accepts an already-west settled point', () => {
-	// The office-doorway convergence preserves the corridor leg's live x residue.
-	// When that residue lands at or west of the divider-safe handoff x, the helper
-	// must not reuse the eastbound crossing branch: it returns a degenerate
-	// fixed-point route that the axis contract validates as zero-length.
 	const safeX = itemShopStockroomOfficeDividerSafeX();
 	const alreadyWest = { x: safeX - 1.5, y: 144 };
 	expect(itemShopMiraServiceReturnWestDoorwayRoutePoints(alreadyWest)).toEqual([
@@ -12894,6 +12901,597 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 	await expect(page.getByRole('tooltip')).toContainText('0 left');
 });
 
+type JourneyHoldStop =
+	| { kind: 'axis'; axis: 'x' | 'y'; direction: 'gte' | 'lte'; value: number }
+	| { kind: 'status'; value: string }
+	| { kind: 'map'; value: string };
+
+let journeyHoldSequence = 0;
+
+async function journeyHoldUntil(
+	page: Page,
+	key: 'w' | 'a' | 's' | 'd',
+	stop: JourneyHoldStop,
+	timeoutMs = 15_000
+) {
+	const holdId = ++journeyHoldSequence;
+	const armed = await page.evaluate(
+		({ requested, key, keyCode, holdId }) => {
+			const probeWindow = window as GlieseProbeWindow;
+			const predicateSatisfied = () => {
+				const state = probeWindow.__glieseLastHudState;
+				if (requested.kind === 'map') return state?.mapId === requested.value;
+				if (requested.kind === 'status') return state?.status === requested.value;
+				const gate = probeWindow.__glieseTransitionGateState;
+				const player = gate && gate.mapId === state?.mapId ? gate.player : state?.areaMap?.player;
+				if (typeof player?.x !== 'number' || typeof player.y !== 'number') return false;
+				const value = requested.axis === 'x' ? player.x : player.y;
+				return requested.direction === 'gte' ? value >= requested.value : value <= requested.value;
+			};
+			if (predicateSatisfied()) return false;
+			const token = {
+				id: holdId,
+				reached: false,
+				started: false,
+				raf: 0,
+				onKeydown: (event: KeyboardEvent) => {
+					if (event.isTrusted && (event.key === key || event.keyCode === keyCode)) {
+						token.started = true;
+					}
+				}
+			};
+			const observe = () => {
+				if (probeWindow.__glieseHoldUntil !== token || token.reached) return;
+				if (!token.started) {
+					token.raf = requestAnimationFrame(observe);
+					return;
+				}
+				if (predicateSatisfied()) {
+					token.reached = true;
+					// Release in this frame: a keyup over CDP lands a variable number of frames
+					// later, and at 240px/s every frame of delay is a few more pixels of overshoot.
+					const keyup = new KeyboardEvent('keyup', { bubbles: true, cancelable: true, key });
+					for (const field of ['keyCode', 'which'] as const) {
+						Object.defineProperty(keyup, field, { configurable: true, value: keyCode });
+					}
+					window.dispatchEvent(keyup);
+					return;
+				}
+				token.raf = requestAnimationFrame(observe);
+			};
+			window.addEventListener('keydown', token.onKeydown, true);
+			token.raf = requestAnimationFrame(observe);
+			probeWindow.__glieseHoldUntil = token;
+			return true;
+		},
+		{ requested: stop, key, keyCode: key.toUpperCase().charCodeAt(0), holdId }
+	);
+	if (!armed) return;
+	let pressed = false;
+	try {
+		await page.keyboard.down(key);
+		pressed = true;
+		try {
+			await page.waitForFunction(
+				(id) =>
+					(window as GlieseProbeWindow).__glieseHoldUntil?.id === id &&
+					(window as GlieseProbeWindow).__glieseHoldUntil?.reached === true,
+				holdId,
+				{ timeout: timeoutMs }
+			);
+		} catch (error) {
+			const hud = await page.evaluate(
+				() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+			);
+			const position = await page.evaluate(() => {
+				const probeWindow = window as GlieseProbeWindow;
+				const state = probeWindow.__glieseLastHudState;
+				const gate = probeWindow.__glieseTransitionGateState;
+				if (gate && gate.mapId === state?.mapId && gate.player) {
+					return { ...gate.player };
+				}
+				const player = state?.areaMap?.player;
+				return typeof player?.x === 'number' && typeof player.y === 'number'
+					? { x: player.x, y: player.y }
+					: null;
+			});
+			throw new Error(
+				`holdUntil(${JSON.stringify(stop)}) timed out holding '${key}' ` +
+					`at ${JSON.stringify(position)} on map ${hud?.mapId ?? '?'} ` +
+					`(status: ${hud?.status ?? '?'})`,
+				{ cause: error }
+			);
+		}
+	} finally {
+		try {
+			if (pressed) await page.keyboard.up(key);
+		} finally {
+			await page.evaluate((id) => {
+				const probeWindow = window as GlieseProbeWindow;
+				const holdUntil = probeWindow.__glieseHoldUntil;
+				if (!holdUntil || holdUntil.id !== id) return;
+				cancelAnimationFrame(holdUntil.raf);
+				window.removeEventListener('keydown', holdUntil.onKeydown, true);
+				probeWindow.__glieseHoldUntil = undefined;
+			}, holdId);
+		}
+	}
+}
+
+const HERO_HOUSE_CORRECTION_RESIDUE_LIMIT = 2 * AXIS_REACH_TOLERANCE;
+
+async function moveHeroHouseAxisWithTrustedKeyboard(
+	page: Page,
+	target: Point,
+	correctionLegs = 0
+): Promise<Point> {
+	const layout = VILLAGE_INTERIOR_LAYOUTS['hero-house'];
+	const obstacles = [...layout.walls, ...Object.values(layout.propCollisions)];
+	const from = await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		const movement = [...(probeWindow.__glieseMovementDiagnostics ?? [])]
+			.reverse()
+			.find(({ mapId }) => mapId === 'hero-house');
+		const hudPlayer = probeWindow.__glieseLastHudState?.areaMap?.player;
+		return (
+			movement?.resolvedPosition ??
+			(typeof hudPlayer?.x === 'number' && typeof hudPlayer.y === 'number'
+				? { x: hudPlayer.x, y: hudPlayer.y }
+				: null)
+		);
+	});
+	if (!from) throw new Error(`Missing Hero House position before ${JSON.stringify(target)}`);
+
+	const horizontal =
+		Math.abs(from.y - target.y) <= INTERIOR_ROUTE_SETTLE_TOLERANCE &&
+		Math.abs(from.x - target.x) > INTERIOR_ROUTE_SETTLE_TOLERANCE;
+	const vertical =
+		Math.abs(from.x - target.x) <= INTERIOR_ROUTE_SETTLE_TOLERANCE &&
+		Math.abs(from.y - target.y) > INTERIOR_ROUTE_SETTLE_TOLERANCE;
+	if (!horizontal && !vertical) {
+		if (
+			Math.abs(from.x - target.x) <= INTERIOR_ROUTE_SETTLE_TOLERANCE &&
+			Math.abs(from.y - target.y) <= INTERIOR_ROUTE_SETTLE_TOLERANCE
+		) {
+			return from;
+		}
+		if (correctionLegs < 3) {
+			const xResidue = Math.abs(from.x - target.x);
+			const yResidue = Math.abs(from.y - target.y);
+			if (Math.min(xResidue, yResidue) > HERO_HOUSE_CORRECTION_RESIDUE_LIMIT) {
+				throw new Error(
+					`Hero House route residue exceeds correction bound: ${JSON.stringify({ from, target })}`
+				);
+			}
+			const corner = yResidue <= xResidue ? { x: from.x, y: target.y } : { x: target.x, y: from.y };
+			for (const obstacle of obstacles) {
+				if (
+					expandedLayoutRectContainsPoint(obstacle, from, PLAYER_COLLISION_RADIUS) ||
+					expandedLayoutRectContainsPoint(obstacle, corner, PLAYER_COLLISION_RADIUS) ||
+					routeSegmentIntersectsExpandedRect(from, corner, obstacle, PLAYER_COLLISION_RADIUS)
+				) {
+					throw new Error(
+						`Hero House route correction is not clear of ${JSON.stringify(obstacle)}: ${JSON.stringify({ from, corner, target })}`
+					);
+				}
+			}
+			await moveHeroHouseAxisWithTrustedKeyboard(page, corner, correctionLegs + 1);
+			return moveHeroHouseAxisWithTrustedKeyboard(page, target, correctionLegs + 1);
+		}
+		throw new Error(
+			`Hero House route segment is not axis-aligned: ${JSON.stringify({ from, target })}`
+		);
+	}
+
+	const key = horizontal
+		? target.x > from.x
+			? 'ArrowRight'
+			: 'ArrowLeft'
+		: target.y > from.y
+			? 'ArrowDown'
+			: 'ArrowUp';
+	const movementStartCount = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
+	);
+	await page.locator('canvas').click();
+	await page.keyboard.down(key);
+	try {
+		await page.waitForFunction(
+			({ expectedPoint, startCount, tolerance, axis, direction }) => {
+				const diagnostics = (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
+				const latest = diagnostics.slice(startCount).at(-1);
+				if (!latest) return false;
+				if (latest.mapId !== 'hero-house') {
+					throw new Error(
+						`Hero House leg received a ${latest.mapId} diagnostic: ${JSON.stringify(latest)}`
+					);
+				}
+				const requestedChanged =
+					latest.requestedPosition.x !== latest.resolvedPosition.x ||
+					latest.requestedPosition.y !== latest.resolvedPosition.y;
+				if (latest.blocked !== requestedChanged) {
+					throw new Error(
+						`Hero House leg received an invalid diagnostic: ${JSON.stringify(latest)}`
+					);
+				}
+				if (latest.blocked) {
+					throw new Error(
+						`Hero House leg received a blocked diagnostic: ${JSON.stringify(latest)}`
+					);
+				}
+				const movingValue = axis === 'x' ? latest.resolvedPosition.x : latest.resolvedPosition.y;
+				const movingTarget = axis === 'x' ? expectedPoint.x : expectedPoint.y;
+				const inBand =
+					Math.abs(latest.resolvedPosition.x - expectedPoint.x) <= tolerance &&
+					Math.abs(latest.resolvedPosition.y - expectedPoint.y) <= tolerance;
+				const overshot =
+					direction === 'positive'
+						? movingValue > movingTarget + tolerance
+						: movingValue < movingTarget - tolerance;
+				return inBand || overshot;
+			},
+			{
+				expectedPoint: target,
+				startCount: movementStartCount,
+				tolerance: INTERIOR_ROUTE_SETTLE_TOLERANCE,
+				axis: horizontal ? 'x' : 'y',
+				direction: horizontal
+					? target.x > from.x
+						? 'positive'
+						: 'negative'
+					: target.y > from.y
+						? 'positive'
+						: 'negative'
+			},
+			{ timeout: 30_000 }
+		);
+	} catch (error) {
+		const diagnostics = await page.evaluate(
+			() => (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? []
+		);
+		throw new Error(
+			`Hero House route failed at ${JSON.stringify({ from, target, key, last: diagnostics.at(-1) })}: ${String(error)}`,
+			{ cause: error }
+		);
+	} finally {
+		await page.keyboard.up(key);
+	}
+
+	await page.waitForFunction(
+		(startCount) => {
+			const probeWindow = window as GlieseProbeWindow;
+			return (
+				(probeWindow.__glieseMovementDiagnostics?.length ?? 0) > startCount &&
+				performance.now() - (probeWindow.__glieseLastMovementAt ?? 0) >= 250
+			);
+		},
+		movementStartCount,
+		{ timeout: 10_000, polling: 50 }
+	);
+	const leg = await page.evaluate((startCount) => {
+		const diagnostics = (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
+		const legDiagnostics = diagnostics.slice(startCount);
+		return {
+			settled:
+				[...legDiagnostics].reverse().find(({ mapId }) => mapId === 'hero-house')
+					?.resolvedPosition ?? null,
+			diagnostics: legDiagnostics
+		};
+	}, movementStartCount);
+	if (!leg.settled)
+		throw new Error(`Missing settled Hero House position near ${JSON.stringify(target)}`);
+	for (const [index, diagnostic] of leg.diagnostics.entries()) {
+		expect(diagnostic.mapId, `Hero House leg diagnostic ${index} mapId`).toBe('hero-house');
+		const requestedChanged =
+			diagnostic.requestedPosition.x !== diagnostic.resolvedPosition.x ||
+			diagnostic.requestedPosition.y !== diagnostic.resolvedPosition.y;
+		expect(
+			diagnostic.blocked === requestedChanged,
+			`Hero House leg diagnostic ${index} blocked fidelity: ${JSON.stringify(diagnostic)}`
+		).toBe(true);
+		expect(diagnostic.blocked, `Hero House leg diagnostic ${index} blocked`).toBe(false);
+		for (const obstacle of obstacles) {
+			expect(
+				routeSegmentIntersectsExpandedRect(
+					diagnostic.previousPosition,
+					diagnostic.requestedPosition,
+					obstacle,
+					PLAYER_COLLISION_RADIUS
+				),
+				`Hero House leg diagnostic ${index} requested sweep crossed ${JSON.stringify(obstacle)}: ${JSON.stringify(diagnostic)}`
+			).toBe(false);
+			expect(
+				routeSegmentIntersectsExpandedRect(
+					diagnostic.previousPosition,
+					diagnostic.resolvedPosition,
+					obstacle,
+					PLAYER_COLLISION_RADIUS
+				),
+				`Hero House leg diagnostic ${index} resolved sweep crossed ${JSON.stringify(obstacle)}: ${JSON.stringify(diagnostic)}`
+			).toBe(false);
+			expect(
+				expandedLayoutRectContainsPoint(
+					obstacle,
+					diagnostic.resolvedPosition,
+					PLAYER_COLLISION_RADIUS
+				),
+				`Hero House leg diagnostic ${index} entered ${JSON.stringify(obstacle)}: ${JSON.stringify(diagnostic)}`
+			).toBe(false);
+		}
+	}
+	for (const obstacle of obstacles) {
+		expect(
+			expandedLayoutRectContainsPoint(obstacle, leg.settled, PLAYER_COLLISION_RADIUS),
+			`Hero House settled position entered ${JSON.stringify(obstacle)}: ${JSON.stringify({ settled: leg.settled, target })}`
+		).toBe(false);
+	}
+	return { ...leg.settled };
+}
+
+test('journey hold skips an already-satisfied stop and still walks a real leg', async ({
+	page
+}) => {
+	test.setTimeout(120_000);
+	const arrival = overworldDoorArrival('hero-house');
+	await installRuntimeProbes(page);
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'overworld',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: arrival.x,
+				y: arrival.y,
+				facing: 'down'
+			}
+		})
+	);
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await waitForHudPosition(page, 'overworld', arrival);
+	await page.locator('canvas').click();
+	const before = await page.evaluate(() => ({
+		position: (window as GlieseProbeWindow).__glieseLastHudState?.areaMap?.player ?? null,
+		diagnostics: (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
+	}));
+	if (typeof before.position?.x !== 'number' || typeof before.position.y !== 'number') {
+		throw new Error('Missing overworld position before satisfied-stop hold');
+	}
+	let keydownCalls = 0;
+	const originalDown = page.keyboard.down.bind(page.keyboard);
+	page.keyboard.down = async (key) => {
+		keydownCalls += 1;
+		await page.waitForTimeout(60);
+		return originalDown(key);
+	};
+	await journeyHoldUntil(page, 's', {
+		kind: 'axis',
+		axis: 'y',
+		direction: 'gte',
+		value: before.position.y
+	});
+	expect(keydownCalls).toBe(0);
+	const afterSatisfied = await page.evaluate(() => ({
+		position: (window as GlieseProbeWindow).__glieseLastHudState?.areaMap?.player ?? null,
+		diagnostics: (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0,
+		holdUntil: (window as GlieseProbeWindow).__glieseHoldUntil ?? null
+	}));
+	expect(afterSatisfied.diagnostics).toBe(before.diagnostics);
+	expect(afterSatisfied.position).toEqual(before.position);
+	expect(afterSatisfied.holdUntil).toBeNull();
+	const targetY = before.position.y + 40;
+	await journeyHoldUntil(page, 's', {
+		kind: 'axis',
+		axis: 'y',
+		direction: 'gte',
+		value: targetY
+	});
+	expect(keydownCalls).toBe(1);
+	const settled = await page.evaluate(() => ({
+		position: (window as GlieseProbeWindow).__glieseLastHudState?.areaMap?.player ?? null,
+		diagnostics: (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
+	}));
+	expect(settled.diagnostics).toBeGreaterThan(before.diagnostics);
+	expect(settled.position?.y).toBeGreaterThanOrEqual(targetY - 1);
+	expect(settled.position?.y).toBeLessThanOrEqual(targetY + 16);
+});
+
+test('journey hold cancels a stale observer so it cannot release a rearmed hold', async ({
+	page
+}) => {
+	test.setTimeout(120_000);
+	const arrival = overworldDoorArrival('hero-house');
+	await installRuntimeProbes(page);
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'overworld',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: arrival.x,
+				y: arrival.y,
+				facing: 'down'
+			}
+		})
+	);
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await waitForHudPosition(page, 'overworld', arrival);
+	await page.locator('canvas').click();
+	await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		const queue = new Map<number, FrameRequestCallback>();
+		let sequence = 0;
+		probeWindow.__glieseRafTrap = {
+			queue,
+			requestAnimationFrame: window.requestAnimationFrame.bind(window),
+			cancelAnimationFrame: window.cancelAnimationFrame.bind(window)
+		};
+		window.requestAnimationFrame = (callback: FrameRequestCallback) => {
+			const id = ++sequence;
+			queue.set(id, callback);
+			return id;
+		};
+		window.cancelAnimationFrame = (id: number) => {
+			queue.delete(id);
+		};
+	});
+	await expect(
+		journeyHoldUntil(page, 'w', { kind: 'status', value: 'gliese-stale-marker' }, 300)
+	).rejects.toThrow(/timed out holding 'w'/);
+	expect(
+		await page.evaluate(() => (window as GlieseProbeWindow).__glieseHoldUntil ?? null)
+	).toBeNull();
+	await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		const trap = probeWindow.__glieseRafTrap;
+		if (trap) {
+			window.requestAnimationFrame = trap.requestAnimationFrame;
+			window.cancelAnimationFrame = trap.cancelAnimationFrame;
+		}
+	});
+	const start = await page.evaluate(() => ({
+		y: (window as GlieseProbeWindow).__glieseLastHudState?.areaMap?.player?.y ?? null,
+		diagnostics: (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
+	}));
+	if (typeof start.y !== 'number') {
+		throw new Error('Missing overworld position before rearmed hold');
+	}
+	const targetY = start.y + 40;
+	const rearmed = journeyHoldUntil(page, 's', {
+		kind: 'axis',
+		axis: 'y',
+		direction: 'gte',
+		value: targetY
+	});
+	await page.waitForFunction(
+		() => (window as GlieseProbeWindow).__glieseHoldUntil != null,
+		undefined,
+		{ timeout: 5_000 }
+	);
+	await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		const state = probeWindow.__glieseLastHudState;
+		if (state) state.status = 'gliese-stale-marker';
+		const trap = probeWindow.__glieseRafTrap;
+		if (trap) {
+			const callbacks = [...trap.queue.values()];
+			trap.queue.clear();
+			for (const callback of callbacks) callback(performance.now());
+		}
+	});
+	await rearmed;
+	const settled = await page.evaluate(() => ({
+		y: (window as GlieseProbeWindow).__glieseLastHudState?.areaMap?.player?.y ?? null,
+		diagnostics: (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0,
+		holdUntil: (window as GlieseProbeWindow).__glieseHoldUntil ?? null
+	}));
+	expect(settled.holdUntil).toBeNull();
+	expect(settled.diagnostics).toBeGreaterThan(start.diagnostics);
+	expect(settled.y).not.toBeNull();
+	expect(settled.y!).toBeGreaterThanOrEqual(targetY - 1);
+	expect(settled.y!).toBeLessThanOrEqual(targetY + 16);
+});
+
+test('Hero House axis mover bounds correction residue', async ({ page }) => {
+	test.setTimeout(120_000);
+	const heroHouse = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'hero-house');
+	if (!heroHouse) throw new Error('Hero House route constants are missing');
+	await installRuntimeProbes(page, { captureFacing: true });
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'overworld',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: heroHouse.returnArrival.x,
+				y: heroHouse.returnArrival.y,
+				facing: 'up'
+			}
+		})
+	);
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await waitForHudPosition(page, 'overworld', heroHouse.returnArrival);
+	await enterInteriorWithTrustedKeyboard(page, heroHouse);
+	const first = await moveHeroHouseAxisWithTrustedKeyboard(page, { x: 400, y: 480 });
+	expect(Math.abs(first.x - 400)).toBeLessThanOrEqual(8);
+	expect(Math.abs(first.y - 480)).toBeLessThanOrEqual(8);
+	const spine = await moveHeroHouseAxisWithTrustedKeyboard(page, { x: 352, y: 480 });
+	expect(Math.abs(spine.x - 352)).toBeLessThanOrEqual(8);
+	const originalUp = page.keyboard.up.bind(page.keyboard);
+	page.keyboard.up = async (key) => {
+		await page.waitForTimeout(300);
+		return originalUp(key);
+	};
+	const overshot = await moveHeroHouseAxisWithTrustedKeyboard(page, { x: 352, y: 320 });
+	page.keyboard.up = originalUp;
+	expect(overshot.y).toBeLessThan(300);
+	const diagnosticsBeforeResidue = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
+	);
+	await expect(moveHeroHouseAxisWithTrustedKeyboard(page, { x: 400, y: 160 })).rejects.toThrow(
+		/residue exceeds correction bound/
+	);
+	expect(
+		await page.evaluate(
+			() => (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
+		)
+	).toBe(diagnosticsBeforeResidue);
+	const live = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseLastMovementDiagnostic?.resolvedPosition ?? null
+	);
+	expect(live).not.toBeNull();
+	const recoverTarget = { x: 304, y: live!.y - 20 };
+	const recovered = await moveHeroHouseAxisWithTrustedKeyboard(page, recoverTarget);
+	expect(Math.abs(recovered.x - recoverTarget.x)).toBeLessThanOrEqual(8);
+	expect(Math.abs(recovered.y - recoverTarget.y)).toBeLessThanOrEqual(12);
+});
+
+test('Hero House axis mover rejects blocked leg diagnostics', async ({ page }) => {
+	test.setTimeout(120_000);
+	const heroHouse = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'hero-house');
+	if (!heroHouse) throw new Error('Hero House route constants are missing');
+	await installRuntimeProbes(page, { captureFacing: true });
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'overworld',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: heroHouse.returnArrival.x,
+				y: heroHouse.returnArrival.y,
+				facing: 'up'
+			}
+		})
+	);
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await waitForHudPosition(page, 'overworld', heroHouse.returnArrival);
+	await enterInteriorWithTrustedKeyboard(page, heroHouse);
+	const aisle = await moveHeroHouseAxisWithTrustedKeyboard(page, { x: 280, y: 480 });
+	expect(Math.abs(aisle.x - 280)).toBeLessThanOrEqual(8);
+	await expect(moveHeroHouseAxisWithTrustedKeyboard(page, { x: 280, y: 228 })).rejects.toThrow(
+		/blocked diagnostic/
+	);
+});
+
 test('proving morning keyboard journey reaches Oren through the painted forge lane', async ({
 	page
 }) => {
@@ -12916,77 +13514,8 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 				? { x: player.x, y: player.y }
 				: null;
 		});
-	const holdUntil = async (
-		key: 'w' | 'a' | 's' | 'd',
-		stop:
-			| { kind: 'axis'; axis: 'x' | 'y'; direction: 'gte' | 'lte'; value: number }
-			| { kind: 'status'; value: string }
-			| { kind: 'map'; value: string },
-		timeoutMs = 15_000
-	) => {
-		await page.evaluate(
-			({ requested, key, keyCode }) => {
-				const probeWindow = window as GlieseProbeWindow;
-				probeWindow.__glieseHoldUntil = { reached: false };
-				const observe = () => {
-					const holdUntil = probeWindow.__glieseHoldUntil;
-					if (!holdUntil || holdUntil.reached) return;
-					const state = probeWindow.__glieseLastHudState;
-					let reached = false;
-					if (requested.kind === 'map') {
-						reached = state?.mapId === requested.value;
-					} else if (requested.kind === 'status') {
-						reached = state?.status === requested.value;
-					} else {
-						const gate = probeWindow.__glieseTransitionGateState;
-						const player =
-							gate && gate.mapId === state?.mapId ? gate.player : state?.areaMap?.player;
-						if (typeof player?.x === 'number' && typeof player.y === 'number') {
-							const value = requested.axis === 'x' ? player.x : player.y;
-							reached =
-								requested.direction === 'gte' ? value >= requested.value : value <= requested.value;
-						}
-					}
-					if (reached) {
-						holdUntil.reached = true;
-						// Release in this frame: a keyup over CDP lands a variable number of frames
-						// later, and at 240px/s every frame of delay is a few more pixels of overshoot.
-						const keyup = new KeyboardEvent('keyup', { bubbles: true, cancelable: true, key });
-						for (const field of ['keyCode', 'which'] as const) {
-							Object.defineProperty(keyup, field, { configurable: true, value: keyCode });
-						}
-						window.dispatchEvent(keyup);
-						return;
-					}
-					requestAnimationFrame(observe);
-				};
-				requestAnimationFrame(observe);
-			},
-			{ requested: stop, key, keyCode: key.toUpperCase().charCodeAt(0) }
-		);
-		await page.keyboard.down(key);
-		try {
-			await page.waitForFunction(
-				() => (window as GlieseProbeWindow).__glieseHoldUntil?.reached === true,
-				undefined,
-				{ timeout: timeoutMs }
-			);
-		} catch (error) {
-			const hud = await readHud();
-			const position = await readPosition();
-			throw new Error(
-				`holdUntil(${JSON.stringify(stop)}) timed out holding '${key}' ` +
-					`at ${JSON.stringify(position)} on map ${hud?.mapId ?? '?'} ` +
-					`(status: ${hud?.status ?? '?'})`,
-				{ cause: error }
-			);
-		} finally {
-			await page.keyboard.up(key);
-			await page.evaluate(() => {
-				(window as GlieseProbeWindow).__glieseHoldUntil = undefined;
-			});
-		}
-	};
+	const holdUntil = (key: 'w' | 'a' | 's' | 'd', stop: JourneyHoldStop, timeoutMs = 15_000) =>
+		journeyHoldUntil(page, key, stop, timeoutMs);
 	const advanceDialogue = async () => {
 		for (let press = 0; press < 40; press += 1) {
 			const hud = await readHud();
@@ -13860,122 +14389,10 @@ test('Hero House painted interior preserves runtime, reload, and fallback contra
 	assertHeroHousePaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, 'hero-house'));
 	await saveHeroHouseCanvas(page, 'painted-camera-640x360.png');
 
-	const moveHeroHouseAxisWithTrustedKeyboard = async (
-		target: Point,
-		correctionLegs = 0
-	): Promise<Point> => {
-		const from = await page.evaluate(() => {
-			const probeWindow = window as GlieseProbeWindow;
-			const movement = [...(probeWindow.__glieseMovementDiagnostics ?? [])]
-				.reverse()
-				.find(({ mapId }) => mapId === 'hero-house');
-			const hudPlayer = probeWindow.__glieseLastHudState?.areaMap?.player;
-			return (
-				movement?.resolvedPosition ??
-				(typeof hudPlayer?.x === 'number' && typeof hudPlayer.y === 'number'
-					? { x: hudPlayer.x, y: hudPlayer.y }
-					: null)
-			);
-		});
-		if (!from) throw new Error(`Missing Hero House position before ${JSON.stringify(target)}`);
-
-		const horizontal =
-			Math.abs(from.y - target.y) <= INTERIOR_ROUTE_SETTLE_TOLERANCE &&
-			Math.abs(from.x - target.x) > INTERIOR_ROUTE_SETTLE_TOLERANCE;
-		const vertical =
-			Math.abs(from.x - target.x) <= INTERIOR_ROUTE_SETTLE_TOLERANCE &&
-			Math.abs(from.y - target.y) > INTERIOR_ROUTE_SETTLE_TOLERANCE;
-		if (!horizontal && !vertical) {
-			if (
-				Math.abs(from.x - target.x) <= INTERIOR_ROUTE_SETTLE_TOLERANCE &&
-				Math.abs(from.y - target.y) <= INTERIOR_ROUTE_SETTLE_TOLERANCE
-			) {
-				return from;
-			}
-			if (correctionLegs < 3) {
-				const corner =
-					Math.abs(from.y - target.y) <= Math.abs(from.x - target.x)
-						? { x: from.x, y: target.y }
-						: { x: target.x, y: from.y };
-				await moveHeroHouseAxisWithTrustedKeyboard(corner, correctionLegs + 1);
-				return moveHeroHouseAxisWithTrustedKeyboard(target, correctionLegs + 1);
-			}
-			throw new Error(
-				`Hero House route segment is not axis-aligned: ${JSON.stringify({ from, target })}`
-			);
-		}
-
-		const key = horizontal
-			? target.x > from.x
-				? 'ArrowRight'
-				: 'ArrowLeft'
-			: target.y > from.y
-				? 'ArrowDown'
-				: 'ArrowUp';
-		const movementStartCount = await page.evaluate(
-			() => (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
-		);
-		await page.locator('canvas').click();
-		await page.keyboard.down(key);
-		try {
-			await page.waitForFunction(
-				({ expectedPoint, startCount, tolerance }) => {
-					const diagnostics = (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
-					return diagnostics
-						.slice(startCount)
-						.some(
-							({ mapId, resolvedPosition }) =>
-								mapId === 'hero-house' &&
-								Math.abs(resolvedPosition.x - expectedPoint.x) <= tolerance &&
-								Math.abs(resolvedPosition.y - expectedPoint.y) <= tolerance
-						);
-				},
-				{
-					expectedPoint: target,
-					startCount: movementStartCount,
-					tolerance: INTERIOR_ROUTE_SETTLE_TOLERANCE
-				},
-				{ timeout: 30_000 }
-			);
-		} catch (error) {
-			const diagnostics = await page.evaluate(
-				() => (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? []
-			);
-			throw new Error(
-				`Hero House route failed at ${JSON.stringify({ from, target, key, last: diagnostics.at(-1) })}: ${String(error)}`,
-				{ cause: error }
-			);
-		} finally {
-			await page.keyboard.up(key);
-		}
-
-		await page.waitForFunction(
-			(startCount) => {
-				const probeWindow = window as GlieseProbeWindow;
-				return (
-					(probeWindow.__glieseMovementDiagnostics?.length ?? 0) > startCount &&
-					performance.now() - (probeWindow.__glieseLastMovementAt ?? 0) >= 250
-				);
-			},
-			movementStartCount,
-			{ timeout: 10_000, polling: 50 }
-		);
-		const settled = await page.evaluate((startCount) => {
-			const diagnostics = (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
-			return (
-				[...diagnostics.slice(startCount)].reverse().find(({ mapId }) => mapId === 'hero-house')
-					?.resolvedPosition ?? null
-			);
-		}, movementStartCount);
-		if (!settled)
-			throw new Error(`Missing settled Hero House position near ${JSON.stringify(target)}`);
-		return { ...settled };
-	};
-
 	let currentPoint = heroHouse.spawn;
 	for (const step of heroHouse.steps) {
 		for (const segmentTarget of interiorRoutePoints(currentPoint, step.point).slice(1)) {
-			currentPoint = await moveHeroHouseAxisWithTrustedKeyboard(segmentTarget);
+			currentPoint = await moveHeroHouseAxisWithTrustedKeyboard(page, segmentTarget);
 		}
 		await assertInteriorCheckpoint(page, heroHouse, step.point);
 	}
