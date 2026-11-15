@@ -154,6 +154,12 @@ type OverworldCameraSample = {
 
 type OverworldSceneCamera = {
 	zoom?: number;
+	scene?: {
+		sys: {
+			sceneUpdate: (time: number, delta: number) => void;
+			step: (time: number, delta: number) => void;
+		};
+	};
 	worldView?: {
 		x?: number;
 		y?: number;
@@ -13139,6 +13145,13 @@ async function moveHeroHouseAxisWithTrustedKeyboard(
 	const releaseObserver = releaseOnDiagnostic
 		? await page.evaluateHandle(
 				({ axis, direction, targetValue, tolerance, key }) => {
+					const scene = (window as GlieseProbeWindow).__glieseActiveSceneCamera?.scene;
+					if (!scene) throw new Error('Missing Hero House scene for precision movement');
+					const system = scene.sys;
+					const originalUpdate = system.sceneUpdate;
+					const boundedUpdate = (time: number, delta: number) =>
+						originalUpdate.call(scene, time, Math.min(delta, 16));
+					system.sceneUpdate = boundedUpdate;
 					let started = false;
 					const onKeydown = (event: KeyboardEvent) => {
 						if (event.isTrusted && event.key === key) started = true;
@@ -13168,7 +13181,7 @@ async function moveHeroHouseAxisWithTrustedKeyboard(
 					};
 					window.addEventListener('keydown', onKeydown, true);
 					window.addEventListener('gliese:player-movement-diagnostic', onMovement);
-					return { onMovement, onKeydown };
+					return { onMovement, onKeydown, system, originalUpdate, boundedUpdate };
 				},
 				{
 					axis: horizontal ? ('x' as const) : ('y' as const),
@@ -13181,6 +13194,9 @@ async function moveHeroHouseAxisWithTrustedKeyboard(
 				}
 			)
 		: undefined;
+	let primaryFailure: { error: unknown } | undefined;
+	let releaseFailure: { error: unknown } | undefined;
+	let cleanupFailure: { error: unknown } | undefined;
 	try {
 		await page.keyboard.down(key);
 		await page.waitForFunction(
@@ -13241,26 +13257,47 @@ async function moveHeroHouseAxisWithTrustedKeyboard(
 			{ timeout: 30_000 }
 		);
 	} catch (error) {
-		const diagnostics = await page.evaluate(
-			() => (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? []
-		);
-		throw new Error(
-			`Hero House route failed at ${JSON.stringify({ from, target, key, last: diagnostics.at(-1) })}: ${String(error)}`,
-			{ cause: error }
-		);
+		const diagnostics = await page
+			.evaluate(() => (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [])
+			.catch(() => []);
+		primaryFailure = {
+			error: new Error(
+				`Hero House route failed at ${JSON.stringify({ from, target, key, last: diagnostics.at(-1) })}: ${String(error)}`,
+				{ cause: error }
+			)
+		};
 	} finally {
 		try {
 			await page.keyboard.up(key);
-		} finally {
-			if (releaseObserver) {
-				await page.evaluate(({ onMovement, onKeydown }) => {
-					window.removeEventListener('gliese:player-movement-diagnostic', onMovement);
-					window.removeEventListener('keydown', onKeydown, true);
+		} catch (error) {
+			releaseFailure = { error };
+		}
+		if (releaseObserver) {
+			try {
+				await page.evaluate(({ onMovement, onKeydown, system, originalUpdate, boundedUpdate }) => {
+					try {
+						window.removeEventListener('gliese:player-movement-diagnostic', onMovement);
+					} finally {
+						try {
+							window.removeEventListener('keydown', onKeydown, true);
+						} finally {
+							if (system.sceneUpdate === boundedUpdate) system.sceneUpdate = originalUpdate;
+						}
+					}
 				}, releaseObserver);
+			} catch (error) {
+				cleanupFailure = { error };
+			}
+			try {
 				await releaseObserver.dispose();
+			} catch (error) {
+				cleanupFailure ??= { error };
 			}
 		}
 	}
+	if (primaryFailure) throw primaryFailure.error;
+	if (releaseFailure) throw releaseFailure.error;
+	if (cleanupFailure) throw cleanupFailure.error;
 
 	await page.waitForFunction(
 		(startCount) => {
@@ -14105,6 +14142,188 @@ test('journey hold releases the key and stops movement on timeout', async ({ pag
 		)
 	).toBe(during);
 });
+
+async function enterHeroHouseForAxisTest(page: Page) {
+	const heroHouse = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'hero-house');
+	if (!heroHouse) throw new Error('Hero House route constants are missing');
+	await installRuntimeProbes(page, { captureFacing: true });
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'overworld',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: heroHouse.returnArrival.x,
+				y: heroHouse.returnArrival.y,
+				facing: 'up'
+			}
+		})
+	);
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await waitForHudPosition(page, 'overworld', heroHouse.returnArrival);
+	await enterInteriorWithTrustedKeyboard(page, heroHouse);
+}
+
+test('Hero House precision movement bounds a 60ms frame trajectory', async ({ page }) => {
+	test.setTimeout(120_000);
+	await enterHeroHouseForAxisTest(page);
+	const restoreStep = await page.evaluateHandle(() => {
+		const scene = (window as GlieseProbeWindow).__glieseActiveSceneCamera?.scene;
+		if (!scene) throw new Error('Missing Hero House scene');
+		const system = scene.sys;
+		const originalStep = system.step;
+		const originalUpdate = system.sceneUpdate;
+		const probe = window as GlieseProbeWindow;
+		probe.__glieseHoldKeyEvents = [];
+		const onKeydown = (event: KeyboardEvent) => {
+			probe.__glieseHoldKeyEvents?.push({
+				type: event.type,
+				key: event.key,
+				isTrusted: event.isTrusted,
+				sequence: probe.__glieseHoldKeyEvents.length + 1
+			});
+		};
+		window.addEventListener('keydown', onKeydown, true);
+		system.step = function (time) {
+			return originalStep.call(this, time, 60);
+		};
+		return () => {
+			system.step = originalStep;
+			window.removeEventListener('keydown', onKeydown, true);
+			return system.sceneUpdate === originalUpdate;
+		};
+	});
+	try {
+		const before = await page.evaluate(() => {
+			const probe = window as GlieseProbeWindow;
+			return {
+				position:
+					[...(probe.__glieseMovementDiagnostics ?? [])]
+						.reverse()
+						.find((diagnostic) => diagnostic.mapId === 'hero-house')?.resolvedPosition ??
+					probe.__glieseLastHudState!.areaMap!.player!,
+				count: probe.__glieseMovementDiagnostics!.length
+			};
+		});
+		if (typeof before.position.x !== 'number' || typeof before.position.y !== 'number') {
+			throw new Error('Missing Hero House starting position');
+		}
+		const target = { x: before.position.x + 48, y: before.position.y };
+		const point = await moveHeroHouseAxisWithTrustedKeyboard(page, target, 0, true);
+		const diagnostics = await page.evaluate(
+			(count) => (window as GlieseProbeWindow).__glieseMovementDiagnostics!.slice(count),
+			before.count
+		);
+		expect(diagnostics.length).toBeGreaterThan(1);
+		expect(diagnostics.every((diagnostic) => diagnostic.blocked === false)).toBe(true);
+		expect(Math.abs(point.x - target.x)).toBeLessThanOrEqual(8);
+		expect(Math.abs(point.y - target.y)).toBeLessThanOrEqual(8);
+		expect(
+			Math.max(
+				...diagnostics.map(
+					(diagnostic) => diagnostic.requestedPosition.x - diagnostic.previousPosition.x
+				)
+			)
+		).toBeCloseTo(3.84, 5);
+		expect(
+			await page.evaluate(() =>
+				(window as GlieseProbeWindow).__glieseHoldKeyEvents?.some(
+					(event) => event.key === 'ArrowRight' && event.isTrusted
+				)
+			)
+		).toBe(true);
+	} finally {
+		expect(await page.evaluate((restore) => restore(), restoreStep)).toBe(true);
+		await restoreStep.dispose();
+	}
+});
+
+for (const scenario of [
+	'movement-evaluate',
+	'movement-dispose',
+	'release-evaluate',
+	'release-dispose',
+	'evaluate',
+	'dispose'
+] as const) {
+	test(`Hero House precision observer preserves ${scenario} failure during cleanup`, async ({
+		page
+	}) => {
+		test.setTimeout(120_000);
+		await enterHeroHouseForAxisTest(page);
+		const target = { x: 400, y: 480 };
+		const movementError = new Error('injected movement rejection');
+		const releaseError = new Error('injected release rejection');
+		const evaluateError = new Error('injected observer evaluate rejection');
+		const disposeError = new Error('injected observer dispose rejection');
+		const originalDown = page.keyboard.down.bind(page.keyboard);
+		const originalUp = page.keyboard.up.bind(page.keyboard);
+		const originalEvaluate = page.evaluate;
+		const originalEvaluateHandle = page.evaluateHandle;
+		let observer: unknown;
+		let evaluateCalls = 0;
+		let disposeCalls = 0;
+		let upCalls = 0;
+		page.keyboard.down = async (key) => {
+			await originalDown(key);
+			if (scenario.startsWith('movement')) throw movementError;
+		};
+		page.keyboard.up = async (key) => {
+			upCalls += 1;
+			await originalUp(key);
+			if (scenario.startsWith('movement') || scenario.startsWith('release')) throw releaseError;
+		};
+		page.evaluateHandle = new Proxy(originalEvaluateHandle, {
+			apply(target, thisArg, args) {
+				return Reflect.apply(target, thisArg, args).then(
+					(handle: { dispose: () => Promise<void> }) => {
+						observer = handle;
+						const dispose = handle.dispose.bind(handle);
+						handle.dispose = async () => {
+							disposeCalls += 1;
+							await dispose();
+							if (scenario !== 'evaluate') throw disposeError;
+						};
+						return handle;
+					}
+				);
+			}
+		});
+		page.evaluate = new Proxy(originalEvaluate, {
+			apply(target, thisArg, args) {
+				if (observer && args[1] === observer) {
+					evaluateCalls += 1;
+					if (scenario.endsWith('evaluate')) return Promise.reject(evaluateError);
+				}
+				return Reflect.apply(target, thisArg, args);
+			}
+		});
+		try {
+			const error = await moveHeroHouseAxisWithTrustedKeyboard(page, target, 0, true).then(
+				() => null,
+				(failure: unknown) => failure
+			);
+			expect(upCalls).toBe(1);
+			expect(evaluateCalls).toBe(1);
+			expect(disposeCalls).toBe(1);
+			if (scenario.startsWith('movement')) expect((error as Error).cause).toBe(movementError);
+			else if (scenario.startsWith('release')) expect(error).toBe(releaseError);
+			else if (scenario === 'evaluate') expect(error).toBe(evaluateError);
+			else expect(error).toBe(disposeError);
+		} finally {
+			page.evaluate = originalEvaluate;
+			page.evaluateHandle = originalEvaluateHandle;
+			page.keyboard.down = originalDown;
+			page.keyboard.up = originalUp;
+			await originalUp('ArrowRight').catch(() => undefined);
+		}
+	});
+}
 
 test('Hero House axis mover bounds correction residue', async ({ page }) => {
 	test.setTimeout(120_000);
