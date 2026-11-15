@@ -7,13 +7,12 @@ import { heroHouseMap } from '$lib/game/content/maps';
 import { overworldMap } from '../overworld/map';
 import { silverpineChunk } from '../overworld/chunks/silverpine';
 import { wildwoodEastChunk } from '../overworld/chunks/wildwood-east';
-import type { WorldMapDefinition } from '../types';
-
 import { compileGridWorld, gridWorldMap, type GridChunkSource } from './compile';
-import * as gridRuntime from './runtime';
 import {
+	facesSealedGate,
 	isGridWorldMap,
 	resolveGridNavigationGrid,
+	resolveGridTerrain,
 	resolveGridTileLayers,
 	type GridWorldMap
 } from './runtime';
@@ -66,16 +65,6 @@ describe('grid map runtime', () => {
 		expect(resolveGridNavigationGrid(during)).toBe(resolveGridNavigationGrid({ ...during }));
 	});
 });
-
-const gateRuntime = gridRuntime as unknown as {
-	resolveGridTerrain?: (map: GridWorldMap) => readonly string[];
-	facesSealedGate?: (
-		map: WorldMapDefinition,
-		x: number,
-		y: number,
-		facing: 'up' | 'down' | 'left' | 'right'
-	) => boolean;
-};
 
 const gateWorld = compileGridWorld({
 	id: 'runtime-gate-test',
@@ -167,27 +156,11 @@ describe('grid gate terrain', () => {
 	});
 
 	it('resolves overlay-applied terrain through the pure helper', () => {
-		expect(
-			gateRuntime.resolveGridTerrain,
-			'resolveGridTerrain is the planned pure helper'
-		).toBeTypeOf('function');
-		expect(gateRuntime.resolveGridTerrain!(sealed)).toEqual([
-			'P^^^^P',
-			'P....P',
-			'P!!!!P',
-			'P.^..P',
-			'P....P'
-		]);
+		expect(resolveGridTerrain(sealed)).toEqual(['P^^^^P', 'P....P', 'P!!!!P', 'P.^..P', 'P....P']);
 	});
 
 	it('drops the seal from the pure answer once its overlay is live', () => {
-		expect(gateRuntime.resolveGridTerrain!(opened)).toEqual([
-			'P^^^^P',
-			'P....P',
-			'P....P',
-			'P.^..P',
-			'P....P'
-		]);
+		expect(resolveGridTerrain(opened)).toEqual(['P^^^^P', 'P....P', 'P....P', 'P.^..P', 'P....P']);
 	});
 
 	it('detects the authored one-tile-thick Silverpine gate above its corridor', () => {
@@ -201,9 +174,6 @@ describe('grid gate terrain', () => {
 		expect(terrain[sealRow]!.slice(sealCol, sealCol + 3)).toBe('!!!');
 		expect(terrain[sealRow - 1]!.slice(sealCol, sealCol + 3)).toBe('^^^');
 		expect(terrain[sealRow + 1]!.slice(sealCol, sealCol + 3)).toBe(',,,');
-		expect(gateRuntime.facesSealedGate, 'facesSealedGate is the planned pure helper').toBeTypeOf(
-			'function'
-		);
 		expect(
 			isWalkable(
 				resolveGridNavigationGrid(silverpineChunkMap),
@@ -212,12 +182,7 @@ describe('grid gate terrain', () => {
 			)
 		).toBe(true);
 		expect(
-			gateRuntime.facesSealedGate!(
-				silverpineChunkMap,
-				(sealCol + 1) * 32 + 16,
-				(sealRow + 1) * 32 + 16,
-				'up'
-			)
+			facesSealedGate(silverpineChunkMap, (sealCol + 1) * 32 + 16, (sealRow + 1) * 32 + 16, 'up')
 		).toBe(true);
 	});
 
@@ -254,9 +219,7 @@ describe('grid gate terrain', () => {
 		expect(terrain[sealRow]![Math.floor((approach.x + 8) / 32)]).toBe(',');
 		expect(terrain[sealRow]![Math.floor((approach.x + 32) / 32)]).toBe('!');
 		expect(terrain[sealRow]![Math.floor((approach.x + 64) / 32)]).toBe('^');
-		expect(
-			gateRuntime.facesSealedGate!(wildwoodEastChunkMap, approach.x, approach.y, 'right')
-		).toBe(true);
+		expect(facesSealedGate(wildwoodEastChunkMap, approach.x, approach.y, 'right')).toBe(true);
 	});
 
 	it('probes a full 32px ahead from a collision-limited south-road spot', () => {
@@ -282,7 +245,7 @@ describe('grid gate terrain', () => {
 		expect(overworldTerrain[Math.floor((approach.y + 16) / 32)]![gateCol]).toBe(',');
 		expect(overworldTerrain[Math.floor((approach.y + 32) / 32)]![gateCol]).toBe('!');
 		expect(overworldTerrain[Math.floor((approach.y + 96) / 32)]![gateCol]).toBe('T');
-		expect(gateRuntime.facesSealedGate!(overworld, approach.x, approach.y, 'down')).toBe(true);
+		expect(facesSealedGate(overworld, approach.x, approach.y, 'down')).toBe(true);
 	});
 
 	it('does not skip a one-tile-deep seal with clear ground beyond it', () => {
@@ -310,16 +273,16 @@ describe('grid gate terrain', () => {
 		expect(terrain[Math.floor((approach.y - 8) / 32)]![approachCol]).toBe('.');
 		expect(terrain[Math.floor((approach.y - 32) / 32)]![approachCol]).toBe('!');
 		expect(terrain[Math.floor((approach.y - 64) / 32)]![approachCol]).toBe('.');
-		expect(gateRuntime.facesSealedGate!(sealed, approach.x, approach.y, 'up')).toBe(true);
-		expect(gateRuntime.facesSealedGate!(sealed, start.x, start.y, 'up')).toBe(true);
+		expect(facesSealedGate(sealed, approach.x, approach.y, 'up')).toBe(true);
+		expect(facesSealedGate(sealed, start.x, start.y, 'up')).toBe(true);
 
 		const deeper = { x: 136, y: 152 };
 		expect(isWalkable(nav, deeper.x, deeper.y)).toBe(true);
-		expect(gateRuntime.facesSealedGate!(sealed, deeper.x, deeper.y, 'up')).toBe(false);
+		expect(facesSealedGate(sealed, deeper.x, deeper.y, 'up')).toBe(false);
 	});
 
 	it('stops reporting the seal once its overlay removes it', () => {
-		expect(gateRuntime.facesSealedGate!(opened, 120, 120, 'up')).toBe(false);
+		expect(facesSealedGate(opened, 120, 120, 'up')).toBe(false);
 	});
 
 	it.each([
@@ -350,15 +313,15 @@ describe('grid gate terrain', () => {
 	])('ignores ordinary blockers: $label', ({ x, y, facing, cell, glyph }) => {
 		expect(gateWorld.grid.terrain[cell[0]]![cell[1]]).toBe(glyph);
 		expect(isWalkable(resolveGridNavigationGrid(sealed), x, y)).toBe(true);
-		expect(gateRuntime.facesSealedGate!(sealed, x, y, facing)).toBe(false);
+		expect(facesSealedGate(sealed, x, y, facing)).toBe(false);
 	});
 
 	it('ignores ground outside the grid', () => {
-		expect(gateRuntime.facesSealedGate!(sealed, 136, 152, 'down')).toBe(false);
+		expect(facesSealedGate(sealed, 136, 152, 'down')).toBe(false);
 	});
 
 	it('ignores non-grid maps instead of throwing', () => {
 		expect(isGridWorldMap(heroHouseMap)).toBe(false);
-		expect(gateRuntime.facesSealedGate!(heroHouseMap, 0, 0, 'down')).toBe(false);
+		expect(facesSealedGate(heroHouseMap, 0, 0, 'down')).toBe(false);
 	});
 });

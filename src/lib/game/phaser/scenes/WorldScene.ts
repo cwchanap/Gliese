@@ -792,10 +792,13 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
+		// Drain pending interact presses every frame so presses during pause,
+		// defeat, story effects, or map transitions never fire on resume.
+		const interactPressed = this.hasInteractJustDown();
+
 		this.updateHeroOcclusion();
 
 		if (this.simulationPaused) {
-			this.hasInteractJustDown();
 			return;
 		}
 
@@ -878,7 +881,7 @@ export class WorldScene extends Phaser.Scene {
 
 		this.updateNpcDialogue();
 		this.updateDiscoveryMarkers();
-		this.handleInteractInput();
+		this.handleInteractInput(interactPressed);
 		this.tryCollectPickup();
 
 		const battleTarget =
@@ -3210,8 +3213,8 @@ export class WorldScene extends Phaser.Scene {
 		this.publishHudState(nearbyStatus);
 	}
 
-	private handleInteractInput() {
-		if (!this.hasInteractJustDown()) {
+	private handleInteractInput(interactPressed: boolean) {
+		if (!interactPressed) {
 			return;
 		}
 

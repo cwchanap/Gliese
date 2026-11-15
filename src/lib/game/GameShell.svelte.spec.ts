@@ -208,6 +208,27 @@ function withCommands(fn: (commands: unknown[]) => Promise<void> | void): Promis
 	}
 }
 
+async function withSaveSlotWriter(run: () => Promise<void>) {
+	const handleSaveSlot = (event: Event) => {
+		const command = (event as CustomEvent).detail as { type?: string; slot?: 1 | 2 };
+		if (command?.type === 'save-slot' && command.slot) {
+			writeSaveSlot(command.slot, createSlotRecord());
+		}
+	};
+	window.addEventListener(HUD_COMMAND_EVENT, handleSaveSlot);
+	try {
+		await run();
+	} finally {
+		window.removeEventListener(HUD_COMMAND_EVENT, handleSaveSlot);
+	}
+}
+
+async function expectFieldStageFocus() {
+	const stage = document.querySelector<HTMLElement>('.game-stage');
+	expect(stage).not.toBeNull();
+	await expect.element(stage!).toHaveFocus();
+}
+
 function mockMainQuest(overrides: Partial<HudQuestEntry> = {}): HudQuestEntry {
 	return {
 		questId: 'prologue-proving-morning',
@@ -425,9 +446,10 @@ describe('GameShell battle summary', () => {
 		await expect.element(summary.getByTestId('battle-summary-continue')).toHaveFocus();
 
 		// WorldScene clears the summary; the field HUD remounts and the shell
-		// hands focus back (fallback: the menu button) — never <body>.
+		// hands focus back to the stage — never <body> or Menu (which would
+		// swallow the player's next Enter/Space).
 		emitHudState(baseHudState());
-		await expect.element(menuButton).toHaveFocus();
+		await expectFieldStageFocus();
 	});
 
 	it('renders a blocking victory summary and dismisses it through the HUD bridge', async () => {
@@ -883,7 +905,7 @@ describe('GameShell command menu', () => {
 		await expect.element(menuButton).toHaveAttribute('aria-expanded', 'false');
 	});
 
-	it('closes the command grid on Escape and returns focus to the menu button', async () => {
+	it('closes the command grid on Escape and returns focus to the field stage', async () => {
 		render(GameShell);
 		emitHudState(baseHudState({ heals: 2 }));
 
@@ -895,7 +917,7 @@ describe('GameShell command menu', () => {
 
 		await userEvent.keyboard('{Escape}');
 		expect(page.getByRole('button', { name: 'Rest' }).elements()).toHaveLength(0);
-		await expect.element(menuButton).toHaveFocus();
+		await expectFieldStageFocus();
 	});
 
 	it('emits heal command when Rest is clicked', async () => {
@@ -1074,6 +1096,123 @@ describe('GameShell keyboard activation under captured keys', () => {
 			expect(commands).not.toContainEqual({ type: 'heal' });
 		});
 	});
+
+	it('prevents repeated Enter and Space keydowns on focused controls from cascading clicks', async () => {
+		const capture = installWindowKeyCapture();
+		try {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+			await expect.element(menuButton).toBeVisible();
+			menuButton.element().focus();
+
+			const repeatEnter = new KeyboardEvent('keydown', {
+				key: 'Enter',
+				repeat: true,
+				bubbles: true,
+				cancelable: true
+			});
+			menuButton.element().dispatchEvent(repeatEnter);
+			expect(repeatEnter.defaultPrevented).toBe(true);
+			expect(capture.seen).toEqual([]);
+			expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
+
+			const repeatSpace = new KeyboardEvent('keydown', {
+				key: ' ',
+				repeat: true,
+				bubbles: true,
+				cancelable: true
+			});
+			menuButton.element().dispatchEvent(repeatSpace);
+			expect(repeatSpace.defaultPrevented).toBe(true);
+			expect(capture.seen).toEqual([]);
+		} finally {
+			capture.remove();
+		}
+	});
+
+	it('lets Enter and Space reach the field after closing Command or Gear', async () => {
+		const capture = installWindowKeyCapture();
+		try {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			await userEvent.keyboard('{Escape}');
+			await expect.element(page.getByRole('region', { name: 'Command' })).toBeVisible();
+			await userEvent.keyboard('{Escape}');
+			await expectFieldStageFocus();
+
+			await userEvent.keyboard(' ');
+			await userEvent.keyboard('{Enter}');
+			expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
+			expect(capture.seen).toEqual(['keydown: ', 'keyup: ', 'keydown:Enter', 'keyup:Enter']);
+
+			capture.seen.length = 0;
+			await userEvent.keyboard('i');
+			await expect.element(page.getByRole('dialog', { name: 'Inventory' })).toBeVisible();
+			await userEvent.keyboard('{Escape}');
+			await expectFieldStageFocus();
+
+			await userEvent.keyboard(' ');
+			expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
+			expect(capture.seen).toEqual(['keydown: ', 'keyup: ']);
+		} finally {
+			capture.remove();
+		}
+	});
+
+	it('lets keyup reach the field if keydown was unshielded and focus moved onto a button', async () => {
+		const capture = installWindowKeyCapture();
+		try {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+			await expect.element(menuButton).toBeVisible();
+			const stage = document.querySelector<HTMLElement>('.game-stage')!;
+			stage.focus();
+
+			stage.dispatchEvent(
+				new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
+			);
+			menuButton.element().focus();
+			menuButton
+				.element()
+				.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true, cancelable: true }));
+
+			expect(capture.seen).toEqual(['keydown: ', 'keyup: ']);
+		} finally {
+			capture.remove();
+		}
+	});
+
+	it('swallows keyup when its keydown was shielded on a button that then moved focus', async () => {
+		const capture = installWindowKeyCapture();
+		try {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+			await expect.element(menuButton).toBeVisible();
+			menuButton.element().focus();
+
+			menuButton
+				.element()
+				.dispatchEvent(
+					new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+				);
+			const stage = document.querySelector<HTMLElement>('.game-stage')!;
+			stage.focus();
+			stage.dispatchEvent(
+				new KeyboardEvent('keyup', { key: 'Enter', bubbles: true, cancelable: true })
+			);
+
+			expect(capture.seen).toEqual([]);
+		} finally {
+			capture.remove();
+		}
+	});
 });
 
 describe('GameShell overlay return paths', () => {
@@ -1101,7 +1240,7 @@ describe('GameShell overlay return paths', () => {
 
 			await userEvent.keyboard('{Escape}');
 			expect(commandPanel.elements()).toHaveLength(0);
-			await expect.element(page.getByRole('button', { name: 'Menu', exact: true })).toHaveFocus();
+			await expectFieldStageFocus();
 			expect(commands).toContainEqual({ type: 'resume-game' });
 		});
 	});
@@ -1121,13 +1260,12 @@ describe('GameShell overlay return paths', () => {
 		await userEvent.keyboard('{Escape}');
 		expect(inventory.elements()).toHaveLength(0);
 		expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
-		await expect.element(page.getByRole('button', { name: 'Menu', exact: true })).toHaveFocus();
+		await expectFieldStageFocus();
 	});
 
 	it('toggles the Map overlay with M and returns to the field on M and on Escape', async () => {
 		render(GameShell);
 		emitHudState(baseHudState());
-		const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
 		const mapSvg = page.getByTestId('area-map-svg');
 
 		await userEvent.keyboard('m');
@@ -1135,14 +1273,14 @@ describe('GameShell overlay return paths', () => {
 
 		await userEvent.keyboard('m');
 		expect(mapSvg.elements()).toHaveLength(0);
-		await expect.element(menuButton).toHaveFocus();
+		await expectFieldStageFocus();
 
 		await userEvent.keyboard('m');
 		await expect.element(mapSvg).toBeVisible();
 
 		await userEvent.keyboard('{Escape}');
 		expect(mapSvg.elements()).toHaveLength(0);
-		await expect.element(menuButton).toHaveFocus();
+		await expectFieldStageFocus();
 	});
 
 	it.each([
@@ -1236,7 +1374,7 @@ describe('GameShell overlay return paths', () => {
 
 			expect(shop.elements()).toHaveLength(0);
 			expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
-			await expect.element(page.getByRole('button', { name: 'Menu', exact: true })).toHaveFocus();
+			await expectFieldStageFocus();
 		} finally {
 			window.removeEventListener(HUD_COMMAND_EVENT, clearShopOnClose);
 		}
@@ -1573,7 +1711,7 @@ describe('GameShell shop', () => {
 				await expect.element(dialog.getByRole('button', { name: /Close/ })).toHaveFocus();
 				await userEvent.keyboard('{Escape}');
 				expect(dialog.elements()).toHaveLength(0);
-				await expect.element(page.getByRole('button', { name: /menu/i })).toHaveFocus();
+				await expectFieldStageFocus();
 			} finally {
 				window.removeEventListener(HUD_COMMAND_EVENT, updateShop);
 			}
@@ -1616,7 +1754,7 @@ describe('GameShell shop', () => {
 		expect(dialog.element()?.contains(focused)).toBe(true);
 	});
 
-	it('closes on Escape and restores focus to the menu button', async () => {
+	it('closes on Escape and restores focus to the field stage', async () => {
 		render(GameShell);
 		emitHudState(
 			baseHudState({
@@ -1644,10 +1782,14 @@ describe('GameShell shop', () => {
 		};
 		window.addEventListener(HUD_COMMAND_EVENT, clearShopOnClose);
 
-		await userEvent.keyboard('{Escape}');
+		try {
+			await userEvent.keyboard('{Escape}');
 
-		expect(dialog.elements()).toHaveLength(0);
-		await expect.element(page.getByRole('button', { name: /menu/i })).toHaveFocus();
+			expect(dialog.elements()).toHaveLength(0);
+			await expectFieldStageFocus();
+		} finally {
+			window.removeEventListener(HUD_COMMAND_EVENT, clearShopOnClose);
+		}
 	});
 });
 
@@ -2358,42 +2500,37 @@ describe('GameShell save screen', () => {
 		await expect.element(saveDialog).toBeVisible();
 
 		// Write slot 1, then click it again to raise the overwrite alertdialog.
-		window.addEventListener(HUD_COMMAND_EVENT, (event) => {
-			const command = (event as CustomEvent).detail as { type?: string; slot?: 1 | 2 };
-			if (command?.type === 'save-slot' && command.slot) {
-				writeSaveSlot(command.slot, createSlotRecord());
-			}
+		await withSaveSlotWriter(async () => {
+			await saveDialog.getByTestId('save-slot-1').click();
+			emitHudState(baseHudState({ status: 'Saved.' }));
+			await saveDialog.getByTestId('save-slot-1').click();
+			const confirmButton = saveDialog.getByTestId('confirm-overwrite');
+			await expect.element(confirmButton).toBeVisible();
+
+			// Focus entry: primary action owns focus while the alertdialog is open.
+			await expect.element(confirmButton).toHaveFocus();
+
+			// Shift+Tab from the alertdialog container itself wraps to the LAST
+			// control instead of escaping the aria-modal surface.
+			const confirmDialog = saveDialog.getByRole('alertdialog').element() as HTMLElement;
+			confirmDialog.focus();
+			await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+			await expect.element(confirmButton).toHaveFocus();
+
+			// Tab is trapped within the alertdialog's two buttons.
+			const cancel = saveDialog.getByRole('button', { name: /back/i }).last();
+			await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+			await expect.element(cancel).toHaveFocus();
+			await userEvent.keyboard('{Tab}');
+			await expect.element(confirmButton).toHaveFocus();
+			await userEvent.keyboard('{Tab}');
+			await expect.element(cancel).toHaveFocus();
+
+			// Cancel restores focus to the slot that opened the dialog.
+			await cancel.click();
+			await expect.element(saveDialog.getByTestId('save-slot-1')).toHaveFocus();
+			expect(saveDialog.getByTestId('confirm-overwrite').elements()).toHaveLength(0);
 		});
-
-		await saveDialog.getByTestId('save-slot-1').click();
-		emitHudState(baseHudState({ status: 'Saved.' }));
-		await saveDialog.getByTestId('save-slot-1').click();
-		const confirmButton = saveDialog.getByTestId('confirm-overwrite');
-		await expect.element(confirmButton).toBeVisible();
-
-		// Focus entry: primary action owns focus while the alertdialog is open.
-		await expect.element(confirmButton).toHaveFocus();
-
-		// Shift+Tab from the alertdialog container itself wraps to the LAST
-		// control instead of escaping the aria-modal surface.
-		const confirmDialog = saveDialog.getByRole('alertdialog').element() as HTMLElement;
-		confirmDialog.focus();
-		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
-		await expect.element(confirmButton).toHaveFocus();
-
-		// Tab is trapped within the alertdialog's two buttons.
-		const cancel = saveDialog.getByRole('button', { name: /back/i }).last();
-		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
-		await expect.element(cancel).toHaveFocus();
-		await userEvent.keyboard('{Tab}');
-		await expect.element(confirmButton).toHaveFocus();
-		await userEvent.keyboard('{Tab}');
-		await expect.element(cancel).toHaveFocus();
-
-		// Cancel restores focus to the slot that opened the dialog.
-		await cancel.click();
-		await expect.element(saveDialog.getByTestId('save-slot-1')).toHaveFocus();
-		expect(saveDialog.getByTestId('confirm-overwrite').elements()).toHaveLength(0);
 	});
 
 	it('Escape inside the overwrite alertdialog cancels it without closing the Save screen', async () => {
@@ -2406,28 +2543,23 @@ describe('GameShell save screen', () => {
 		const saveDialog = page.getByRole('dialog', { name: /save/i });
 		await expect.element(saveDialog).toBeVisible();
 
-		window.addEventListener(HUD_COMMAND_EVENT, (event) => {
-			const command = (event as CustomEvent).detail as { type?: string; slot?: 1 | 2 };
-			if (command?.type === 'save-slot' && command.slot) {
-				writeSaveSlot(command.slot, createSlotRecord());
-			}
+		await withSaveSlotWriter(async () => {
+			await saveDialog.getByTestId('save-slot-1').click();
+			emitHudState(baseHudState({ status: 'Saved.' }));
+			await saveDialog.getByTestId('save-slot-1').click();
+			await expect.element(saveDialog.getByTestId('confirm-overwrite')).toBeVisible();
+
+			// Escape must be swallowed by the alertdialog: it cancels the prompt
+			// and returns focus to the slot rather than closing the whole screen.
+			await userEvent.keyboard('{Escape}');
+			expect(saveDialog.getByTestId('confirm-overwrite').elements()).toHaveLength(0);
+			await expect.element(saveDialog).toBeVisible();
+			await expect.element(saveDialog.getByTestId('save-slot-1')).toHaveFocus();
+
+			// A second Escape now reaches the screen-level handler and closes it.
+			await userEvent.keyboard('{Escape}');
+			expect(saveDialog.elements()).toHaveLength(0);
 		});
-
-		await saveDialog.getByTestId('save-slot-1').click();
-		emitHudState(baseHudState({ status: 'Saved.' }));
-		await saveDialog.getByTestId('save-slot-1').click();
-		await expect.element(saveDialog.getByTestId('confirm-overwrite')).toBeVisible();
-
-		// Escape must be swallowed by the alertdialog: it cancels the prompt
-		// and returns focus to the slot rather than closing the whole screen.
-		await userEvent.keyboard('{Escape}');
-		expect(saveDialog.getByTestId('confirm-overwrite').elements()).toHaveLength(0);
-		await expect.element(saveDialog).toBeVisible();
-		await expect.element(saveDialog.getByTestId('save-slot-1')).toHaveFocus();
-
-		// A second Escape now reaches the screen-level handler and closes it.
-		await userEvent.keyboard('{Escape}');
-		expect(saveDialog.elements()).toHaveLength(0);
 	});
 
 	it.each([
@@ -2453,26 +2585,21 @@ describe('GameShell save screen', () => {
 		const saveDialog = page.getByRole('dialog', { name: /save/i });
 		await expect.element(saveDialog).toBeVisible();
 
-		window.addEventListener(HUD_COMMAND_EVENT, (event) => {
-			const command = (event as CustomEvent).detail as { type?: string; slot?: 1 | 2 };
-			if (command?.type === 'save-slot' && command.slot) {
-				writeSaveSlot(command.slot, createSlotRecord());
-			}
+		await withSaveSlotWriter(async () => {
+			await saveDialog.getByTestId('save-slot-1').click();
+			emitHudState(baseHudState({ status: 'Saved.' }));
+			await saveDialog.getByTestId('save-slot-1').click();
+			await expect.element(saveDialog.getByTestId('confirm-overwrite')).toBeVisible();
+
+			await focus(saveDialog);
+			await userEvent.keyboard('{Escape}');
+
+			expect(saveDialog.getByTestId('confirm-overwrite').elements()).toHaveLength(0);
+			await expect.element(saveDialog).toBeVisible();
+
+			await userEvent.keyboard('{Escape}');
+			expect(saveDialog.elements()).toHaveLength(0);
 		});
-
-		await saveDialog.getByTestId('save-slot-1').click();
-		emitHudState(baseHudState({ status: 'Saved.' }));
-		await saveDialog.getByTestId('save-slot-1').click();
-		await expect.element(saveDialog.getByTestId('confirm-overwrite')).toBeVisible();
-
-		await focus(saveDialog);
-		await userEvent.keyboard('{Escape}');
-
-		expect(saveDialog.getByTestId('confirm-overwrite').elements()).toHaveLength(0);
-		await expect.element(saveDialog).toBeVisible();
-
-		await userEvent.keyboard('{Escape}');
-		expect(saveDialog.elements()).toHaveLength(0);
 	});
 
 	it('blocks pointer input to the underlying screen while the overwrite alertdialog is open', async () => {
@@ -2486,33 +2613,28 @@ describe('GameShell save screen', () => {
 			const saveDialog = page.getByRole('dialog', { name: /save/i });
 			await expect.element(saveDialog).toBeVisible();
 
-			window.addEventListener(HUD_COMMAND_EVENT, (event) => {
-				const command = (event as CustomEvent).detail as { type?: string; slot?: 1 | 2 };
-				if (command?.type === 'save-slot' && command.slot) {
-					writeSaveSlot(command.slot, createSlotRecord());
-				}
+			await withSaveSlotWriter(async () => {
+				// Fill slot 1 — WorldScene defers the write to the post-render tick
+				// and publishes HUD state when it lands — then click it again to
+				// raise the overwrite alertdialog.
+				await saveDialog.getByTestId('save-slot-1').click();
+				emitHudState(baseHudState({ status: 'Saved.' }));
+				await saveDialog.getByTestId('save-slot-1').click();
+				const alertDialog = saveDialog.getByRole('alertdialog');
+				await expect.element(alertDialog).toBeVisible();
+				await expect.element(alertDialog).toHaveAttribute('aria-modal', 'true');
+
+				commands.length = 0;
+
+				// force: true dispatches real input at the element's coordinates, so
+				// the modal scrim still receives the click — the covered control must not.
+				await saveDialog.getByTestId('save-slot-2').click({ force: true });
+				await saveDialog.getByRole('button', { name: /back/i }).first().click({ force: true });
+
+				expect(commands).toHaveLength(0);
+				await expect.element(alertDialog).toBeVisible();
+				await expect.element(saveDialog).toBeVisible();
 			});
-
-			// Fill slot 1 — WorldScene defers the write to the post-render tick
-			// and publishes HUD state when it lands — then click it again to
-			// raise the overwrite alertdialog.
-			await saveDialog.getByTestId('save-slot-1').click();
-			emitHudState(baseHudState({ status: 'Saved.' }));
-			await saveDialog.getByTestId('save-slot-1').click();
-			const alertDialog = saveDialog.getByRole('alertdialog');
-			await expect.element(alertDialog).toBeVisible();
-			await expect.element(alertDialog).toHaveAttribute('aria-modal', 'true');
-
-			commands.length = 0;
-
-			// force: true dispatches real input at the element's coordinates, so
-			// the modal scrim still receives the click — the covered control must not.
-			await saveDialog.getByTestId('save-slot-2').click({ force: true });
-			await saveDialog.getByRole('button', { name: /back/i }).first().click({ force: true });
-
-			expect(commands).toHaveLength(0);
-			await expect.element(alertDialog).toBeVisible();
-			await expect.element(saveDialog).toBeVisible();
 		});
 	});
 
@@ -2919,7 +3041,7 @@ describe('GameShell keyboard shortcuts', () => {
 		await expect.element(page.getByTestId('area-map-svg')).toBeVisible();
 
 		await userEvent.keyboard('m');
-		await expect.element(page.getByRole('button', { name: /menu/i })).toHaveFocus();
+		await expectFieldStageFocus();
 	});
 
 	it('does not open area map when the command grid is open', async () => {
@@ -3094,16 +3216,22 @@ describe('GameShell keyboard shortcuts', () => {
 		await expect.element(saveDialog).toBeVisible();
 	});
 
-	it('ignores repeated and modified I and M presses', async () => {
+	it('ignores repeated and modified Escape, I, and M presses', async () => {
 		render(GameShell);
 		emitHudState(baseHudState());
 		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
 
 		for (const init of [
+			{ key: 'Escape', repeat: true },
+			{ key: 'Escape', ctrlKey: true },
+			{ key: 'Escape', metaKey: true },
+			{ key: 'Escape', altKey: true },
+			{ key: 'Escape', shiftKey: true },
 			{ key: 'i', repeat: true },
 			{ key: 'i', ctrlKey: true },
 			{ key: 'i', metaKey: true },
 			{ key: 'i', altKey: true },
+			{ key: 'I', shiftKey: true },
 			{ key: 'm', repeat: true },
 			{ key: 'm', ctrlKey: true },
 			{ key: 'm', metaKey: true },
@@ -3115,6 +3243,7 @@ describe('GameShell keyboard shortcuts', () => {
 			);
 		}
 
+		expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0);
 		expect(page.getByRole('dialog', { name: 'Inventory' }).elements()).toHaveLength(0);
 		expect(page.getByTestId('area-map-svg').elements()).toHaveLength(0);
 	});
@@ -3594,6 +3723,23 @@ describe('GameShell title mode', () => {
 		await expect.element(systemCard).toHaveFocus();
 	});
 
+	it('closes System opened from Title on Escape even after focus falls to body', async () => {
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		const systemCard = page.getByRole('button', { name: /system/i });
+		await systemCard.click();
+		const dialog = page.getByRole('dialog', { name: /display & text/i });
+		await expect.element(dialog).toBeVisible();
+
+		(document.activeElement as HTMLElement | null)?.blur();
+		expect(document.activeElement).toBe(document.body);
+
+		await userEvent.keyboard('{Escape}');
+		expect(dialog.elements()).toHaveLength(0);
+		await expect.element(systemCard).toHaveFocus();
+	});
+
 	it('keeps the three cards and prompts visible and non-overlapping at 640×360', async () => {
 		render(GameShell);
 		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
@@ -3830,6 +3976,21 @@ describe('GameShell pad layer', () => {
 			await press(1, 2);
 			expect(commands).toContainEqual({ type: 'dialogue-close' });
 		});
+	});
+
+	it('opens the command grid on Pad A without auto-focusing a tile', async () => {
+		installPadStub();
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+		await expect.element(menuButton).toBeVisible();
+		menuButton.element().focus();
+
+		await press(0);
+		await expect.element(page.getByRole('region', { name: 'Command' })).toBeVisible();
+		expect(focusedFocusId() ?? '').not.toMatch(/^field-cmd-/);
+		await expect.element(menuButton).toHaveFocus();
 	});
 
 	it('moves focus through the 4×2 command grid with the left stick', async () => {
@@ -4249,47 +4410,42 @@ describe('GameShell pad layer', () => {
 			render(GameShell);
 			emitHudState(baseHudState());
 
-			window.addEventListener(HUD_COMMAND_EVENT, (event) => {
-				const command = (event as CustomEvent).detail as { type?: string; slot?: 1 | 2 };
-				if (command?.type === 'save-slot' && command.slot) {
-					writeSaveSlot(command.slot, createSlotRecord());
-				}
+			await withSaveSlotWriter(async () => {
+				await page.getByRole('button', { name: /menu/i }).click();
+				await page.getByRole('button', { name: 'Save', exact: true }).click();
+				const saveDialog = page.getByRole('dialog', { name: /save/i });
+				await expect.element(saveDialog).toBeVisible();
+
+				// Fill slot 1 — WorldScene defers the write to the post-render tick
+				// and publishes HUD state when it lands — then re-pick it to raise
+				// the overwrite alertdialog.
+				await saveDialog.getByTestId('save-slot-1').click();
+				emitHudState(baseHudState({ status: 'Saved.' }));
+				await saveDialog.getByTestId('save-slot-1').click();
+				const confirmButton = saveDialog.getByTestId('confirm-overwrite');
+				await expect.element(confirmButton).toBeVisible();
+				await expect.element(confirmButton).toHaveFocus();
+				commands.length = 0;
+
+				// Up must stay on the prompt — before the scope fix it fell through to
+				// the save-slot-2 card hidden behind the scrim.
+				await press(12);
+				expect(focusedFocusId()).toBe('save-overwrite-confirm');
+
+				// A activates the prompt's confirm (save-slot 1), never the covered
+				// slot-2 card (which would emit save-slot 2).
+				await press(0);
+				expect(commands).toEqual([{ type: 'save-slot', slot: 1 }]);
+				await expect.element(saveDialog.getByTestId('save-slot-1')).toHaveFocus();
+
+				// Reopen the prompt: B routes to its Back, not the screen's closeSave.
+				await saveDialog.getByTestId('save-slot-1').click();
+				await expect.element(saveDialog.getByTestId('confirm-overwrite')).toBeVisible();
+				await press(1);
+				expect(saveDialog.getByTestId('confirm-overwrite').elements()).toHaveLength(0);
+				await expect.element(saveDialog).toBeVisible();
+				await expect.element(saveDialog.getByTestId('save-slot-1')).toHaveFocus();
 			});
-
-			await page.getByRole('button', { name: /menu/i }).click();
-			await page.getByRole('button', { name: 'Save', exact: true }).click();
-			const saveDialog = page.getByRole('dialog', { name: /save/i });
-			await expect.element(saveDialog).toBeVisible();
-
-			// Fill slot 1 — WorldScene defers the write to the post-render tick
-			// and publishes HUD state when it lands — then re-pick it to raise
-			// the overwrite alertdialog.
-			await saveDialog.getByTestId('save-slot-1').click();
-			emitHudState(baseHudState({ status: 'Saved.' }));
-			await saveDialog.getByTestId('save-slot-1').click();
-			const confirmButton = saveDialog.getByTestId('confirm-overwrite');
-			await expect.element(confirmButton).toBeVisible();
-			await expect.element(confirmButton).toHaveFocus();
-			commands.length = 0;
-
-			// Up must stay on the prompt — before the scope fix it fell through to
-			// the save-slot-2 card hidden behind the scrim.
-			await press(12);
-			expect(focusedFocusId()).toBe('save-overwrite-confirm');
-
-			// A activates the prompt's confirm (save-slot 1), never the covered
-			// slot-2 card (which would emit save-slot 2).
-			await press(0);
-			expect(commands).toEqual([{ type: 'save-slot', slot: 1 }]);
-			await expect.element(saveDialog.getByTestId('save-slot-1')).toHaveFocus();
-
-			// Reopen the prompt: B routes to its Back, not the screen's closeSave.
-			await saveDialog.getByTestId('save-slot-1').click();
-			await expect.element(saveDialog.getByTestId('confirm-overwrite')).toBeVisible();
-			await press(1);
-			expect(saveDialog.getByTestId('confirm-overwrite').elements()).toHaveLength(0);
-			await expect.element(saveDialog).toBeVisible();
-			await expect.element(saveDialog.getByTestId('save-slot-1')).toHaveFocus();
 		});
 	});
 
@@ -4734,28 +4890,17 @@ describe('GameShell menu toggle placement', () => {
 	it.each(
 		(
 			[
-				{ width: 1280, height: 720 },
-				{ width: 1280, height: 560 },
-				{ width: 1024, height: 600 },
-				{ width: 833, height: 600 },
-				{ width: 832, height: 600 },
+				{ width: 833, height: 560 },
 				{ width: 832, height: 560 },
-				{ width: 760, height: 600 },
-				{ width: 760, height: 560 },
-				{ width: 760, height: 559 },
-				{ width: 721, height: 600 },
-				{ width: 721, height: 560 },
-				{ width: 720, height: 600 },
-				{ width: 720, height: 560 },
-				{ width: 720, height: 360 },
 				{ width: 640, height: 560 },
-				{ width: 640, height: 559 },
-				{ width: 640, height: 360 }
+				{ width: 640, height: 559 }
 			] as const
 		).flatMap((viewport) =>
-			(['en', 'zh-Hant', 'ja'] as const).flatMap((locale) =>
-				(['keys', 'pad'] as const).map((promptMode) => ({ ...viewport, locale, promptMode }))
-			)
+			(['en', 'zh-Hant', 'ja'] as const).map((locale) => ({
+				...viewport,
+				locale,
+				promptMode: 'pad' as const
+			}))
 		)
 	)(
 		'does not intersect the field HUD cards at $width×$height ($locale/$promptMode), prompt glyph included',

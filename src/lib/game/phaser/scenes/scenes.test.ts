@@ -9865,6 +9865,39 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).not.toHaveBeenCalled();
 	});
 
+	it.each(['storyEffectRunning', 'heroDefeated'] as const)(
+		'drains interact presses while %s is active so they do not fire on resume',
+		async (blocker) => {
+			const events = await import('$lib/game/ui-bridge/events');
+			const storyClient = await import('$lib/game/story/client');
+			const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+			const { WorldScene } = await import('./WorldScene');
+			const scene = new WorldScene();
+			const sceneState = scene as unknown as {
+				storyEffectRunning: boolean;
+				heroDefeated: boolean;
+				dialogueSession: unknown;
+			};
+
+			scene.create({ mapId: 'guild-hall' });
+			Object.assign(phaserState.playerMarker, lodgeKeeperApproach);
+			scene.update(0, 16);
+			emitHudStateSpy.mockClear();
+
+			sceneState[blocker] = true;
+			phaserState.interactKeys.e.justDown = true;
+			scene.update(16, 16);
+
+			sceneState[blocker] = false;
+			scene.update(32, 16);
+			await flushStoryDialogue();
+
+			expect(storyClient.getNpcStoryDialogue).not.toHaveBeenCalled();
+			expect(emitHudStateSpy).not.toHaveBeenCalled();
+			expect(sceneState.dialogueSession).toBeNull();
+		}
+	);
+
 	it('targets the faced NPC and its dialogue when two NPCs share the range', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const storyClient = await import('$lib/game/story/client');
@@ -10022,6 +10055,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
 			handleHudCommand: (command: HudCommand) => void;
+			lastPublishedStatus: string;
 		};
 
 		scene.create({ mapId: 'guild-hall' });
@@ -10037,9 +10071,8 @@ describe('WorldScene', () => {
 		Object.assign(phaserState.playerMarker, { ...guildHallMap.spawn });
 		scene.update(16, 16);
 
-		expect(emitHudStateSpy).not.toHaveBeenLastCalledWith(
-			expect.objectContaining({ status: 'No one nearby' })
-		);
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
+		expect(sceneState.lastPublishedStatus).toBe('No heal charges left');
 	});
 
 	it('stays silent facing away, then shows the busy fallback beside an ambient villager', async () => {
