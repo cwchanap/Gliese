@@ -13296,7 +13296,10 @@ test('journey hold skips an already-satisfied stop and still walks a real leg', 
 	});
 	expect(keydownCalls).toBe(1);
 	const settled = await page.evaluate(() => ({
-		position: (window as GlieseProbeWindow).__glieseLastHudState?.areaMap?.player ?? null,
+		position:
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic?.mapId === 'overworld'
+				? ((window as GlieseProbeWindow).__glieseLastMovementDiagnostic?.resolvedPosition ?? null)
+				: ((window as GlieseProbeWindow).__glieseLastHudState?.areaMap?.player ?? null),
 		diagnostics: (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
 	}));
 	expect(settled.diagnostics).toBeGreaterThan(before.diagnostics);
@@ -13388,10 +13391,17 @@ test('journey hold cancels a stale observer so it cannot release a rearmed hold'
 	expect(
 		await page.evaluate(() => (window as GlieseProbeWindow).__glieseHoldUntil ?? null)
 	).toBeNull();
-	const start = await page.evaluate(() => ({
-		y: (window as GlieseProbeWindow).__glieseLastHudState?.areaMap?.player?.y ?? null,
-		diagnostics: (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
-	}));
+	const start = await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		const player =
+			probeWindow.__glieseLastMovementDiagnostic?.mapId === 'overworld'
+				? probeWindow.__glieseLastMovementDiagnostic.resolvedPosition
+				: (probeWindow.__glieseLastHudState?.areaMap?.player ?? null);
+		return {
+			y: player?.y ?? null,
+			diagnostics: probeWindow.__glieseMovementDiagnostics?.length ?? 0
+		};
+	});
 	if (typeof start.y !== 'number') {
 		throw new Error('Missing overworld position before rearmed hold');
 	}
@@ -13402,11 +13412,18 @@ test('journey hold cancels a stale observer so it cannot release a rearmed hold'
 		direction: 'lte',
 		value: targetY
 	});
-	const settled = await page.evaluate(() => ({
-		y: (window as GlieseProbeWindow).__glieseLastHudState?.areaMap?.player?.y ?? null,
-		diagnostics: (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0,
-		holdUntil: (window as GlieseProbeWindow).__glieseHoldUntil ?? null
-	}));
+	const settled = await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		const player =
+			probeWindow.__glieseLastMovementDiagnostic?.mapId === 'overworld'
+				? probeWindow.__glieseLastMovementDiagnostic.resolvedPosition
+				: (probeWindow.__glieseLastHudState?.areaMap?.player ?? null);
+		return {
+			y: player?.y ?? null,
+			diagnostics: probeWindow.__glieseMovementDiagnostics?.length ?? 0,
+			holdUntil: probeWindow.__glieseHoldUntil ?? null
+		};
+	});
 	expect(settled.holdUntil).toBeNull();
 	expect(settled.diagnostics).toBeGreaterThan(start.diagnostics);
 	expect(settled.y).not.toBeNull();
