@@ -12925,11 +12925,7 @@ async function journeyHoldUntil(
 				const gate = probeWindow.__glieseTransitionGateState;
 				let player = gate && gate.mapId === state?.mapId ? gate.player : state?.areaMap?.player;
 				const diagnostic = probeWindow.__glieseLastMovementDiagnostic;
-				if (
-					diagnostic &&
-					diagnostic.mapId === state?.mapId &&
-					(probeWindow.__glieseLastMovementAt ?? 0) >= (probeWindow.__glieseLastHudAt ?? 0)
-				) {
+				if (diagnostic && diagnostic.mapId === state?.mapId) {
 					player = diagnostic.resolvedPosition;
 				}
 				if (typeof player?.x !== 'number' || typeof player.y !== 'number') return false;
