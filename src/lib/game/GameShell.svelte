@@ -5,7 +5,11 @@
 	import BagScreen from '$lib/game/ui/BagScreen.svelte';
 	import BattleHud from '$lib/game/ui/BattleHud.svelte';
 	import BattleSummary from '$lib/game/ui/BattleSummary.svelte';
-	import type { FieldCommand } from '$lib/game/ui/CommandGrid.svelte';
+	import {
+		FIELD_COMMAND_FOCUS_ID_PREFIX,
+		fieldCommandFocusId,
+		type FieldCommand
+	} from '$lib/game/ui/CommandGrid.svelte';
 	import FieldHud from '$lib/game/ui/FieldHud.svelte';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
 	import QuestJournal from '$lib/game/ui/QuestJournal.svelte';
@@ -224,7 +228,9 @@
 	function handleFieldCommand(command: FieldCommand) {
 		if (command !== 'rest') {
 			document
-				.querySelector<HTMLElement>(`[data-focus-id="field-cmd-${command}"]:not([disabled])`)
+				.querySelector<HTMLElement>(
+					`[data-focus-id="${fieldCommandFocusId(command)}"]:not([disabled])`
+				)
 				?.focus();
 		}
 		switch (command) {
@@ -289,6 +295,10 @@
 		if (focusFirstTile) void focusCommandTile();
 	}
 
+	function focusFieldStage() {
+		mountNode?.focus();
+	}
+
 	async function focusCommandTile(focusId?: string) {
 		await tick();
 		const preferred = focusId
@@ -298,7 +308,9 @@
 			: null;
 		(
 			preferred ??
-			document.querySelector<HTMLElement>('[data-focus-id^="field-cmd-"]:not([disabled])')
+			document.querySelector<HTMLElement>(
+				`[data-focus-id^="${FIELD_COMMAND_FOCUS_ID_PREFIX}"]:not([disabled])`
+			)
 		)?.focus();
 	}
 
@@ -306,9 +318,8 @@
 		if (!commandOpen) return;
 		commandOpen = false;
 		resumeForOverlay('settings');
-		// Escape/pad-cancel unmounts the grid under the user's focus; the menu
-		// button is the grid's anchor (final-review finding 6).
-		menuButton?.focus();
+		// Keep Enter/Space free for field interaction on resume (do not park on Menu).
+		focusFieldStage();
 	}
 
 	function openInventory(initialTab: 'potions' | 'gear' = 'potions') {
@@ -342,19 +353,28 @@
 			restoreTarget &&
 			document.contains(restoreTarget) &&
 			!restoreTarget.matches('[disabled], [aria-disabled="true"]') &&
-			!restoreTarget.closest('#game-command-panel')
+			!restoreTarget.closest('#game-command-panel') &&
+			!(mode === 'playing' && restoreTarget === menuButton)
 		) {
 			restoreTarget.focus();
 			return;
 		}
 
-		menuButton?.focus();
+		if (mode === 'playing') {
+			focusFieldStage();
+		} else {
+			document
+				.querySelector<HTMLElement>(
+					'[data-focus-id="title-continue"]:not([disabled]), [data-focus-id="title-new-run"]'
+				)
+				?.focus();
+		}
 	}
 
 	function leaveOverlay(owner: OverlayPauseOwner) {
 		const opener = overlayFocusRestoreTarget;
 		const commandFocusId = opener?.getAttribute('data-focus-id') ?? '';
-		if (commandFocusId.startsWith('field-cmd-')) {
+		if (commandFocusId.startsWith(FIELD_COMMAND_FOCUS_ID_PREFIX)) {
 			overlayFocusRestoreTarget = null;
 			commandOpen = true;
 			if (pauseOwner === owner) pauseOwner = 'settings';
@@ -425,8 +445,8 @@
 	function closeSystem() {
 		if (!systemOpen) return;
 		systemOpen = false;
-		// Title mode restores to the opening Title card; playing mode falls
-		// back to the menu button when the opener sat in the command grid.
+		// Title mode restores to the opening Title card; playing mode returns to
+		// the command tile if System opened from one, otherwise the field stage.
 		leaveOverlay('system');
 	}
 
@@ -542,15 +562,47 @@
 		return true;
 	}
 
-	function handleShellActivationKey(event: KeyboardEvent) {
-		if (event.key !== 'Enter' && event.key !== ' ') return;
+	const shieldedActivationKeys: Record<'Enter' | ' ', boolean> = { Enter: false, ' ': false };
+	let padConfirmClick = false;
+
+	function isShieldedActivationKey(key: string): key is 'Enter' | ' ' {
+		return key === 'Enter' || key === ' ';
+	}
+
+	function isShieldableActivationControl(target: EventTarget | null): boolean {
 		const control =
-			event.target instanceof Element
-				? event.target.closest('button, [role="button"], [role="tab"]')
-				: null;
-		if (!control || control.matches(':disabled, [aria-disabled="true"]')) return;
+			target instanceof Element ? target.closest('button, [role="button"], [role="tab"]') : null;
+		return Boolean(control && !control.matches(':disabled, [aria-disabled="true"]'));
+	}
+
+	function handleShellActivationKeydownCapture(event: KeyboardEvent) {
+		if (!isShieldedActivationKey(event.key)) return;
+		if (!isShieldableActivationControl(event.target)) return;
+		// Block repeated Enter/Space from firing native button clicks again.
+		if (event.repeat) event.preventDefault();
+		shieldedActivationKeys[event.key] = true;
+		setLastInputModality('keys');
+	}
+
+	function handleShellActivationKeydown(event: KeyboardEvent) {
+		if (!isShieldedActivationKey(event.key)) return;
+		if (!isShieldableActivationControl(event.target)) return;
+		event.stopPropagation();
+	}
+
+	function handleShellActivationKeyup(event: KeyboardEvent) {
+		if (!isShieldedActivationKey(event.key)) return;
+		// Only swallow keyup for keys whose keydown was shielded; if keydown
+		// reached Phaser and focus then moved onto a control, Phaser needs keyup.
+		if (!shieldedActivationKeys[event.key]) return;
+		shieldedActivationKeys[event.key] = false;
 		event.stopPropagation();
 		setLastInputModality('keys');
+	}
+
+	function clearShieldedActivationKeys() {
+		shieldedActivationKeys.Enter = false;
+		shieldedActivationKeys[' '] = false;
 	}
 
 	function handleGlobalKeydown(event: KeyboardEvent) {
@@ -560,11 +612,18 @@
 		if (handleMenuArrowKeys(event)) return;
 
 		if (event.repeat) return;
-		if (event.ctrlKey || event.metaKey || event.altKey) return;
+		if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
 		if (isEditableTarget(event.target)) return;
 
 		if (event.key === 'Escape') {
-			if (mode !== 'playing' || $hudState.dialogue || battleLocked) return;
+			if ($hudState.dialogue || battleLocked) return;
+			if (mode === 'title') {
+				if (newRunConfirmOpen || loadPickerOpen || systemOpen) {
+					event.preventDefault();
+					handlePadCancel();
+				}
+				return;
+			}
 			event.preventDefault();
 			if (overlaySurfaceOpen) handlePadCancel();
 			else if ($hudState.ready) openCommand(true);
@@ -572,14 +631,13 @@
 		}
 
 		if (event.key === 'i' || event.key === 'I') {
-			if (overlaySurfaceOpen || battleLocked || !$hudState.ready) return;
+			if (mode !== 'playing' || overlaySurfaceOpen || battleLocked || !$hudState.ready) return;
 			event.preventDefault();
 			openInventory('gear');
 			return;
 		}
 
 		if (event.key !== 'm' && event.key !== 'M') return;
-		if (event.shiftKey) return;
 
 		if (areaMapOpen) {
 			event.preventDefault();
@@ -590,7 +648,7 @@
 		// Same coherent modal guard as Start/Menu: M never raises the map under
 		// any open surface — save and dialogue included (final review). Closing
 		// the already-open map stays handled above.
-		if (overlaySurfaceOpen || battleLocked || !$hudState.ready) return;
+		if (mode !== 'playing' || overlaySurfaceOpen || battleLocked || !$hudState.ready) return;
 
 		event.preventDefault();
 		openAreaMap();
@@ -683,7 +741,14 @@
 		// Focusable SVG nodes (map markers) have no click action; only real
 		// HTML controls are confirmable.
 		const target = document.activeElement;
-		if (target instanceof HTMLElement) target.click();
+		if (target instanceof HTMLElement) {
+			padConfirmClick = true;
+			try {
+				target.click();
+			} finally {
+				padConfirmClick = false;
+			}
+		}
 	}
 
 	function handlePadCancel() {
@@ -955,7 +1020,11 @@
 
 	onMount(() => {
 		window.addEventListener('keydown', handleGlobalKeydown);
-		return () => window.removeEventListener('keydown', handleGlobalKeydown);
+		window.addEventListener('blur', clearShieldedActivationKeys);
+		return () => {
+			window.removeEventListener('keydown', handleGlobalKeydown);
+			window.removeEventListener('blur', clearShieldedActivationKeys);
+		};
 	});
 </script>
 
@@ -963,8 +1032,9 @@
 	class="game-shell relative h-screen w-screen bg-ink font-body text-parchment"
 	class:heroic-motion-reduced={$motionReduced}
 	role="presentation"
-	onkeydown={handleShellActivationKey}
-	onkeyup={handleShellActivationKey}
+	onkeydowncapture={handleShellActivationKeydownCapture}
+	onkeydown={handleShellActivationKeydown}
+	onkeyup={handleShellActivationKeyup}
 >
 	{#if loadError}
 		<div
@@ -1022,6 +1092,7 @@
 	{:else}
 		<div
 			bind:this={mountNode}
+			tabindex="-1"
 			class="game-stage absolute inset-0 overflow-hidden bg-[#090d1f]"
 		></div>
 
@@ -1035,7 +1106,8 @@
 					bind:this={menuButton}
 					type="button"
 					class="heroic-chip-button jrpg-command-toggle"
-					onclick={(event) => (commandOpen ? closeCommand() : openCommand(event.detail === 0))}
+					onclick={(event) =>
+						commandOpen ? closeCommand() : openCommand(event.detail === 0 && !padConfirmClick)}
 					aria-expanded={commandOpen}
 					aria-controls="game-command-panel"
 					aria-keyshortcuts="Escape"
@@ -1187,6 +1259,10 @@
 		background: #050714;
 	}
 
+	.game-stage:focus {
+		outline: none;
+	}
+
 	:global(.game-stage canvas) {
 		width: 100% !important;
 		height: 100% !important;
@@ -1207,9 +1283,8 @@
 		gap: 0.55rem;
 		padding: 0.7rem 0.9rem;
 		font-size: 0.72rem;
-		/* Mockup parity: Menu lives in the dialogue bar, so the toggle reveals
-		   only on keyboard focus / hover on desktop. It stays in the DOM —
-		   focus restoration and e2e/unit hooks click it regardless. */
+		/* Top-right Menu chip stays visible on desktop as well as small screens
+		   so mouse, touch, keyboard, and pad players always have direct access. */
 	}
 
 	.menu-glyph {
@@ -1256,8 +1331,8 @@
 
 		.jrpg-command-toggle {
 			padding: 0.6rem 0.72rem;
-			/* No mockup exists for small screens: keep the toggle visible so
-			   touch players retain menu access. */
+			/* Compact padding on narrow screens so the persistent Menu chip clears
+			   the smaller status cluster. */
 		}
 	}
 

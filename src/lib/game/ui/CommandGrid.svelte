@@ -1,8 +1,4 @@
-<script lang="ts">
-	import { MediaQuery } from 'svelte/reactivity';
-	import { locale } from '$lib/game/i18n/store';
-	import { t } from '$lib/game/i18n/translate';
-
+<script module lang="ts">
 	/** Exact Heroic field command set and order (plan Task 4 Step 2). */
 	export type FieldCommand =
 		| 'bag'
@@ -13,6 +9,20 @@
 		| 'rest'
 		| 'save'
 		| 'system';
+
+	/** Prefix for every field command tile's `data-focus-id`. */
+	export const FIELD_COMMAND_FOCUS_ID_PREFIX = 'field-cmd-';
+
+	/** Builds the `data-focus-id` attribute value for a field command tile. */
+	export function fieldCommandFocusId(command: FieldCommand): string {
+		return `${FIELD_COMMAND_FOCUS_ID_PREFIX}${command}`;
+	}
+</script>
+
+<script lang="ts">
+	import { MediaQuery } from 'svelte/reactivity';
+	import { locale } from '$lib/game/i18n/store';
+	import { t } from '$lib/game/i18n/translate';
 
 	interface Props {
 		/** Per-command availability; disabled tiles stay out of focus order. */
@@ -98,7 +108,7 @@
 			type="button"
 			class="heroic-cmd font-display"
 			class:heroic-cmd-disabled={!enabled[command]}
-			data-focus-id={`field-cmd-${command}`}
+			data-focus-id={fieldCommandFocusId(command)}
 			data-focus-row={rowAt(index)}
 			data-focus-column={columnAt(index)}
 			disabled={!enabled[command]}
