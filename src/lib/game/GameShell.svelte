@@ -609,6 +609,16 @@
 		setLastInputModality('keys');
 	}
 
+	function handleWindowActivationKeyup(event: KeyboardEvent) {
+		if (!isShieldedActivationKey(event.key)) return;
+		// Activation-on-keydown clicks (Title New Run, load slots) can unmount
+		// the focused control mid-press; focus falls to <body> and the release
+		// never reaches the shell keyup handler above. Release ownership here
+		// without stopping the event — a stale shield would otherwise swallow
+		// the field's next Enter/Space keydown.
+		shieldedActivationKeys[event.key] = false;
+	}
+
 	function clearShieldedActivationKeys() {
 		shieldedActivationKeys.Enter = false;
 		shieldedActivationKeys[' '] = false;
@@ -1029,9 +1039,11 @@
 
 	onMount(() => {
 		window.addEventListener('keydown', handleGlobalKeydown);
+		window.addEventListener('keyup', handleWindowActivationKeyup);
 		window.addEventListener('blur', clearShieldedActivationKeys);
 		return () => {
 			window.removeEventListener('keydown', handleGlobalKeydown);
+			window.removeEventListener('keyup', handleWindowActivationKeyup);
 			window.removeEventListener('blur', clearShieldedActivationKeys);
 		};
 	});

@@ -1283,6 +1283,31 @@ describe('GameShell keyboard activation under captured keys', () => {
 			capture.remove();
 		}
 	});
+
+	it('releases the shield when the activated control unmounts before keyup', async () => {
+		const capture = installWindowKeyCapture();
+		try {
+			render(GameShell);
+			await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+			// No save data: Enter on New Run activates on keydown and unmounts
+			// the focused button, so the release lands on <body> — outside the
+			// shell's keyup listener. The shield must not survive into the field.
+			const newRun = page.getByRole('button', { name: /new run/i });
+			newRun.element().focus();
+			await userEvent.keyboard('{Enter}');
+
+			await expect.element(page.getByRole('button', { name: 'Menu', exact: true })).toBeVisible();
+			expect(document.activeElement).toBe(document.body);
+
+			document.querySelector<HTMLElement>('.game-stage')!.focus();
+			await userEvent.keyboard('{Enter}');
+
+			expect(capture.seen).toEqual(['keyup:Enter', 'keydown:Enter', 'keyup:Enter']);
+		} finally {
+			capture.remove();
+		}
+	});
 });
 
 describe('GameShell overlay return paths', () => {
