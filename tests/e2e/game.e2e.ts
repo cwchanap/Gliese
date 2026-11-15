@@ -12923,7 +12923,15 @@ async function journeyHoldUntil(
 				if (requested.kind === 'map') return state?.mapId === requested.value;
 				if (requested.kind === 'status') return state?.status === requested.value;
 				const gate = probeWindow.__glieseTransitionGateState;
-				const player = gate && gate.mapId === state?.mapId ? gate.player : state?.areaMap?.player;
+				let player = gate && gate.mapId === state?.mapId ? gate.player : state?.areaMap?.player;
+				const diagnostic = probeWindow.__glieseLastMovementDiagnostic;
+				if (
+					diagnostic &&
+					diagnostic.mapId === state?.mapId &&
+					(probeWindow.__glieseLastMovementAt ?? 0) >= (probeWindow.__glieseLastHudAt ?? 0)
+				) {
+					player = diagnostic.resolvedPosition;
+				}
 				if (typeof player?.x !== 'number' || typeof player.y !== 'number') return false;
 				const value = requested.axis === 'x' ? player.x : player.y;
 				return requested.direction === 'gte' ? value >= requested.value : value <= requested.value;
