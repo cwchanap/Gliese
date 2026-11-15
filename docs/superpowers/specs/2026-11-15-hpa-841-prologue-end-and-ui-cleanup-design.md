@@ -4,7 +4,7 @@
 **Repository:** cwchanap/Gliese  
 **Baseline:** main at 592034bb0c8030e6468bd21e82c3a0b587f778bd (2026-11-15)  
 **Status:** design only; implementation deliberately deferred  
-**Delivery:** one implementation PR for the entire ticket; this draft PR contains only the design/spec and plan
+**Delivery:** one PR for the entire ticket. This draft PR contains the design/spec and plan first; implementation and tests will land on this same branch/PR.
 
 ## Goal and player-facing contract
 
@@ -88,7 +88,7 @@ Linear HPA-841 has no linked UI mockup or attachment. Use the existing title key
 - Keep narrative prose only in `story/`. The existing final English story lines should remain in `story/beats/prologue/escape.md`; new UI card text is localized through `i18n/messages/`, not by duplicating story prose. Run `bun run story:check` if story references/content change.
 - Automated coverage should extend existing node/core tests, Svelte browser component tests, and `tests/e2e/game.e2e.ts`. Verify text parity and actual timing after advancing all story lines.
 - No battle mechanics, flee/hotkey/HUD redesign, new maps/regions, new chapter content, new audio, new images, per-region battle backdrops, unrelated accessibility redesign, or general responsive refactor.
-- The ticket's request is for one implementation PR. This planning draft is the single reviewable pre-implementation handoff for that future work; no ticket splitting and no extra art task because no new art is required.
+- This same single draft PR is the implementation handoff and will receive the runtime code and tests; do not create a second PR for this ticket. No ticket splitting and no extra art task because no new art is required.
 
 ## End-to-end acceptance criteria (macOS and Windows)
 
