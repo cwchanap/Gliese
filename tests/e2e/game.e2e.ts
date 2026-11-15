@@ -13297,7 +13297,7 @@ test('journey hold skips an already-satisfied stop and still walks a real leg', 
 	}));
 	expect(settled.diagnostics).toBeGreaterThan(before.diagnostics);
 	expect(settled.position?.y).toBeGreaterThanOrEqual(targetY - 1);
-	expect(settled.position?.y).toBeLessThanOrEqual(targetY + 16);
+	expect(settled.position?.y).toBeLessThanOrEqual(targetY + 2 * AXIS_REACH_TOLERANCE);
 });
 
 test('journey hold cancels a stale observer so it cannot release a rearmed hold', async ({
@@ -13358,20 +13358,12 @@ test('journey hold cancels a stale observer so it cannot release a rearmed hold'
 			window.cancelAnimationFrame = trap.cancelAnimationFrame;
 		}
 	});
-	const start = await page.evaluate(() => ({
-		y: (window as GlieseProbeWindow).__glieseLastHudState?.areaMap?.player?.y ?? null,
-		diagnostics: (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
-	}));
-	if (typeof start.y !== 'number') {
-		throw new Error('Missing overworld position before rearmed hold');
-	}
-	const targetY = start.y + 40;
-	const rearmed = journeyHoldUntil(page, 's', {
-		kind: 'axis',
-		axis: 'y',
-		direction: 'gte',
-		value: targetY
-	});
+	const rearmed = journeyHoldUntil(
+		page,
+		's',
+		{ kind: 'status', value: 'gliese-rearmed-marker' },
+		1_000
+	);
 	await page.waitForFunction(
 		() => (window as GlieseProbeWindow).__glieseHoldUntil != null,
 		undefined,
@@ -13388,7 +13380,24 @@ test('journey hold cancels a stale observer so it cannot release a rearmed hold'
 			for (const callback of callbacks) callback(performance.now());
 		}
 	});
-	await rearmed;
+	await expect(rearmed).rejects.toThrow(/timed out holding 's'/);
+	expect(
+		await page.evaluate(() => (window as GlieseProbeWindow).__glieseHoldUntil ?? null)
+	).toBeNull();
+	const start = await page.evaluate(() => ({
+		y: (window as GlieseProbeWindow).__glieseLastHudState?.areaMap?.player?.y ?? null,
+		diagnostics: (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
+	}));
+	if (typeof start.y !== 'number') {
+		throw new Error('Missing overworld position before rearmed hold');
+	}
+	const targetY = start.y + 40;
+	await journeyHoldUntil(page, 's', {
+		kind: 'axis',
+		axis: 'y',
+		direction: 'gte',
+		value: targetY
+	});
 	const settled = await page.evaluate(() => ({
 		y: (window as GlieseProbeWindow).__glieseLastHudState?.areaMap?.player?.y ?? null,
 		diagnostics: (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0,
@@ -13398,7 +13407,7 @@ test('journey hold cancels a stale observer so it cannot release a rearmed hold'
 	expect(settled.diagnostics).toBeGreaterThan(start.diagnostics);
 	expect(settled.y).not.toBeNull();
 	expect(settled.y!).toBeGreaterThanOrEqual(targetY - 1);
-	expect(settled.y!).toBeLessThanOrEqual(targetY + 16);
+	expect(settled.y!).toBeLessThanOrEqual(targetY + 2 * AXIS_REACH_TOLERANCE);
 });
 
 test('Hero House axis mover bounds correction residue', async ({ page }) => {
