@@ -13391,11 +13391,11 @@ test('journey hold cancels a stale observer so it cannot release a rearmed hold'
 	if (typeof start.y !== 'number') {
 		throw new Error('Missing overworld position before rearmed hold');
 	}
-	const targetY = start.y + 40;
-	await journeyHoldUntil(page, 's', {
+	const targetY = start.y - 40;
+	await journeyHoldUntil(page, 'w', {
 		kind: 'axis',
 		axis: 'y',
-		direction: 'gte',
+		direction: 'lte',
 		value: targetY
 	});
 	const settled = await page.evaluate(() => ({
@@ -13406,8 +13406,8 @@ test('journey hold cancels a stale observer so it cannot release a rearmed hold'
 	expect(settled.holdUntil).toBeNull();
 	expect(settled.diagnostics).toBeGreaterThan(start.diagnostics);
 	expect(settled.y).not.toBeNull();
-	expect(settled.y!).toBeGreaterThanOrEqual(targetY - 1);
-	expect(settled.y!).toBeLessThanOrEqual(targetY + 2 * AXIS_REACH_TOLERANCE);
+	expect(settled.y!).toBeLessThanOrEqual(targetY + 1);
+	expect(settled.y!).toBeGreaterThanOrEqual(targetY - 2 * AXIS_REACH_TOLERANCE);
 });
 
 test('Hero House axis mover bounds correction residue', async ({ page }) => {
