@@ -1308,6 +1308,43 @@ describe('GameShell keyboard activation under captured keys', () => {
 			capture.remove();
 		}
 	});
+
+	it('stops held-key repeats that bypass the shell after the control unmounts', async () => {
+		const capture = installWindowKeyCapture();
+		try {
+			render(GameShell);
+			await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+			// Enter on New Run unmounts the focused button on keydown; while the
+			// key is still held its repeats retarget <body> — outside the
+			// section's handlers — and would reach Phaser as a phantom fresh
+			// down. They must be stopped for as long as the press is owned.
+			const newRun = page.getByRole('button', { name: /new run/i });
+			newRun.element().focus();
+			await userEvent.keyboard('{Enter>}');
+			await expect.element(page.getByRole('button', { name: 'Menu', exact: true })).toBeVisible();
+			expect(document.activeElement).toBe(document.body);
+
+			const repeatEnter = new KeyboardEvent('keydown', {
+				key: 'Enter',
+				repeat: true,
+				bubbles: true,
+				cancelable: true
+			});
+			document.body.dispatchEvent(repeatEnter);
+
+			expect(capture.seen).toEqual([]);
+
+			await userEvent.keyboard('{/Enter}');
+			document.body.dispatchEvent(
+				new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+			);
+
+			expect(capture.seen).toEqual(['keyup:Enter', 'keydown:Enter']);
+		} finally {
+			capture.remove();
+		}
+	});
 });
 
 describe('GameShell overlay return paths', () => {

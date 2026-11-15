@@ -609,6 +609,17 @@
 		setLastInputModality('keys');
 	}
 
+	function handleWindowActivationKeydownCapture(event: KeyboardEvent) {
+		if (!event.repeat || !isShieldedActivationKey(event.key)) return;
+		if (!shieldedActivationKeys[event.key]) return;
+		if (event.target instanceof Element && event.target.closest('.game-shell')) return;
+		// An activated control that unmounts mid-hold (New Run, load slots)
+		// drops focus to <body>, so repeats bypass the section handlers. Phaser
+		// never saw the shielded keydown, so a leaked repeat registers there as
+		// a fresh down — stop it in capture, before any window listener sees it.
+		event.stopPropagation();
+	}
+
 	function handleWindowActivationKeyup(event: KeyboardEvent) {
 		if (!isShieldedActivationKey(event.key)) return;
 		// Activation-on-keydown clicks (Title New Run, load slots) can unmount
@@ -1038,10 +1049,12 @@
 	});
 
 	onMount(() => {
+		window.addEventListener('keydown', handleWindowActivationKeydownCapture, true);
 		window.addEventListener('keydown', handleGlobalKeydown);
 		window.addEventListener('keyup', handleWindowActivationKeyup);
 		window.addEventListener('blur', clearShieldedActivationKeys);
 		return () => {
+			window.removeEventListener('keydown', handleWindowActivationKeydownCapture, true);
 			window.removeEventListener('keydown', handleGlobalKeydown);
 			window.removeEventListener('keyup', handleWindowActivationKeyup);
 			window.removeEventListener('blur', clearShieldedActivationKeys);
