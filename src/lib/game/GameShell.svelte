@@ -577,16 +577,25 @@
 
 	function handleShellActivationKeydownCapture(event: KeyboardEvent) {
 		if (!isShieldedActivationKey(event.key)) return;
-		if (!isShieldableActivationControl(event.target)) return;
-		// Block repeated Enter/Space from firing native button clicks again.
-		if (event.repeat) event.preventDefault();
-		shieldedActivationKeys[event.key] = true;
 		setLastInputModality('keys');
+		if (event.repeat) {
+			// Block repeated Enter/Space from firing native button clicks again.
+			// A shell-owned press stays shielded even if focus left the control,
+			// but a foreign press's repeats must not claim its release.
+			if (shieldedActivationKeys[event.key] || isShieldableActivationControl(event.target)) {
+				event.preventDefault();
+			}
+			return;
+		}
+		if (!isShieldableActivationControl(event.target)) return;
+		shieldedActivationKeys[event.key] = true;
 	}
 
 	function handleShellActivationKeydown(event: KeyboardEvent) {
 		if (!isShieldedActivationKey(event.key)) return;
-		if (!isShieldableActivationControl(event.target)) return;
+		if (!shieldedActivationKeys[event.key] && !isShieldableActivationControl(event.target)) {
+			return;
+		}
 		event.stopPropagation();
 	}
 
