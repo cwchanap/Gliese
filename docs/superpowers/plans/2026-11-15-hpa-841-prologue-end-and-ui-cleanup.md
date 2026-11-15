@@ -1,113 +1,113 @@
 # HPA-841 — Prologue ending and UI/text cleanup (implementation plan)
 
 **Issue:** https://linear.app/cwchanap/issue/HPA-841  
-**Design spec:** [2026-11-15-hpa-841-prologue-end-and-ui-cleanup-design.md](../specs/2026-11-15-hpa-841-prologue-end-and-ui-cleanup-design.md)  
-**Base:** main as of 2026-11-15 (592034bb0c8030e6468bd21e82c3a0b587f778bd)  
-**PR strategy:** one PR for HPA-841. The existing draft planning PR is the implementation PR: add runtime code and tests to the same branch/PR after the design is reviewed. Do not create a second PR for this ticket.
+**Spec:** [2026-11-15-hpa-841-prologue-end-and-ui-cleanup-design.md](../specs/2026-11-15-hpa-841-prologue-end-and-ui-cleanup-design.md)  
+**Review addressed:** https://github.com/cwchanap/Gliese/pull/67#pullrequestreview-5912631095  
+**Base:** main at `592034bb0c8030e6468bd21e82c3a0b587f778bd` (2026-11-15)  
+**PR strategy:** **one PR for HPA-841**, existing draft #67. Add code and tests to this PR; do not open a second implementation PR.
 
-## Scope and implementation rules
+## Scope and sequencing
 
-Close the prologue cleanly and fix all eleven UAT findings from Linear HPA-841. Stick to established Svelte/Phaser ownership. Reuse the seven-quest model, quest effects, title key art, localization files and save slot 0. No new art/SFX, no new story content, no new framework/state machine, no backwards-compatibility migration.
+Build the end card/Continue behavior and the exact eleven fixes from HPA-841. Reuse the existing Svelte/Phaser bridge, queued quest effects, save slot 0, title art, and three locale files. No new art/SFX or new infrastructure.
 
-**Existing owners:**
+**Development order:** pair each focused regression test with its fix and re-run it immediately (RED → GREEN), rather than accumulating every failing test first. Use separate logical commits (ending/save, dialogue/battle, and coherent groups of UI fixes); one commit per UI row is optional, not a requirement. Every change still belongs to this one PR.
 
-| Concern | Source owners / regression tests |
+| Area | Primary owners and tests |
 |---|---|
-| Final quest and pending presentation effects | `content/quests.ts`, `core/quests.ts`, `core/quests.test.ts`, `content/quests.test.ts` |
-| Scene playback, HUD status, durable autosaves | `phaser/scenes/WorldScene.ts`, `phaser/scenes/scenes.test.ts`, `save/slots.test.ts` |
-| End card, title return, overlay/focus and Save footer | `GameShell.svelte`, `GameShell.svelte.spec.ts`, `ui-bridge/events.ts`, `ui/TitleScreen.svelte`, `ui/SaveScreen.svelte` |
-| Scripted captain loss | `phaser/scenes/BattleScene.ts`, `core/battle.ts`, `core/battle.test.ts`, `phaser/scenes/scenes.test.ts` |
-| Quest/ambient dialogue Escape handling | `DialoguePanel.svelte`, `DialoguePanel.svelte.spec.ts`, `core/dialogue.ts`, `story/client.ts` as necessary |
-| Status, region names, journal and command UI | `ui/FieldHud.svelte`, `core/area-map.ts`, `ui/QuestJournal.svelte`, `ui/CommandGrid.svelte`, `ui/SystemScreen.svelte`, `ui/BagScreen.svelte` |
-| Translations and behavior tests | `i18n/messages/en.ts`, `ja.ts`, `zh-Hant.ts`, `messages/locale-parity.test.ts`, `tests/e2e/game.e2e.ts` |
+| Terminal effect, save validator | `content/quests.ts`, `core/quests.ts`, `save/save-state.ts`; `core/quests.test.ts`, `save/save-state.test.ts`, `content/quests.test.ts` |
+| Autosave/scene and end signal | `phaser/scenes/WorldScene.ts`, `ui-bridge/events.ts`; `phaser/scenes/scenes.test.ts` |
+| Return-to-title, HUD reset, card and title state | `GameShell.svelte`, `ui-bridge/store.ts`, `ui/TitleScreen.svelte`; `GameShell.svelte.spec.ts`, `ui-bridge/store.test.ts` |
+| Scripted loss | `core/battle.ts`, `phaser/scenes/BattleScene.ts`; `core/battle.test.ts`, `phaser/scenes/scenes.test.ts` |
+| Scripted dialogue | `core/dialogue.ts`, `story/client.ts`, `DialoguePanel.svelte`, `WorldScene.ts`; `DialoguePanel.svelte.spec.ts`, `phaser/scenes/scenes.test.ts` |
+| UI fixes, region, journal, locales | `ui/BagScreen.svelte`, `ui/FieldHud.svelte`, `ui/CommandGrid.svelte`, `ui/SystemScreen.svelte`, `ui/QuestJournal.svelte`, `core/area-map.ts`, `i18n/messages/{en,ja,zh-Hant}.ts`, `tests/e2e/game.e2e.ts` |
 
-## Step 1 — pin the regressions before changing code
+## Step 1 — terminal marker and save validation (test → implementation)
 
-Add small failing tests in current test files, not a new test harness:
+1. Add a focused RED test in `core/quests.test.ts`: the final ridge objective queues `prologue.the-vow`, `prologue.chapter-one`, then `show-prologue-end`. A completed quest alone is **not** a card trigger.
+2. Add a RED save round-trip in `save/save-state.test.ts` for a full `SaveState` with `pendingEffects: [{ type: 'show-prologue-end' }]`. This catches a fatal omission: `save-state.ts:isQuestEffect` currently rejects the marker and would invalidate Continue.
+3. Extend `QuestEffect` in `content/quests.ts`, append the marker to `climb-to-the-ridge.onComplete`, and accept its exact shape in `isQuestEffect`. Do **not** add `endingSeen`, a migration, or an eighth quest.
+4. Remove the duplicated “End of the Prologue.” standalone prose from `story/beats/prologue/escape.md`, retain “Chapter One: The Hunt.” as the final in-story cue, and keep the required localized end-card heading. Run `bun run story:check` and commit generated references as needed.
 
-1. In quest tests, complete the final ridge discovery and assert the queue order is vow → chapter-one → terminal end marker. Assert the marker is not available while either dialogue remains active and is consumed once.
-2. In WorldScene/GameShell tests, simulate end marker receipt, autosave flush, and title return. Assert that a very fast key after the last line cannot leave before saving and that a reloaded completed save has no terminal effect or repeated card.
-3. In BattleScene/core battle tests, prove the raid captain's required defeat skips generic summary while a normal defeat still shows it.
-4. In dialogue component/scene tests, make an active talk objective whose progress updates on conversation start. Press Escape while text is still revealing, then later in the multi-line script: both must reveal/advance rather than abandon remaining lines. For ambient NPC dialogue, Escape still closes; fallback “nothing to say” is dismissible.
-5. In UI component/Playwright tests, capture baseline symptoms for non-wrapping journal chain, empty status pill, the fake HUD density row, duplicated title hint, disabled Rest, and overlapping title confirmation/equipment badge.
-6. Use seven quest IDs as the ground truth for Chapter Progress: 0/7 = 0%, 3/7 = 43%, 7/7 = 100%. Pin the region name at known compiled Sundrop/Wildwood/Silverpine/Mistfen positions, with a fallback for an unbuilt chunk.
+**Green:** quest-effect order and pending-marker serialization/validation pass; existing saves without the marker remain valid.
 
-Keep tests deterministic: use fixtures and a mocked save adapter for fast cases rather than replaying the entire story in every unit test. Reserve one real full-path E2E for the ending.
+## Step 2 — terminal autosave, ordering and failure (test → implementation)
 
-## Step 2 — implement authoritative end-of-prologue signaling
+1. Add `phaser/scenes/scenes.test.ts` regressions using existing saved-scene/render fixtures:
+   - terminal marker is not consumed until the last chapter-one dialogue closes;
+   - slot 0 contains *all seven completed quests, no pending terminal marker* after the terminal write;
+   - chapter-one checkpoint and terminal write use the same post-render queue and cannot be persisted in reverse order;
+   - `flushSaveStorage() === false` and a thrown write produce an explicit failure result instead of hanging;
+   - `?startMap=` dev-map run performs no disk write but still completes the card path.
+2. Change `WorldScene.writeAutosave(state)` to expose `Promise<boolean>` while preserving the existing `afterNextRenderedFrame`/thumbnail path. The terminal `runQuestEffect` awaits that result; other ordinary autosave callers may continue fire-and-forget if appropriate. Ensure previously queued checkpoint callbacks cannot overwrite the final slot with the pending marker (prove by test; respect asynchronous flush ordering, not just listener registration order).
+3. Keep the scene frozen until the **save attempt resolves**. Emit a small transient completion signal through the existing `ui-bridge/events.ts` carrying success/failure. The GameShell card starts non-dismissible and becomes dismissible when the result arrives; if the event is emitted only after the await, it may mount already enabled.
+4. If saving fails, show localized `status.saveFailed` on the card and allow return; **no** custom retry/requeue machinery or indefinite block. The earlier chapter-one checkpoint may allow replay of just the card if that checkpoint itself persisted; do not promise persistence when the underlying storage is unavailable. In dev-map mode, complete immediately with no save attempt (throwaway run).
 
-1. In `content/quests.ts` extend the `QuestEffect` discriminated union with a minimal `show-prologue-end` variant and append it after `prologue.chapter-one` in the last objective's `onComplete`. Keep `story/beats/prologue/escape.md` authoritative for the two existing final story lines.
-2. In `WorldScene.updateStory/runQuestEffect` consume the marker only when no story dialogue is open and earlier effects have been shown/closed. Do not trigger on `isQuestComplete` alone. On entering the final marker, freeze interaction while completing the save handoff.
-3. Arrange a **confirmed autosave** of the finalized quest state using the existing `writeSaveSlot(0,...)`/`flushSaveStorage` and screenshot-after-render mechanism. Modify `writeAutosave` narrowly (or add a terminal wrapper around its existing helpers) so the end-card activation awaits completion; handle save failure by leaving a recoverable in-run state with localized failure feedback instead of allowing an unsaved title return. Do not introduce a new persistence format.
-4. In `ui-bridge/events.ts` add one transient `prologue completed` notification; in `GameShell.svelte` subscribe and show a lightweight full-screen Svelte card on the existing title key art + scrim. Keep keyboard, pointer and pad handling owned by GameShell. Consume the first allowed input once (ignore held-key repeats), prevent Phaser from acting on it, and respect reduced-motion settings. Use localized card text and accessible heading.
-5. On dismissal, return to title; refresh the current save slot list, Continue availability, playtime/area subtitle and New Run overwrite guard from storage (not startup-only captured constants). Continue loads the ridge state. Derive a permanent field tracker “Prologue complete” from the existing seven quest entries, not an eighth fake quest or saved boolean.
-6. Test a completed save reopened from Title and an interrupted final dialogue separately. The completed save must not replay the terminal effect or card; the unfinished final dialogue resumes according to existing story-queue semantics without duplicating quest rewards.
+**Green:** final state is confirmed on a successful flush; a failure is visible and non-blocking; ordinary saves still capture frames and persist normally.
 
-**Integration caution:** queued quest effects are removed before playback. If the marker is consumed before the successful write, retain the state required for retry until persistence succeeds; do not make save failure irrecoverable.
+## Step 3 — return-to-title and HUD/session reset (test → implementation)
 
-## Step 3 — fix scripted dialogue and scripted captain loss
+1. Add RED `GameShell.svelte.spec.ts` regression: dismiss card → Title visible → refreshed Continue subtitle from the newly written slot → old `hudState.ready` false → no automatic re-mount after a late ready HUD event. Continue starts from the completed ridge slot and the card does not repeat. Include a held Enter and pad button so dismissal never activates a Title card twice.
+2. Make the existing title metadata reactive/refreshable on return; replace startup-only `titleSlots`, `titleSlot`, `titleSaveUnreadable`, `titleHasAutosave` snapshots with a single title-state refresh helper. Preserve New Run overwrite confirmation semantics.
+3. Add a small `resetHudState()` in `ui-bridge/store.ts` that resets the stale `ready` state when the game unmounts. Implement one `GameShell.returnToTitle()` that clears `*Open` overlays, `pauseOwner`, completion card, activation-key shields, start request, and playtime base, refreshes slots, and changes mode to title. It must not remount the old Phaser game.
+4. Remove/guard `GameShell`'s implicit `onHudState(ready) => mode='playing'` promotion: starting a run is explicit through `beginRun` or direct boot. The old scene's in-flight HUD events must be ignored after return.
+5. Render the full-screen completion card using `/game/assets/heroic-ui/title-key-art.png`, dark scrim, localized heading + thanks text, accessible focus and reduced motion. Wire first allowed key through the existing `handleGlobalKeydown`, pad through the existing GameShell pad handler, and click through the card. Reuse HPA-836's activation shield; no new global listener.
+6. Add `HudQuestState.total = mainQuestIds.length` in `core/quests.ts`. The field tracker displays “Prologue complete” when `completed.length === total` and `main === null`; the journal uses `completed.length / total`. Test once in `core/quests.test.ts` and reuse the field value instead of duplicate counters.
 
-1. Determine whether NPC dialogue is **quest-driven** from `getCurrentObjective` and matching dialogue ID **before** `WorldScene.startNearbyNpcStoryDialogue` calls `applyQuestProgress`. Carry an explicit narrow Escape behavior in `DialogueSession` → `HudDialogueState`, marking current-quest NPC dialogues and queued scripted scenes as “advance”; ambient dialogue and transient fallback notices are “close.” Do not use `mode === 'system'` as the sole test.
-2. In `DialoguePanel.svelte` route protected Escape through the same `resolveDialogueConfirm` reveal/advance path as Enter, honoring the typewriter state and one action per non-repeated press; ordinary ambient Escape still closes. Prevent duplicate invocation from the panel and window listeners. Keep choices and pad controls consistent with protected dialogue (no unintended skip).
-3. In `BattleScene.finishBattle` detect **outcome === 'defeat' AND current quest objective kind === 'lose-battle' AND source enemy === objective enemy**. Immediately hand the result to `WorldScene`, just as flee does, but preserve the actual defeat/quest result so `prologue.captain-sneers` appears as the next scripted scene. Preserve ordinary defeat summary and respawn behavior. No special UI text hacks in `BattleSummary.svelte`.
-4. Change localized text for existing objective ID `walk-lirra-home` to “See Lirra at the Herb Hut” and an honest progress label. Keep its single-NPC talk trigger and quest ID unchanged. If story prose has to change, edit `story/` source only and run the story compiler/checker.
+**Green:** an automated browser-component test covers the complete mode transition, not only a large E2E; the title and continue state are fresh and no stale HUD/overlay leaks through.
 
-**Regressions:** exact quest dialog lines remain reachable after Escape; ambient close works; scripted loss never shows generic “Defeat / No rewards / Returned to Shrine,” ordinary losses still do; no duplicate reward or completion event.
+## Step 4 — scripted dialogue and captain loss (paired tests/fixes)
 
-## Step 4 — status lifecycle, Heal, settings, and Save footer
+1. Add dialogue tests for a quest-advancing NPC conversation, a queued story scene, an ambient conversation, and a fallback notice. On protected scenes/quest talks, Escape while text is revealing **reveals** it, and the next non-repeated Escape **advances**; ambient/fallback Escape closes.
+2. Reuse `DialogueSession.canClose` and `HudDialogueState.canClose`. In `story/client.ts:createSceneSessionFromStory`, set `canClose=false`. Have `WorldScene.applyQuestProgress` return whether `applyQuestEvent` actually advanced the quest, and set `session.canClose=false` for those NPC talks. Do not add a second Escape-behavior field or infer protection from `mode === 'system'`. The existing Close button and pad cancel should remain hidden/blocked for protected dialogue; adjust the central pad confirmation only as needed.
+3. Route non-closeable Escape in `DialoguePanel.svelte` through the **same** reveal/advance path as Enter, preventing duplicate handling between dialog/window listeners and held-repeat skipping.
+4. Add `core/battle.test.ts` RED cases: `applyBattleDefeat` returns `summary: null` if `applyQuestEvent(lose-battle)` actually completes the scripted objective; ordinary defeat still returns the standard summary. Implement the decision in `core/battle.ts`, **not** in BattleScene enemy-name conditionals. Then generalize `BattleScene.finishBattle`'s flee fast path to any `application.summary === null`; hand the result back to WorldScene exactly once.
+5. Update `walk-lirra-home` localized description/progress label to “See Lirra at the Herb Hut” and translations, keeping the stable objective ID and NPC trigger.
 
-1. Trace `WorldScene.publishHudState`, `lastPublishedStatus`, and preference subscription. Keep semantic status `MessageKey` plus interpolation params for status messages, resolving via `t(currentLocale,...)` when building HUD. Minimize conversion: a helper/wrapper is fine, no broad generic i18n redesign. Preserve genuinely freeform displays if present. Switching en → ja → zh-Hant immediately re-renders the current status text.
-2. Stop publishing `status.dialogueClosed` when a conversation closes or its last line is advanced. When an actual menu surface opens, clear temporary field status through one non-mutating HUD command or equivalent existing bridge handoff; avoid clearing it when a dialogue line merely advances.
-3. In `FieldHud.svelte` keep the screen-reader live region mounted but suppress the **visual** status pill whenever text is blank, including after a menu opens.
-4. Separate save-result status from the field HUD status. `GameShell.svelte` should pass an empty string or save-specific status to `SaveScreen.svelte`; saving feedback must still work while “Shop out of reach” or “HP already full” does not leak to the Save footer.
-5. In `CommandGrid.svelte` retain command key `rest` and behavior `requestHeal()`. Replace visible string with localized “Heal.” When disabled due to zero potions, expose localized “No potions” using an accessible description/tooltip even though the button cannot activate. Do not rework consumables or recovery.
-6. Delete the redundant HUD density row from `SystemScreen.svelte`, adjust the remaining focus-grid row numbers and tests, and remove unused translation keys. Leave existing motion/text-speed/prompt/audio preferences intact.
+**Green:** scripted raid loss transitions directly to `prologue.captain-sneers`, ordinary defeat still shows summary, and protected dialogue is never prematurely skipped.
 
-**Regressions:** clear status never renders an empty box; neither opening a menu nor switching locale leaves stale field copy; saving still reports its own success/failure; navigating settings by keyboard/pad does not jump a removed density row.
+## Step 5 — status lifecycle, Heal command, and settings (paired tests/fixes)
 
-## Step 5 — region names, quest journal, and presentation cleanup
+1. Add status tests covering en → ja → zh-Hant switching **after** a status update and **after a story-gate `scene.restart`**. Retain a minimal typed `MessageKey + params` descriptor through `lastPublishedStatus`, `WorldSceneData.status` and the restart call; resolve with current locale when publishing. Preserve a fallback for genuinely freeform status without a generic localization framework.
+2. In `WorldScene.applyHudCommand('pause-game')`, clear the transient field status as a non-mutating publish. The existing `pauseForOverlay` path already applies to Command, Save, System, etc. Remove all dialogue-closed toasts. Since Save opens with a clear field status, continue using its existing `hudStatus` and preserve newly published save-result feedback—**do not add a separate Save status channel or HUD command**.
+3. In `FieldHud.svelte`, keep the aria-live region mounted, but suppress the visual background if status is empty. Test the nonempty-to-empty transition.
+4. Rename only `ui.fieldCmds.rest` to localized “Heal”, leaving the internal command ID and action as-is. When no potions remain, show localized “No potions” via a tooltip/accessible description for the disabled tile.
+5. Remove the entire HUD density selector from `SystemScreen.svelte`; reindex the remaining focus lattice, remove dead locale keys, and test keyboard/pad traversal.
 
-1. Add a pure coordinate-to-region lookup against `overworld.chunks` from `content/maps/overworld/world.ts`. Use the existing grid tile size and compiled chunk bounds. Group both Wildwood chunks into “Wildwood”; map Sundrop, Silverpine, Mistfen directly. Use localized strings and a generic fallback for other chunks/maps. Thread the player's position into `buildAreaMapState`, save slot area subtitle and quest journal map text where location is grounded; do **not** rename the underlying `overworld` map ID or duplicate pixel rectangles.
-2. In `QuestJournal.svelte` replace the Chapter Progress calculation with total completed main quests / `mainQuestIds.length`. Render the seven main quest steps as the panel's progress timeline, while preserving the detail view of objectives for an individual selected quest. Three completed quests show 43%; a completed run shows 100%.
-3. Allow the *detail* objective chain to wrap cleanly into a second line on small widths. Avoid clipping and keep connector elements visually consistent; update or remove separators at line breaks rather than overflowing the viewport. Remove the misleading “Turned in by” label and related false turn-in implication; only keep independently useful NPC/map context under a neutral caption.
-4. In `BagScreen.svelte` separate the EQUIPPED badge from the slot-type label (e.g., badge at lower right). Confirm actual bounding-box nonintersection at the minimum 640×360 and standard desktop sizes.
-5. In `TitleScreen.svelte` remove the duplicate “↵ Enter” hint, retaining a single “↵ Select” control hint. Update localized title pill and region subline to “Sundrop · Prologue” and stale “Chapter I” captions to “Prologue.” Keep the title's existing key art and layout.
-6. In `GameShell.svelte` reposition the New Run confirmation **below** Continue/New Run cards. Account for normal 1440×900 and compact 640×360 compositions without obscuring either card; preserve the alertdialog and focus restore behavior.
+**Green:** status does not stick across locale or menu transitions; no stale field copy leaks into the Save footer; native Save success/failure still displays; settings navigation is unaffected.
 
-**Regressions:** heading strings follow the player's current world chunk and language; seven-quest progress remains correct after a save/load; the key UI surfaces retain their existing navigation and title visuals.
+## Step 6 — region labels, journal, and remaining visual fixes (paired tests/fixes)
 
-## Step 6 — localization, full-path E2E and CI
+1. In a pure area-map/content helper, map world coordinates to `overworld.chunks` with existing grid tile size and placed chunk bounds. Return localized Sundrop, Wildwood (both chunks), Silverpine, Mistfen; use generic fallback for other chunks/interiors. Thread `player.x/y` through field/minimap/Continue subtitle and quest-context consumers as needed. Add deterministic coordinate tests using existing compiled chunks—no second rectangle table.
+2. In `QuestJournal.svelte`, use `HudQuestState.total` and `completed.length` for the seven-quest Chapter Progress panel: 0/7=0%, 3/7=43%, 7/7=100%. Show seven main quests in the rail, preserve selected quest's objective detail, let the objective chain wrap onto a second row, and remove “Turned in by” because the quests do not have turn-in steps.
+3. In `BagScreen.svelte`, move EQUIPPED away from the slot label and test non-overlapping DOM bounds. In `TitleScreen.svelte`, leave only “↵ Select”, change title pill/subline to “Sundrop · Prologue” and remove stale “Chapter I”. In `GameShell.svelte`, move New Run confirmation **below** action cards, preserving focus/cancel/overwrite behavior on 640×360.
+4. Update en, ja, zh-Hant string sets; run existing locale parity tests. Verify status labels, prologue completion, objective change and built-region names in each.
 
-**Translation work:** update `en.ts`, `ja.ts`, `zh-Hant.ts` for new completion text, “Heal”, “No potions”, prologue labels, region names, and Lirra objective. Remove dead density/title-hint strings where no references remain. Run parity checks. No new dialogue prose in TypeScript; if anything in `story/` changes, use `bun run story:check` and verify generated references are updated.
+**Green:** the seven-quest progress and labels stay correct after save/load and locale change; no truncated journal row, duplicate title hint or overlapping badge/confirmation.
 
-**Automated verification:**
+## Step 7 — lean cross-platform-product acceptance and CI
 
-- `bun run check`
-- `bun run lint`
-- `bun run test:unit -- --run` (node + browser component tests)
-- `bun run test:e2e` (build + Playwright)
-- `bun run story:check:strict`, and `bun run story:check` before it if story sources change
-- `bun run build:tauri` for the release frontend build; existing Rust CI remains the owner of Rust checks.
+**Avoid high-cost infrastructure:** The current `.github/workflows/ci.yml` uses `ubuntu-24.04`; Playwright is Chromium against Vite preview/localStorage. It is not a real Tauri WKWebView/WebView2 E2E. The repo has no `toHaveScreenshot` goldens, so add neither macOS/Windows browser-matrix jobs nor screenshot-baseline files.
 
-Keep the E2E fixture cost under control: one complete prologue run, then shorter targeted scenario fixtures for the eleven defects. Use persisted save records to test Continue, but not to substitute for the *one* real ending-path test. Do not require manual clicking to accept this ticket.
+1. Add one **seeded near-end E2E** to the existing Playwright `gate` project: use `core/quests.fixtures.ts:questStateAt('climb-to-the-ridge')` / `gliese.saves.v1` setup, start a *normal saved run*, inspect the ridge, advance final story, assert the completion card, dismiss, then Continue. **Do not** boot with `?startMap=`; `WorldScene.isDevMapRun` disables autosave. Use existing browser storage helpers, not an entire 7-quest route-walk (known flaky).
+2. Add focused component/scene assertions for all eleven defects. For save flush failure, use the existing scene test adapter `flush: vi.fn(async () => false)` to cover what browser localStorage E2E cannot.
+3. Add automated visual `boundingBox()` non-intersection / visibility checks at **1440×900, 1280×720, 640×360** for card, title confirmation, equipment label/badge and journal. Existing title screen and the card diagram in the spec are the visual references; **no Linear mockup is attached**. Existing failure-only screenshots remain diagnostic output.
+4. Run `bun run check`, `bun run lint`, `bun run test:unit -- --run`, Playwright `gate` E2E, `bun run story:check:strict` and `bun run build:tauri`. Keep CI coverage on Linux as an implementation verification proxy, **not Linux product acceptance**.
 
-## End-to-end acceptance criteria — macOS and Windows
+### End-to-end acceptance — macOS and Windows desktop behavior
 
-All criteria below are automated. Android and Linux are not E2E acceptance platforms for this ticket.
+This is the acceptance scope of the shipped desktop experience. The listed machine-verifiable checks are implemented in existing shared UI/runtime tests; without new native drivers they do not prove macOS/Windows WebView-specific I/O.
 
-| ID | End-to-end expectation | Machine-verifiable signal |
+| ID | Required behavior | Automated proof |
 |---|---|---|
-| A1 | Prologue finishes with the two current lines in order, confirmed autosave, full-screen end card, and one key/click/pad return to title | Game state + slot 0 + screen assertions in desktop E2E; a rapid dismissal cannot drop the save |
-| A2 | Continue restores ridge, tracker says “Prologue complete,” end card does not repeat | Relaunch/load same stored slot and inspect map/position/quest HUD |
-| A3 | Quest dialogue Escape advances/reveals all lines; ambient Escape closes; captain scripted defeat goes straight to story but ordinary defeat retains summary | E2E dialogue and battle transitions |
-| A4 | All eleven HPA-841 changes are visible and functional, including 3/7 = 43%, correct four chunk names, three locales, status refresh, Heal tooltip, removed density row and title hint, corrected Lirra objective | Playwright/Svelte selectors, translated text, and state assertions |
-| A5 | The end card and existing Title, Bag and Quest screens remain readable; New Run confirmation sits below cards; EQUIPPED/slot labels do not overlap; journal chain wraps | Screenshot comparisons and DOM bounding-box assertions at 1440×900, 1280×720, 640×360 on macOS and Windows |
-| A6 | Existing save slots, other quest outcomes, normal combat summary, menu keyboard/pad controls and build checks do not regress | Existing automated suites and CI pass |
+| A1 | On macOS and Windows, advancing the last ridge dialogue shows the title-art end card, with no premature activation; return to Title then Continue restores the ridge and “Prologue complete” without replay | Near-end normal-save Playwright `gate` scenario + quest/save-state and shell component tests |
+| A2 | Save succeeds before a successful end-card return; save validation accepts pending terminal marker; failure warns without trapping the player; dev-map remains no-save | `save-state.test.ts`, `scenes.test.ts` success/failure/post-render ordering, dev-map test |
+| A3 | Scripted captain loss skips generic Defeat; ordinary loss still has summary. Protected quest/story Escape advances; ambient Escape closes | `core/battle.test.ts`, scene and dialogue browser-component tests |
+| A4 | All eleven UI/text outcomes, seven-quest progress, labels in en/ja/zh-Hant and no stale locale status | Focused Svelte/Playwright + locale parity tests |
+| A5 | End card, title confirmation, badge labels and journal fit existing UI reference at all three viewports without overlap/clipping | Automated DOM `boundingBox()` tests with failure-only screenshots |
+| A6 | Normal saves, title controls, pad inputs and builds do not regress | Existing unit/E2E/strict story check and CI |
 
-**Visual source:** HPA-841 provides no UI mockup attachment. Compare visual checks against the existing screens/title key art and the end-card composition in the design spec. If a Linear mockup is later attached before implementation finishes, update screenshot baselines to match it within this same PR.
+No Linux/Android acceptance criteria, no human acceptance sign-off, no new runner matrix. The implementation stays in **this same PR #67**, with related code and tests committed in reviewable logical chunks. No art/SFX task: existing title artwork is reused.
 
-## Out of scope / PR completion rule
+## Completion rule
 
-No new art or SFX (reuse title key art), new chapter, escort mechanics, battle mechanic redesign (HPA-837), flee/hotkeys (HPA-838, closed), broad menu keyboard fixes (HPA-836, already on main), window resizing (HPA-840), or per-region battle backdrops.
-
-**Done when:** A1–A6 pass in the macOS/Windows automated E2E configuration, locale/build/CI checks pass, and the same single HPA-841 draft PR contains the implementation plus tests. No human acceptance or separate implementation PR.
+The PR stays draft until implementation and A1–A6 automated checks pass. No second PR for HPA-841.
