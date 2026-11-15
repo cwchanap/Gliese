@@ -1213,6 +1213,76 @@ describe('GameShell keyboard activation under captured keys', () => {
 			capture.remove();
 		}
 	});
+
+	it('lets keyup reach the field when only repeats landed on a control', async () => {
+		const capture = installWindowKeyCapture();
+		try {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+			await expect.element(menuButton).toBeVisible();
+			const stage = document.querySelector<HTMLElement>('.game-stage')!;
+			stage.focus();
+
+			stage.dispatchEvent(
+				new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+			);
+			menuButton.element().focus();
+			const repeatEnter = new KeyboardEvent('keydown', {
+				key: 'Enter',
+				repeat: true,
+				bubbles: true,
+				cancelable: true
+			});
+			menuButton.element().dispatchEvent(repeatEnter);
+			expect(repeatEnter.defaultPrevented).toBe(true);
+			menuButton
+				.element()
+				.dispatchEvent(
+					new KeyboardEvent('keyup', { key: 'Enter', bubbles: true, cancelable: true })
+				);
+
+			expect(capture.seen).toEqual(['keydown:Enter', 'keyup:Enter']);
+		} finally {
+			capture.remove();
+		}
+	});
+
+	it('keeps repeats shielded when a control-owned keydown moves focus to the field', async () => {
+		const capture = installWindowKeyCapture();
+		try {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+			await expect.element(menuButton).toBeVisible();
+			menuButton.element().focus();
+
+			menuButton
+				.element()
+				.dispatchEvent(
+					new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+				);
+			const stage = document.querySelector<HTMLElement>('.game-stage')!;
+			stage.focus();
+			const repeatEnter = new KeyboardEvent('keydown', {
+				key: 'Enter',
+				repeat: true,
+				bubbles: true,
+				cancelable: true
+			});
+			stage.dispatchEvent(repeatEnter);
+			expect(repeatEnter.defaultPrevented).toBe(true);
+			stage.dispatchEvent(
+				new KeyboardEvent('keyup', { key: 'Enter', bubbles: true, cancelable: true })
+			);
+
+			expect(capture.seen).toEqual([]);
+		} finally {
+			capture.remove();
+		}
+	});
 });
 
 describe('GameShell overlay return paths', () => {
