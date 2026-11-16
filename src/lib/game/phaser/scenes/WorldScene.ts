@@ -233,7 +233,8 @@ interface WorldSceneData {
 	reason?: 'battle-result' | 'new' | 'resume' | 'transition' | 'story' | 'story-move';
 	recentlyFled?: RecentlyFledEncounter;
 	saveState?: SaveState | null;
-	status?: WorldSceneStatus;
+	/** `null` keeps the field copy cleared (an omitted status resolves the reason default). */
+	status?: WorldSceneStatus | null;
 }
 
 type DirectionKey = {
@@ -794,7 +795,13 @@ export class WorldScene extends Phaser.Scene {
 
 		this.updateHeroOcclusion(false);
 
-		this.publishHudState(data.status ?? this.resolveInitialStatus(reason, Boolean(fledBounds)));
+		// `??` would resurrect a cleared status: an explicit null must survive the
+		// story-gate restart instead of falling back to the reason default.
+		this.publishHudState(
+			data.status !== undefined
+				? data.status
+				: this.resolveInitialStatus(reason, Boolean(fledBounds))
+		);
 	}
 
 	private getCenteredCameraBounds(width: number, height: number) {
