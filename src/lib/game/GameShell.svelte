@@ -151,10 +151,10 @@
 		document.querySelector<HTMLElement>('[data-focus-id="title-new-run"]')?.focus();
 	}
 
-	/** Dismisses the completion card and returns to Title: one sweep clears
-	 *  overlays, pause, shields, the stale run request/playtime, resets the
-	 *  HUD payload, and refreshes the Title's save snapshot. */
-	function returnToTitle() {
+	/** Closes every overlay surface without its close side effects (no resume
+	 *  requests, no focus restore): the completion card takes over, and the
+	 *  return-to-title sweep reuses it. */
+	function clearOverlays() {
 		commandOpen = false;
 		inventoryOpen = false;
 		skillOpen = false;
@@ -166,9 +166,16 @@
 		loadPickerOpen = false;
 		newRunConfirmOpen = false;
 		pauseOwner = null;
+		overlayFocusRestoreTarget = null;
+	}
+
+	/** Dismisses the completion card and returns to Title: one sweep clears
+	 *  overlays, pause, shields, the stale run request/playtime, resets the
+	 *  HUD payload, and refreshes the Title's save snapshot. */
+	function returnToTitle() {
+		clearOverlays();
 		prologueEnd = null;
 		prologueEndDismissKey = null;
-		overlayFocusRestoreTarget = null;
 		clearShieldedActivationKeys();
 		// Arm before resetHudState(): later old-scene `ready` emits must stay
 		// ignored while Title is up (the fresh not-ready publish included).
@@ -734,6 +741,9 @@
 		// menus, rove focus, or reach the field. Only a fresh activation key
 		// dismisses; repeats and shield-owned presses stay ignored (HPA-836).
 		if (prologueEnd) {
+			// Tab is trapped on the card (it holds no focusable descendants, so
+			// trapTabFocus keeps focus on the card itself).
+			trapTabFocus(event, prologueEndCard);
 			tryDismissPrologueEndWithKey(event);
 			return;
 		}
@@ -1163,6 +1173,10 @@
 	$effect(() => {
 		return onPrologueEnd((end) => {
 			if (mode !== 'playing' || prologueEnd) return;
+			// Fully modal: an overlay open when the signal lands must go — its
+			// controls would otherwise keep focus and activation behind the
+			// card (review: Bag + Tab reach its Close while the card is up).
+			clearOverlays();
 			prologueEnd = end;
 		});
 	});

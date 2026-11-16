@@ -5324,4 +5324,34 @@ describe('GameShell prologue end card and return to title', () => {
 		expect(endCard().elements()).toHaveLength(0);
 		expect(page.getByRole('heading', { name: 'GLIESE' }).elements()).toHaveLength(0);
 	});
+
+	it('closes an overlay already open when completion arrives and traps Tab on the card', async () => {
+		await bootPlaying();
+
+		// The finding's concrete case: the Bag is open when the terminal
+		// autosave completes and the completion signal lands. Its controls
+		// must not survive behind the card.
+		await userEvent.keyboard('i');
+		const inventory = page.getByRole('dialog', { name: 'Inventory' });
+		await expect.element(inventory).toBeVisible();
+		const bagClose = document.querySelector<HTMLElement>('.bag-rail-close')!;
+		bagClose.focus();
+		await expect.element(bagClose).toHaveFocus();
+
+		emitPrologueEnd({ success: true });
+
+		const card = endCard();
+		await expect.element(card).toBeVisible();
+		// The overlay is gone — no controls left to focus or activate behind
+		// the card (local arrow handlers and native activation included).
+		expect(inventory.elements()).toHaveLength(0);
+		expect(document.querySelector('.bag-rail')).toBeNull();
+		await expect.element(card).toHaveFocus();
+
+		// Tab in either direction cannot rove to anything behind the card.
+		await userEvent.keyboard('{Tab}');
+		await expect.element(card).toHaveFocus();
+		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+		await expect.element(card).toHaveFocus();
+	});
 });
