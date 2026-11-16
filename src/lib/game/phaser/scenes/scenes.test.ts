@@ -7848,6 +7848,71 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('fences late story responses after shutdown: no dialogue, no HUD publish, and the guard resets on create', async () => {
+		const storyClient = await import('$lib/game/story/client');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			dialogueSession: unknown;
+			publishHudState: (status: string) => void;
+		};
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+
+		// Hold the prose fetch behind a gate so the shell's teardown lands first.
+		let resolveScene: (session: unknown) => void = () => {};
+		vi.mocked(storyClient.getStoryScene).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveScene = resolve as (session: unknown) => void;
+				})
+		);
+
+		try {
+			scene.create({
+				saveState: {
+					...createNewSaveState(),
+					mapId: 'overworld',
+					quests: {
+						...questStateAt('report-boar-king'),
+						pendingEffects: [{ type: 'play-scene', sceneId: 'prologue.chapter-one' }]
+					}
+				}
+			});
+			emitHudStateSpy.mockClear();
+
+			// The queued scene starts loading; the scene shuts down mid-flight,
+			// exactly as returnToTitle() destroys the frozen run.
+			scene.update(0, 16);
+			scene.events.emit('shutdown');
+			resolveScene({ speaker: 'Narrator', line: 'Late line' });
+			await flushStoryDialogue();
+
+			// The response seq was bumped on shutdown, so the late prose is
+			// dropped instead of repopulating dialogue on a dead scene.
+			expect(sceneState.dialogueSession).toBeNull();
+			expect(emitHudStateSpy).not.toHaveBeenCalled();
+
+			// publishHudState is a no-op after shutdown (stale status can't
+			// overwrite the reset HUD payload).
+			sceneState.publishHudState('stale status');
+			expect(emitHudStateSpy).not.toHaveBeenCalled();
+
+			// The shutdown guard resets on create (story-gate scene.restart
+			// re-creates the same scene instance).
+			scene.create({ mapId: 'hero-house' });
+			emitHudStateSpy.mockClear();
+			sceneState.publishHudState('fresh run');
+			expect(emitHudStateSpy).toHaveBeenCalledTimes(1);
+			expect(emitHudStateSpy.mock.calls[0]![0].ready).toBe(true);
+		} finally {
+			emitHudStateSpy.mockRestore();
+			vi.mocked(storyClient.getStoryScene).mockClear();
+		}
+	});
+
 	it('moves the player marker using WASD input state', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();

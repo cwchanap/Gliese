@@ -139,3 +139,25 @@ describe('ui-bridge store provisional state', () => {
 		expect(state.wallet.coins).toBe(createNewSaveState().wallet.coins);
 	});
 });
+
+describe('ui-bridge store reset', () => {
+	it('resetHudState republishes a fresh not-ready payload through the same event channel', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { resetHudState } = await import('$lib/game/ui-bridge/store');
+
+		try {
+			resetHudState();
+
+			expect(emitHudStateSpy).toHaveBeenCalledTimes(1);
+			const payload = emitHudStateSpy.mock.calls[0]![0];
+			expect(payload.ready).toBe(false);
+			expect(payload.dialogue).toBeNull();
+			expect(payload.battle.phase).toBe('none');
+			expect(payload.shop).toBeNull();
+			expect(payload.nearbyShop).toBeNull();
+		} finally {
+			emitHudStateSpy.mockRestore();
+		}
+	});
+});

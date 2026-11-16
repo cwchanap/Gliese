@@ -121,7 +121,8 @@ function createReadyHudState(overrides: Partial<HudState> = {}): HudState {
 		},
 		quests: {
 			main: null,
-			completed: []
+			completed: [],
+			total: 1
 		},
 		inventory: {
 			consumables: [],
@@ -805,7 +806,8 @@ describe('DialoguePanel.svelte', () => {
 						progress: { label: 'Spoke with Old Mott', current: 0, target: 1 },
 						rewardSummary: '10 coins'
 					},
-					completed: []
+					completed: [],
+					total: 1
 				}
 			})
 		);
@@ -1127,7 +1129,8 @@ describe('DialoguePanel.svelte', () => {
 						progress: { label: 'Spoke with Old Mott', current: 0, target: 1 },
 						rewardSummary: '10 coins'
 					},
-					completed: []
+					completed: [],
+					total: 1
 				}
 			})
 		);

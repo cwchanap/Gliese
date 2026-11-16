@@ -4,7 +4,12 @@ import { render } from 'vitest-browser-svelte';
 
 import '../../app.css';
 import GameShell from './GameShell.svelte';
-import { HUD_COMMAND_EVENT, HUD_STATE_EVENT, type HudState } from '$lib/game/ui-bridge/events';
+import {
+	HUD_COMMAND_EVENT,
+	HUD_STATE_EVENT,
+	emitPrologueEnd,
+	type HudState
+} from '$lib/game/ui-bridge/events';
 import { createNewSaveState } from '$lib/game/save/save-state';
 import {
 	SAVE_SLOTS_BACKUP_STORAGE_KEY,
@@ -22,6 +27,10 @@ import { t } from '$lib/game/i18n/translate';
 import type { ConsumableDefinition, EquipmentDefinition } from '$lib/game/content/items';
 import { getAreaName } from '$lib/game/core/area-map';
 import type { HudQuestEntry } from '$lib/game/core/quests';
+import { questStateAt } from '$lib/game/core/quests.fixtures';
+import { get } from 'svelte/store';
+import { hudState } from '$lib/game/ui-bridge/store';
+import { createGame } from '$lib/game/phaser/createGame';
 import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
 
 vi.mock('$lib/game/phaser/createGame', () => ({
@@ -78,7 +87,7 @@ function baseHudState(overrides: Partial<HudState> = {}): HudState {
 		shop: null,
 		dialogue: null,
 		battle: { phase: 'none', summary: null, active: null },
-		quests: { main: null, completed: [] },
+		quests: { main: null, completed: [], total: 0 },
 		inventory: {
 			consumables: [],
 			equipment: [],
@@ -1932,7 +1941,8 @@ describe('GameShell quest log', () => {
 			baseHudState({
 				quests: {
 					main: mockMainQuest(),
-					completed: []
+					completed: [],
+					total: 1
 				}
 			})
 		);
@@ -1960,7 +1970,8 @@ describe('GameShell quest log', () => {
 			baseHudState({
 				quests: {
 					main: mockMainQuest(),
-					completed: []
+					completed: [],
+					total: 1
 				}
 			})
 		);
@@ -1986,7 +1997,8 @@ describe('GameShell quest log', () => {
 			baseHudState({
 				quests: {
 					main: mockMainQuest(),
-					completed: []
+					completed: [],
+					total: 1
 				}
 			})
 		);
@@ -2012,7 +2024,8 @@ describe('GameShell quest log', () => {
 			baseHudState({
 				quests: {
 					main: mockMainQuest(),
-					completed: []
+					completed: [],
+					total: 1
 				}
 			})
 		);
@@ -2043,7 +2056,8 @@ describe('GameShell heroic quest journal', () => {
 						title: 'Trial of Tracks',
 						objectiveId: 'meet-lirra-forest'
 					}),
-					completed: [mockCompletedQuest()]
+					completed: [mockCompletedQuest()],
+					total: 2
 				}
 			})
 		);
@@ -2072,7 +2086,8 @@ describe('GameShell heroic quest journal', () => {
 			baseHudState({
 				quests: {
 					main: mockMainQuest(),
-					completed: []
+					completed: [],
+					total: 1
 				}
 			})
 		);
@@ -2122,7 +2137,8 @@ describe('GameShell heroic quest journal', () => {
 						objectiveId: 'collect-herb-pouch',
 						objective: 'Collect the herb pouch from Mira.'
 					}),
-					completed: []
+					completed: [],
+					total: 1
 				}
 			})
 		);
@@ -2161,7 +2177,8 @@ describe('GameShell heroic quest journal', () => {
 					main: mockMainQuest({
 						progress: { current: 0, target: 1, label: 'Spoke with Old Mott' }
 					}),
-					completed: []
+					completed: [],
+					total: 1
 				}
 			})
 		);
@@ -5040,7 +5057,7 @@ describe('GameShell menu toggle placement', () => {
 			updatePreferences({ locale, promptMode });
 			await page.viewport(width, height);
 			render(GameShell);
-			emitHudState(baseHudState({ quests: { main: mockMainQuest(), completed: [] } }));
+			emitHudState(baseHudState({ quests: { main: mockMainQuest(), completed: [], total: 1 } }));
 
 			const menuButton = page.getByRole('button', { name: t(locale, 'ui.menu'), exact: true });
 			await expect.element(menuButton).toBeVisible();
@@ -5085,4 +5102,226 @@ describe('GameShell menu toggle placement', () => {
 			}
 		}
 	);
+});
+
+describe('GameShell prologue end card and return to title', () => {
+	function endCard() {
+		return page.getByRole('dialog', { name: /end of the prologue/i });
+	}
+
+	function loadPicker() {
+		return page.getByRole('dialog', { name: /load/i });
+	}
+
+	function makePads() {
+		const pads = Array.from({ length: 1 }, () => ({
+			buttons: Array.from({ length: 17 }, () => ({ pressed: false })),
+			axes: [0, 0]
+		}));
+		vi.stubGlobal('navigator', { getGamepads: () => pads });
+		return pads;
+	}
+
+	function padFrames(count = 2): Promise<void> {
+		return new Promise((resolve) => {
+			const step = (remaining: number) =>
+				remaining <= 0 ? resolve() : requestAnimationFrame(() => step(remaining - 1));
+			step(count);
+		});
+	}
+
+	async function bootPlaying() {
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+		emitHudState(baseHudState());
+		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+	}
+
+	it('keeps the initial ready-boot promotion working before any return', async () => {
+		const createGameMock = vi.mocked(createGame);
+		const callsBefore = createGameMock.mock.calls.length;
+
+		await bootPlaying();
+
+		await vi.waitFor(() => expect(createGameMock.mock.calls.length).toBe(callsBefore + 1));
+	});
+
+	it('shows the completion card and returns to a refreshed Title that ignores late ready emits', async () => {
+		const createGameMock = vi.mocked(createGame);
+		writeSaveSlot(0, {
+			...createSlotRecord(),
+			kind: 'autosave',
+			playtimeSeconds: 100,
+			state: { ...createNewSaveState(), mapId: 'hero-house' }
+		});
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+		await expect
+			.element(page.getByRole('button', { name: /continue/i }))
+			.toHaveTextContent("Grik's House");
+		await expect
+			.element(page.getByRole('button', { name: /continue/i }))
+			.toHaveTextContent('0:01:40');
+
+		// The existing embedded-harness boot: a ready emit promotes to playing.
+		emitHudState(baseHudState());
+		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+
+		// The finished run's terminal autosave lands while the card is up.
+		writeSaveSlot(0, {
+			...createSlotRecord(),
+			kind: 'autosave',
+			playtimeSeconds: 555,
+			state: { ...createNewSaveState(), mapId: 'overworld' }
+		});
+		emitPrologueEnd({ success: true });
+
+		const card = endCard();
+		await expect.element(card).toBeVisible();
+		await expect.element(page.getByText('Thank you for playing')).toBeVisible();
+		await expect.element(card).toHaveFocus();
+
+		await userEvent.keyboard('{Enter}');
+
+		// Title returns with the refreshed Continue subtitle, not the boot-time one.
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+		await expect
+			.element(page.getByRole('button', { name: /continue/i }))
+			.toHaveTextContent('The Wilds');
+		await expect
+			.element(page.getByRole('button', { name: /continue/i }))
+			.toHaveTextContent('0:09:15');
+		expect(endCard().elements()).toHaveLength(0);
+
+		// The stale run payload was reset: the shell reads not-ready on Title.
+		expect(get(hudState).ready).toBe(false);
+
+		// A late ready emit from the dying scene must not remount the old run.
+		const callsBefore = createGameMock.mock.calls.length;
+		emitHudState(baseHudState());
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+		expect(page.getByRole('button', { name: /menu/i }).elements()).toHaveLength(0);
+		expect(createGameMock.mock.calls.length).toBe(callsBefore);
+	});
+
+	it('a held Enter press dismisses once, and its release cannot open Load or reactivate Title', async () => {
+		await bootPlaying();
+		emitPrologueEnd({ success: true });
+		const card = endCard();
+		await expect.element(card).toBeVisible();
+
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }));
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+		expect(loadPicker().elements()).toHaveLength(0);
+
+		// The key is still held: repeats must not re-trigger anything.
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', repeat: true }));
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', repeat: true }));
+
+		// The release must be consumed, not left to click the focused Title card.
+		const release = new KeyboardEvent('keyup', { key: 'Enter', cancelable: true });
+		window.dispatchEvent(release);
+		expect(release.defaultPrevented).toBe(true);
+		expect(loadPicker().elements()).toHaveLength(0);
+		expect(endCard().elements()).toHaveLength(0);
+	});
+
+	it('a trusted Space press/release cannot dismiss the card and then click the focused Title card', async () => {
+		await bootPlaying();
+		emitPrologueEnd({ success: true });
+		const card = endCard();
+		await expect.element(card).toBeVisible();
+
+		// userEvent produces trusted input: the release fires real default
+		// actions over whatever is focused — the Title Continue card by now.
+		await userEvent.keyboard('{Space}');
+
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+		expect(loadPicker().elements()).toHaveLength(0);
+		expect(endCard().elements()).toHaveLength(0);
+	});
+
+	it('a pad confirm dismisses the card once and cannot then re-trigger Title', async () => {
+		const pads = makePads();
+		await bootPlaying();
+		emitPrologueEnd({ success: true });
+		const card = endCard();
+		await expect.element(card).toBeVisible();
+
+		pads[0]!.buttons[0]!.pressed = true;
+		await padFrames();
+		pads[0]!.buttons[0]!.pressed = false;
+		await padFrames();
+
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+		expect(loadPicker().elements()).toHaveLength(0);
+		await padFrames();
+		expect(loadPicker().elements()).toHaveLength(0);
+		expect(endCard().elements()).toHaveLength(0);
+	});
+
+	it('blocks Escape, I, M and pad Menu while the completion card is visible', async () => {
+		const pads = makePads();
+		await bootPlaying();
+		emitPrologueEnd({ success: true });
+		const card = endCard();
+		await expect.element(card).toBeVisible();
+
+		await userEvent.keyboard('{Escape}');
+		await userEvent.keyboard('{I}');
+		await userEvent.keyboard('{M}');
+		pads[0]!.buttons[9]!.pressed = true;
+		await padFrames();
+		pads[0]!.buttons[9]!.pressed = false;
+		await padFrames();
+
+		await expect.element(card).toBeVisible();
+		expect(page.getByRole('button', { name: 'Bag' }).elements()).toHaveLength(0);
+		expect(document.querySelector('.bag-rail')).toBeNull();
+		expect(document.querySelector('[data-focus-id^="field-command-"]')).toBeNull();
+	});
+
+	it('reports a failed terminal save on the card and still returns to Title', async () => {
+		await bootPlaying();
+		emitPrologueEnd({ success: false });
+
+		const card = endCard();
+		await expect.element(card).toBeVisible();
+		await expect.element(page.getByText('Could not save')).toBeVisible();
+
+		await card.click();
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+		expect(endCard().elements()).toHaveLength(0);
+	});
+
+	it('Continue from the refreshed Title loads the finished run without repeating the card', async () => {
+		const createGameMock = vi.mocked(createGame);
+		writeSaveSlot(0, {
+			...createSlotRecord(),
+			kind: 'autosave',
+			playtimeSeconds: 555,
+			state: {
+				...createNewSaveState(),
+				mapId: 'overworld',
+				quests: questStateAt(null)
+			}
+		});
+		await bootPlaying();
+		emitPrologueEnd({ success: true });
+		await expect.element(endCard()).toBeVisible();
+		await userEvent.keyboard('{Enter}');
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		await page.getByRole('button', { name: /continue/i }).click();
+		const callsBefore = createGameMock.mock.calls.length;
+		const picker = loadPicker();
+		await expect.element(picker).toBeVisible();
+		await picker.getByTestId('save-slot-0').click();
+
+		// Playing again on the finished save: no card replay.
+		await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+		await vi.waitFor(() => expect(createGameMock.mock.calls.length).toBe(callsBefore + 1));
+		expect(endCard().elements()).toHaveLength(0);
+		expect(page.getByRole('heading', { name: 'GLIESE' }).elements()).toHaveLength(0);
+	});
 });

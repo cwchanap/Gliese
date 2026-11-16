@@ -43,7 +43,7 @@ function baseHudState(overrides: Partial<HudState> = {}): HudState {
 		shop: null,
 		dialogue: null,
 		battle: { phase: 'none', summary: null, active: null },
-		quests: { main: null, completed: [] },
+		quests: { main: null, completed: [], total: 0 },
 		inventory: {
 			consumables: [],
 			equipment: [],

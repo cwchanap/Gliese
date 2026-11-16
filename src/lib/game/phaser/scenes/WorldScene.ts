@@ -527,6 +527,7 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	create(data: WorldSceneData = {}) {
+		this.sceneShutDown = false;
 		this.renderOptions = resolveWorldRenderOptions();
 		const battleApplication =
 			data.battleResult && data.saveState
@@ -730,6 +731,12 @@ export class WorldScene extends Phaser.Scene {
 		});
 		const cleanup = () => {
 			this.renderEpoch += 1;
+			// Fence deferred story work: the seq bump turns in-flight
+			// playStoryScene / startNearbyNpcStoryDialogue responses stale, and
+			// the shutdown flag makes publishHudState a no-op until the scene is
+			// re-created (a story-gate scene.restart re-runs create()).
+			this.sceneShutDown = true;
+			this.storyDialogueSeq += 1;
 			this.removeHudCommandListener();
 			this.unsubscribePreferences?.();
 			this.unsubscribePreferences = null;
@@ -1346,6 +1353,7 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private publishHudState(status: string) {
+		if (this.sceneShutDown) return;
 		const effectiveStats = this.getEffectiveStats();
 		this.lastPublishedStatus = status;
 		const map = this.resolveMap(this.mapId);
@@ -2897,6 +2905,9 @@ export class WorldScene extends Phaser.Scene {
 	// startBattle) must not treat the shared canvas as this scene's frame.
 	private renderEpoch = 0;
 	private unsubscribePreferences: (() => void) | null = null;
+	/** Set on shutdown, cleared on create: a destroyed run (return-to-title
+	 *  teardown) must not publish HUD state or accept late story responses. */
+	private sceneShutDown = false;
 
 	private captureSlotThumbnail(mapId: string, canvasOwned = true): string | undefined {
 		// The canvas belongs to another scene (battle started after this save
