@@ -884,7 +884,7 @@ describe('GameShell field status', () => {
 		emitHudState(baseHudState({ status: 'Ready', heals: 2 }));
 
 		await page.getByRole('button', { name: /menu/i }).click();
-		await expect.element(page.getByRole('button', { name: 'Rest' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Heal' })).toBeVisible();
 
 		const region = document.querySelector<HTMLElement>('[role="status"]')!;
 		emitHudState(baseHudState({ status: 'Already at full HP', heals: 2 }));
@@ -895,6 +895,24 @@ describe('GameShell field status', () => {
 		expect(document.querySelector('[role="status"]')).toBe(region);
 		expect(region.getAttribute('aria-live')).toBe('polite');
 		// Offscreen while the grid is open, but rendered — not display:none.
+		expect(region.getClientRects().length).toBeGreaterThan(0);
+	});
+
+	it('suppresses the status pill background while the status is empty', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ status: 'Ready' }));
+		await expect.element(page.getByText('Ready')).toBeVisible();
+		const region = document.querySelector<HTMLElement>('[role="status"]')!;
+		expect(region.classList.contains('heroic-field-status-empty')).toBe(false);
+
+		// Nonempty → empty: the live region stays mounted for announcements,
+		// but the empty pill must not paint a floating card on the field.
+		emitHudState(baseHudState({ status: '' }));
+		await vi.waitFor(() => {
+			expect(region.classList.contains('heroic-field-status-empty')).toBe(true);
+		});
+		expect(getComputedStyle(region).backgroundImage).toBe('none');
+		expect(region.getAttribute('aria-live')).toBe('polite');
 		expect(region.getClientRects().length).toBeGreaterThan(0);
 	});
 });
@@ -921,24 +939,36 @@ describe('GameShell command menu', () => {
 		const menuButton = page.getByRole('button', { name: /menu/i });
 		await menuButton.click();
 		// Rest stays on the grid (Bag/Gear would navigate to an overlay).
-		await page.getByRole('button', { name: 'Rest' }).click();
-		await expect.element(page.getByRole('button', { name: 'Rest' })).toHaveFocus();
+		await page.getByRole('button', { name: 'Heal' }).click();
+		await expect.element(page.getByRole('button', { name: 'Heal' })).toHaveFocus();
 
 		await userEvent.keyboard('{Escape}');
-		expect(page.getByRole('button', { name: 'Rest' }).elements()).toHaveLength(0);
+		expect(page.getByRole('button', { name: 'Heal' }).elements()).toHaveLength(0);
 		await expectFieldStageFocus();
 	});
 
-	it('emits heal command when Rest is clicked', async () => {
+	it('emits heal command when Heal is clicked', async () => {
 		await withCommands(async (commands) => {
 			render(GameShell);
 			emitHudState(baseHudState({ heals: 2 }));
 
 			await page.getByRole('button', { name: /menu/i }).click();
-			await page.getByRole('button', { name: 'Rest' }).click();
+			await page.getByRole('button', { name: 'Heal' }).click();
 
 			expect(commands).toContainEqual({ type: 'heal' });
 		});
+	});
+
+	it('disables Heal without potions and explains why accessibly', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ heals: 0 }));
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		const heal = page.getByRole('button', { name: 'Heal', exact: true });
+		await expect.element(heal).toBeDisabled();
+		await expect.element(heal).toHaveAttribute('aria-describedby', 'field-cmd-heal-unavailable');
+		await expect.element(page.getByText('No potions')).toBeInTheDocument();
+		expect(heal.element().getAttribute('title')).toBe('No potions');
 	});
 
 	it('opens the honest Skill surface with no-skills copy and no game command', async () => {
@@ -955,10 +985,10 @@ describe('GameShell command menu', () => {
 				.element(dialog.getByTestId('skill-empty'))
 				.toHaveTextContent(/no skills learned yet/i);
 
-			// Opening the grid pauses the game (explicitly asserted — a filter
-			// here used to hide a missing pause-game emission); Skill adds no
-			// further command.
-			expect(commands).toEqual([{ type: 'pause-game' }]);
+			// Opening the grid pauses the game; opening Skill re-sends pause-game
+			// because the pause owner changes (settings → skill) — the re-send is
+			// what clears transient field status under overlays.
+			expect(commands).toEqual([{ type: 'pause-game' }, { type: 'pause-game' }]);
 
 			await userEvent.keyboard('{Escape}');
 			expect(dialog.elements()).toHaveLength(0);
@@ -967,6 +997,55 @@ describe('GameShell command menu', () => {
 			await expect
 				.element(commandPanel.getByRole('button', { name: 'Skill', exact: true }))
 				.toHaveFocus();
+		});
+	});
+});
+
+describe('GameShell pause ownership status handoff', () => {
+	// The WorldScene clears its field status when pause-game arrives; these
+	// tests pin the shell's half of the contract: an overlay switch while the
+	// world is already paused must re-send the pause so stale field copy
+	// ("Recovered HP", "Saved") cannot leak into the Save screen's footer.
+	it('re-sends pause-game when Save opens from the Command grid after a heal', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState({ status: 'Recovered HP', heals: 1 }));
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: 'Save', exact: true }).click();
+			await expect.element(page.getByRole('dialog', { name: /save/i })).toBeVisible();
+
+			// settings → save is an owner change while already paused: the
+			// second pause-game is what lets the scene clear 'Recovered HP'.
+			expect(commands).toEqual([{ type: 'pause-game' }, { type: 'pause-game' }]);
+		});
+	});
+
+	it('re-sends pause-game when Save reopens from the Command grid after a previous save', async () => {
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState({ status: 'Saved' }));
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			const saveTile = page.getByRole('button', { name: 'Save', exact: true });
+			await saveTile.click();
+			const dialog = page.getByRole('dialog', { name: /save/i });
+			await expect.element(dialog).toBeVisible();
+
+			// Escape closes Save; the Save tile's return path re-opens the grid
+			// without a resume, so the next Save open is still an owner change.
+			await userEvent.keyboard('{Escape}');
+			await expect.element(saveTile).toBeVisible();
+			await saveTile.click();
+			await expect.element(dialog).toBeVisible();
+
+			// menu + save + reopen: three pause-games. Two would let the stale
+			// 'Saved' message survive into the reopened Save screen's footer.
+			expect(commands).toEqual([
+				{ type: 'pause-game' },
+				{ type: 'pause-game' },
+				{ type: 'pause-game' }
+			]);
 		});
 	});
 });
@@ -1096,7 +1175,7 @@ describe('GameShell keyboard activation under captured keys', () => {
 			emitHudState(baseHudState({ heals: 0 }));
 
 			await page.getByRole('button', { name: /menu/i }).click();
-			const restTile = page.getByRole('button', { name: 'Rest' });
+			const restTile = page.getByRole('button', { name: 'Heal' });
 			await expect.element(restTile).toBeDisabled();
 			restTile.element().focus();
 
@@ -3700,6 +3779,12 @@ describe('GameShell error handling', () => {
 });
 
 describe('GameShell system screen', () => {
+	function focusedFocusId(): string | null {
+		return document.activeElement instanceof Element
+			? (document.activeElement.getAttribute('data-focus-id') ?? null)
+			: null;
+	}
+
 	it('emits pause-game when the System overlay opens', async () => {
 		await withCommands(async (commands) => {
 			render(GameShell);
@@ -3731,6 +3816,28 @@ describe('GameShell system screen', () => {
 		await expect
 			.element(commandPanel.getByRole('button', { name: 'System', exact: true }))
 			.toHaveFocus();
+	});
+
+	it('steps keyboard focus down the settings rows with the density row removed', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /system/i }).click();
+		const dialog = page.getByRole('dialog', { name: /display & text/i });
+		await expect.element(dialog).toBeVisible();
+
+		// The density row is gone: Down walks the remaining four rows in order
+		// (language → text speed → motion → prompts → sound) with no gap.
+		await dialog.getByRole('button', { name: 'English' }).element().focus();
+		await userEvent.keyboard('{ArrowDown}');
+		expect(focusedFocusId()).toBe('system-speed-slow');
+		await userEvent.keyboard('{ArrowDown}');
+		expect(focusedFocusId()).toBe('system-motion-on');
+		await userEvent.keyboard('{ArrowDown}');
+		expect(focusedFocusId()).toBe('system-prompt-auto');
+		await userEvent.keyboard('{ArrowDown}');
+		expect(focusedFocusId()).toBe('system-sound-on');
 	});
 });
 
@@ -4738,6 +4845,25 @@ describe('GameShell pad layer', () => {
 
 		await tiltAxis(0, -0.8);
 		expect(focusedFocusId()).toBe('title-new-run');
+	});
+
+	it('steps pad focus down the settings rows past the removed density row', async () => {
+		installPadStub();
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: /system/i }).click();
+		const dialog = page.getByRole('dialog', { name: /display & text/i });
+		await expect.element(dialog).toBeVisible();
+
+		await dialog.getByRole('button', { name: 'English' }).element().focus();
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('system-speed-slow');
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('system-motion-on');
+		await tiltAxis(0, -0.8);
+		expect(focusedFocusId()).toBe('system-speed-slow');
 	});
 
 	it('reorients the System rail horizontally at 640×600', async () => {

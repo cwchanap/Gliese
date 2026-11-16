@@ -111,7 +111,8 @@ const shrineCollisionIds = collisionIdsOf(shrineOfAuroraInteriorMap);
 const shrineStatefulObjectIds = statefulObjectIdsOf(shrineOfAuroraInteriorMap);
 
 const localeState = vi.hoisted(() => ({
-	activeLocale: 'en' as 'en' | 'ja' | 'zh-Hant'
+	activeLocale: 'en' as 'en' | 'ja' | 'zh-Hant',
+	preferenceListeners: new Set<(value: unknown) => void>()
 }));
 
 const registryDrivenBackgroundRegistryMock = vi.hoisted(() => ({
@@ -200,7 +201,15 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
 vi.mock('$lib/game/i18n/store', () => ({
 	getActiveLocale: () => localeState.activeLocale,
 	preferences: {
-		subscribe: (_listener: (value: unknown) => void) => () => {}
+		subscribe: (listener: (value: unknown) => void) => {
+			// Svelte readable stores emit the current value on subscribe;
+			// WorldScene consumes that first call as its initialization guard.
+			listener({});
+			localeState.preferenceListeners.add(listener);
+			return () => {
+				localeState.preferenceListeners.delete(listener);
+			};
+		}
 	}
 }));
 
@@ -3473,6 +3482,13 @@ describe('WorldScene', () => {
 		await Promise.resolve();
 	}
 
+	/** Fires the preferences-store listeners WorldScene subscribed to, the
+	 *  same path a System-screen locale switch takes at runtime. */
+	function switchLocale(locale: 'en' | 'ja' | 'zh-Hant') {
+		localeState.activeLocale = locale;
+		for (const listener of [...localeState.preferenceListeners]) listener({});
+	}
+
 	function registerSceneSupportTestMap() {
 		maps['scene-support-test'] = {
 			id: 'scene-support-test',
@@ -3992,6 +4008,7 @@ describe('WorldScene', () => {
 
 	beforeEach(() => {
 		localeState.activeLocale = 'en';
+		localeState.preferenceListeners.clear();
 		vi.clearAllMocks();
 		// World tests start at the first objective with the opening scene already
 		// played; story-effect tests queue their own effects.
@@ -7958,7 +7975,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
 			dialogueSession: unknown;
-			publishHudState: (status: string) => void;
+			publishHudState: (status: { text: string } | null) => void;
 		};
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
@@ -7999,14 +8016,14 @@ describe('WorldScene', () => {
 
 			// publishHudState is a no-op after shutdown (stale status can't
 			// overwrite the reset HUD payload).
-			sceneState.publishHudState('stale status');
+			sceneState.publishHudState({ text: 'stale status' });
 			expect(emitHudStateSpy).not.toHaveBeenCalled();
 
 			// The shutdown guard resets on create (story-gate scene.restart
 			// re-creates the same scene instance).
 			scene.create({ mapId: 'hero-house' });
 			emitHudStateSpy.mockClear();
-			sceneState.publishHudState('fresh run');
+			sceneState.publishHudState({ text: 'fresh run' });
 			expect(emitHudStateSpy).toHaveBeenCalledTimes(1);
 			expect(emitHudStateSpy.mock.calls[0]![0].ready).toBe(true);
 		} finally {
@@ -9375,6 +9392,144 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('retranslates a published status through en → ja → zh-Hant switches', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				player: { ...createNewSaveState().player, hp: 10 },
+				inventory: { stacks: [{ itemId: 'field-potion', quantity: 1 }], equipment: [] }
+			}
+		});
+		emitHudStateSpy.mockClear();
+
+		sceneState.handleHudCommand({ type: 'heal' });
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Recovered HP' })
+		);
+
+		switchLocale('ja');
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'HPを回復した' })
+		);
+
+		switchLocale('zh-Hant');
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: '生命值回復' })
+		);
+	});
+
+	it('carries the status descriptor through a story-gate restart into the new locale', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			storyRefreshPending: boolean;
+			storyGateKey: string;
+		};
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				player: { ...createNewSaveState().player, hp: 10 },
+				inventory: { stacks: [{ itemId: 'field-potion', quantity: 1 }], equipment: [] }
+			}
+		});
+		emitHudStateSpy.mockClear();
+
+		sceneState.handleHudCommand({ type: 'heal' });
+
+		// The story moved on while the field status was live: the restart must
+		// carry the MessageKey descriptor, not a string frozen in one locale.
+		sceneState.storyRefreshPending = true;
+		sceneState.storyGateKey = 'stale';
+		scene.update(0, 16);
+
+		expect(scene.scene.restart).toHaveBeenCalledWith(
+			expect.objectContaining({
+				reason: 'story',
+				status: { key: 'status.recoveredHp', params: {} }
+			})
+		);
+
+		// A restart re-runs create(): the carried descriptor resolves in the
+		// locale active at arrival, so the field copy retranslates.
+		const restartPayload = vi.mocked(scene.scene.restart).mock.calls.at(-1)?.[0] as
+			| Parameters<InstanceType<typeof WorldScene>['create']>[0]
+			| undefined;
+		expect(restartPayload).toBeDefined();
+		switchLocale('ja');
+		const recreated = new WorldScene();
+		recreated.create(restartPayload);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'HPを回復した' })
+		);
+	});
+
+	it('clears the transient field status when the gameplay menu pauses the world', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				player: { ...createNewSaveState().player, hp: 10 },
+				inventory: { stacks: [{ itemId: 'field-potion', quantity: 1 }], equipment: [] }
+			}
+		});
+		emitHudStateSpy.mockClear();
+
+		sceneState.handleHudCommand({ type: 'heal' });
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Recovered HP' })
+		);
+
+		// Opening an overlay takes over the footer: the pause publish drops the
+		// field copy so 'Recovered HP' cannot leak into Save's status line.
+		sceneState.handleHudCommand({ type: 'pause-game' });
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(expect.objectContaining({ status: '' }));
+	});
+
+	it('clears the field status instead of publishing a Dialogue closed toast', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { buildDialogueFallback } = await import('$lib/game/core/dialogue');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: ReturnType<typeof buildDialogueFallback> | null;
+		};
+
+		scene.create({ saveState: createNewSaveState() });
+		emitHudStateSpy.mockClear();
+
+		sceneState.dialogueSession = buildDialogueFallback('Traveler', 'Hello');
+		sceneState.handleHudCommand({ type: 'dialogue-close' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: '', dialogue: null })
+		);
+	});
+
 	it('publishes the initial HUD state with English runtime text by default', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
@@ -9986,9 +10141,11 @@ describe('WorldScene', () => {
 
 		sceneState.handleHudCommand({ type: 'dialogue-advance' });
 
+		// Closing the terminal line clears the field status — no 'Dialogue
+		// closed' toast.
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				status: 'Dialogue closed',
+				status: '',
 				dialogue: null
 			})
 		);
@@ -10617,7 +10774,7 @@ describe('WorldScene', () => {
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
 			handleHudCommand: (command: HudCommand) => void;
-			lastPublishedStatus: string;
+			lastPublishedStatus: unknown;
 		};
 
 		scene.create({ mapId: 'guild-hall' });
@@ -10634,7 +10791,8 @@ describe('WorldScene', () => {
 		scene.update(16, 16);
 
 		expect(emitHudStateSpy).not.toHaveBeenCalled();
-		expect(sceneState.lastPublishedStatus).toBe('No heal charges left');
+		// The retained descriptor still identifies the non-proximity status.
+		expect(sceneState.lastPublishedStatus).toEqual({ key: 'status.noHealCharges', params: {} });
 	});
 
 	it('stays silent facing away, then shows the busy fallback beside an ambient villager', async () => {

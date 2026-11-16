@@ -361,7 +361,11 @@
 
 	function pauseForOverlay(owner: OverlayPauseOwner) {
 		if (battleLocked) return;
-		if (pauseOwner === null) requestPauseGame();
+		// Re-send on every owner change, not just from an idle world: the scene
+		// treats each pause-game as "clear the transient field status" (a
+		// non-mutating, idempotent publish), so stale copy like "Recovered HP"
+		// or "Saved" can never leak into the newly opened overlay's footer.
+		if (pauseOwner !== owner) requestPauseGame();
 		pauseOwner = owner;
 	}
 

@@ -214,6 +214,14 @@ function shouldReportSelectedStaticOverlay(
 	return visual?.mode === 'fallback-only' && shouldRenderStaticOverlay(visual, packageRender);
 }
 
+/** Transient field-status payload: a MessageKey + params retained so a
+ * locale switch (or a story-gate restart's re-create) retranslates it at
+ * publish time; `text` is the freeform fallback for statuses without a
+ * message key. `null` clears the field copy. */
+export type WorldSceneStatus =
+	| { key: MessageKey; params?: Record<string, string | number> }
+	| { text: string };
+
 interface WorldSceneData {
 	battleResult?: BattleResult;
 	mapId?: string;
@@ -225,7 +233,7 @@ interface WorldSceneData {
 	reason?: 'battle-result' | 'new' | 'resume' | 'transition' | 'story' | 'story-move';
 	recentlyFled?: RecentlyFledEncounter;
 	saveState?: SaveState | null;
-	status?: string;
+	status?: WorldSceneStatus;
 }
 
 type DirectionKey = {
@@ -452,9 +460,9 @@ export class WorldScene extends Phaser.Scene {
 	private quests: QuestState = createInitialQuestState();
 	private mapExploration: MapExplorationState = createEmptyMapExploration();
 	private mapId = openingMapId;
-	private lastPublishedStatus = '';
+	private lastPublishedStatus: WorldSceneStatus | null = null;
 	private currentNearbyNpcId: string | null = null;
-	private currentNearbyNpcStatus: string | null = null;
+	private currentNearbyNpcStatus: WorldSceneStatus | null = null;
 	private npcMarkers = new Map<string, NpcMarker>();
 	private pickupMarkers = new Map<string, PickupMarker>();
 	private player?: ActorMarker;
@@ -502,6 +510,15 @@ export class WorldScene extends Phaser.Scene {
 
 	private status(key: MessageKey, params: Record<string, string | number> = {}) {
 		return t(this.getLocale(), key, params);
+	}
+
+	/** Retains the message identity so the active locale resolves it at
+	 *  publish time (see {@link publishHudState}). */
+	private statusMessage(
+		key: MessageKey,
+		params: Record<string, string | number> = {}
+	): WorldSceneStatus {
+		return { key, params };
 	}
 
 	private getItemName(itemId: string | undefined, fallback = 'item') {
@@ -983,7 +1000,7 @@ export class WorldScene extends Phaser.Scene {
 		const healingItem = this.consumeFirstHealingItem();
 
 		if (!healingItem) {
-			this.publishHudState(this.status('status.noHealCharges'));
+			this.publishHudState(this.statusMessage('status.noHealCharges'));
 			return;
 		}
 
@@ -1002,21 +1019,21 @@ export class WorldScene extends Phaser.Scene {
 		const item = getItem(itemId);
 
 		if (item?.type !== 'consumable' || item.effect.type !== 'heal') {
-			this.publishHudState(this.status('status.itemCannotBeUsed'));
+			this.publishHudState(this.statusMessage('status.itemCannotBeUsed'));
 			return;
 		}
 
 		const maxHp = this.getEffectiveStats().maxHp;
 
 		if (this.playerProgress.hp >= maxHp) {
-			this.publishHudState(this.status('status.hpAlreadyFull'));
+			this.publishHudState(this.statusMessage('status.hpAlreadyFull'));
 			return;
 		}
 
 		const result = consumeStackItem(this.inventory, itemId);
 
 		if (!result.consumed) {
-			this.publishHudState(this.status('status.itemCannotBeUsed'));
+			this.publishHudState(this.statusMessage('status.itemCannotBeUsed'));
 			return;
 		}
 
@@ -1026,7 +1043,7 @@ export class WorldScene extends Phaser.Scene {
 			hp: Math.min(maxHp, this.playerProgress.hp + item.effect.amount)
 		};
 		playSfx(this, 'heal');
-		this.publishHudState(this.status('status.recoveredHp'));
+		this.publishHudState(this.statusMessage('status.recoveredHp'));
 	}
 
 	private startBattle(enemy: EnemyInstance) {
@@ -1056,7 +1073,7 @@ export class WorldScene extends Phaser.Scene {
 		const result = equipItem(this.equipment, this.inventory.equipment, itemId);
 
 		if (!result.equipped) {
-			this.publishHudState(this.status('status.itemCannotBeEquipped'));
+			this.publishHudState(this.statusMessage('status.itemCannotBeEquipped'));
 			return;
 		}
 
@@ -1065,7 +1082,7 @@ export class WorldScene extends Phaser.Scene {
 			...this.playerProgress,
 			hp: clampHpToMax(this.playerProgress.hp, this.getEffectiveStats())
 		};
-		this.publishHudState(this.status('status.equippedItem'));
+		this.publishHudState(this.statusMessage('status.equippedItem'));
 	}
 
 	private unequipInventorySlot(slot: EquipmentSlot) {
@@ -1074,7 +1091,7 @@ export class WorldScene extends Phaser.Scene {
 			...this.playerProgress,
 			hp: clampHpToMax(this.playerProgress.hp, this.getEffectiveStats())
 		};
-		this.publishHudState(this.status('status.unequippedItem'));
+		this.publishHudState(this.statusMessage('status.unequippedItem'));
 	}
 
 	private openNearbyShop(shopId: string): boolean {
@@ -1083,25 +1100,25 @@ export class WorldScene extends Phaser.Scene {
 				this.getShopSpeaker(),
 				this.status('content.dialogue.system.shopOutOfReach')
 			);
-			this.publishHudState(this.status('status.noShopNearby'));
+			this.publishHudState(this.statusMessage('status.noShopNearby'));
 			return false;
 		}
 
 		this.storyDialogueSeq++;
 		this.openShopId = shopId;
 		this.dialogueSession = null;
-		this.publishHudState(this.status('status.shopOpened'));
+		this.publishHudState(this.statusMessage('status.shopOpened'));
 		return true;
 	}
 
 	private closeOpenShop() {
 		this.openShopId = null;
-		this.publishHudState(this.status('status.shopClosed'));
+		this.publishHudState(this.statusMessage('status.shopClosed'));
 	}
 
 	private buyOpenShopItem(shopId: string, stockId: string) {
 		if (this.openShopId !== shopId || this.nearbyShopId !== shopId) {
-			this.publishHudState(this.status('status.noShopNearby'));
+			this.publishHudState(this.statusMessage('status.noShopNearby'));
 			return;
 		}
 
@@ -1123,12 +1140,14 @@ export class WorldScene extends Phaser.Scene {
 		this.inventory = result.inventory;
 		this.shopStockState = result.stockState;
 		playSfx(this, 'coins');
-		this.publishHudState(this.status('status.boughtItem', { itemName: this.getItemName(itemId) }));
+		this.publishHudState(
+			this.statusMessage('status.boughtItem', { itemName: this.getItemName(itemId) })
+		);
 	}
 
 	private sellOpenShopItem(itemId: string) {
 		if (!this.openShopId || this.nearbyShopId !== this.openShopId) {
-			this.publishHudState(this.status('status.noShopNearby'));
+			this.publishHudState(this.statusMessage('status.noShopNearby'));
 			return;
 		}
 
@@ -1147,11 +1166,13 @@ export class WorldScene extends Phaser.Scene {
 		this.wallet = result.wallet;
 		this.inventory = result.inventory;
 		playSfx(this, 'coins');
-		this.publishHudState(this.status('status.soldItem', { itemName: this.getItemName(itemId) }));
+		this.publishHudState(
+			this.statusMessage('status.soldItem', { itemName: this.getItemName(itemId) })
+		);
 	}
 
 	/** Applies one quest event; true when the event actually advanced the quest. */
-	private applyQuestProgress(event: QuestEvent, fallbackStatus: string): boolean {
+	private applyQuestProgress(event: QuestEvent, fallbackStatus: WorldSceneStatus | null): boolean {
 		const result = applyQuestEvent({ state: this.quests, event });
 		this.quests = result.state;
 		this.applyQuestRewards(result.rewards);
@@ -1165,7 +1186,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 		this.publishHudState(
 			completedGrant
-				? this.status('status.questComplete', {
+				? this.statusMessage('status.questComplete', {
 						questTitle: this.getQuestTitle(completedGrant.questId, completedGrant.title)
 					})
 				: fallbackStatus
@@ -1190,18 +1211,18 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private formatBuyFailure(reason: ShopBuyFailureReason): string {
-		if (reason === 'not-enough-coins') return this.status('status.notEnoughCoins');
-		if (reason === 'out-of-stock') return this.status('status.itemOutOfStock');
+	private formatBuyFailure(reason: ShopBuyFailureReason): WorldSceneStatus {
+		if (reason === 'not-enough-coins') return this.statusMessage('status.notEnoughCoins');
+		if (reason === 'out-of-stock') return this.statusMessage('status.itemOutOfStock');
 
-		return this.status('status.itemCannotBeBought');
+		return this.statusMessage('status.itemCannotBeBought');
 	}
 
-	private formatSellFailure(reason: ShopSellFailureReason): string {
-		if (reason === 'equipped-item') return this.status('status.equippedItemCannotBeSold');
-		if (reason === 'item-not-owned') return this.status('status.itemNotOwned');
+	private formatSellFailure(reason: ShopSellFailureReason): WorldSceneStatus {
+		if (reason === 'equipped-item') return this.statusMessage('status.equippedItemCannotBeSold');
+		if (reason === 'item-not-owned') return this.statusMessage('status.itemNotOwned');
 
-		return this.status('status.itemCannotBeSold');
+		return this.statusMessage('status.itemCannotBeSold');
 	}
 
 	private getEffectiveStats(): EffectiveStats {
@@ -1237,6 +1258,10 @@ export class WorldScene extends Phaser.Scene {
 				return;
 			case 'pause-game':
 				this.simulationPaused = true;
+				// Opening an overlay takes over the footer: drop the transient
+				// field copy (a non-mutating publish) so stale text like
+				// "Recovered HP" or "Saved" cannot leak into Save/System.
+				this.publishHudState(null);
 				return;
 			case 'resume-game':
 				this.simulationPaused = false;
@@ -1274,7 +1299,7 @@ export class WorldScene extends Phaser.Scene {
 			case 'dialogue-close':
 				this.storyDialogueSeq++;
 				this.dialogueSession = null;
-				this.publishHudState(this.status('status.dialogueClosed'));
+				this.publishHudState(null);
 				return;
 			case 'dialogue-choose':
 				this.chooseDialogueCommand(command.choiceId);
@@ -1290,13 +1315,13 @@ export class WorldScene extends Phaser.Scene {
 
 		if (session.lineIndex + 1 >= session.lineCount && session.choices.length === 0) {
 			this.dialogueSession = null;
-			this.publishHudState(this.status('status.dialogueClosed'));
+			this.publishHudState(null);
 			return;
 		}
 
 		this.dialogueSession = advanceDialogue(session);
 		playSfx(this, 'ui-select');
-		this.publishHudState(this.status('status.dialogueUpdated'));
+		this.publishHudState(this.statusMessage('status.dialogueUpdated'));
 	}
 
 	private chooseDialogueCommand(choiceId: string) {
@@ -1305,7 +1330,7 @@ export class WorldScene extends Phaser.Scene {
 				this.getTravelerSpeaker(),
 				this.status('content.dialogue.system.noDialogueOpen')
 			);
-			this.publishHudState(this.status('status.noDialogueOpen'));
+			this.publishHudState(this.statusMessage('status.noDialogueOpen'));
 			return;
 		}
 
@@ -1325,7 +1350,7 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		this.publishHudState(this.status('status.dialogueUpdated'));
+		this.publishHudState(this.statusMessage('status.dialogueUpdated'));
 	}
 
 	private applyDialogueIntent(intent: DialogueIntent) {
@@ -1335,7 +1360,7 @@ export class WorldScene extends Phaser.Scene {
 				return;
 			case 'close':
 				this.dialogueSession = null;
-				this.publishHudState(this.status('status.dialogueClosed'));
+				this.publishHudState(null);
 				return;
 		}
 	}
@@ -1355,8 +1380,11 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	private publishHudState(status: string) {
+	private publishHudState(status: WorldSceneStatus | null) {
 		if (this.sceneShutDown) return;
+		const locale = this.getLocale();
+		const resolvedStatus =
+			status === null ? '' : 'key' in status ? t(locale, status.key, status.params) : status.text;
 		const effectiveStats = this.getEffectiveStats();
 		this.lastPublishedStatus = status;
 		const map = this.resolveMap(this.mapId);
@@ -1372,7 +1400,7 @@ export class WorldScene extends Phaser.Scene {
 			attack: effectiveStats.attack,
 			defense: effectiveStats.defense,
 			heals: this.getConsumableCount(),
-			status,
+			status: resolvedStatus,
 			areaMap: buildAreaMapState({
 				map,
 				player: {
@@ -3017,7 +3045,7 @@ export class WorldScene extends Phaser.Scene {
 
 	private writeManualSlot(slot: 1 | 2) {
 		if (this.isDevMapRun) {
-			this.publishHudState(this.status('status.saveFailed'));
+			this.publishHudState(this.statusMessage('status.saveFailed'));
 			return;
 		}
 		const state = this.buildSaveState();
@@ -3031,11 +3059,13 @@ export class WorldScene extends Phaser.Scene {
 				}
 				playSfx(this, 'save');
 				this.publishHudState(
-					this.status(result.thumbnailDropped ? 'status.savedWithoutThumbnail' : 'status.saved')
+					this.statusMessage(
+						result.thumbnailDropped ? 'status.savedWithoutThumbnail' : 'status.saved'
+					)
 				);
 			} catch (error) {
 				console.error('Failed to persist manual save slot.', error);
-				this.publishHudState(this.status('status.saveFailed'));
+				this.publishHudState(this.statusMessage('status.saveFailed'));
 			}
 		});
 	}
@@ -3112,21 +3142,21 @@ export class WorldScene extends Phaser.Scene {
 	private resolveInitialStatus(
 		reason: NonNullable<WorldSceneData['reason']>,
 		fledBounded: boolean
-	) {
+	): WorldSceneStatus {
 		if (reason === 'battle-result') {
 			if (fledBounded) {
-				return this.status(
+				return this.statusMessage(
 					this.fledPackZone === 'inside'
 						? 'status.fledLeaveAndReturn'
 						: 'status.fledEnterLeaveAndReturn'
 				);
 			}
-			return this.status('status.battleReturned');
+			return this.statusMessage('status.battleReturned');
 		}
-		if (reason === 'resume') return this.status('status.saveResumed');
+		if (reason === 'resume') return this.statusMessage('status.saveResumed');
 		if (reason === 'transition' || reason === 'story-move')
-			return this.status('status.enteredArea');
-		return this.status('status.newRun');
+			return this.statusMessage('status.enteredArea');
+		return this.statusMessage('status.newRun');
 	}
 
 	private awardEncounterDrops(enemy: EnemyInstance) {
@@ -3219,9 +3249,9 @@ export class WorldScene extends Phaser.Scene {
 			this.openShopId = null;
 
 			if (hadShop) {
-				this.publishHudState(this.status('status.shopOutOfReach'));
+				this.publishHudState(this.statusMessage('status.shopOutOfReach'));
 			} else if (hadNearbyStatus) {
-				this.publishHudState('');
+				this.publishHudState(null);
 			}
 
 			return;
@@ -3237,7 +3267,7 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		const nearbyStatus = this.status('status.npcNearby', {
+		const nearbyStatus = this.statusMessage('status.npcNearby', {
 			npcName: this.getNpcName(nearbyNpc)
 		});
 		this.currentNearbyNpcId = nearbyNpc.id;
@@ -3340,7 +3370,7 @@ export class WorldScene extends Phaser.Scene {
 		this.seenDiscoveryIds.add(discovery.id);
 		this.applyQuestProgress(
 			{ type: 'inspect', discoveryId: discovery.id },
-			this.status('status.dialogueUpdated')
+			this.statusMessage('status.dialogueUpdated')
 		);
 		// Discovery is a durable point: persist the seen id and any quest progress.
 		void this.writeAutosave(this.buildSaveState());
@@ -3446,7 +3476,7 @@ export class WorldScene extends Phaser.Scene {
 			this.dialogueSession = session;
 			const cue = sceneSfx[sceneId];
 			if (cue) playSfx(this, cue);
-			this.publishHudState(this.status('status.dialogueUpdated'));
+			this.publishHudState(this.statusMessage('status.dialogueUpdated'));
 			return true;
 		} catch (error) {
 			console.error('[story] story scene failed for scene=%s:', sceneId, error);
@@ -3476,7 +3506,7 @@ export class WorldScene extends Phaser.Scene {
 			if (!ambientNpc) {
 				const map = this.resolveMap(this.mapId);
 				if (this.player && facesSealedGate(map, this.player.x, this.player.y, this.facing)) {
-					this.publishHudState(this.status('status.wayBarred'));
+					this.publishHudState(this.statusMessage('status.wayBarred'));
 				}
 				return;
 			}
@@ -3484,7 +3514,7 @@ export class WorldScene extends Phaser.Scene {
 				this.getTravelerSpeaker(),
 				this.status('content.dialogue.system.nothingToSay')
 			);
-			const publishedStatus = this.status('status.nothingToSay');
+			const publishedStatus = this.statusMessage('status.nothingToSay');
 			this.currentNearbyNpcId = ambientNpc.id;
 			this.currentNearbyNpcStatus = publishedStatus;
 			this.publishHudState(publishedStatus);
@@ -3492,7 +3522,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		this.currentNearbyNpcId = nearbyNpc.id;
-		this.currentNearbyNpcStatus = this.status('status.npcNearby', {
+		this.currentNearbyNpcStatus = this.statusMessage('status.npcNearby', {
 			npcName: this.getNpcName(nearbyNpc)
 		});
 		this.nearbyShopId = nearbyNpc.shopId ?? null;
@@ -3520,7 +3550,7 @@ export class WorldScene extends Phaser.Scene {
 			// advances the quest is a story beat: it cannot be closed or skipped.
 			const advanced = this.applyQuestProgress(
 				{ type: 'talk-to-npc', npcId: nearbyNpc.dialogueId },
-				this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) })
+				this.statusMessage('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) })
 			);
 			if (advanced && this.dialogueSession === session) {
 				session.canClose = false;
@@ -3544,7 +3574,7 @@ export class WorldScene extends Phaser.Scene {
 				this.getTravelerSpeaker(),
 				this.status('content.dialogue.system.noDialogueAvailable')
 			);
-			this.publishHudState(this.status('status.dialogueUpdated'));
+			this.publishHudState(this.statusMessage('status.dialogueUpdated'));
 		}
 	}
 
@@ -3616,7 +3646,7 @@ export class WorldScene extends Phaser.Scene {
 					itemId: pickup.itemId,
 					quantity: pickup.quantity
 				},
-				this.status('status.foundItem', { itemName: this.getItemName(pickup.itemId) })
+				this.statusMessage('status.foundItem', { itemName: this.getItemName(pickup.itemId) })
 			);
 			// Pickup is a durable point: persist after the collect-item quest event
 			// so quest progress and rewards land in the same autosave.
@@ -3642,7 +3672,7 @@ export class WorldScene extends Phaser.Scene {
 
 		enemy.phase = nextState.phase;
 		enemy.marker.setTint(enemy.definition.boss.phaseTwoColor);
-		this.publishHudState(this.status('status.bossEnraged'));
+		this.publishHudState(this.statusMessage('status.bossEnraged'));
 	}
 
 	private updateEnemyBehavior(time: number, delta: number) {

@@ -84,6 +84,11 @@
 			fieldStatusKey++;
 		}
 	});
+
+	// Disabled-tile explanation for Heal when the field pack has no potions.
+	const healUnavailable = $derived(
+		hudState.ready && hudState.heals < 1 ? t($locale, 'ui.fieldCmds.noPotions') : undefined
+	);
 </script>
 
 <div class="heroic-hud-top">
@@ -145,7 +150,7 @@
 
 	<div class="heroic-hud-row">
 		{#if commandOpen && commandEnabled && onCommand}
-			<CommandGrid enabled={commandEnabled} {onCommand} />
+			<CommandGrid enabled={commandEnabled} {healUnavailable} {onCommand} />
 		{/if}
 
 		{#if hudState.ready}
@@ -239,10 +244,12 @@
 
 <!-- The live region must survive grid open/close: unmounting it swallows
 		status changes (Rest at full HP was silent). While the grid is open it's
-		kept in the a11y tree but visually offscreen. -->
+		kept in the a11y tree but visually offscreen; an empty status keeps the
+		region mounted but drops the pill's visual frame. -->
 <div
 	class="heroic-field-card heroic-field-status"
 	class:heroic-field-status-offscreen={commandOpen}
+	class:heroic-field-status-empty={!hudState.status}
 	role="status"
 	aria-label={t($locale, 'ui.fieldStatus')}
 	aria-live="polite"
@@ -681,6 +688,13 @@
 		clip-path: inset(50%);
 		white-space: nowrap;
 		border: 0;
+	}
+
+	/* Empty status: the live region stays mounted, but no floating pill. */
+	.heroic-field-status-empty {
+		background: none;
+		border-color: transparent;
+		box-shadow: none;
 	}
 
 	/* Narrow portrait: flow the card above the command-grid / side-HUD row so

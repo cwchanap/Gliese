@@ -254,7 +254,7 @@ test('Field HUD capture through a real New Run', async ({ page }) => {
 
 	// The eight field commands in their exact plan order (Bag, Gear, Quest,
 	// Map, Skill, Rest, Save, System) with button roles.
-	const expectedCommands = ['Bag', 'Gear', 'Quest', 'Map', 'Skill', 'Rest', 'Save', 'System'];
+	const expectedCommands = ['Bag', 'Gear', 'Quest', 'Map', 'Skill', 'Heal', 'Save', 'System'];
 	const focusIds = await commandGrid
 		.locator('[data-focus-id]')
 		.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-focus-id')));
