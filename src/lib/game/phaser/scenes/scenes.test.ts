@@ -9477,6 +9477,49 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('keeps a cleared field status cleared across a story-gate restart', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { buildDialogueFallback } = await import('$lib/game/core/dialogue');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: ReturnType<typeof buildDialogueFallback> | null;
+			storyRefreshPending: boolean;
+			storyGateKey: string;
+		};
+
+		scene.create({ saveState: createNewSaveState() });
+		emitHudStateSpy.mockClear();
+
+		// Closing a conversation clears the field copy: a null descriptor.
+		sceneState.dialogueSession = buildDialogueFallback('Traveler', 'Hello');
+		sceneState.handleHudCommand({ type: 'dialogue-close' });
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: '', dialogue: null })
+		);
+
+		// The story moves on right after: the restart forwards the cleared status…
+		sceneState.storyRefreshPending = true;
+		sceneState.storyGateKey = 'stale';
+		scene.update(0, 16);
+
+		expect(scene.scene.restart).toHaveBeenCalledWith(
+			expect.objectContaining({ reason: 'story', status: null })
+		);
+
+		// …and re-running create() must keep the footer clear, not publish "New run".
+		const restartPayload = vi.mocked(scene.scene.restart).mock.calls.at(-1)?.[0] as
+			| Parameters<InstanceType<typeof WorldScene>['create']>[0]
+			| undefined;
+		expect(restartPayload).toBeDefined();
+		const recreated = new WorldScene();
+		recreated.create(restartPayload);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(expect.objectContaining({ status: '' }));
+	});
+
 	it('clears the transient field status when the gameplay menu pauses the world', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
