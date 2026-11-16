@@ -27,11 +27,13 @@
 	interface Props {
 		/** Per-command availability; disabled tiles stay out of focus order. */
 		enabled: Record<FieldCommand, boolean>;
+		/** Accessible explanation shown on the disabled Heal tile (no potions). */
+		healUnavailable?: string;
 		onCommand: (command: FieldCommand) => void;
 		dialog?: HTMLDivElement;
 	}
 
-	let { enabled, onCommand, dialog = $bindable() }: Props = $props();
+	let { enabled, healUnavailable, onCommand, dialog = $bindable() }: Props = $props();
 
 	const commands: FieldCommand[] = [
 		'bag',
@@ -104,6 +106,8 @@
 	aria-label={t($locale, 'ui.command')}
 >
 	{#each commands as command, index (command)}
+		{@const healExplanation =
+			command === 'rest' && !enabled[command] && healUnavailable ? healUnavailable : undefined}
 		<button
 			type="button"
 			class="heroic-cmd font-display"
@@ -112,6 +116,8 @@
 			data-focus-row={rowAt(index)}
 			data-focus-column={columnAt(index)}
 			disabled={!enabled[command]}
+			aria-describedby={healExplanation ? 'field-cmd-heal-unavailable' : undefined}
+			title={healExplanation}
 			onclick={() => onCommand(command)}
 		>
 			<span class="heroic-cmd-num tabular-nums" aria-hidden="true">{index + 1}</span>
@@ -122,6 +128,11 @@
 			></span>
 			<span class="heroic-cmd-label">{t($locale, `ui.fieldCmds.${command}`)}</span>
 		</button>
+		{#if healExplanation}
+			<!-- Outside the button: sr-only text inside it would join the
+				accessible name instead of staying the description. -->
+			<span id="field-cmd-heal-unavailable" class="sr-only">{healExplanation}</span>
+		{/if}
 	{/each}
 </div>
 

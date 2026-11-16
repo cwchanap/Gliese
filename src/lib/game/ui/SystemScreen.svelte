@@ -269,48 +269,6 @@
 						</div>
 					</div>
 
-					<div class="heroic-row" data-testid="system-hud-density-row">
-						<span class="heroic-row-icon" aria-hidden="true">
-							<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-								<rect x="2.4" y="2.4" width="4.6" height="4.6" rx="1" />
-								<rect x="9" y="2.4" width="4.6" height="4.6" rx="1" />
-								<rect x="2.4" y="9" width="4.6" height="4.6" rx="1" />
-								<rect x="9" y="9" width="4.6" height="4.6" rx="1" />
-							</svg>
-						</span>
-						<div class="heroic-row-copy">
-							<p class="heroic-row-title">{t($locale, 'ui.hudDensity')}</p>
-							<p class="heroic-row-subtitle">{t($locale, 'ui.hudDensityHint')}</p>
-						</div>
-						<div class="heroic-segments" role="group" aria-label={t($locale, 'ui.hudDensity')}>
-							<button
-								type="button"
-								class="heroic-segment heroic-segment-selected"
-								data-focus-id="system-density-quiet"
-								data-focus-row={2}
-								data-focus-column={1}
-								aria-pressed="true"
-							>
-								{t($locale, 'ui.densityQuiet')}
-							</button>
-							<button
-								type="button"
-								class="heroic-segment"
-								disabled
-								data-focus-id="system-density-full"
-								data-focus-row={2}
-								data-focus-column={2}
-								aria-describedby="system-density-full-unavailable"
-								title={t($locale, 'ui.densityFullUnavailable')}
-							>
-								{t($locale, 'ui.densityFull')}
-							</button>
-						</div>
-						<span id="system-density-full-unavailable" class="sr-only">
-							{t($locale, 'ui.densityFullUnavailable')}
-						</span>
-					</div>
-
 					<div class="heroic-row" data-testid="system-motion-row">
 						<span class="heroic-row-icon" aria-hidden="true">
 							<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -327,7 +285,7 @@
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.motion === 'on'}
 								data-focus-id="system-motion-on"
-								data-focus-row={3}
+								data-focus-row={2}
 								data-focus-column={1}
 								aria-pressed={$preferences.motion === 'on'}
 								onclick={() => updatePreferences({ motion: 'on' })}
@@ -339,7 +297,7 @@
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.motion === 'reduced'}
 								data-focus-id="system-motion-reduced"
-								data-focus-row={3}
+								data-focus-row={2}
 								data-focus-column={2}
 								aria-pressed={$preferences.motion === 'reduced'}
 								onclick={() => updatePreferences({ motion: 'reduced' })}
@@ -368,7 +326,7 @@
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.promptMode === 'auto'}
 								data-focus-id="system-prompt-auto"
-								data-focus-row={4}
+								data-focus-row={3}
 								data-focus-column={1}
 								aria-pressed={$preferences.promptMode === 'auto'}
 								onclick={() => updatePreferences({ promptMode: 'auto' })}
@@ -380,7 +338,7 @@
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.promptMode === 'pad'}
 								data-focus-id="system-prompt-pad"
-								data-focus-row={4}
+								data-focus-row={3}
 								data-focus-column={2}
 								aria-pressed={$preferences.promptMode === 'pad'}
 								onclick={() => updatePreferences({ promptMode: 'pad' })}
@@ -392,7 +350,7 @@
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.promptMode === 'keys'}
 								data-focus-id="system-prompt-keys"
-								data-focus-row={4}
+								data-focus-row={3}
 								data-focus-column={3}
 								aria-pressed={$preferences.promptMode === 'keys'}
 								onclick={() => updatePreferences({ promptMode: 'keys' })}
@@ -418,7 +376,7 @@
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.sound === 'on'}
 								data-focus-id="system-sound-on"
-								data-focus-row={5}
+								data-focus-row={4}
 								data-focus-column={1}
 								aria-pressed={$preferences.sound === 'on'}
 								onclick={() => updatePreferences({ sound: 'on' })}
@@ -430,7 +388,7 @@
 								class="heroic-segment"
 								class:heroic-segment-selected={$preferences.sound === 'off'}
 								data-focus-id="system-sound-off"
-								data-focus-row={5}
+								data-focus-row={4}
 								data-focus-column={2}
 								aria-pressed={$preferences.sound === 'off'}
 								onclick={() => updatePreferences({ sound: 'off' })}

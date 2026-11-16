@@ -6,6 +6,7 @@ import '../../../app.css';
 import SystemScreen from '$lib/game/ui/SystemScreen.svelte';
 import { PREFERENCES_STORAGE_KEY } from '$lib/game/i18n/preferences';
 import { getActivePreferences, initializePreferences } from '$lib/game/i18n/store';
+import { en } from '$lib/game/i18n/messages/en';
 import { setSaveStorage, type SaveStorage } from '$lib/game/save/storage';
 
 function createMemoryStorage(initial: Record<string, string> = {}): SaveStorage {
@@ -48,7 +49,7 @@ describe('SystemScreen', () => {
 		setSaveStorage(undefined);
 	});
 
-	it('renders rows with English / Normal / Quiet / On / Auto selected', async () => {
+	it('renders rows with English / Normal / On / Auto selected', async () => {
 		render(SystemScreen, { props: { open: true, onClose: vi.fn(), onkeydown: vi.fn() } });
 
 		const dialog = page.getByRole('dialog');
@@ -57,7 +58,6 @@ describe('SystemScreen', () => {
 		const selectedByRow = [
 			['system-language-row', 'English'],
 			['system-text-speed-row', 'Normal'],
-			['system-hud-density-row', 'Quiet'],
 			['system-motion-row', 'On'],
 			['system-prompts-row', 'Auto']
 		] as const;
@@ -67,14 +67,18 @@ describe('SystemScreen', () => {
 		}
 	});
 
-	it('disables Full density with the unavailable explanation', async () => {
+	it('renders no HUD density selector and keeps its locale keys removed', async () => {
 		render(SystemScreen, { props: { open: true, onClose: vi.fn(), onkeydown: vi.fn() } });
 
-		const full = page.getByRole('button', { name: 'Full', exact: true });
-		await expect.element(full).toBeDisabled();
-		await expect
-			.element(full)
-			.toHaveAttribute('aria-describedby', 'system-density-full-unavailable');
+		// The density selector was removed entirely: no row, no Quiet/Full
+		// segments, and no dead locale keys for a screen that no longer exists.
+		expect(page.getByTestId('system-hud-density-row').elements()).toHaveLength(0);
+		expect(page.getByRole('button', { name: 'Quiet' }).elements()).toHaveLength(0);
+		expect(page.getByRole('button', { name: 'Full' }).elements()).toHaveLength(0);
+		expect(en.ui).not.toHaveProperty('hudDensity');
+		expect(en.ui).not.toHaveProperty('densityQuiet');
+		expect(en.ui).not.toHaveProperty('densityFull');
+		expect(en.ui).not.toHaveProperty('densityFullUnavailable');
 	});
 
 	it('the Audio rail jumps to the Sound row, and Off persists', async () => {
