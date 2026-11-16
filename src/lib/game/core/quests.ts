@@ -85,6 +85,9 @@ export type HudQuestEntry = {
 export type HudQuestState = {
 	main: HudQuestEntry | null;
 	completed: HudQuestEntry[];
+	/** Size of the main chain; the tracker and journal derive completion from
+	 *  `completed.length` against this single field, never parallel counters. */
+	total: number;
 };
 
 export function createInitialQuestState(): QuestState {
@@ -235,7 +238,8 @@ export function buildHudQuestState({
 
 	return {
 		main: entries.find((entry) => entry.status === 'active') ?? null,
-		completed: entries.filter((entry) => entry.status === 'completed')
+		completed: entries.filter((entry) => entry.status === 'completed'),
+		total: mainQuestIds.length
 	};
 }
 

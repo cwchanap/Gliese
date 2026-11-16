@@ -44,7 +44,7 @@
 		type GamepadUiAction
 	} from '$lib/game/core/gamepad';
 	import { trapTabFocus } from '$lib/game/ui/focus-trap';
-	import { onHudState } from '$lib/game/ui-bridge/events';
+	import { onHudState, onPrologueEnd, type HudPrologueEnd } from '$lib/game/ui-bridge/events';
 	import {
 		hudState,
 		requestBattleCycleTarget,
@@ -61,7 +61,8 @@
 		requestSaveSlot,
 		requestSellInventoryItem,
 		requestUnequipSlot,
-		requestUseItem
+		requestUseItem,
+		resetHudState
 	} from '$lib/game/ui-bridge/store';
 	import type { EquipmentSlot } from '$lib/game/content/items';
 
@@ -92,21 +93,33 @@
 		resetPlaytime(directBootSlot?.record.playtimeSeconds ?? 0);
 	}
 
-	const titleSlots = loadSaveSlots();
-	const titleSlot = getNewestSaveSlot();
-	const titleSaveUnreadable = saveSlotsUnreadable();
+	// Title save metadata is a refreshable snapshot: a finished run rewrites
+	// the autosave while the completion card is up, so every return to Title
+	// re-reads the slots instead of showing boot-time numbers (HPA-841).
+	let titleSlots = $state(loadSaveSlots());
+	let titleSlot = $state(getNewestSaveSlot());
+	let titleSaveUnreadable = $state(saveSlotsUnreadable());
 	// Only the autosave slot is destroyed by starting a new run — the
 	// overwrite confirmation guards exactly that case (review finding 2). An
 	// unreadable envelope may still hold a real autosave, so it confirms too.
-	const titleHasAutosave = titleSlots.slots[0] !== null || titleSaveUnreadable;
-	let titleCanContinue = $state(titleSlot !== null);
+	let titleHasAutosave = $derived(titleSlots.slots[0] !== null || titleSaveUnreadable);
+	let titleCanContinue = $derived(titleSlot !== null);
 	let titleContinueSubtitle = $derived(
 		titleSlot
 			? `${getAreaName($locale, titleSlot.record.state.mapId)} · ${formatPlaytimeSeconds(titleSlot.record.playtimeSeconds)}`
 			: ''
 	);
 
+	function refreshTitleSaveState() {
+		titleSlots = loadSaveSlots();
+		titleSlot = getNewestSaveSlot();
+		titleSaveUnreadable = saveSlotsUnreadable();
+	}
+
 	function beginRun(request: GameStartRequest, playtimeBaseSeconds: number) {
+		// A deliberate run boot accepts ready emits again (the post-return
+		// suppression below must never leak into the next run).
+		suppressReadyPromotion = false;
 		resetPlaytime(playtimeBaseSeconds);
 		startRequest = request;
 		mode = 'playing';
@@ -136,6 +149,61 @@
 	function cancelNewRun() {
 		newRunConfirmOpen = false;
 		document.querySelector<HTMLElement>('[data-focus-id="title-new-run"]')?.focus();
+	}
+
+	/** Dismisses the completion card and returns to Title: one sweep clears
+	 *  overlays, pause, shields, the stale run request/playtime, resets the
+	 *  HUD payload, and refreshes the Title's save snapshot. */
+	function returnToTitle() {
+		commandOpen = false;
+		inventoryOpen = false;
+		skillOpen = false;
+		shopOpen = false;
+		questLogOpen = false;
+		areaMapOpen = false;
+		systemOpen = false;
+		saveOpen = false;
+		loadPickerOpen = false;
+		newRunConfirmOpen = false;
+		pauseOwner = null;
+		prologueEnd = null;
+		prologueEndDismissKey = null;
+		overlayFocusRestoreTarget = null;
+		clearShieldedActivationKeys();
+		// Arm before resetHudState(): later old-scene `ready` emits must stay
+		// ignored while Title is up (the fresh not-ready publish included).
+		suppressReadyPromotion = true;
+		startRequest = { reason: 'new', saveState: null };
+		resetPlaytime(0);
+		mode = 'title';
+		resetHudState();
+		refreshTitleSaveState();
+	}
+
+	function dismissPrologueEnd() {
+		if (!prologueEnd) return;
+		returnToTitle();
+	}
+
+	/** Card-first dismissal: one fresh activation key. Repeats and
+	 *  shield-owned presses stay ignored (HPA-836 shield semantics). */
+	function tryDismissPrologueEndWithKey(event: KeyboardEvent): boolean {
+		if (!isShieldedActivationKey(event.key) || event.repeat || shieldedActivationKeys[event.key]) {
+			return false;
+		}
+		event.preventDefault();
+		// Dismiss first — returnToTitle() clears stale shields — then arm this
+		// press: its release must not click the freshly focused Title card.
+		dismissPrologueEnd();
+		shieldedActivationKeys[event.key] = true;
+		prologueEndDismissKey = event.key;
+		return true;
+	}
+
+	// The card's own key handler: same path as the global card-first branch,
+	// kept from double-firing when focus already sits on the card.
+	function handlePrologueEndCardKeydown(event: KeyboardEvent) {
+		if (tryDismissPrologueEndWithKey(event)) event.stopPropagation();
 	}
 
 	function openLoadPicker() {
@@ -191,6 +259,16 @@
 	let loadPickerOpen = $state(false);
 	let newRunConfirmOpen = $state(false);
 	let pauseOwner = $state<OverlayPauseOwner | null>(null);
+	// The completion card's payload; null while no card is shown.
+	let prologueEnd = $state<HudPrologueEnd | null>(null);
+	let prologueEndCard = $state<HTMLElement>();
+	// Post-return only: a late `ready` emit from the dying scene must not
+	// promote Title back to playing. Initial boot stays promoted (embedded
+	// harness); the next deliberate beginRun() clears this.
+	let suppressReadyPromotion = false;
+	// The completion card's dismissal key: its release is guarded so the
+	// keyup cannot click the freshly focused Title card.
+	let prologueEndDismissKey: 'Enter' | ' ' | null = null;
 
 	const battlePhase = $derived($hudState.battle.phase);
 	const battleActive = $derived(battlePhase === 'active');
@@ -577,6 +655,9 @@
 
 	function handleShellActivationKeydownCapture(event: KeyboardEvent) {
 		if (!isShieldedActivationKey(event.key)) return;
+		// A fresh press supersedes a pending completion-card dismissal guard;
+		// held-key repeats of the dismissal press itself must not clear it.
+		if (!event.repeat && prologueEndDismissKey === event.key) prologueEndDismissKey = null;
 		setLastInputModality('keys');
 		if (event.repeat) {
 			// Block repeated Enter/Space from firing native button clicks again.
@@ -601,6 +682,12 @@
 
 	function handleShellActivationKeyup(event: KeyboardEvent) {
 		if (!isShieldedActivationKey(event.key)) return;
+		if (prologueEndDismissKey === event.key) {
+			prologueEndDismissKey = null;
+			// The card's dismissal release must not click the freshly focused
+			// Title card (Space activates buttons on release).
+			event.preventDefault();
+		}
 		// Only swallow keyup for keys whose keydown was shielded; if keydown
 		// reached Phaser and focus then moved onto a control, Phaser needs keyup.
 		if (!shieldedActivationKeys[event.key]) return;
@@ -622,6 +709,10 @@
 
 	function handleWindowActivationKeyup(event: KeyboardEvent) {
 		if (!isShieldedActivationKey(event.key)) return;
+		if (prologueEndDismissKey === event.key) {
+			prologueEndDismissKey = null;
+			event.preventDefault();
+		}
 		// Activation-on-keydown clicks (Title New Run, load slots) can unmount
 		// the focused control mid-press; focus falls to <body> and the release
 		// never reaches the shell keyup handler above. Release ownership here
@@ -633,10 +724,19 @@
 	function clearShieldedActivationKeys() {
 		shieldedActivationKeys.Enter = false;
 		shieldedActivationKeys[' '] = false;
+		prologueEndDismissKey = null;
 	}
 
 	function handleGlobalKeydown(event: KeyboardEvent) {
 		setLastInputModality('keys');
+
+		// Card-first: while the completion card is up, nothing here may open
+		// menus, rove focus, or reach the field. Only a fresh activation key
+		// dismisses; repeats and shield-owned presses stay ignored (HPA-836).
+		if (prologueEnd) {
+			tryDismissPrologueEndWithKey(event);
+			return;
+		}
 
 		if (event.defaultPrevented) return;
 		if (handleMenuArrowKeys(event)) return;
@@ -705,6 +805,14 @@
 
 	function handlePadUiAction(action: GamepadUiAction) {
 		setLastInputModality('pad');
+
+		// Card-first: pad input cannot open menus, move Grik, or rove focus
+		// behind the completion card. Only pad A (confirm) dismisses it.
+		if (prologueEnd) {
+			if (action === 'confirm') dismissPrologueEnd();
+			return;
+		}
+
 		switch (action) {
 			case 'up':
 			case 'down':
@@ -1039,14 +1147,36 @@
 	});
 
 	// A ready HUD state implies a live game: keep the shell in playing mode
-	// (covers direct boot races and embedded test harnesses).
+	// (covers direct boot races and embedded test harnesses). After a return
+	// to Title the suppression flag ignores late old-scene emits until the
+	// next deliberate beginRun().
 	$effect(() => {
 		return onHudState((state) => {
-			if (state.ready && mode === 'title') {
+			if (state.ready && mode === 'title' && !suppressReadyPromotion) {
 				mode = 'playing';
 			}
 		});
 	});
+
+	// The scene's one-shot completion signal: freeze into the card while
+	// playing. The card is dismissed only through dismissPrologueEnd().
+	$effect(() => {
+		return onPrologueEnd((end) => {
+			if (mode !== 'playing' || prologueEnd) return;
+			prologueEnd = end;
+		});
+	});
+
+	// Accessible focus: the card takes focus when it appears.
+	$effect(() => {
+		if (!prologueEnd) return;
+		void focusPrologueEndCard();
+	});
+
+	async function focusPrologueEndCard() {
+		await tick();
+		if (prologueEnd) prologueEndCard?.focus();
+	}
 
 	onMount(() => {
 		window.addEventListener('keydown', handleWindowActivationKeydownCapture, true);
@@ -1134,7 +1264,7 @@
 			class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(130,180,255,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,26,0.1),rgba(4,6,18,0.58)_85%,rgba(3,4,10,0.82))]"
 		></div>
 
-		{#if !battleLocked && !$hudState.dialogue}
+		{#if !battleLocked && !$hudState.dialogue && !prologueEnd}
 			<div class="jrpg-menu-anchor pointer-events-auto">
 				<button
 					bind:this={menuButton}
@@ -1190,6 +1320,41 @@
 				oncontinue={dismissBattleSummary}
 				onkeydown={handleBattleSummaryDialogKeydown}
 			/>
+		{/if}
+
+		{#if prologueEnd}
+			<!-- Full-screen completion card over the existing title key art. One
+			     surface, one dismissal path: click here, a fresh Enter/Space, or
+			     pad A — all routed through dismissPrologueEnd(). -->
+			<div
+				class="prologue-end-card heroic-anim"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="prologue-end-heading"
+				tabindex="-1"
+				bind:this={prologueEndCard}
+				onclick={dismissPrologueEnd}
+				onkeydown={handlePrologueEndCardKeydown}
+			>
+				<img
+					class="prologue-end-art"
+					src="/game/assets/heroic-ui/title-key-art.png"
+					alt=""
+					aria-hidden="true"
+					draggable="false"
+				/>
+				<div class="prologue-end-scrim" aria-hidden="true"></div>
+				<div class="prologue-end-copy">
+					<h2 id="prologue-end-heading" class="font-display">
+						{t($locale, 'ui.prologueEndHeading')}
+					</h2>
+					<p class="prologue-end-thanks font-display">{t($locale, 'ui.prologueEndThanks')}</p>
+					{#if !prologueEnd.success}
+						<p class="prologue-end-warning">{t($locale, 'status.saveFailed')}</p>
+					{/if}
+					<p class="prologue-end-hint">{t($locale, 'ui.prologueEndDismiss')}</p>
+				</div>
+			</div>
 		{/if}
 
 		<BagScreen
@@ -1355,6 +1520,89 @@
 		color: var(--color-parchment);
 		font-size: 0.85rem;
 		font-weight: 800;
+	}
+
+	/* Prologue completion card: full-bleed title key art under a dark scrim,
+	   gold centered copy, one dismissal surface. A gentle fade is the only
+	   motion, and .heroic-motion-reduced / prefers-reduced-motion (heroic-ui)
+	   strip it. */
+	.prologue-end-card {
+		position: absolute;
+		inset: 0;
+		z-index: 60;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+		background: var(--color-ink);
+		cursor: pointer;
+		outline: none;
+		animation: prologue-end-fade 420ms ease-out both;
+	}
+
+	@keyframes prologue-end-fade {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	.prologue-end-art {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		user-select: none;
+	}
+
+	.prologue-end-scrim {
+		position: absolute;
+		inset: 0;
+		background: rgba(4, 6, 18, 0.66);
+	}
+
+	.prologue-end-copy {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.55rem;
+		max-width: 90vw;
+		padding: 1rem;
+		text-align: center;
+	}
+
+	.prologue-end-copy h2 {
+		margin: 0;
+		color: var(--color-gold-bright);
+		font-size: clamp(1.45rem, 4vw, 2.5rem);
+		font-weight: 800;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6);
+	}
+
+	.prologue-end-thanks {
+		margin: 0;
+		color: var(--color-parchment);
+		font-size: clamp(0.95rem, 2.2vw, 1.3rem);
+		font-weight: 600;
+	}
+
+	.prologue-end-warning {
+		margin: 0;
+		color: var(--color-rose);
+		font-size: 0.85rem;
+		font-weight: 700;
+	}
+
+	.prologue-end-hint {
+		margin: 0.4rem 0 0;
+		color: var(--color-muted);
+		font-size: 0.78rem;
 	}
 
 	@media (max-width: 832px) {

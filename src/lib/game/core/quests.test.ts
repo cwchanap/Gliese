@@ -14,7 +14,7 @@ import {
 	type QuestEventResult,
 	type QuestState
 } from '$lib/game/core/quests';
-import { eventsFor } from '$lib/game/core/quests.fixtures';
+import { eventsFor, questStateAt } from '$lib/game/core/quests.fixtures';
 
 function apply(state: QuestState, events: QuestEvent[]): QuestEventResult[] {
 	const results: QuestEventResult[] = [];
@@ -218,6 +218,18 @@ describe('quest core', () => {
 		});
 		expect(hud.completed.map((entry) => entry.questId)).toEqual(['prologue-proving-morning']);
 		expect(hud.completed[0]?.progress.current).toBe(hud.completed[0]?.progress.target);
+	});
+
+	it('reports the main-quest total so the HUD derives completion from one field', () => {
+		const initial = buildHudQuestState({ state: createInitialQuestState(), locale: 'en' });
+		expect(initial.total).toBe(mainQuestIds.length);
+		expect(initial.completed).toHaveLength(0);
+
+		const finished = buildHudQuestState({ state: questStateAt(null), locale: 'en' });
+		expect(finished.total).toBe(mainQuestIds.length);
+		expect(finished.main).toBeNull();
+		expect(finished.completed).toHaveLength(finished.total);
+		expect(finished.completed.map((entry) => entry.questId)).toEqual(mainQuestIds);
 	});
 
 	it('localizes quest HUD text for Japanese', () => {

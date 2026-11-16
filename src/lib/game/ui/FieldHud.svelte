@@ -217,6 +217,13 @@
 							{/if}
 						</p>
 					</aside>
+				{:else if hudState.quests.completed.length === hudState.quests.total}
+					<!-- The prologue is finished: the tracker reads the single total
+					     field instead of a duplicate counter (HPA-841). -->
+					<aside class="heroic-field-card quest-banner" aria-label={t($locale, 'ui.questTracker')}>
+						<p class="heroic-eyebrow quest-banner-eyebrow">✦ {t($locale, 'ui.mainQuest')}</p>
+						<h2>{t($locale, 'ui.prologueComplete')}</h2>
+					</aside>
 				{/if}
 
 				<div class="heroic-field-card wallet-pill">
