@@ -7536,6 +7536,265 @@ describe('WorldScene', () => {
 		}
 	});
 
+	/** Seeds the end-of-prologue moment: every quest completed, the final
+	 * chapter-one scene queued just ahead of the terminal card marker, exactly
+	 * as the chapter-one checkpoint on disk would hold it. */
+	async function createPrologueEndScene() {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			dialogueSession: unknown;
+			quests: { pendingEffects: unknown[] };
+			storyEffectRunning: boolean;
+			handleHudCommand: (command: HudCommand) => void;
+		};
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'overworld',
+				quests: {
+					...questStateAt(null),
+					pendingEffects: [
+						{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+						{ type: 'show-prologue-end' }
+					]
+				}
+			}
+		});
+
+		return { scene, sceneState };
+	}
+
+	/** Drives the story dialogue to its final line and closes it. */
+	function closeStoryDialogue(sceneState: {
+		dialogueSession: unknown;
+		handleHudCommand: (command: HudCommand) => void;
+	}) {
+		let guard = 0;
+		while (sceneState.dialogueSession && guard < 64) {
+			sceneState.handleHudCommand({ type: 'dialogue-advance' });
+			guard += 1;
+		}
+
+		expect(sceneState.dialogueSession).toBeNull();
+	}
+
+	it('consumes the prologue-end marker only after the last chapter-one dialogue closes, then persists the finished slot', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		const storage = await import('$lib/game/save/storage');
+		const memoryStorage = createSlotCaptureStorage();
+		storage.setSaveStorage(memoryStorage);
+		const { scene, sceneState } = await createPrologueEndScene();
+
+		try {
+			scene.update(0, 16);
+			await flushStoryDialogue();
+
+			// The chapter-one scene is on screen; the marker is still queued.
+			expect(sceneState.dialogueSession).toBeTruthy();
+			expect(sceneState.quests.pendingEffects).toContainEqual({ type: 'show-prologue-end' });
+			expect(emitPrologueEndSpy).not.toHaveBeenCalled();
+
+			closeStoryDialogue(sceneState);
+			scene.update(16, 16);
+
+			await vi.waitFor(() => expect(emitPrologueEndSpy).toHaveBeenCalledWith({ success: true }));
+			expect(sceneState.quests.pendingEffects).toEqual([]);
+
+			const autosave = slots.loadSaveSlots(memoryStorage).slots[0];
+			expect(autosave?.kind).toBe('autosave');
+			expect(autosave?.state.quests.pendingEffects).toEqual([]);
+			const entries = Object.values(autosave?.state.quests.entries ?? {});
+			expect(entries).toHaveLength(7);
+			expect(entries.every((entry) => entry?.status === 'completed')).toBe(true);
+			// The freeze holds until the shell tears the scene down on dismiss.
+			expect(sceneState.storyEffectRunning).toBe(true);
+		} finally {
+			emitPrologueEndSpy.mockRestore();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('persists the chapter-one checkpoint and the terminal write through the same post-render queue and never restores the pending marker', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		const storage = await import('$lib/game/save/storage');
+		// Hold every flush so both writes queue before either attempt settles:
+		// the final envelope must survive the asynchronous flush ordering.
+		let resolveFlush!: (confirmed: boolean) => void;
+		const flushGate = new Promise<boolean>((resolve) => {
+			resolveFlush = resolve;
+		});
+		const memoryStorage = { ...createSlotCaptureStorage(), flush: vi.fn(() => flushGate) };
+		storage.setSaveStorage(memoryStorage);
+
+		const renderer = phaserState.renderer as { once?: unknown };
+		const originalOnce = renderer.once;
+		const postRenderCallbacks: Array<() => void> = [];
+		renderer.once = vi.fn((event: string, callback: () => void) => {
+			if (event === 'postrender') postRenderCallbacks.push(callback);
+		});
+
+		try {
+			const { scene, sceneState } = await createPrologueEndScene();
+			scene.update(0, 16);
+			await flushStoryDialogue();
+			closeStoryDialogue(sceneState);
+			scene.update(16, 16);
+			await flushStoryDialogue();
+
+			// Both the chapter-one checkpoint and the terminal write wait on the
+			// same post-render tick, in registration order.
+			expect(postRenderCallbacks).toHaveLength(2);
+			for (const callback of postRenderCallbacks) callback();
+			resolveFlush(true);
+			await vi.waitFor(() => expect(emitPrologueEndSpy).toHaveBeenCalledWith({ success: true }));
+			expect(emitPrologueEndSpy).toHaveBeenCalledTimes(1);
+
+			const envelopeWrites = memoryStorage.setItem.mock.calls
+				.filter(([key]) => key === slots.SAVE_SLOTS_STORAGE_KEY)
+				.map(
+					([, value]) =>
+						JSON.parse(value as string) as {
+							slots: Array<{ state: { quests: { pendingEffects: unknown[] } } } | null>;
+						}
+				);
+			// First write: the checkpoint still carries the pending marker.
+			expect(envelopeWrites[0]?.slots[0]?.state.quests.pendingEffects).toEqual([
+				{ type: 'show-prologue-end' }
+			]);
+			// Second write: the terminal payload, in queue order — never reversed.
+			expect(envelopeWrites[1]?.slots[0]?.state.quests.pendingEffects).toEqual([]);
+			// After every flush settled, the stored envelope still holds the
+			// terminal state: the queued checkpoint cannot overwrite the final slot.
+			const final = JSON.parse(memoryStorage.getItem(slots.SAVE_SLOTS_STORAGE_KEY) as string) as {
+				slots: Array<{ state: { quests: { pendingEffects: unknown[] } } } | null>;
+			};
+			expect(final.slots[0]?.state.quests.pendingEffects).toEqual([]);
+		} finally {
+			renderer.once = originalOnce;
+			emitPrologueEndSpy.mockRestore();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('resolves the prologue-end signal with a failure when the adapter flush does not confirm the terminal write', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		const storage = await import('$lib/game/save/storage');
+		const memoryStorage = { ...createSlotCaptureStorage(), flush: vi.fn(async () => false) };
+		storage.setSaveStorage(memoryStorage);
+		const { scene, sceneState } = await createPrologueEndScene();
+
+		try {
+			scene.update(0, 16);
+			await flushStoryDialogue();
+			closeStoryDialogue(sceneState);
+			scene.update(16, 16);
+
+			// An unconfirmed flush is an explicit failure, not a hang, not a success.
+			await vi.waitFor(() => expect(emitPrologueEndSpy).toHaveBeenCalledWith({ success: false }));
+			expect(sceneState.storyEffectRunning).toBe(true);
+		} finally {
+			emitPrologueEndSpy.mockRestore();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('resolves the prologue-end signal with a failure when the terminal slot write throws', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		const storage = await import('$lib/game/save/storage');
+		const base = createSlotCaptureStorage();
+		const memoryStorage = {
+			...base,
+			setItem: vi.fn((key: string, value: string) => {
+				if (key === 'gliese.saves.v1') throw new Error('storage unavailable');
+				base.setItem(key, value);
+			})
+		};
+		storage.setSaveStorage(memoryStorage);
+		const { scene, sceneState } = await createPrologueEndScene();
+
+		try {
+			scene.update(0, 16);
+			await flushStoryDialogue();
+			closeStoryDialogue(sceneState);
+			scene.update(16, 16);
+
+			await vi.waitFor(() => expect(emitPrologueEndSpy).toHaveBeenCalledWith({ success: false }));
+			expect(sceneState.storyEffectRunning).toBe(true);
+		} finally {
+			emitPrologueEndSpy.mockRestore();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('completes the prologue-end card path without any disk write on a ?startMap= dev run', async () => {
+		const restoreLocation = installLocationSearch('?startMap=overworld');
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		const storage = await import('$lib/game/save/storage');
+		const memoryStorage = createSlotCaptureStorage();
+		storage.setSaveStorage(memoryStorage);
+		const { scene, sceneState } = await createPrologueEndScene();
+
+		try {
+			scene.update(0, 16);
+			await flushStoryDialogue();
+			closeStoryDialogue(sceneState);
+			scene.update(16, 16);
+
+			// The throwaway run still plays the card path, saving nothing.
+			await vi.waitFor(() => expect(emitPrologueEndSpy).toHaveBeenCalledWith({ success: true }));
+			expect(sceneState.dialogueSession).toBeNull();
+			expect(memoryStorage.setItem).not.toHaveBeenCalled();
+		} finally {
+			restoreLocation();
+			emitPrologueEndSpy.mockRestore();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('keeps Grik frozen behind the card after a failed terminal save and never restarts the scene', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		const storage = await import('$lib/game/save/storage');
+		const memoryStorage = { ...createSlotCaptureStorage(), flush: vi.fn(async () => false) };
+		storage.setSaveStorage(memoryStorage);
+		const { scene, sceneState } = await createPrologueEndScene();
+
+		try {
+			scene.update(0, 16);
+			await flushStoryDialogue();
+			closeStoryDialogue(sceneState);
+			scene.update(16, 16);
+			await vi.waitFor(() => expect(emitPrologueEndSpy).toHaveBeenCalledWith({ success: false }));
+
+			// The card is up (failed or not): no movement, no story-gate restart,
+			// and the signal never repeats while the world stays frozen.
+			Object.assign(phaserState.playerMarker, openGround);
+			phaserState.wasdKeys.down.isDown = true;
+			scene.update(0, 1000);
+			phaserState.wasdKeys.down.isDown = false;
+
+			expect(phaserState.playerMarker.x).toBe(openGround.x);
+			expect(phaserState.playerMarker.y).toBe(openGround.y);
+			expect(sceneState.storyEffectRunning).toBe(true);
+			expect(scene.scene.restart).not.toHaveBeenCalled();
+			expect(emitPrologueEndSpy).toHaveBeenCalledTimes(1);
+		} finally {
+			emitPrologueEndSpy.mockRestore();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
 	it('moves the player marker using WASD input state', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
