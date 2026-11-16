@@ -704,31 +704,20 @@ export class BattleScene extends Phaser.Scene {
 		};
 		playSfx(this, outcome === 'fled' ? 'flee' : outcome);
 
-		// Fleeing never carries a summary: hand the result straight back to the
-		// field with its flee-grace metadata.
-		if (outcome === 'fled') {
+		const application = applyBattleResultToSaveState(this.payload.saveState, this.pendingResult);
+		this.appliedSaveState = application.saveState;
+
+		// Fleeing and a story-scripted defeat never carry a summary: hand the
+		// result straight back to the field exactly once — with flee-grace
+		// metadata only for a genuine flee — and let the field take over.
+		if (outcome === 'fled' || application.summary === null) {
 			this.scene.start(WorldScene.key, {
 				saveState: this.payload.saveState,
 				reason: 'battle-result',
 				battleResult: this.pendingResult,
-				recentlyFled: {
-					encounterId: this.payload.sourceEncounterId
-				}
-			});
-			return;
-		}
-
-		const application = applyBattleResultToSaveState(this.payload.saveState, this.pendingResult);
-		this.appliedSaveState = application.saveState;
-
-		// A summary-less defeat is the story's own scripted beat: hand the result
-		// straight back exactly once — without flee-grace metadata — and let the
-		// queued scene take over on the field.
-		if (application.summary === null) {
-			this.scene.start(WorldScene.key, {
-				saveState: this.payload.saveState,
-				reason: 'battle-result',
-				battleResult: this.pendingResult
+				...(outcome === 'fled'
+					? { recentlyFled: { encounterId: this.payload.sourceEncounterId } }
+					: {})
 			});
 			return;
 		}
