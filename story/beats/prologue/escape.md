@@ -82,6 +82,4 @@ Not an orc arrow. It never was.
 id: prologue.chapter-one
 :::
 
-End of the Prologue.
-
 Chapter One: The Hunt.

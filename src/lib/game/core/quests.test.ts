@@ -171,6 +171,27 @@ describe('quest core', () => {
 		expect(state.pendingEffects).toContainEqual({ type: 'move-player', ...homeBedside });
 	});
 
+	it('queues the end card after the final ridge scenes; completing the quest alone is not the trigger', () => {
+		let state = createInitialQuestState();
+		while (getStoryProgress(state).objectiveId !== 'climb-to-the-ridge') {
+			state = drainEffects(completeCurrentObjective(state).at(-1)!.state);
+		}
+
+		const [result] = completeCurrentObjective(state);
+
+		expect(result!.completedQuestIds).toEqual(['prologue-escape']);
+		expect(getStoryProgress(result!.state)).toEqual({
+			questId: 'prologue-escape',
+			objectiveId: null
+		});
+		// The card fires only from the queued terminal effect, after both scenes.
+		expect(result!.state.pendingEffects).toEqual([
+			{ type: 'play-scene', sceneId: 'prologue.the-vow' },
+			{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+			{ type: 'show-prologue-end' }
+		]);
+	});
+
 	it('deep-clones state so later events never touch an earlier snapshot', () => {
 		const state = createInitialQuestState();
 		const clone = cloneQuestState(state);

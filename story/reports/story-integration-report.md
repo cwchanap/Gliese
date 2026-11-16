@@ -8,7 +8,7 @@
 - NPCs with dialogue: 22
 - Dialogue branches: 66
 - Scenes: 15
-- Lines: 244
+- Lines: 243
 
 ## Unsupported hooks
 

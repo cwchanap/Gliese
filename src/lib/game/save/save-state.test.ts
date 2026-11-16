@@ -712,6 +712,13 @@ describe('save state', () => {
 		}
 	});
 
+	it('round-trips a save whose pending queue holds the prologue-end marker', () => {
+		const save = overworldSaveState();
+		save.quests = { ...save.quests, pendingEffects: [{ type: 'show-prologue-end' }] };
+
+		expect(parseSaveState(serializeSaveState(save))).toEqual(save);
+	});
+
 	it('rejects invalid quest state entries', () => {
 		const save = overworldSaveState();
 		const mainQuestId = 'prologue-proving-morning';

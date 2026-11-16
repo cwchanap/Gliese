@@ -299,6 +299,7 @@ function isQuestState(value: unknown): value is QuestState {
 
 function isQuestEffect(value: unknown): value is QuestEffect {
 	if (!isRecord(value)) return false;
+	if (value.type === 'show-prologue-end') return true;
 	if (value.type === 'play-scene') return typeof value.sceneId === 'string';
 	return (
 		value.type === 'move-player' &&
