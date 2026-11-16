@@ -1150,7 +1150,8 @@ export class WorldScene extends Phaser.Scene {
 		this.publishHudState(this.status('status.soldItem', { itemName: this.getItemName(itemId) }));
 	}
 
-	private applyQuestProgress(event: QuestEvent, fallbackStatus: string) {
+	/** Applies one quest event; true when the event actually advanced the quest. */
+	private applyQuestProgress(event: QuestEvent, fallbackStatus: string): boolean {
 		const result = applyQuestEvent({ state: this.quests, event });
 		this.quests = result.state;
 		this.applyQuestRewards(result.rewards);
@@ -1169,6 +1170,8 @@ export class WorldScene extends Phaser.Scene {
 					})
 				: fallbackStatus
 		);
+
+		return result.progressUpdates.length > 0 || result.completedQuestIds.length > 0;
 	}
 
 	private applyQuestRewards(rewards: QuestRewardGrant[]) {
@@ -3513,11 +3516,16 @@ export class WorldScene extends Phaser.Scene {
 
 			this.dialogueSession = session;
 			// Talking is what a talk objective counts, so the line the player reads
-			// is the one written for the objective it completes.
-			this.applyQuestProgress(
+			// is the one written for the objective it completes. A talk that
+			// advances the quest is a story beat: it cannot be closed or skipped.
+			const advanced = this.applyQuestProgress(
 				{ type: 'talk-to-npc', npcId: nearbyNpc.dialogueId },
 				this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) })
 			);
+			if (advanced && this.dialogueSession === session) {
+				session.canClose = false;
+				this.publishHudState(this.lastPublishedStatus);
+			}
 			void this.writeAutosave(this.buildSaveState());
 		} catch (error) {
 			console.error(

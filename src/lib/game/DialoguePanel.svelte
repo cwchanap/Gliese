@@ -94,15 +94,42 @@
 		onadvance();
 	}
 
+	function confirmFromKey(event: KeyboardEvent) {
+		if (dialogue.mode === 'choice') {
+			// Keyboard confirm mirrors the Next button / pad A: the first press
+			// skips the reveal, a fresh press confirms. Auto-repeat never confirms —
+			// a held Enter must not lock in choice 0 the moment the line completes.
+			if (event.repeat) return;
+			if (!fullyRevealed) {
+				visibleCharacters = totalCharacters;
+				return;
+			}
+			const selectedChoice = dialogue.choices[selectedChoiceIndex];
+			if (selectedChoice) onchoose(selectedChoice.id);
+			return;
+		}
+
+		confirmAdvance();
+	}
+
 	function closeFromEscape(event: KeyboardEvent): boolean {
-		if (event.key === 'Escape' && dialogue.canClose) {
-			event.preventDefault();
-			event.stopPropagation();
-			onclose();
+		if (event.key !== 'Escape') return false;
+
+		event.preventDefault();
+		event.stopPropagation();
+
+		// Protected dialogue (quest talk, story scenes) never closes: Escape
+		// follows the same reveal/advance path as Enter — reveal first, advance
+		// on a fresh press — and repeats are swallowed so a held key cannot skip
+		// lines. The event is stopped either way so the panel and its window
+		// listener never both handle one press.
+		if (!dialogue.canClose) {
+			if (!event.repeat) confirmFromKey(event);
 			return true;
 		}
 
-		return false;
+		onclose();
+		return true;
 	}
 
 	function handleGlobalKeydown(event: KeyboardEvent) {
@@ -151,21 +178,7 @@
 		event.preventDefault();
 		event.stopPropagation();
 
-		if (dialogue.mode === 'choice') {
-			// Keyboard confirm mirrors the Next button / pad A: the first press
-			// skips the reveal, a fresh press confirms. Auto-repeat never confirms —
-			// a held Enter must not lock in choice 0 the moment the line completes.
-			if (event.repeat) return;
-			if (!fullyRevealed) {
-				visibleCharacters = totalCharacters;
-				return;
-			}
-			const selectedChoice = dialogue.choices[selectedChoiceIndex];
-			if (selectedChoice) onchoose(selectedChoice.id);
-			return;
-		}
-
-		confirmAdvance();
+		confirmFromKey(event);
 	}
 </script>
 
