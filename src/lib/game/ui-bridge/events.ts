@@ -170,6 +170,13 @@ export type HudStatePayload = Omit<HudState, 'dialogue'> & {
 	dialogue?: HudDialogueState | null;
 };
 
+/** One-shot prologue completion signal: fired once the final autosave attempt
+ * settles, so the shell can show the completion card with its outcome. */
+export type HudPrologueEnd = {
+	/** True only when the terminal autosave write was confirmed on storage. */
+	success: boolean;
+};
+
 export type HudCommand =
 	| { type: 'heal' }
 	| { type: 'save-slot'; slot: 1 | 2 }
@@ -192,11 +199,13 @@ export type HudCommand =
 
 export const HUD_STATE_EVENT = 'gliese:hud-state';
 export const HUD_COMMAND_EVENT = 'gliese:hud-command';
+export const HUD_PROLOGUE_END_EVENT = 'gliese:prologue-end';
 
 declare global {
 	interface WindowEventMap {
 		[HUD_STATE_EVENT]: CustomEvent<HudState>;
 		[HUD_COMMAND_EVENT]: CustomEvent<HudCommand>;
+		[HUD_PROLOGUE_END_EVENT]: CustomEvent<HudPrologueEnd>;
 	}
 }
 
@@ -224,6 +233,18 @@ export function onHudCommand(listener: (command: HudCommand) => void) {
 	const target = getEventTarget();
 	target?.addEventListener(HUD_COMMAND_EVENT, handleEvent);
 	return () => target?.removeEventListener(HUD_COMMAND_EVENT, handleEvent);
+}
+
+export function emitPrologueEnd(end: HudPrologueEnd) {
+	getEventTarget()?.dispatchEvent(new CustomEvent(HUD_PROLOGUE_END_EVENT, { detail: end }));
+}
+
+export function onPrologueEnd(listener: (end: HudPrologueEnd) => void) {
+	const handleEvent = (event: WindowEventMap[typeof HUD_PROLOGUE_END_EVENT]) =>
+		listener(event.detail);
+	const target = getEventTarget();
+	target?.addEventListener(HUD_PROLOGUE_END_EVENT, handleEvent);
+	return () => target?.removeEventListener(HUD_PROLOGUE_END_EVENT, handleEvent);
 }
 
 function getEventTarget() {

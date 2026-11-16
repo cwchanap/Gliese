@@ -166,6 +166,7 @@ import { writeSaveSlot, type SaveSlotRecord } from '$lib/game/save/slots';
 import { flushSaveStorage } from '$lib/game/save/storage';
 import { captureSaveThumbnail } from '$lib/game/save/thumbnail';
 import { getNpcStoryDialogue, getStoryScene } from '$lib/game/story/client';
+import { emitPrologueEnd } from '$lib/game/ui-bridge/events';
 import {
 	emitHudState,
 	onHudCommand,
@@ -757,7 +758,7 @@ export class WorldScene extends Phaser.Scene {
 			reason === 'story-move' ||
 			battleApplication
 		) {
-			this.events?.once?.('render', () => this.writeAutosave(this.buildSaveState()));
+			this.events?.once?.('render', () => void this.writeAutosave(this.buildSaveState()));
 		}
 		// Battles complete quests outside applyQuestProgress; cue it once on the return.
 		if (battleApplication?.summary?.completedQuestIds.length) {
@@ -1212,7 +1213,7 @@ export class WorldScene extends Phaser.Scene {
 		const after = this.buildSaveState();
 
 		if (serializeSaveState(after) !== before) {
-			this.writeAutosave(after);
+			void this.writeAutosave(after);
 		}
 	}
 
@@ -2965,22 +2966,39 @@ export class WorldScene extends Phaser.Scene {
 		return findMap(this.renderOptions.startMapId) !== undefined;
 	}
 
-	private writeAutosave(state: SaveState) {
-		if (this.isDevMapRun) return;
-		this.afterNextRenderedFrame(async (canvasOwned) => {
-			try {
-				writeSaveSlot(0, this.buildSlotRecord('autosave', state, canvasOwned));
-				// The adapter queues an asynchronous disk write; a cache-only
-				// "success" must still reach the log when the disk rejects it.
-				if (!(await flushSaveStorage())) {
-					console.error('Autosave slot was not confirmed on disk.');
-				}
-			} catch (error) {
-				// The envelope already retried without thumbnails; a remaining failure
-				// means storage is unavailable. Never break gameplay over the autosave.
-				console.error('Failed to persist autosave slot.', error);
-			}
+	/**
+	 * Persists the autosave slot after this scene's next rendered frame, so the
+	 * thumbnail captures the completed canvas. Resolves only once the attempt
+	 * settled: true when the write was confirmed on storage, including the
+	 * adapter's asynchronous flush. A `?startMap=` dev run is throwaway — it
+	 * writes nothing and resolves immediately. Ordinary callers may ignore the
+	 * result; the prologue-end card awaits it.
+	 */
+	private writeAutosave(state: SaveState): Promise<boolean> {
+		if (this.isDevMapRun) return Promise.resolve(true);
+		return new Promise<boolean>((resolve) => {
+			this.afterNextRenderedFrame((canvasOwned) => {
+				void this.persistAutosaveSlot(state, canvasOwned).then(resolve);
+			});
 		});
+	}
+
+	private async persistAutosaveSlot(state: SaveState, canvasOwned: boolean): Promise<boolean> {
+		try {
+			writeSaveSlot(0, this.buildSlotRecord('autosave', state, canvasOwned));
+			// The adapter queues an asynchronous disk write; a cache-only
+			// "success" must still reach the log when the disk rejects it.
+			if (await flushSaveStorage()) {
+				return true;
+			}
+			console.error('Autosave slot was not confirmed on disk.');
+			return false;
+		} catch (error) {
+			// The envelope already retried without thumbnails; a remaining failure
+			// means storage is unavailable. Never break gameplay over the autosave.
+			console.error('Failed to persist autosave slot.', error);
+			return false;
+		}
 	}
 
 	private writeManualSlot(slot: 1 | 2) {
@@ -3311,7 +3329,7 @@ export class WorldScene extends Phaser.Scene {
 			this.status('status.dialogueUpdated')
 		);
 		// Discovery is a durable point: persist the seen id and any quest progress.
-		this.writeAutosave(this.buildSaveState());
+		void this.writeAutosave(this.buildSaveState());
 	}
 
 	/**
@@ -3353,7 +3371,7 @@ export class WorldScene extends Phaser.Scene {
 				.then((shown) => {
 					// The scene is on screen: persist its consumption so a reload
 					// doesn't replay it. A scene that failed to load stays queued on disk.
-					if (shown) this.writeAutosave(this.buildSaveState());
+					if (shown) void this.writeAutosave(this.buildSaveState());
 				})
 				.finally(() => {
 					this.storyEffectRunning = false;
@@ -3361,10 +3379,11 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		// shortcut: the end card is not wired yet, so the terminal marker is a no-op;
-		// the card, its ordering and its autosave land with the WorldScene integration task.
+		// The card concludes the prologue: the world stays frozen until the card
+		// is dismissed and the return-to-title teardown destroys this scene, so
+		// the freeze is never cleared here — not even after the autosave settles.
 		if (effect.type === 'show-prologue-end') {
-			this.storyEffectRunning = false;
+			void this.completePrologueEnd();
 			return;
 		}
 
@@ -3392,6 +3411,17 @@ export class WorldScene extends Phaser.Scene {
 		}
 		camera.once('camerafadeoutcomplete', arrive);
 		camera.fadeOut(WorldScene.storyFadeMs, 0, 0, 0);
+	}
+
+	/**
+	 * Consumes the terminal marker's moment: the queue is already past the last
+	 * chapter-one line, so the final autosave persists every quest completed
+	 * with no pending marker, and its outcome drives the completion card. The
+	 * world stays frozen behind the card until the shell tears this scene down.
+	 */
+	private async completePrologueEnd() {
+		const saved = await this.writeAutosave(this.buildSaveState());
+		emitPrologueEnd({ success: saved });
 	}
 
 	/** Shows a story scene as a system dialogue once its prose arrives; true once shown. */
@@ -3477,7 +3507,7 @@ export class WorldScene extends Phaser.Scene {
 				{ type: 'talk-to-npc', npcId: nearbyNpc.dialogueId },
 				this.status('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) })
 			);
-			this.writeAutosave(this.buildSaveState());
+			void this.writeAutosave(this.buildSaveState());
 		} catch (error) {
 			console.error(
 				'[story] story dialogue failed for npc=%s map=%s locale=%s:',
@@ -3571,7 +3601,7 @@ export class WorldScene extends Phaser.Scene {
 			);
 			// Pickup is a durable point: persist after the collect-item quest event
 			// so quest progress and rewards land in the same autosave.
-			this.writeAutosave(this.buildSaveState());
+			void this.writeAutosave(this.buildSaveState());
 			return;
 		}
 	}
