@@ -341,6 +341,11 @@ function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleAp
 		state: saveState.quests,
 		event: { type: 'lose-battle', enemyId: result.sourceEnemyId }
 	});
+	// A fall that actually completes its `lose-battle` objective is the story's
+	// own beat: no summary — the queued scene takes over directly. Any other
+	// defeat keeps the standard summary.
+	const scriptedLoss =
+		questResult.progressUpdates.length > 0 || questResult.completedQuestIds.length > 0;
 	const wake = getCurrentObjective(questResult.state)?.respawn ?? {
 		mapId: shrine.id,
 		...shrine.spawn,
@@ -365,17 +370,19 @@ function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleAp
 			inventory,
 			quests: questResult.state
 		},
-		summary: {
-			outcome: 'defeat',
-			enemiesDefeated: 0,
-			xpGained: 0,
-			coinsGained: 0,
-			drops: [],
-			leveledUp: false,
-			completedQuestIds: questResult.completedQuestIds,
-			questRewards: questResult.rewards,
-			questProgress: []
-		}
+		summary: scriptedLoss
+			? null
+			: {
+					outcome: 'defeat',
+					enemiesDefeated: 0,
+					xpGained: 0,
+					coinsGained: 0,
+					drops: [],
+					leveledUp: false,
+					completedQuestIds: questResult.completedQuestIds,
+					questRewards: questResult.rewards,
+					questProgress: []
+				}
 	};
 }
 

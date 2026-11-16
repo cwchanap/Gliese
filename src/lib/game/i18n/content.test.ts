@@ -35,6 +35,21 @@ describe('localized content helpers', () => {
 		});
 	});
 
+	it('sends walk-lirra-home to see Lirra at the Herb Hut in every locale', () => {
+		expect(getQuestObjectiveText('en', 'prologue-hunters-name', 'walk-lirra-home')).toEqual({
+			description: 'See Lirra at the Herb Hut.',
+			progressLabel: 'Saw Lirra at the Herb Hut'
+		});
+		expect(getQuestObjectiveText('ja', 'prologue-hunters-name', 'walk-lirra-home')).toEqual({
+			description: '薬草小屋でリラに会う。',
+			progressLabel: '薬草小屋でリラに会った'
+		});
+		expect(getQuestObjectiveText('zh-Hant', 'prologue-hunters-name', 'walk-lirra-home')).toEqual({
+			description: '到採藥小屋見莉拉。',
+			progressLabel: '已在採藥小屋見到莉拉'
+		});
+	});
+
 	it('formats localized reward summaries', () => {
 		expect(
 			formatRewardSummary('en', {

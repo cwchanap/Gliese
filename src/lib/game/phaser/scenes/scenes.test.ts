@@ -3259,6 +3259,108 @@ describe('BattleScene', () => {
 		}
 	});
 
+	it('hands a scripted defeat straight back to WorldScene without flee grace', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new BattleScene();
+		const saveState = {
+			...createNewSaveState(),
+			mapId: 'overworld',
+			quests: questStateAt('charge-the-captain')
+		};
+
+		try {
+			scene.create({
+				saveState,
+				sourceMapId: 'overworld',
+				sourceEncounterId: 'sun-crest-captain',
+				sourceEnemyId: 'sun-crest-captain',
+				enemyCount: 1,
+				hero: { hp: 2, maxHp: 20, attack: 1, defense: 0 }
+			});
+			const state = scene as unknown as {
+				enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
+			};
+			// The hero spawns at the arena centre (448, 252); put the captain inside
+			// its 40px attack reach so the scripted strike lands on the first beat.
+			state.enemies[0]!.x = 448;
+			state.enemies[0]!.y = 244;
+			state.enemies[0]!.attackCooldownUntil = 0;
+
+			scene.update(0, 16);
+			// The captain's strike drops the hero — the scripted loss completes.
+			scene.update(120, 16);
+
+			expect(scene.scene.start).toHaveBeenCalledTimes(1);
+			expect(scene.scene.start).toHaveBeenCalledWith(
+				WorldScene.key,
+				expect.objectContaining({
+					reason: 'battle-result',
+					battleResult: expect.objectContaining({
+						outcome: 'defeat',
+						sourceEnemyId: 'sun-crest-captain',
+						finalHeroHp: 0
+					})
+				})
+			);
+			// Flee grace belongs to fleeing only: the scripted defeat handoff must
+			// not carry recentlyFled metadata.
+			const payload = vi.mocked(scene.scene.start).mock.calls[0]![1] as Record<string, unknown>;
+			expect(payload).not.toHaveProperty('recentlyFled');
+			// No summary in between: the loss is the story beat itself.
+			expect(emitHudStateSpy).not.toHaveBeenCalledWith(
+				expect.objectContaining({
+					battle: expect.objectContaining({ phase: 'summary' })
+				})
+			);
+		} finally {
+			emitHudStateSpy.mockRestore();
+		}
+	});
+
+	it('keeps the defeat summary for an ordinary loss and stays on the battle', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { BattleScene } = await import('./BattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new BattleScene();
+		const saveState = createNewSaveState();
+
+		try {
+			scene.create({
+				saveState,
+				sourceMapId: 'overworld',
+				sourceEncounterId: 'wildwood-wolves-mouth',
+				sourceEnemyId: 'forest-wolf',
+				enemyCount: 1,
+				hero: { hp: 2, maxHp: 20, attack: 1, defense: 0 }
+			});
+			const state = scene as unknown as {
+				enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
+			};
+			state.enemies[0]!.x = 448;
+			state.enemies[0]!.y = 244;
+			state.enemies[0]!.attackCooldownUntil = 0;
+
+			scene.update(0, 16);
+			scene.update(120, 16);
+
+			expect(scene.scene.start).not.toHaveBeenCalledWith(WorldScene.key, expect.anything());
+			expect(emitHudStateSpy).toHaveBeenCalledWith(
+				expect.objectContaining({
+					battle: expect.objectContaining({ phase: 'summary' })
+				})
+			);
+		} finally {
+			emitHudStateSpy.mockRestore();
+		}
+	});
+
 	it('anchors the flee channel to the loop clock when fleeing before the first update', async () => {
 		const hud = installHudCommandTarget();
 		const events = await import('$lib/game/ui-bridge/events');
@@ -9574,6 +9676,88 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('protects a quest-advancing NPC talk from being closed', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'guild-hall',
+				quests: questStateAt('report-to-borak')
+			}
+		});
+		Object.assign(phaserState.playerMarker, borakApproach);
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				dialogue: expect.objectContaining({ npcId: 'borak', canClose: false })
+			})
+		);
+	});
+
+	it('leaves an ambient NPC conversation closeable', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		// Mira's standing greeting: no current objective counts talking to her.
+		scene.create({ mapId: 'item-shop' });
+		Object.assign(phaserState.playerMarker, { x: 416, y: 320 });
+		scene.update(0, 16);
+		emitHudStateSpy.mockClear();
+
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				dialogue: expect.objectContaining({ npcId: 'mira', canClose: true })
+			})
+		);
+	});
+
+	it('protects a queued story scene from being closed', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'overworld',
+				quests: {
+					...questStateAt('report-boar-king'),
+					pendingEffects: [{ type: 'play-scene', sceneId: 'prologue.chapter-one' }]
+				}
+			}
+		});
+		emitHudStateSpy.mockClear();
+		scene.update(0, 16);
+		await flushStoryDialogue();
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				dialogue: expect.objectContaining({ mode: 'system', canClose: false })
+			})
+		);
+	});
+
 	it('falls back to noDialogueAvailable when story dialogue rejects', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
@@ -9598,7 +9782,8 @@ describe('WorldScene', () => {
 				dialogue: expect.objectContaining({
 					npcId: null,
 					speaker: 'Traveler',
-					line: 'No dialogue is available.'
+					line: 'No dialogue is available.',
+					canClose: true
 				})
 			})
 		);

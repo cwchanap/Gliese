@@ -491,8 +491,8 @@ export const en = {
 						progressLabel: 'Heard the tale'
 					},
 					'walk-lirra-home': {
-						description: 'Walk Lirra home to the Herb Hut.',
-						progressLabel: 'Walked Lirra home'
+						description: 'See Lirra at the Herb Hut.',
+						progressLabel: 'Saw Lirra at the Herb Hut'
 					},
 					'go-to-sleep': {
 						description: 'Go home and sleep.',

@@ -491,8 +491,8 @@ export const zhHant = {
 						progressLabel: '已聽完故事'
 					},
 					'walk-lirra-home': {
-						description: '送莉拉回採藥小屋。',
-						progressLabel: '已送莉拉回家'
+						description: '到採藥小屋見莉拉。',
+						progressLabel: '已在採藥小屋見到莉拉'
 					},
 					'go-to-sleep': {
 						description: '回家睡覺。',

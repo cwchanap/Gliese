@@ -217,6 +217,106 @@ describe('DialoguePanel.svelte', () => {
 		expect(event.defaultPrevented).toBe(true);
 	});
 
+	it('reveals a revealing protected line with Escape, then advances on a fresh press', async () => {
+		// Quest-advancing NPC talk: canClose false, typewriter mid-reveal.
+		updatePreferences({ textSpeed: 'normal' });
+		const line =
+			'Grik. You came. The lodge stands because its hunters come back, and you came back.';
+		const { onadvance, onclose } = renderDialogue({
+			...conversationDialogue,
+			canClose: false,
+			line,
+			lineCount: 2
+		});
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+		await expect.element(panel).toHaveFocus();
+
+		// Mid-reveal: Escape reveals instead of closing or skipping the line.
+		await userEvent.keyboard('{Escape}');
+		expect(onclose).not.toHaveBeenCalled();
+		expect(onadvance).not.toHaveBeenCalled();
+		expect(panel.element().querySelector('.jrpg-dialogue-line')!.textContent).toBe(line);
+
+		// The next non-repeated press advances — exactly once (the panel and its
+		// window listener must not both handle it).
+		await userEvent.keyboard('{Escape}');
+		expect(onadvance).toHaveBeenCalledOnce();
+		expect(onclose).not.toHaveBeenCalled();
+	});
+
+	it('advances a protected story scene with Escape like Enter', async () => {
+		updatePreferences({ textSpeed: 'instant' });
+		const { onadvance, onclose, onchoose } = renderDialogue({
+			...conversationDialogue,
+			id: 'scene:prologue.captain-sneers',
+			npcId: null,
+			speaker: 'Narrator',
+			mode: 'system',
+			canClose: false
+		});
+		const panel = page.getByRole('dialog', { name: 'Narrator' });
+		await expect.element(panel).toHaveFocus();
+
+		await userEvent.keyboard('{Escape}');
+
+		expect(onadvance).toHaveBeenCalledOnce();
+		expect(onclose).not.toHaveBeenCalled();
+		expect(onchoose).not.toHaveBeenCalled();
+	});
+
+	it('ignores held-repeat Escape on protected dialogue', async () => {
+		updatePreferences({ textSpeed: 'instant' });
+		const { onadvance } = renderDialogue({
+			...conversationDialogue,
+			canClose: false
+		});
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+		await expect.element(panel).toHaveFocus();
+
+		await userEvent.keyboard('{Escape}');
+		expect(onadvance).toHaveBeenCalledOnce();
+
+		// The held key's auto-repeat arrives on window (userEvent cannot emit
+		// repeats): it must neither advance again nor re-open handling.
+		const repeat = new KeyboardEvent('keydown', {
+			key: 'Escape',
+			repeat: true,
+			bubbles: true,
+			cancelable: true
+		});
+		window.dispatchEvent(repeat);
+
+		expect(onadvance).toHaveBeenCalledOnce();
+	});
+
+	it('closes a fallback notice with Escape', async () => {
+		const { onadvance, onclose } = renderDialogue({
+			...conversationDialogue,
+			id: 'fallback:Traveler:fallback-line',
+			npcId: null,
+			speaker: 'Traveler',
+			mode: 'system',
+			canClose: true
+		});
+		const panel = page.getByRole('dialog', { name: 'Traveler' });
+		await expect.element(panel).toHaveFocus();
+
+		await userEvent.keyboard('{Escape}');
+
+		expect(onclose).toHaveBeenCalledOnce();
+		expect(onadvance).not.toHaveBeenCalled();
+	});
+
+	it('hides the Close action for protected dialogue', async () => {
+		const { onclose } = renderDialogue({ ...conversationDialogue, canClose: false });
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+		await expect.element(panel).toHaveFocus();
+
+		expect(panel.element().querySelectorAll('.jrpg-dialogue-action')).toHaveLength(1);
+		expect(panel.element().querySelector('.jrpg-dialogue-action')!.textContent).toContain('Next');
+		expect(onclose).not.toHaveBeenCalled();
+	});
+
 	it('traps Tab inside the panel instead of escaping to controls behind it', async () => {
 		renderDialogue(conversationDialogue);
 		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });

@@ -492,8 +492,8 @@ export const ja = {
 						progressLabel: '昔話を聞いた'
 					},
 					'walk-lirra-home': {
-						description: 'リラを薬草小屋まで送る。',
-						progressLabel: 'リラを送った'
+						description: '薬草小屋でリラに会う。',
+						progressLabel: '薬草小屋でリラに会った'
 					},
 					'go-to-sleep': {
 						description: '家に帰って眠る。',

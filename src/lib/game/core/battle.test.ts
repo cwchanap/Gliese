@@ -250,7 +250,9 @@ describe('battle contracts', () => {
 		});
 
 		expect(application.saveState.mapId).toBe(shrineOfAuroraInteriorMap.id);
-		expect(application.summary?.completedQuestIds).toEqual(['prologue-raid']);
+		// The scripted loss is the story beat itself: no summary — the queued
+		// scene takes over directly.
+		expect(application.summary).toBeNull();
 		expect(getStoryProgress(application.saveState.quests)).toEqual({
 			questId: 'prologue-escape',
 			objectiveId: 'wake-in-the-shrine'
@@ -274,6 +276,8 @@ describe('battle contracts', () => {
 		});
 
 		expect(application.saveState.mapId).toBe(shrineOfAuroraInteriorMap.id);
+		// An ordinary loss is not a story beat: the standard defeat summary shows.
+		expect(application.summary).toMatchObject({ outcome: 'defeat', enemiesDefeated: 0 });
 		expect(getStoryProgress(application.saveState.quests)).toEqual(
 			getStoryProgress(saveState.quests)
 		);

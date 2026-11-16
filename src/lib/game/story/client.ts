@@ -87,7 +87,12 @@ export function createSceneSessionFromStory(response: StorySceneResponse): Dialo
 		throw new Error('Story scene response must include at least one line.');
 	}
 
-	return createDialogueSession({ id: response.sessionId, lines: response.lines, mode: 'system' });
+	// A story scene is the story itself: it plays line by line and cannot be
+	// closed early or skipped, so the shell hides its Close affordances.
+	return {
+		...createDialogueSession({ id: response.sessionId, lines: response.lines, mode: 'system' }),
+		canClose: false
+	};
 }
 
 export function storyIntentToDialogueIntent(intent: StoryIntent): DialogueIntent {

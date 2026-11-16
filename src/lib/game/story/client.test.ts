@@ -40,8 +40,21 @@ describe('story client', () => {
 			line: 'Grik. You came.',
 			lineCount: 2,
 			mode: 'conversation',
-			choices: []
+			choices: [],
+			canClose: true
 		});
+	});
+
+	it('marks queued story scenes non-closeable so they cannot be skipped', () => {
+		const session = createSceneSessionFromStory({
+			sessionId: 'scene:prologue.captain-sneers',
+			lines: [
+				{ speaker: '', text: 'The captain looks down.' },
+				{ speaker: 'Captain', text: 'Pathetic.' }
+			]
+		});
+
+		expect(session.canClose).toBe(false);
 	});
 
 	it('starts single-line action payloads in choice mode with localized labels', () => {
