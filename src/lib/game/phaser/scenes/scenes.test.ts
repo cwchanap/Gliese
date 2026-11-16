@@ -185,6 +185,18 @@ vi.mock('$lib/game/story/client', async (importOriginal) => {
 	};
 });
 
+// Filesystem calls only ever run through the real Tauri adapter in the
+// prologue-end ordering test; every other test in this file stays on its own
+// storage double. Same factory shape as save/tauri-storage.test.ts.
+vi.mock('@tauri-apps/plugin-fs', () => ({
+	BaseDirectory: { AppData: 'AppData' },
+	exists: vi.fn(),
+	mkdir: vi.fn(),
+	readTextFile: vi.fn(),
+	writeTextFile: vi.fn(),
+	rename: vi.fn()
+}));
+
 vi.mock('$lib/game/i18n/store', () => ({
 	getActiveLocale: () => localeState.activeLocale,
 	preferences: {
@@ -7621,18 +7633,39 @@ describe('WorldScene', () => {
 	});
 
 	it('persists the chapter-one checkpoint and the terminal write through the same post-render queue and never restores the pending marker', async () => {
-		const slots = await import('$lib/game/save/slots');
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
 		const storage = await import('$lib/game/save/storage');
-		// Hold every flush so both writes queue before either attempt settles:
-		// the final envelope must survive the asynchronous flush ordering.
-		let resolveFlush!: (confirmed: boolean) => void;
-		const flushGate = new Promise<boolean>((resolve) => {
-			resolveFlush = resolve;
-		});
-		const memoryStorage = { ...createSlotCaptureStorage(), flush: vi.fn(() => flushGate) };
-		storage.setSaveStorage(memoryStorage);
+		const fs = await import('@tauri-apps/plugin-fs');
+		const tauriStorage = await import('$lib/game/save/tauri-storage');
+		const mockedFs = vi.mocked(fs);
+
+		// The real disk-backed adapter with deferred filesystem operations: the
+		// checkpoint write reaches writeTextFile and stalls there, the terminal
+		// write queues behind it, so the asynchronous persistence order — not
+		// just the synchronous cache writes — is what the assertions read.
+		const diskWrites: Array<{ path: string; contents: string; resolve: () => void }> = [];
+		mockedFs.exists.mockResolvedValue(false);
+		mockedFs.mkdir.mockResolvedValue(undefined);
+		mockedFs.readTextFile.mockResolvedValue('');
+		mockedFs.rename.mockResolvedValue(undefined);
+		mockedFs.writeTextFile.mockImplementation(
+			(path, contents) =>
+				new Promise<void>((resolve) => {
+					diskWrites.push({ path: String(path), contents, resolve });
+				})
+		);
+
+		const globalScope = globalThis as { window?: unknown };
+		const originalWindow = globalScope.window;
+		globalScope.window = { __TAURI_INTERNALS__: {} };
+		let adapter: Awaited<ReturnType<typeof tauriStorage.hydrateTauriStorage>>;
+		try {
+			adapter = await tauriStorage.hydrateTauriStorage();
+		} finally {
+			globalScope.window = originalWindow;
+		}
+		storage.setSaveStorage(adapter);
 
 		const renderer = phaserState.renderer as { once?: unknown };
 		const originalOnce = renderer.once;
@@ -7652,35 +7685,55 @@ describe('WorldScene', () => {
 			// Both the chapter-one checkpoint and the terminal write wait on the
 			// same post-render tick, in registration order.
 			expect(postRenderCallbacks).toHaveLength(2);
-			for (const callback of postRenderCallbacks) callback();
-			resolveFlush(true);
+
+			// The checkpoint write reaches the disk first and stalls there.
+			postRenderCallbacks[0]();
+			await vi.waitFor(() => expect(diskWrites).toHaveLength(1));
+			const saveFilePath = `${tauriStorage.SAVE_FILE_DIR}/${tauriStorage.SAVE_FILE_TMP_NAME}`;
+			expect(diskWrites[0]?.path).toBe(saveFilePath);
+			const checkpointPayload = JSON.parse(diskWrites[0]?.contents ?? '') as {
+				slots: Array<{ state: { quests: { pendingEffects: unknown[] } } } | null>;
+			};
+			// First durable write: the checkpoint still carries the pending marker.
+			expect(checkpointPayload.slots[0]?.state.quests.pendingEffects).toEqual([
+				{ type: 'show-prologue-end' }
+			]);
+
+			// The terminal write queues behind the in-flight checkpoint write.
+			postRenderCallbacks[1]();
+			// Completion stays unannounced while durability is unresolved.
+			expect(emitPrologueEndSpy).not.toHaveBeenCalled();
+
+			diskWrites[0]?.resolve();
+			await vi.waitFor(() => expect(diskWrites).toHaveLength(2));
+			expect(diskWrites[1]?.path).toBe(saveFilePath);
+			// Still unannounced: the terminal write has not been confirmed yet.
+			expect(emitPrologueEndSpy).not.toHaveBeenCalled();
+
+			diskWrites[1]?.resolve();
 			await vi.waitFor(() => expect(emitPrologueEndSpy).toHaveBeenCalledWith({ success: true }));
 			expect(emitPrologueEndSpy).toHaveBeenCalledTimes(1);
 
-			const envelopeWrites = memoryStorage.setItem.mock.calls
-				.filter(([key]) => key === slots.SAVE_SLOTS_STORAGE_KEY)
-				.map(
-					([, value]) =>
-						JSON.parse(value as string) as {
-							slots: Array<{ state: { quests: { pendingEffects: unknown[] } } } | null>;
-						}
-				);
-			// First write: the checkpoint still carries the pending marker.
-			expect(envelopeWrites[0]?.slots[0]?.state.quests.pendingEffects).toEqual([
-				{ type: 'show-prologue-end' }
-			]);
-			// Second write: the terminal payload, in queue order — never reversed.
-			expect(envelopeWrites[1]?.slots[0]?.state.quests.pendingEffects).toEqual([]);
-			// After every flush settled, the stored envelope still holds the
-			// terminal state: the queued checkpoint cannot overwrite the final slot.
-			const final = JSON.parse(memoryStorage.getItem(slots.SAVE_SLOTS_STORAGE_KEY) as string) as {
+			// The durable order on disk is checkpoint first, terminal last, and
+			// the final committed payload holds the finished state: a queued
+			// checkpoint can never overwrite the terminal slot, synchronously or
+			// across the asynchronous flush.
+			const saveFileWrites = diskWrites.filter((write) => write.path === saveFilePath);
+			expect(saveFileWrites).toHaveLength(2);
+			const terminalPayload = JSON.parse(saveFileWrites[1]?.contents ?? '') as {
 				slots: Array<{ state: { quests: { pendingEffects: unknown[] } } } | null>;
 			};
-			expect(final.slots[0]?.state.quests.pendingEffects).toEqual([]);
+			expect(terminalPayload.slots[0]?.state.quests.pendingEffects).toEqual([]);
 		} finally {
 			renderer.once = originalOnce;
 			emitPrologueEndSpy.mockRestore();
 			storage.setSaveStorage(undefined);
+			tauriStorage.__resetTauriStorageForTests();
+			mockedFs.writeTextFile.mockReset();
+			mockedFs.exists.mockReset();
+			mockedFs.mkdir.mockReset();
+			mockedFs.readTextFile.mockReset();
+			mockedFs.rename.mockReset();
 		}
 	});
 
