@@ -1779,10 +1779,6 @@ pub fn story_catalog() -> StoryCatalog {
                 lines: vec![
                     StoryLine {
                         speaker: "".to_string(),
-                        text: "End of the Prologue.".to_string(),
-                    },
-                    StoryLine {
-                        speaker: "".to_string(),
                         text: "Chapter One: The Hunt.".to_string(),
                     },
                 ],

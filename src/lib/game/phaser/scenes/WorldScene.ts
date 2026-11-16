@@ -3361,6 +3361,13 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
+		// shortcut: the end card is not wired yet, so the terminal marker is a no-op;
+		// the card, its ordering and its autosave land with the WorldScene integration task.
+		if (effect.type === 'show-prologue-end') {
+			this.storyEffectRunning = false;
+			return;
+		}
+
 		// Sleep, or wake somewhere new: fade out, rest to full HP, and arrive.
 		const saveState = this.buildSaveState();
 		const arrive = () =>

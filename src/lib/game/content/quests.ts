@@ -49,11 +49,14 @@ export type QuestReward = {
  * Presentation that runs once an objective completes (or a quest starts). The
  * world plays effects in order between interactions: a scene is a system
  * dialogue whose prose lives in `story/`, and a move fades the hero to a map
- * position and rests them to full HP (sleeping, entering the tunnel).
+ * position and rests them to full HP (sleeping, entering the tunnel). The
+ * terminal marker ends the prologue: the world shows the completion card
+ * after the final scene.
  */
 export type QuestEffect =
 	| { type: 'play-scene'; sceneId: string }
-	| { type: 'move-player'; mapId: string; x: number; y: number; facing: Direction };
+	| { type: 'move-player'; mapId: string; x: number; y: number; facing: Direction }
+	| { type: 'show-prologue-end' };
 
 type ObjectiveBase = {
 	id: string;
@@ -292,7 +295,11 @@ const questDefinitions: Record<QuestId, QuestDefinitionSource> = {
 				discoveryIds: ['ridge-overlook'],
 				// The burning village is cut off now, so a lost fight ends back at the tunnel's end.
 				respawn: tunnelEnd,
-				onComplete: [scene('prologue.the-vow'), scene('prologue.chapter-one')]
+				onComplete: [
+					scene('prologue.the-vow'),
+					scene('prologue.chapter-one'),
+					{ type: 'show-prologue-end' }
+				]
 			}
 		],
 		reward: {}
