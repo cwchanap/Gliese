@@ -509,6 +509,12 @@ export class WorldScene extends Phaser.Scene {
 	/** A queued scene failed to load: the queue holds (no later effect, no
 	 * terminal card) until a reload replays the preserved checkpoint. */
 	private storySceneHold = false;
+	/** The play-scene effect popped for its in-flight request: kept in every
+	 * save snapshot (see buildSaveState) so an autosave during the request
+	 * cannot persist a queue missing the unseen cue. The seq identifies the
+	 * request, so a response fenced by a shutdown/re-create is recognized as
+	 * stale instead of settling the live queue. */
+	private storySceneInFlight: { effect: QuestEffect; seq: number } | null = null;
 	/** The story moved on; re-render once the current dialogue and effects finish. */
 	private storyRefreshPending = false;
 	private storyGateKey = '';
@@ -661,6 +667,7 @@ export class WorldScene extends Phaser.Scene {
 		this.simulationPaused = false;
 		this.storyEffectRunning = false;
 		this.storySceneHold = false;
+		this.storySceneInFlight = null;
 		this.storyRefreshPending = false;
 		this.storyGateKey = this.computeStoryGateKey();
 		this.worldSize = { width, height };
@@ -1000,6 +1007,15 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	private buildSaveState(): SaveState {
+		const quests = cloneQuestState(this.quests);
+		// The in-flight scene was already popped; re-add it at the head so
+		// snapshots taken during its request keep the unseen cue. The success
+		// path clears the field before snapshotting, so it is consumed exactly
+		// once, and a re-created scene's create() reset makes a stale response
+		// settle as foreign instead of re-adding a duplicate.
+		if (this.storySceneInFlight) {
+			quests.pendingEffects.unshift({ ...this.storySceneInFlight.effect });
+		}
 		return {
 			version: 10,
 			mapId: this.mapId,
@@ -1024,7 +1040,7 @@ export class WorldScene extends Phaser.Scene {
 			shops: {
 				stock: cloneShopStockState(this.shopStockState)
 			},
-			quests: cloneQuestState(this.quests),
+			quests,
 			mapExploration: cloneMapExploration(this.mapExploration),
 			seenDiscoveries: [...this.seenDiscoveryIds].sort()
 		};
@@ -3487,8 +3503,18 @@ export class WorldScene extends Phaser.Scene {
 		this.storyEffectRunning = true;
 
 		if (effect.type === 'play-scene') {
-			void this.playStoryScene(effect.sceneId, ++this.storyDialogueSeq)
+			const requestSeq = ++this.storyDialogueSeq;
+			// Popped but not yet shown: keep it in every save snapshot until the
+			// request settles, so an autosave during the request cannot persist
+			// a queue missing the unseen cue.
+			this.storySceneInFlight = { effect, seq: requestSeq };
+			void this.playStoryScene(effect.sceneId, requestSeq)
 				.then((shown) => {
+					// A shutdown or re-create fenced this response (create() cleared
+					// the field): the re-created scene already owns the restored
+					// queue from its snapshot, so settling would duplicate the cue.
+					if (this.storySceneInFlight?.seq !== requestSeq) return;
+					this.storySceneInFlight = null;
 					if (!shown) {
 						// The request failed: put the scene back and hold the queue so
 						// the marker behind it can't run and save past an unseen cue.
@@ -3498,10 +3524,13 @@ export class WorldScene extends Phaser.Scene {
 						return;
 					}
 					// The scene is on screen: persist its consumption so a reload
-					// doesn't replay it.
+					// doesn't replay it. The in-flight hold is cleared above, so the
+					// snapshot records the cue as consumed exactly once.
 					void this.writeAutosave(this.buildSaveState());
 				})
 				.finally(() => {
+					// A stale response must not clear a newer request's hold.
+					if (this.storySceneInFlight && this.storySceneInFlight.seq !== requestSeq) return;
 					this.storyEffectRunning = false;
 				});
 			return;
