@@ -104,7 +104,7 @@
 	function slotAriaLabel(index: number, record: SaveSlotRecord | null): string {
 		const displaySlot = index + 1;
 		if (!record) return `${t(locale, 'ui.slotEmpty')} ${displaySlot}`;
-		return `${displaySlot} · ${record.kind === 'autosave' ? t(locale, 'ui.slotAutosave') : t(locale, 'ui.slotManual')} · ${getAreaName(locale, record.state.mapId)}`;
+		return `${displaySlot} · ${record.kind === 'autosave' ? t(locale, 'ui.slotAutosave') : t(locale, 'ui.slotManual')} · ${getAreaName(locale, record.state.mapId, record.state.player)}`;
 	}
 
 	function chooseSlot(index: number) {
@@ -224,7 +224,9 @@
 		</p>
 		{#if record}
 			{@const stats = slotStats(record.state)}
-			<p class="save-slot-location font-display">{getAreaName(locale, record.state.mapId)}</p>
+			<p class="save-slot-location font-display">
+				{getAreaName(locale, record.state.mapId, record.state.player)}
+			</p>
 			<p class="save-slot-stats font-display">
 				<span class="save-slot-stat">✦ LV {stats.level}</span>
 				<span class="save-slot-stat">

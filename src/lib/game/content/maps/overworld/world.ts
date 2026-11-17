@@ -1,4 +1,8 @@
-import { compileGridWorld } from '$lib/game/content/maps/grid/compile';
+import {
+	GRID_TILE_SIZE,
+	compileGridWorld,
+	type PlacedGridChunk
+} from '$lib/game/content/maps/grid/compile';
 
 import { demonHighlandsChunk } from './chunks/demon-highlands';
 import { eastCoastChunk } from './chunks/east-coast';
@@ -54,6 +58,21 @@ export const overworld = compileGridWorld({
 
 /** Named points on the overworld, for transitions, spawns, and story placements. */
 export const overworldAnchors = overworld.anchors;
+
+/** The placed chunk covering a world-pixel point, or null for the open-sea fill. */
+export function overworldChunkAt(point: { x: number; y: number }): PlacedGridChunk | null {
+	const col = Math.floor(point.x / GRID_TILE_SIZE);
+	const row = Math.floor(point.y / GRID_TILE_SIZE);
+	return (
+		overworld.chunks.find(
+			(chunk) =>
+				col >= chunk.col &&
+				col < chunk.col + chunk.width &&
+				row >= chunk.row &&
+				row < chunk.row + chunk.height
+		) ?? null
+	);
+}
 
 /** The pixel centre of a named anchor. A typo throws instead of placing anything at 0,0. */
 export function anchorPoint(name: string): { x: number; y: number } {

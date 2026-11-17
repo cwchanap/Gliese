@@ -161,10 +161,6 @@
 			<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="A" tone="a" />
 			{t(locale, 'ui.titleHintSelect')}
 		</span>
-		<span class="title-hint">
-			<PromptGlyph mode={$preferences.promptMode} keys="&#8629;" pad="&#9135;" tone="enter" />
-			{t(locale, 'ui.titleHintEnter')}
-		</span>
 	</div>
 </div>
 

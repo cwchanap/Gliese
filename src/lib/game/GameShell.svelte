@@ -106,7 +106,7 @@
 	let titleCanContinue = $derived(titleSlot !== null);
 	let titleContinueSubtitle = $derived(
 		titleSlot
-			? `${getAreaName($locale, titleSlot.record.state.mapId)} · ${formatPlaytimeSeconds(titleSlot.record.playtimeSeconds)}`
+			? `${getAreaName($locale, titleSlot.record.state.mapId, titleSlot.record.state.player)} · ${formatPlaytimeSeconds(titleSlot.record.playtimeSeconds)}`
 			: ''
 	);
 
@@ -1520,7 +1520,14 @@
 	.title-newrun-confirm {
 		position: absolute;
 		left: 50%;
-		bottom: 24vh;
+		/* The prompt-bar band below the card row (which ends at 16.7vh): the
+		   confirmation replaces the decorative hints behind its scrim instead
+		   of floating over the cards (HPA-841). */
+		bottom: 8.7vh;
+		/* Shrink-to-fit clamps an absolutely positioned box to the space right
+		   of left:50% — pin the intrinsic width so the row stays single-line. */
+		width: max-content;
+		max-width: calc(100vw - 2rem);
 		z-index: 56;
 		display: flex;
 		align-items: center;

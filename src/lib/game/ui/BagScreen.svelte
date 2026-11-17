@@ -705,9 +705,11 @@
 	}
 
 	.bag-slot-worn {
+		/* Bottom-left row: the slot label owns the top edge, so the badge never
+		   crosses it on narrow slots (HPA-841). */
 		position: absolute;
-		top: 0.45rem;
-		right: 0.5rem;
+		left: 0.5rem;
+		bottom: 0.4rem;
 		color: var(--color-sapphire);
 		font-size: 0.52rem;
 		font-weight: 900;

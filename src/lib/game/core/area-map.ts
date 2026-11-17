@@ -4,6 +4,7 @@ import {
 	type MapDiscovery,
 	type WorldMapDefinition
 } from '$lib/game/content/maps';
+import { overworldChunkAt } from '$lib/game/content/maps/overworld/world';
 import type { QuestObjective } from '$lib/game/content/quests';
 import { AREA_MAP_CELL_SIZE, isWorldPositionRevealed } from '$lib/game/core/map-exploration';
 import {
@@ -84,7 +85,7 @@ export function buildAreaMapState({
 
 	return {
 		mapId: map.id,
-		name: getAreaName(locale, map.id),
+		name: getAreaName(locale, map.id, player),
 		worldWidth: map.width * 32,
 		worldHeight: map.height * 32,
 		cellSize: AREA_MAP_CELL_SIZE,
@@ -249,9 +250,33 @@ const areaNameKeys = {
 
 type AreaNameMapId = keyof typeof areaNameKeys;
 
-export function getAreaName(locale: Locale, mapId: string): string {
+/** Localized names for the built regions; both Wildwood chunks share one label. */
+const regionNameKeys = {
+	sundrop: 'content.maps.regions.sundrop',
+	'wildwood-north': 'content.maps.regions.wildwood',
+	'wildwood-east': 'content.maps.regions.wildwood',
+	silverpine: 'content.maps.regions.silverpine',
+	mistfen: 'content.maps.regions.mistfen'
+} as const satisfies Record<string, MessageKey>;
+
+export function getAreaName(
+	locale: Locale,
+	mapId: string,
+	point?: { x: number; y: number }
+): string {
 	const key = areaNameKeys[mapId as AreaNameMapId];
+	if (key && mapId === 'overworld' && point) {
+		const chunk = overworldChunkAt(point);
+		const regionKey = chunk ? regionNameKeys[chunk.id as keyof typeof regionNameKeys] : undefined;
+		if (regionKey) return t(locale, regionKey);
+	}
 	return key ? t(locale, key) : mapId;
+}
+
+/** Stable per-frame region identifier: the placed chunk id on the overworld, the map id elsewhere. */
+export function getRegionId(mapId: string, point: { x: number; y: number }): string {
+	if (mapId !== 'overworld') return mapId;
+	return overworldChunkAt(point)?.id ?? mapId;
 }
 
 export function clampedLocalMapView({

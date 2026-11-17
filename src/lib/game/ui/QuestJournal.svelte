@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { locale, motionReduced } from '$lib/game/i18n/store';
-	import { t, type MessageKey } from '$lib/game/i18n/translate';
+	import { t } from '$lib/game/i18n/translate';
 	import type { Locale } from '$lib/game/i18n/locales';
-	import { getQuest, type QuestObjective } from '$lib/game/content/quests';
-	import { getEnemyText, getItemText, getNpcText } from '$lib/game/i18n/content';
+	import { getQuest, mainQuestIds, type QuestObjective } from '$lib/game/content/quests';
+	import { getEnemyText, getItemText, getNpcText, getQuestText } from '$lib/game/i18n/content';
+	import { getAreaName } from '$lib/game/core/area-map';
 	import { maps } from '$lib/game/content/maps';
 	import { VILLAGE_INTERIOR_PACKAGES } from '$lib/game/content/backgrounds/village-interior-packages';
 	import { getItem } from '$lib/game/content/items';
@@ -66,9 +67,8 @@
 
 	function questGiverLocation(locale: Locale, npcId: string): string | null {
 		for (const map of Object.values(maps)) {
-			if ((map.npcs ?? []).some((npc) => npc.id === npcId)) {
-				return t(locale, `content.maps.areas.${map.id}` as MessageKey);
-			}
+			const npc = (map.npcs ?? []).find((candidate) => candidate.id === npcId);
+			if (npc) return getAreaName(locale, map.id, { x: npc.x, y: npc.y });
 		}
 		return null;
 	}
@@ -142,36 +142,28 @@
 	});
 
 	/**
-	 * Chapter-progress panel (source 05-quest left rail): real main-quest
-	 * objectives only, presented honestly — objectives before the HUD's current
-	 * one are done, the current one carries the live HUD count, the rest are
-	 * pending. No fabricated per-objective counts.
+	 * Chapter-progress panel: the whole seven-quest main chain at quest level,
+	 * titled from the localized quest content. Completion is the HUD's
+	 * completed/total quest counts, so the panel stays visible at 7/7 even
+	 * though quests.main has cleared.
 	 */
 	const chapterProgress = $derived.by(() => {
 		const main = quests.main;
-		if (!main) return null;
-		const objectives = getQuest(main.questId)?.objectives ?? [];
-		if (objectives.length === 0) return null;
-		const doneCount =
-			main.status === 'completed'
-				? objectives.length
-				: Math.max(
-						0,
-						objectives.findIndex((objective) => objective.id === main.objectiveId)
-					);
+		const total = quests.total > 0 ? quests.total : mainQuestIds.length;
+		const currentIndex = main ? mainQuestIds.indexOf(main.questId) : total;
 		return {
-			percent: Math.round((doneCount / objectives.length) * 100),
-			rows: objectives.map((objective, index) => ({
-				id: objective.id,
-				label: objectiveChainLabel($locale, objective),
+			percent: total > 0 ? Math.round((quests.completed.length / total) * 100) : 0,
+			rows: mainQuestIds.map((questId, index) => ({
+				id: questId,
+				label: getQuestText($locale, questId)?.title ?? questId,
 				state:
-					index < doneCount
+					index < currentIndex
 						? ('done' as const)
-						: index === doneCount
+						: index === currentIndex
 							? ('current' as const)
 							: ('pending' as const),
 				count:
-					index === doneCount && main.status !== 'completed'
+					main && index === currentIndex && main.status !== 'completed'
 						? (`${main.progress.current} / ${main.progress.target}` as const)
 						: null
 			}))
@@ -404,7 +396,6 @@
 						{/if}
 
 						{#if detail.giverName}
-							<p class="quest-panel-label font-display">{t($locale, 'ui.questTurnedInBy')}</p>
 							<div class="quest-giver">
 								<span class="quest-giver-icon" aria-hidden="true">
 									<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -878,8 +869,10 @@
 	/* ---- Objective chain ---------------------------------------------------- */
 	.quest-chain {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: flex-start;
 		gap: 0.7rem;
+		row-gap: 1rem;
 		margin: 0;
 		padding: 0;
 		list-style: none;

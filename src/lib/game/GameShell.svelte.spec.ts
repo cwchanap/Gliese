@@ -26,6 +26,7 @@ import { updatePreferences } from '$lib/game/i18n/store';
 import { t } from '$lib/game/i18n/translate';
 import type { ConsumableDefinition, EquipmentDefinition } from '$lib/game/content/items';
 import { getAreaName } from '$lib/game/core/area-map';
+import { anchorPoint } from '$lib/game/content/maps/overworld/world';
 import type { HudQuestEntry } from '$lib/game/core/quests';
 import { questStateAt } from '$lib/game/core/quests.fixtures';
 import { get } from 'svelte/store';
@@ -2125,6 +2126,29 @@ describe('GameShell quest log', () => {
 });
 
 describe('GameShell heroic quest journal', () => {
+	it("labels the quest giver by the NPC's region, not the whole map", async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				quests: {
+					main: mockMainQuest({
+						questId: 'prologue-trial-tracks',
+						title: 'First Trial: Tracks',
+						objectiveId: 'meet-lirra-forest'
+					}),
+					completed: [],
+					total: 7
+				}
+			})
+		);
+
+		const questDialog = await openQuestLog();
+		// Lirra stands at the Wildwood's edge on the overworld — not 'The Wilds'.
+		await expect
+			.element(questDialog.getByTestId('quest-giver-location'))
+			.toHaveTextContent('The Wildwood');
+	});
+
 	it('lists the current chapter above finished ones in the roster', async () => {
 		render(GameShell);
 		emitHudState(
@@ -2202,12 +2226,24 @@ describe('GameShell heroic quest journal', () => {
 		await expect.element(detail.getByText(/Spoke with Old Mott: 0 \/ 1/)).toBeVisible();
 		// The live objective sentence renders in the detail panel.
 		await expect.element(detail.getByText('Talk to Old Mott by the hearth.')).toBeVisible();
+
+		// The objective chain wraps instead of clipping its nodes.
+		const chainTops = new Set(
+			questDialog
+				.getByTestId('quest-chain-node')
+				.elements()
+				.map((node) => Math.round(node.getBoundingClientRect().top))
+		);
+		expect(chainTops.size).toBeGreaterThan(1);
+
+		// The giver block keeps name + location but no misleading caption.
+		await expect.element(detail.getByText('Turned in by')).not.toBeInTheDocument();
 	});
 
-	it('keeps chapter progress and localized chain labels after a locale switch', async () => {
-		// The journal matches the current objective by id, not by translated
-		// description text — matching translated text collapsed to node 0 and
-		// 0% the moment the active locale differed from the publish locale.
+	it('keeps the seven-quest checklist and localized chain labels after a locale switch', async () => {
+		// The checklist tracks the whole main chain at quest level, so a locale
+		// switch retranslates its titles without moving the completion state;
+		// the detail view's objective chain still matches by objective id.
 		render(GameShell);
 		emitHudState(
 			baseHudState({
@@ -2217,14 +2253,15 @@ describe('GameShell heroic quest journal', () => {
 						objective: 'Collect the herb pouch from Mira.'
 					}),
 					completed: [],
-					total: 1
+					total: 7
 				}
 			})
 		);
 
 		const questDialog = await openQuestLog();
 		const panel = questDialog.getByTestId('quest-chapter-progress');
-		await expect.element(panel.getByText('50%')).toBeVisible();
+		await expect.element(panel.getByText('0%')).toBeVisible();
+		expect(questDialog.getByTestId('quest-progress-row').elements()).toHaveLength(7);
 
 		try {
 			updatePreferences({ locale: 'ja' });
@@ -2232,32 +2269,46 @@ describe('GameShell heroic quest journal', () => {
 			// After the switch the dialog's localized name no longer matches
 			// /quest log/i — re-resolve the panel by testid from the page root.
 			const jaPanel = page.getByTestId('quest-chapter-progress');
-			await expect.element(jaPanel.getByText('50%')).toBeVisible();
+			await expect.element(jaPanel.getByText('0%')).toBeVisible();
 			const rows = jaPanel.getByTestId('quest-progress-row').elements();
 			expect(rows.map((row) => row.classList.contains('quest-chapter-row-current'))).toEqual([
-				false,
-				false,
 				true,
+				false,
+				false,
+				false,
+				false,
+				false,
 				false
 			]);
-			// Chain labels localize with the active locale, not raw content ids.
-			await expect.element(jaPanel.getByText('モット爺')).toBeVisible();
-			await expect.element(jaPanel.getByText('ミラ')).toBeVisible();
+			// Quest titles localize with the active locale.
+			await expect.element(jaPanel.getByText('第一の試練：足跡')).toBeVisible();
+			// Chain labels in the detail view localize with the active locale
+			// (the chain list, not the giver-name paragraph below it).
+			const jaDetail = page.getByTestId('quest-detail');
+			await expect.element(jaDetail.getByRole('list').getByText('モット爺')).toBeVisible();
+			await expect.element(jaDetail.getByText('ミラ')).toBeVisible();
 		} finally {
 			updatePreferences({ locale: 'en' });
 		}
 	});
 
-	it('renders chapter progress from real main-quest objectives', async () => {
+	it('tracks quest-level percent across the seven-quest checklist', async () => {
 		render(GameShell);
 		emitHudState(
 			baseHudState({
 				quests: {
 					main: mockMainQuest({
-						progress: { current: 0, target: 1, label: 'Spoke with Old Mott' }
+						questId: 'prologue-trial-boar-king',
+						title: 'Third Trial: The Boar King',
+						objectiveId: 'meet-drogg-north-gate',
+						progress: { current: 0, target: 1, label: 'Met Drogg' }
 					}),
-					completed: [],
-					total: 1
+					completed: [
+						mockCompletedQuest({ questId: 'prologue-proving-morning' }),
+						mockCompletedQuest({ questId: 'prologue-trial-tracks' }),
+						mockCompletedQuest({ questId: 'prologue-trial-mistfen' })
+					],
+					total: 7
 				}
 			})
 		);
@@ -2266,20 +2317,62 @@ describe('GameShell heroic quest journal', () => {
 		const panel = questDialog.getByTestId('quest-chapter-progress');
 		await expect.element(panel).toBeVisible();
 
-		// Percentage = completed / total objectives (first objective → 0 of 4 done).
-		await expect.element(panel.getByText('0%')).toBeVisible();
+		// Percentage = completed quests / chain total (3 of 7 → 43%).
+		await expect.element(panel.getByText('43%')).toBeVisible();
 
-		// One row per objective; exactly one current row.
+		// One row per main quest, titled from the localized quest content; the
+		// rows before the active quest are done and the active one is current.
 		const rows = questDialog.getByTestId('quest-progress-row').elements();
-		expect(rows).toHaveLength(4);
-		expect(rows.filter((row) => row.classList.contains('quest-chapter-row-current'))).toHaveLength(
-			1
-		);
-		await expect.element(panel.getByText('Old Mott')).toBeVisible();
-		await expect.element(panel.getByText('Borak')).toBeVisible();
+		expect(rows).toHaveLength(7);
+		expect(rows.map((row) => row.classList.contains('quest-chapter-row-done'))).toEqual([
+			true,
+			true,
+			true,
+			false,
+			false,
+			false,
+			false
+		]);
+		const currentRows = rows.filter((row) => row.classList.contains('quest-chapter-row-current'));
+		expect(currentRows).toHaveLength(1);
+		await expect.element(panel.getByText('The Proving Morning')).toBeVisible();
+		await expect.element(panel.getByText('Third Trial: The Boar King')).toBeVisible();
 
 		// The current row's count is the real live HUD progress.
 		await expect.element(panel.getByText('0 / 1')).toBeVisible();
+
+		// Completing the chain with main cleared keeps the panel at 100%.
+		emitHudState(
+			baseHudState({
+				quests: {
+					main: null,
+					completed: [
+						'prologue-proving-morning',
+						'prologue-trial-tracks',
+						'prologue-trial-mistfen',
+						'prologue-trial-boar-king',
+						'prologue-hunters-name',
+						'prologue-raid',
+						'prologue-escape'
+					].map((questId) => mockCompletedQuest({ questId: questId as HudQuestEntry['questId'] })),
+					total: 7
+				}
+			})
+		);
+		await expect
+			.element(page.getByTestId('quest-chapter-progress').getByText('100%'))
+			.toBeVisible();
+		const doneRows = page
+			.getByTestId('quest-progress-row')
+			.elements()
+			.filter((row) => row.classList.contains('quest-chapter-row-done'));
+		expect(doneRows).toHaveLength(7);
+		expect(
+			page
+				.getByTestId('quest-progress-row')
+				.elements()
+				.filter((row) => row.classList.contains('quest-chapter-row-current'))
+		).toHaveLength(0);
 	});
 });
 
@@ -2655,6 +2748,28 @@ function createSlotRecord(): SaveSlotRecord {
 }
 
 describe('GameShell save screen', () => {
+	it("labels save slots by the saved player's region", async () => {
+		const door = anchorPoint('wildwood-lirra-forest');
+		writeSaveSlot(1, {
+			...createSlotRecord(),
+			state: {
+				...createNewSaveState(),
+				mapId: 'overworld',
+				player: { ...createNewSaveState().player, x: door.x, y: door.y }
+			}
+		});
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Save' }).click();
+
+		const saveDialog = page.getByRole('dialog', { name: /save/i });
+		await expect.element(saveDialog).toBeVisible();
+		// The record stands in the Wildwood, not at the overworld's generic name.
+		await expect.element(saveDialog.getByText('The Wildwood')).toBeVisible();
+	});
+
 	it('opens the save screen from the menu and emits save-slot for an empty slot', async () => {
 		await withCommands(async (commands) => {
 			render(GameShell);
@@ -3842,6 +3957,73 @@ describe('GameShell system screen', () => {
 });
 
 describe('GameShell title mode', () => {
+	it('shows one Select hint and prologue captions on the title screen', async () => {
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		// One prompt only: the duplicate Enter hint is gone.
+		const hints = Array.from(document.querySelectorAll<HTMLElement>('.title-hint'));
+		expect(hints).toHaveLength(1);
+		expect(hints[0]!.textContent).toContain('Select');
+
+		// The pill and New Run subtitle read the prologue, not a stale chapter.
+		expect(document.querySelector('.title-chapter-pill')?.textContent).toBe('Sundrop · Prologue');
+		const newRunCard = page.getByRole('button', { name: /new run/i });
+		await expect.element(newRunCard).toHaveTextContent('Prologue');
+		expect(document.querySelector('.title-screen')?.textContent).not.toContain('Chapter I');
+	});
+
+	it('keeps the New Run confirmation below the action cards at 640×360', async () => {
+		await page.viewport(640, 360);
+		writeSaveSlot(0, { ...createSlotRecord(), kind: 'autosave' });
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+		await page.getByRole('button', { name: /new run/i }).click();
+		const confirm = page.getByRole('alertdialog');
+		await expect.element(confirm).toBeVisible();
+		const confirmBox = (confirm.elements()[0] as HTMLElement).getBoundingClientRect();
+
+		const cardBoxes = Array.from(document.querySelectorAll<HTMLElement>('.title-card')).map(
+			(card) => card.getBoundingClientRect()
+		);
+		expect(cardBoxes).toHaveLength(3);
+		for (const card of cardBoxes) {
+			const overlaps =
+				confirmBox.left < card.right &&
+				card.left < confirmBox.right &&
+				confirmBox.top < card.bottom &&
+				card.top < confirmBox.bottom;
+			expect(
+				overlaps,
+				`confirm ${JSON.stringify(confirmBox.toJSON())} vs card ${JSON.stringify(card.toJSON())}`
+			).toBe(false);
+		}
+		// Below the row, not above or beside it.
+		expect(confirmBox.top).toBeGreaterThanOrEqual(
+			Math.max(...cardBoxes.map((card) => card.bottom))
+		);
+	});
+
+	it("names the Continue subtitle after the saved player's region", async () => {
+		const door = anchorPoint('sundrop-grik-home-door');
+		writeSaveSlot(0, {
+			...createSlotRecord(),
+			kind: 'autosave',
+			playtimeSeconds: 100,
+			state: {
+				...createNewSaveState(),
+				mapId: 'overworld',
+				player: { ...createNewSaveState().player, x: door.x, y: door.y }
+			}
+		});
+		render(GameShell);
+		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+		await expect
+			.element(page.getByRole('button', { name: /continue/i }))
+			.toHaveTextContent('Sundrop');
+	});
+
 	it('lands on Title without mounting Phaser and opens System straight from Title', async () => {
 		render(GameShell);
 
@@ -4986,7 +5168,7 @@ describe('GameShell prompt glyph honesty', () => {
 		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
 
 		const hints = document.querySelector<HTMLElement>('.title-hints');
-		expect(glyphTextIn(hints!)).toEqual(['keys:↵', 'keys:↵']);
+		expect(glyphTextIn(hints!)).toEqual(['keys:↵']);
 	});
 
 	it('keys mode shows Enter on slot cards and Esc on Back; pad mode shows A/B', async () => {
