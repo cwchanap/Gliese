@@ -64,7 +64,7 @@ export const en = {
 		titleHintSelect: 'Select',
 		titleNewRunConfirm: 'Start a new run? The autosave will be overwritten.',
 		prologueEndHeading: 'End of the Prologue',
-		prologueEndThanks: 'Thank you for playing',
+		prologueEndThanks: 'Thank you for playing.',
 		prologueEndDismiss: 'Press Enter, click, or pad A to return to the title',
 		prologueComplete: 'Prologue complete',
 		saveScreen: 'Save',

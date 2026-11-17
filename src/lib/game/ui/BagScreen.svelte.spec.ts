@@ -219,12 +219,15 @@ describe('BagScreen short viewports', () => {
 				// scroll instead of clip), so each slot is scrolled into view
 				// first — reachability is the contract, mirroring the journal's
 				// Close control.
-				const clip = document
-					.querySelector<HTMLElement>('.bag-grid-scroll')!
-					.getBoundingClientRect();
 				const compact = height <= 559;
 				for (const slot of slots) {
 					if (compact) slot.scrollIntoView({ block: 'nearest' });
+					// Re-read after each scrollIntoView: scrolling moves the clipping
+					// panel's viewport-relative bounds, so a rect captured before the
+					// loop goes stale after the first scroll.
+					const clip = document
+						.querySelector<HTMLElement>('.bag-grid-scroll')!
+						.getBoundingClientRect();
 					for (const [name, el] of [
 						['label', slot.querySelector<HTMLElement>('.bag-slot-pos')!],
 						['badge', slot.querySelector<HTMLElement>('.bag-slot-worn')!]

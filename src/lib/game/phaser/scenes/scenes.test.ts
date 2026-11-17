@@ -8018,6 +8018,80 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('holds the story queue when the chapter-one request fails and never saves past the unseen cue', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		storyClientMock.getStoryScene.mockRejectedValueOnce(new Error('story service unavailable'));
+		const storage = await import('$lib/game/save/storage');
+		const memoryStorage = createSlotCaptureStorage();
+		storage.setSaveStorage(memoryStorage);
+
+		// The chapter-one checkpoint is already durable, carrying both effects.
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		slots.writeSaveSlot(0, {
+			kind: 'autosave',
+			savedAt: '2026-11-15T12:00:00.000Z',
+			playtimeSeconds: 600,
+			state: {
+				...createNewSaveState(),
+				mapId: 'overworld',
+				quests: {
+					...questStateAt(null),
+					pendingEffects: [
+						{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+						{ type: 'show-prologue-end' }
+					]
+				}
+			}
+		});
+
+		const { scene, sceneState } = await createPrologueEndScene();
+		try {
+			scene.update(0, 16);
+			await vi.waitFor(() => expect(sceneState.storyEffectRunning).toBe(false));
+
+			// The rejected request must not reach the terminal card.
+			expect(emitPrologueEndSpy).not.toHaveBeenCalled();
+			expect(sceneState.dialogueSession).toBeNull();
+			// The failed scene stays queued ahead of the marker: no skipping.
+			expect(sceneState.quests.pendingEffects).toEqual([
+				{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+				{ type: 'show-prologue-end' }
+			]);
+
+			// Later updates keep holding the queue: the marker is not consumed.
+			scene.update(16, 16);
+			scene.update(32, 16);
+			await flushStoryDialogue();
+			expect(emitPrologueEndSpy).not.toHaveBeenCalled();
+			expect(sceneState.quests.pendingEffects).toEqual([
+				{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+				{ type: 'show-prologue-end' }
+			]);
+
+			// The hold is not a freeze: Grik can still walk the world.
+			Object.assign(phaserState.playerMarker, openGround);
+			phaserState.wasdKeys.down.isDown = true;
+			scene.update(48, 1000);
+			phaserState.wasdKeys.down.isDown = false;
+			expect(phaserState.playerMarker.y).toBeGreaterThan(openGround.y);
+
+			// The unfinished checkpoint on disk still replays scene and marker.
+			const autosave = slots.loadSaveSlots(memoryStorage).slots[0];
+			expect(autosave?.state.quests.pendingEffects).toEqual([
+				{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+				{ type: 'show-prologue-end' }
+			]);
+			// The failure wrote nothing: the seed is the only slot write.
+			expect(memoryStorage.setItem).toHaveBeenCalledTimes(1);
+		} finally {
+			emitPrologueEndSpy.mockRestore();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
 	it('fences late story responses after shutdown: no dialogue, no HUD publish, and the guard resets on create', async () => {
 		const storyClient = await import('$lib/game/story/client');
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
@@ -9587,6 +9661,117 @@ describe('WorldScene', () => {
 		zhRecreated.create(restartPayload);
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({ status: '生命值回復' })
+		);
+	});
+
+	it('retranslates the NPC name in a published status through en → ja → zh-Hant switches', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		scene.create({ mapId: 'guild-hall' });
+		emitHudStateSpy.mockClear();
+
+		Object.assign(phaserState.playerMarker, borakApproach);
+		scene.update(0, 16);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Borak nearby' })
+		);
+
+		// The switch retranslates the name, not just the surrounding template.
+		switchLocale('ja');
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'JP Borakが近くにいる' })
+		);
+
+		switchLocale('zh-Hant');
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: '波拉克 在附近' })
+		);
+	});
+
+	it('retranslates item and quest-name params across locales and carries them through a restart', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		// An item-name status resolves the item in the publication locale.
+		scene.create({ mapId: 'ruins-threshold' });
+		Object.assign(phaserState.playerMarker, { x: 2_048, y: 4_800 });
+		scene.update(0, 16);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Found Sunleaf Salve' })
+		);
+
+		switchLocale('ja');
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'JP Sunleaf Salveを見つけた' })
+		);
+
+		switchLocale('zh-Hant');
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: '發現 日葉藥膏' })
+		);
+
+		// A quest-completion status carries the quest title as content identity.
+		switchLocale('en');
+		const questScene = new WorldScene();
+		const questSceneState = questScene as unknown as {
+			applyQuestProgress: (
+				event: { type: 'talk-to-npc'; npcId: string },
+				fallback: null
+			) => boolean;
+			storyRefreshPending: boolean;
+			storyGateKey: string;
+		};
+
+		questScene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'guild-hall',
+				quests: questStateAt('report-first-trial')
+			}
+		});
+		emitHudStateSpy.mockClear();
+
+		questSceneState.applyQuestProgress({ type: 'talk-to-npc', npcId: 'borak' }, null);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Quest complete: First Trial: Tracks' })
+		);
+
+		// The story-gate restart carries the identity, not a frozen string…
+		questSceneState.storyRefreshPending = true;
+		questSceneState.storyGateKey = 'stale';
+		questScene.update(0, 16);
+
+		const restartPayload = vi.mocked(questScene.scene.restart).mock.calls.at(-1)?.[0] as
+			| Parameters<InstanceType<typeof WorldScene>['create']>[0]
+			| undefined;
+		expect(restartPayload).toBeDefined();
+		expect(restartPayload?.status).toEqual({
+			key: 'status.questComplete',
+			params: {
+				questTitle: { questId: 'prologue-trial-tracks', fallback: 'First Trial: Tracks' }
+			}
+		});
+
+		// …and the recreated scene resolves the title in the active locale.
+		switchLocale('ja');
+		const jaScene = new WorldScene();
+		jaScene.create(restartPayload);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: '依頼達成: JP First Trial: Tracks' })
+		);
+
+		switchLocale('zh-Hant');
+		const zhScene = new WorldScene();
+		zhScene.create(restartPayload);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: '任務完成：第一試：足跡' })
 		);
 	});
 

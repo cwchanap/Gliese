@@ -60,6 +60,11 @@ describe('translation lookup', () => {
 		expect(t('en', 'status.boughtItem')).toBe('Bought {{itemName}}');
 	});
 
+	it('keeps the end-of-prologue card copy exact', () => {
+		expect(t('en', 'ui.prologueEndHeading')).toBe('End of the Prologue');
+		expect(t('en', 'ui.prologueEndThanks')).toBe('Thank you for playing.');
+	});
+
 	it('includes current GameShell UI source strings', () => {
 		expect(t('en', 'ui.command')).toBe('Command');
 		expect(t('en', 'ui.map')).toBe('Map');
