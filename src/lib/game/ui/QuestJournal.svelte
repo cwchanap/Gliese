@@ -622,7 +622,9 @@
 		display: flex;
 		flex-direction: column;
 		flex: 1;
-		min-height: 10rem;
+		/* Shrinkable so the rail's Close control stays inside short viewports
+		   (640×360); the checklist scrolls internally instead. */
+		min-height: 0;
 		overflow-y: auto;
 		margin-top: 1.1rem;
 		border: 1px solid var(--color-frame);

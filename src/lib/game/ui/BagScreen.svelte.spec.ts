@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
@@ -162,34 +162,52 @@ describe('BagScreen short viewports', () => {
 	}
 
 	describe('BagScreen equipped badge', () => {
-		it('keeps the EQUIPPED badge clear of the slot label at 640×360', async () => {
-			await page.viewport(640, 360);
-			window.scrollTo(0, 0);
+		it('keeps the EQUIPPED badge clear of the slot label at every viewport', async () => {
 			render(GameShell);
 			emitHudState(baseHudState(fullyEquipped));
+			// HPA-841 visual contract: label and badge never intersect at desktop
+			// (1440×900), default (1280×720), or compact (640×360) sizes.
+			for (const [width, height] of [
+				[1440, 900],
+				[1280, 720],
+				[640, 360]
+			] as const) {
+				await page.viewport(width, height);
+				window.scrollTo(0, 0);
+				await page.getByRole('button', { name: /menu/i }).click();
+				await page.getByRole('button', { name: 'Bag' }).click();
+				await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
 
-			await page.getByRole('button', { name: /menu/i }).click();
-			await page.getByRole('button', { name: 'Bag' }).click();
-			await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
+				// Equipment slots (with their labels) live on the Gear tab.
+				await page.getByRole('tab', { name: 'Gear' }).click();
+				await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
 
-			// Equipment slots (with their labels) live on the Gear tab.
-			await page.getByRole('tab', { name: 'Gear' }).click();
-			await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
+				// Badge and slot label live in different rows: no two rects intersect.
+				const slots = Array.from(document.querySelectorAll<HTMLElement>('.bag-slot')).filter(
+					(slot) => slot.querySelector('.bag-slot-pos') && slot.querySelector('.bag-slot-worn')
+				);
+				expect(slots.length).toBeGreaterThan(0);
+				const intersects = (a: DOMRect, b: DOMRect) =>
+					a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+				for (const slot of slots) {
+					const label = slot.querySelector<HTMLElement>('.bag-slot-pos')!.getBoundingClientRect();
+					const badge = slot.querySelector<HTMLElement>('.bag-slot-worn')!.getBoundingClientRect();
+					expect(
+						intersects(label, badge),
+						`label ${JSON.stringify(label.toJSON())} vs badge ${JSON.stringify(badge.toJSON())} at ${width}×${height}`
+					).toBe(false);
+				}
 
-			// Badge and slot label live in different rows: no two rects intersect.
-			const slots = Array.from(document.querySelectorAll<HTMLElement>('.bag-slot')).filter(
-				(slot) => slot.querySelector('.bag-slot-pos') && slot.querySelector('.bag-slot-worn')
-			);
-			expect(slots.length).toBeGreaterThan(0);
-			const intersects = (a: DOMRect, b: DOMRect) =>
-				a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-			for (const slot of slots) {
-				const label = slot.querySelector<HTMLElement>('.bag-slot-pos')!.getBoundingClientRect();
-				const badge = slot.querySelector<HTMLElement>('.bag-slot-worn')!.getBoundingClientRect();
-				expect(
-					intersects(label, badge),
-					`label ${JSON.stringify(label.toJSON())} vs badge ${JSON.stringify(badge.toJSON())}`
-				).toBe(false);
+				// Close the Bag and the command grid beneath it (Escape returns to
+				// the grid) so the next viewport re-opens it cleanly.
+				await userEvent.keyboard('{Escape}');
+				await vi.waitFor(() =>
+					expect(page.getByTestId('inventory-slot-grid').elements()).toHaveLength(0)
+				);
+				await userEvent.keyboard('{Escape}');
+				await vi.waitFor(() =>
+					expect(page.getByRole('region', { name: 'Command' }).elements()).toHaveLength(0)
+				);
 			}
 		});
 	});
