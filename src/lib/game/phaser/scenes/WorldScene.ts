@@ -217,9 +217,22 @@ function shouldReportSelectedStaticOverlay(
 /** Transient field-status payload: a MessageKey + params retained so a
  * locale switch (or a story-gate restart's re-create) retranslates it at
  * publish time; `text` is the freeform fallback for statuses without a
- * message key. `null` clears the field copy. */
+ * message key. `null` clears the field copy. A param value may name game
+ * content by id ({@link WorldSceneStatusName}), resolved in the
+ * publication locale instead of freezing one locale's string. */
+export type WorldSceneStatusName = {
+	npcId?: string;
+	itemId?: string;
+	questId?: string;
+	/** Freeform fallback when the content catalog lacks the id. */
+	fallback?: string;
+};
+
 export type WorldSceneStatus =
-	| { key: MessageKey; params?: Record<string, string | number> }
+	| {
+			key: MessageKey;
+			params?: Record<string, string | number | WorldSceneStatusName>;
+	  }
 	| { text: string };
 
 interface WorldSceneData {
@@ -493,6 +506,9 @@ export class WorldScene extends Phaser.Scene {
 	private simulationPaused = false;
 	/** A quest effect (a scene or a fade) is playing; the next one waits for it. */
 	private storyEffectRunning = false;
+	/** A queued scene failed to load: the queue holds (no later effect, no
+	 * terminal card) until a reload replays the preserved checkpoint. */
+	private storySceneHold = false;
 	/** The story moved on; re-render once the current dialogue and effects finish. */
 	private storyRefreshPending = false;
 	private storyGateKey = '';
@@ -517,9 +533,32 @@ export class WorldScene extends Phaser.Scene {
 	 *  publish time (see {@link publishHudState}). */
 	private statusMessage(
 		key: MessageKey,
-		params: Record<string, string | number> = {}
+		params: Record<string, string | number | WorldSceneStatusName> = {}
 	): WorldSceneStatus {
 		return { key, params };
+	}
+
+	/** Resolves one content-name param in the active locale. */
+	private resolveStatusName(value: WorldSceneStatusName): string {
+		if (value.npcId !== undefined) {
+			return getNpcText(this.getLocale(), value.npcId)?.name ?? value.fallback ?? value.npcId;
+		}
+		if (value.itemId !== undefined) return this.getItemName(value.itemId, value.fallback);
+		if (value.questId !== undefined) return this.getQuestTitle(value.questId, value.fallback);
+		return value.fallback ?? '';
+	}
+
+	/** Resolves content-name params in the publication locale, so a locale
+	 * switch retranslates the name and not just the surrounding template. */
+	private resolveStatusParams(
+		params: Record<string, string | number | WorldSceneStatusName> | undefined
+	): Record<string, string | number> {
+		if (!params) return {};
+		const resolved: Record<string, string | number> = {};
+		for (const [name, value] of Object.entries(params)) {
+			resolved[name] = typeof value === 'object' ? this.resolveStatusName(value) : value;
+		}
+		return resolved;
 	}
 
 	private getItemName(itemId: string | undefined, fallback = 'item') {
@@ -530,10 +569,6 @@ export class WorldScene extends Phaser.Scene {
 	private getQuestTitle(questId: string | undefined, fallback = 'Quest') {
 		if (!questId || !isQuestId(questId)) return fallback;
 		return getQuestText(this.getLocale(), questId)?.title ?? fallback;
-	}
-
-	private getNpcName(npc: MapNpc) {
-		return getNpcText(this.getLocale(), npc.id)?.name ?? npc.name;
 	}
 
 	private getTravelerSpeaker() {
@@ -625,6 +660,7 @@ export class WorldScene extends Phaser.Scene {
 		this.fledPackZone = 'awaiting-entry';
 		this.simulationPaused = false;
 		this.storyEffectRunning = false;
+		this.storySceneHold = false;
 		this.storyRefreshPending = false;
 		this.storyGateKey = this.computeStoryGateKey();
 		this.worldSize = { width, height };
@@ -1156,7 +1192,7 @@ export class WorldScene extends Phaser.Scene {
 		this.shopStockState = result.stockState;
 		playSfx(this, 'coins');
 		this.publishHudState(
-			this.statusMessage('status.boughtItem', { itemName: this.getItemName(itemId) })
+			this.statusMessage('status.boughtItem', { itemName: { itemId: itemId ?? '' } })
 		);
 	}
 
@@ -1181,9 +1217,7 @@ export class WorldScene extends Phaser.Scene {
 		this.wallet = result.wallet;
 		this.inventory = result.inventory;
 		playSfx(this, 'coins');
-		this.publishHudState(
-			this.statusMessage('status.soldItem', { itemName: this.getItemName(itemId) })
-		);
+		this.publishHudState(this.statusMessage('status.soldItem', { itemName: { itemId } }));
 	}
 
 	/** Applies one quest event; true when the event actually advanced the quest. */
@@ -1202,7 +1236,10 @@ export class WorldScene extends Phaser.Scene {
 		this.publishHudState(
 			completedGrant
 				? this.statusMessage('status.questComplete', {
-						questTitle: this.getQuestTitle(completedGrant.questId, completedGrant.title)
+						questTitle: {
+							questId: completedGrant.questId,
+							fallback: completedGrant.title
+						}
 					})
 				: fallbackStatus
 		);
@@ -1399,7 +1436,11 @@ export class WorldScene extends Phaser.Scene {
 		if (this.sceneShutDown) return;
 		const locale = this.getLocale();
 		const resolvedStatus =
-			status === null ? '' : 'key' in status ? t(locale, status.key, status.params) : status.text;
+			status === null
+				? ''
+				: 'key' in status
+					? t(locale, status.key, this.resolveStatusParams(status.params))
+					: status.text;
 		const effectiveStats = this.getEffectiveStats();
 		this.lastPublishedStatus = status;
 		const map = this.resolveMap(this.mapId);
@@ -3296,7 +3337,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		const nearbyStatus = this.statusMessage('status.npcNearby', {
-			npcName: this.getNpcName(nearbyNpc)
+			npcName: { npcId: nearbyNpc.id, fallback: nearbyNpc.name }
 		});
 		this.currentNearbyNpcId = nearbyNpc.id;
 		this.currentNearbyNpcStatus = nearbyStatus;
@@ -3413,6 +3454,13 @@ export class WorldScene extends Phaser.Scene {
 			return this.storyEffectRunning;
 		}
 
+		// A queued scene failed to load: hold later effects (the terminal card
+		// must never run past a cue the player never saw) until a reload replays
+		// the preserved checkpoint. The world itself stays playable.
+		if (this.storySceneHold) {
+			return false;
+		}
+
 		const next = takeNextQuestEffect(this.quests);
 		if (next.effect) {
 			this.quests = next.state;
@@ -3441,9 +3489,17 @@ export class WorldScene extends Phaser.Scene {
 		if (effect.type === 'play-scene') {
 			void this.playStoryScene(effect.sceneId, ++this.storyDialogueSeq)
 				.then((shown) => {
+					if (!shown) {
+						// The request failed: put the scene back and hold the queue so
+						// the marker behind it can't run and save past an unseen cue.
+						// The on-disk checkpoint still carries it, so Continue replays.
+						this.quests.pendingEffects.unshift(effect);
+						this.storySceneHold = true;
+						return;
+					}
 					// The scene is on screen: persist its consumption so a reload
-					// doesn't replay it. A scene that failed to load stays queued on disk.
-					if (shown) void this.writeAutosave(this.buildSaveState());
+					// doesn't replay it.
+					void this.writeAutosave(this.buildSaveState());
 				})
 				.finally(() => {
 					this.storyEffectRunning = false;
@@ -3551,7 +3607,7 @@ export class WorldScene extends Phaser.Scene {
 
 		this.currentNearbyNpcId = nearbyNpc.id;
 		this.currentNearbyNpcStatus = this.statusMessage('status.npcNearby', {
-			npcName: this.getNpcName(nearbyNpc)
+			npcName: { npcId: nearbyNpc.id, fallback: nearbyNpc.name }
 		});
 		this.nearbyShopId = nearbyNpc.shopId ?? null;
 		void this.startNearbyNpcStoryDialogue(nearbyNpc);
@@ -3578,7 +3634,9 @@ export class WorldScene extends Phaser.Scene {
 			// advances the quest is a story beat: it cannot be closed or skipped.
 			const advanced = this.applyQuestProgress(
 				{ type: 'talk-to-npc', npcId: nearbyNpc.dialogueId },
-				this.statusMessage('status.npcNearby', { npcName: this.getNpcName(nearbyNpc) })
+				this.statusMessage('status.npcNearby', {
+					npcName: { npcId: nearbyNpc.id, fallback: nearbyNpc.name }
+				})
 			);
 			if (advanced && this.dialogueSession === session) {
 				session.canClose = false;
@@ -3674,7 +3732,9 @@ export class WorldScene extends Phaser.Scene {
 					itemId: pickup.itemId,
 					quantity: pickup.quantity
 				},
-				this.statusMessage('status.foundItem', { itemName: this.getItemName(pickup.itemId) })
+				this.statusMessage('status.foundItem', {
+					itemName: { itemId: pickup.itemId }
+				})
 			);
 			// Pickup is a durable point: persist after the collect-item quest event
 			// so quest progress and rewards land in the same autosave.
