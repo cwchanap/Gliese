@@ -106,6 +106,16 @@ function inViewport(selector: string, height: number): boolean {
 	});
 }
 
+function insideViewport(r: DOMRect, width: number, height: number): boolean {
+	return r.top >= 0 && r.left >= 0 && r.bottom <= height && r.right <= width;
+}
+
+// Entrance animations (heroic-anim, 280ms) must settle before measuring.
+async function settleEntrance() {
+	await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+	await new Promise((resolve) => setTimeout(resolve, 400));
+}
+
 describe('BagScreen short viewports', () => {
 	// Short-height compaction (final-review finding 4): the desktop column
 	// layout overflows below ~560px — rail cards + Close run past the bottom
@@ -162,7 +172,7 @@ describe('BagScreen short viewports', () => {
 	}
 
 	describe('BagScreen equipped badge', () => {
-		it('keeps the EQUIPPED badge clear of the slot label at every viewport', async () => {
+		it('keeps the EQUIPPED badge visible, clear of the slot label, and unclipped at every viewport', async () => {
 			render(GameShell);
 			emitHudState(baseHudState(fullyEquipped));
 			// HPA-841 visual contract: label and badge never intersect at desktop
@@ -177,6 +187,7 @@ describe('BagScreen short viewports', () => {
 				await page.getByRole('button', { name: /menu/i }).click();
 				await page.getByRole('button', { name: 'Bag' }).click();
 				await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
+				await settleEntrance();
 
 				// Equipment slots (with their labels) live on the Gear tab.
 				await page.getByRole('tab', { name: 'Gear' }).click();
@@ -196,6 +207,47 @@ describe('BagScreen short viewports', () => {
 						intersects(label, badge),
 						`label ${JSON.stringify(label.toJSON())} vs badge ${JSON.stringify(badge.toJSON())} at ${width}×${height}`
 					).toBe(false);
+				}
+
+				// Visibility/bounds contract (HPA-841): a hidden, zero-sized,
+				// offscreen, or clipped badge/label must fail too — each element
+				// renders (visibility and opacity checked), has positive size,
+				// and fits both the viewport and the panel that clips it
+				// (bag-grid-scroll has overflow-y: auto). At desktop sizes the
+				// strict in-viewport check runs as-is; at 640×360 the bag is a
+				// designed scrolling column (BagScreen max-height: 559px query:
+				// scroll instead of clip), so each slot is scrolled into view
+				// first — reachability is the contract, mirroring the journal's
+				// Close control.
+				const clip = document
+					.querySelector<HTMLElement>('.bag-grid-scroll')!
+					.getBoundingClientRect();
+				const compact = height <= 559;
+				for (const slot of slots) {
+					if (compact) slot.scrollIntoView({ block: 'nearest' });
+					for (const [name, el] of [
+						['label', slot.querySelector<HTMLElement>('.bag-slot-pos')!],
+						['badge', slot.querySelector<HTMLElement>('.bag-slot-worn')!]
+					] as const) {
+						expect(
+							el.checkVisibility({ checkVisibilityCSS: true, checkOpacity: true }),
+							`${name} visible at ${width}×${height}`
+						).toBe(true);
+						const r = el.getBoundingClientRect();
+						expect(r.width, `${name} width at ${width}×${height}`).toBeGreaterThan(0);
+						expect(r.height, `${name} height at ${width}×${height}`).toBeGreaterThan(0);
+						expect(
+							insideViewport(r, width, height),
+							`${name} inside ${width}×${height}: ${JSON.stringify(r.toJSON())}`
+						).toBe(true);
+						expect(
+							r.top >= clip.top &&
+								r.left >= clip.left &&
+								r.right <= clip.right &&
+								r.bottom <= clip.bottom,
+							`${name} inside clipping panel at ${width}×${height}: ${JSON.stringify(r.toJSON())} vs ${JSON.stringify(clip.toJSON())}`
+						).toBe(true);
+					}
 				}
 
 				// Close the Bag and the command grid beneath it (Escape returns to
