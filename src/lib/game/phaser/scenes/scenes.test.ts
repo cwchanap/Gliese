@@ -8317,6 +8317,106 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it("keeps the recreated scene's terminal freeze when a stale pre-recreate request settles after the card started", async () => {
+		const slots = await import('$lib/game/save/slots');
+		const storyClient = await import('$lib/game/story/client');
+		const { createDialogueSession } = await import('$lib/game/core/dialogue');
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		const storage = await import('$lib/game/save/storage');
+		const memoryStorage = createSlotCaptureStorage();
+		storage.setSaveStorage(memoryStorage);
+
+		// Two hung chapter-one requests: the first belongs to the incarnation
+		// a shutdown replaces, the second to the re-created scene.
+		const resolvers: Array<(session: unknown) => void> = [];
+		const hang = () =>
+			vi.mocked(storyClient.getStoryScene).mockImplementationOnce(
+				() =>
+					new Promise((resolve) => {
+						resolvers.push(resolve as (session: unknown) => void);
+					})
+			);
+		hang();
+		hang();
+
+		const { scene, sceneState } = await createPrologueEndScene();
+		try {
+			scene.update(0, 16);
+			await flushStoryDialogue();
+
+			// Story-gate restart: re-create the same instance from a snapshot
+			// that carries the in-flight scene ahead of the marker.
+			const payload = (
+				scene as unknown as {
+					buildSaveState(): import('$lib/game/save/save-state').SaveState;
+				}
+			).buildSaveState();
+			scene.events.emit('shutdown');
+			scene.create({ saveState: payload });
+			expect(sceneState.quests.pendingEffects).toEqual([
+				{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+				{ type: 'show-prologue-end' }
+			]);
+
+			// The restored request succeeds, its dialogue plays out, and the
+			// terminal card starts on the freeze that must outlive everything.
+			scene.update(0, 16);
+			await flushStoryDialogue();
+			resolvers[1](
+				createDialogueSession({
+					id: 'prologue.chapter-one',
+					lines: [{ speaker: 'Narrator', text: 'Chapter One: The Hunt.' }]
+				})
+			);
+			await flushStoryDialogue();
+			expect(sceneState.dialogueSession).toBeTruthy();
+			expect(slots.loadSaveSlots(memoryStorage).slots[0]?.state.quests.pendingEffects).toEqual([
+				{ type: 'show-prologue-end' }
+			]);
+			closeStoryDialogue(sceneState);
+			scene.update(16, 16);
+			await vi.waitFor(() => expect(emitPrologueEndSpy).toHaveBeenCalledWith({ success: true }));
+			expect(sceneState.storyEffectRunning).toBe(true);
+
+			// Only now does the stale pre-recreate response settle. It must
+			// neither repeat the signal, write again, nor release the card's
+			// freeze — the newer request that owned the flag already finished.
+			resolvers[0](
+				createDialogueSession({
+					id: 'prologue.chapter-one',
+					lines: [{ speaker: 'Narrator', text: 'Late stale line.' }]
+				})
+			);
+			await flushStoryDialogue();
+
+			expect(emitPrologueEndSpy).toHaveBeenCalledTimes(1);
+			expect(memoryStorage.setItem).toHaveBeenCalledTimes(2);
+			expect(sceneState.storyEffectRunning).toBe(true);
+
+			// Movement stays frozen behind the card.
+			Object.assign(phaserState.playerMarker, openGround);
+			phaserState.wasdKeys.down.isDown = true;
+			scene.update(0, 1000);
+			phaserState.wasdKeys.down.isDown = false;
+			expect(phaserState.playerMarker.x).toBe(openGround.x);
+			expect(phaserState.playerMarker.y).toBe(openGround.y);
+
+			// Interaction stays frozen too: no conversation opens behind the card.
+			Object.assign(phaserState.playerMarker, anchorPoint('sundrop-wanderer'));
+			phaserState.interactKeys.e.justDown = true;
+			scene.update(0, 16);
+			phaserState.interactKeys.e.justDown = false;
+			expect(sceneState.dialogueSession).toBeNull();
+
+			expect(scene.scene.restart).not.toHaveBeenCalled();
+		} finally {
+			emitPrologueEndSpy.mockRestore();
+			vi.mocked(storyClient.getStoryScene).mockClear();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
 	it('fences late story responses after shutdown: no dialogue, no HUD publish, and the guard resets on create', async () => {
 		const storyClient = await import('$lib/game/story/client');
 		const { createNewSaveState } = await import('$lib/game/save/save-state');

@@ -515,6 +515,11 @@ export class WorldScene extends Phaser.Scene {
 	 * request, so a response fenced by a shutdown/re-create is recognized as
 	 * stale instead of settling the live queue. */
 	private storySceneInFlight: { effect: QuestEffect; seq: number } | null = null;
+	/** Bumped by every create(): requests capture it at start so a stale
+	 * response from a shut-down incarnation never finalizes world state —
+	 * even after the re-created scene's own request already finished (its
+	 * terminal card must stay frozen until teardown). */
+	private storySceneIncarnation = 0;
 	/** The story moved on; re-render once the current dialogue and effects finish. */
 	private storyRefreshPending = false;
 	private storyGateKey = '';
@@ -667,6 +672,7 @@ export class WorldScene extends Phaser.Scene {
 		this.simulationPaused = false;
 		this.storyEffectRunning = false;
 		this.storySceneHold = false;
+		this.storySceneIncarnation += 1;
 		this.storySceneInFlight = null;
 		this.storyRefreshPending = false;
 		this.storyGateKey = this.computeStoryGateKey();
@@ -3442,7 +3448,11 @@ export class WorldScene extends Phaser.Scene {
 		if (discovery.sceneId) {
 			// Hold queued effects until the scene arrives, so they play after it.
 			this.storyEffectRunning = true;
+			const requestIncarnation = this.storySceneIncarnation;
 			void this.playStoryScene(discovery.sceneId, requestSeq).finally(() => {
+				// Same fence as runQuestEffect: a stale response from a shut-down
+				// incarnation must not release the re-created scene's hold.
+				if (this.storySceneIncarnation !== requestIncarnation) return;
 				this.storyEffectRunning = false;
 			});
 		} else if (discovery.descriptionKey) {
@@ -3504,6 +3514,7 @@ export class WorldScene extends Phaser.Scene {
 
 		if (effect.type === 'play-scene') {
 			const requestSeq = ++this.storyDialogueSeq;
+			const requestIncarnation = this.storySceneIncarnation;
 			// Popped but not yet shown: keep it in every save snapshot until the
 			// request settles, so an autosave during the request cannot persist
 			// a queue missing the unseen cue.
@@ -3529,7 +3540,12 @@ export class WorldScene extends Phaser.Scene {
 					void this.writeAutosave(this.buildSaveState());
 				})
 				.finally(() => {
-					// A stale response must not clear a newer request's hold.
+					// A stale response must not clear a newer request's hold, and a
+					// request from a shut-down incarnation must never release the
+					// re-created scene's hold — not even once the re-created request
+					// finished and cleared the in-flight field (its terminal card
+					// freeze lasts until teardown).
+					if (this.storySceneIncarnation !== requestIncarnation) return;
 					if (this.storySceneInFlight && this.storySceneInFlight.seq !== requestSeq) return;
 					this.storyEffectRunning = false;
 				});
