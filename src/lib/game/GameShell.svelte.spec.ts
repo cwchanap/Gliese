@@ -1049,6 +1049,36 @@ describe('GameShell pause ownership status handoff', () => {
 			]);
 		});
 	});
+
+	it('completes the pendingSave row refresh across the Command → Heal → Save owner transition', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ status: 'Recovered HP', heals: 1 }));
+
+		await page.getByRole('button', { name: /menu/i }).click();
+		const saveTile = page.getByRole('button', { name: 'Save', exact: true });
+		await saveTile.click();
+		const saveDialog = page.getByRole('dialog', { name: /save/i });
+		await expect.element(saveDialog).toBeVisible();
+
+		// The owner change re-sent pause-game, and the scene answers with the
+		// status-clear publish while the Save screen is already open. That
+		// publish lands before any slot is chosen, so pendingSave is still off.
+		emitHudState(baseHudState({ status: '' }));
+
+		// The deferred manual write: choosing an empty slot arms pendingSave;
+		// the save-result publish is what completes it and refreshes the rows.
+		await withSaveSlotWriter(async () => {
+			await saveDialog.getByTestId('save-slot-2').click();
+			emitHudState(baseHudState({ status: 'Saved' }));
+
+			// The rows reloaded: re-clicking slot 2 now raises the overwrite
+			// confirmation instead of silently writing again.
+			await saveDialog.getByTestId('save-slot-2').click();
+			await expect.element(saveDialog.getByTestId('confirm-overwrite')).toBeVisible();
+			await saveDialog.getByRole('button', { name: /back/i }).last().click();
+		});
+		expect(saveDialog.getByTestId('confirm-overwrite').elements()).toHaveLength(0);
+	});
 });
 
 function installWindowKeyCapture() {
@@ -3973,36 +4003,59 @@ describe('GameShell title mode', () => {
 		expect(document.querySelector('.title-screen')?.textContent).not.toContain('Chapter I');
 	});
 
-	it('keeps the New Run confirmation below the action cards at 640×360', async () => {
-		await page.viewport(640, 360);
+	it('keeps the New Run confirmation below the action cards at every viewport', async () => {
 		writeSaveSlot(0, { ...createSlotRecord(), kind: 'autosave' });
 		render(GameShell);
 		await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
 
-		await page.getByRole('button', { name: /new run/i }).click();
-		const confirm = page.getByRole('alertdialog');
-		await expect.element(confirm).toBeVisible();
-		const confirmBox = (confirm.elements()[0] as HTMLElement).getBoundingClientRect();
-
-		const cardBoxes = Array.from(document.querySelectorAll<HTMLElement>('.title-card')).map(
-			(card) => card.getBoundingClientRect()
-		);
-		expect(cardBoxes).toHaveLength(3);
-		for (const card of cardBoxes) {
-			const overlaps =
-				confirmBox.left < card.right &&
-				card.left < confirmBox.right &&
-				confirmBox.top < card.bottom &&
-				card.top < confirmBox.bottom;
+		// HPA-841 visual contract: the confirmation never overlaps the cards at
+		// desktop (1440×900), default (1280×720), or compact (640×360) sizes.
+		for (const [width, height] of [
+			[1440, 900],
+			[1280, 720],
+			[640, 360]
+		] as const) {
+			await page.viewport(width, height);
+			window.scrollTo(0, 0);
+			await page.getByRole('button', { name: /new run/i }).click();
+			const confirm = page.getByRole('alertdialog');
+			await expect.element(confirm).toBeVisible();
+			// Let the title's heroic entrance settle so the measured rects are
+			// the laid-out ones, not mid-animation frames.
+			await new Promise((resolve) => setTimeout(resolve, 320));
+			const confirmBox = (confirm.elements()[0] as HTMLElement).getBoundingClientRect();
 			expect(
-				overlaps,
-				`confirm ${JSON.stringify(confirmBox.toJSON())} vs card ${JSON.stringify(card.toJSON())}`
-			).toBe(false);
+				confirmBox.top >= 0 &&
+					confirmBox.left >= 0 &&
+					confirmBox.bottom <= height &&
+					confirmBox.right <= width,
+				`confirm inside ${width}×${height}: ${JSON.stringify(confirmBox.toJSON())}`
+			).toBe(true);
+
+			const cardBoxes = Array.from(document.querySelectorAll<HTMLElement>('.title-card')).map(
+				(card) => card.getBoundingClientRect()
+			);
+			expect(cardBoxes).toHaveLength(3);
+			for (const card of cardBoxes) {
+				const overlaps =
+					confirmBox.left < card.right &&
+					card.left < confirmBox.right &&
+					confirmBox.top < card.bottom &&
+					card.top < confirmBox.bottom;
+				expect(
+					overlaps,
+					`confirm ${JSON.stringify(confirmBox.toJSON())} vs card ${JSON.stringify(card.toJSON())}`
+				).toBe(false);
+			}
+			// Below the row, not above or beside it.
+			expect(confirmBox.top).toBeGreaterThanOrEqual(
+				Math.max(...cardBoxes.map((card) => card.bottom))
+			);
+
+			// Cancel so the next viewport raises a fresh confirmation.
+			await userEvent.keyboard('{Escape}');
+			await vi.waitFor(() => expect(page.getByRole('alertdialog').elements()).toHaveLength(0));
 		}
-		// Below the row, not above or beside it.
-		expect(confirmBox.top).toBeGreaterThanOrEqual(
-			Math.max(...cardBoxes.map((card) => card.bottom))
-		);
 	});
 
 	it("names the Continue subtitle after the saved player's region", async () => {
@@ -5587,6 +5640,21 @@ describe('GameShell prologue end card and return to title', () => {
 		expect(page.getByRole('button', { name: 'Bag' }).elements()).toHaveLength(0);
 		expect(document.querySelector('.bag-rail')).toBeNull();
 		expect(document.querySelector('[data-focus-id^="field-command-"]')).toBeNull();
+
+		// The terminal autosave's completion publish lands while the card is up:
+		// field/menu input stays blocked even after the final flush.
+		emitHudState(baseHudState({ status: 'Saved' }));
+		await userEvent.keyboard('{Escape}');
+		await userEvent.keyboard('{I}');
+		pads[0]!.buttons[9]!.pressed = true;
+		await padFrames();
+		pads[0]!.buttons[9]!.pressed = false;
+		await padFrames();
+
+		await expect.element(card).toBeVisible();
+		expect(page.getByRole('button', { name: 'Bag' }).elements()).toHaveLength(0);
+		expect(document.querySelector('.bag-rail')).toBeNull();
+		expect(document.querySelector('[data-focus-id^="field-command-"]')).toBeNull();
 	});
 
 	it('reports a failed terminal save on the card and still returns to Title', async () => {
@@ -5661,5 +5729,165 @@ describe('GameShell prologue end card and return to title', () => {
 		await expect.element(card).toHaveFocus();
 		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
 		await expect.element(card).toHaveFocus();
+	});
+});
+
+describe('HPA-841 visual geometry at three viewports', () => {
+	const GEOMETRY_VIEWPORTS = [
+		[1440, 900],
+		[1280, 720],
+		[640, 360]
+	] as const;
+
+	// Entrance animations (heroic-anim, 280ms) must settle before measuring.
+	async function settleEntrance() {
+		await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+		await new Promise((resolve) => setTimeout(resolve, 320));
+	}
+
+	function intersects(a: DOMRect, b: DOMRect): boolean {
+		return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+	}
+
+	function insideViewport(r: DOMRect, width: number, height: number): boolean {
+		return r.top >= 0 && r.left >= 0 && r.bottom <= height && r.right <= width;
+	}
+
+	it('keeps the end card full-bleed with visible, non-overlapping copy at every viewport', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+		emitPrologueEnd({ success: true });
+		const card = page.getByRole('dialog', { name: /end of the prologue/i });
+		await expect.element(card).toBeVisible();
+
+		// Visual reference: the spec's card diagram (heading over thanks over
+		// hint on a full-screen scrim), not a mockup.
+		for (const [width, height] of GEOMETRY_VIEWPORTS) {
+			await page.viewport(width, height);
+			window.scrollTo(0, 0);
+			await settleEntrance();
+
+			// The card surface covers the whole viewport (full-bleed scrim).
+			const cardRect = (card.elements()[0] as HTMLElement).getBoundingClientRect();
+			expect(cardRect.left, `card left at ${width}×${height}`).toBeLessThanOrEqual(0);
+			expect(cardRect.top, `card top at ${width}×${height}`).toBeLessThanOrEqual(0);
+			expect(cardRect.right, `card right at ${width}×${height}`).toBeGreaterThanOrEqual(width);
+			expect(cardRect.bottom, `card bottom at ${width}×${height}`).toBeGreaterThanOrEqual(height);
+
+			// Every copy line renders inside the viewport.
+			const heading = document.getElementById('prologue-end-heading');
+			const thanks = document.querySelector<HTMLElement>('.prologue-end-thanks');
+			const hint = document.querySelector<HTMLElement>('.prologue-end-hint');
+			expect(heading, 'card heading').not.toBeNull();
+			expect(thanks, 'card thanks').not.toBeNull();
+			expect(hint, 'card hint').not.toBeNull();
+			for (const [name, el] of [
+				['heading', heading!],
+				['thanks', thanks!],
+				['hint', hint!]
+			] as const) {
+				expect(
+					insideViewport(el.getBoundingClientRect(), width, height),
+					`${name} inside ${width}×${height}: ${JSON.stringify(el.getBoundingClientRect().toJSON())}`
+				).toBe(true);
+			}
+
+			// The stacked copy lines never overlap each other.
+			expect(
+				intersects(heading!.getBoundingClientRect(), thanks!.getBoundingClientRect()),
+				'heading vs thanks'
+			).toBe(false);
+			expect(
+				intersects(thanks!.getBoundingClientRect(), hint!.getBoundingClientRect()),
+				'thanks vs hint'
+			).toBe(false);
+		}
+	});
+
+	it('keeps the localized seven-quest journal unclipped at every viewport', async () => {
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				quests: {
+					main: mockMainQuest({
+						objectiveId: 'collect-herb-pouch',
+						objective: 'Collect the herb pouch from Mira.'
+					}),
+					completed: [],
+					total: 7
+				}
+			})
+		);
+
+		// Open once in en; the journal retranslates live across the locale loop
+		// (the Menu chip's label localizes too, so per-iteration reopening is
+		// not locale-safe).
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Quest', exact: true }).click();
+		const questDialog = page.getByRole('dialog', { name: /quest log/i });
+		await expect.element(questDialog).toBeVisible();
+
+		for (const locale of ['en', 'ja', 'zh-Hant'] as const) {
+			updatePreferences({ locale });
+			// The checklist retranslates with the active locale: one row per
+			// main quest, the localized first-quest title visible in en/ja/zh-Hant.
+			const firstTitle = {
+				en: 'The Proving Morning',
+				ja: '第一の試練：足跡',
+				'zh-Hant': '試煉之晨'
+			}[locale];
+			for (const [width, height] of GEOMETRY_VIEWPORTS) {
+				await page.viewport(width, height);
+				window.scrollTo(0, 0);
+				await settleEntrance();
+
+				// The dialog's accessible name localizes, so resolve the surface
+				// by class for the non-en iterations.
+				const screen = document.querySelector<HTMLElement>('.quest-screen')!;
+				const screenRect = screen.getBoundingClientRect();
+				expect(
+					insideViewport(screenRect, width, height),
+					`quest screen inside ${width}×${height} (${locale}): ${JSON.stringify(screenRect.toJSON())}`
+				).toBe(true);
+
+				// The seven-row checklist renders with no horizontal clipping in
+				// the localized titles: every row fits its box and the viewport.
+				const panel = page.getByTestId('quest-chapter-progress');
+				await expect.element(panel).toBeVisible();
+				await expect.element(panel.getByText(firstTitle)).toBeVisible();
+				const rows = page.getByTestId('quest-progress-row').elements();
+				expect(rows, `rows at ${width}×${height} (${locale})`).toHaveLength(7);
+				for (const [index, row] of rows.entries()) {
+					const el = row as HTMLElement;
+					expect(
+						el.scrollWidth <= el.clientWidth + 1,
+						`row ${index} not clipped at ${width}×${height} (${locale}): scrollWidth ${el.scrollWidth} vs clientWidth ${el.clientWidth}`
+					).toBe(true);
+					expect(
+						el.getBoundingClientRect().right <= width,
+						`row ${index} inside ${width}×${height} (${locale})`
+					).toBe(true);
+				}
+
+				// The rail's Close control stays reachable at every size: below
+				// 900px the journal scrolls as a column, so reachability (what a
+				// click performs) is the contract, mirroring the battle plates.
+				const close = document.querySelector<HTMLElement>('.quest-rail-close')!;
+				close.scrollIntoView({ block: 'nearest' });
+				expect(
+					insideViewport(close.getBoundingClientRect(), width, height),
+					`close reachable at ${width}×${height} (${locale}): ${JSON.stringify(close.getBoundingClientRect().toJSON())}`
+				).toBe(true);
+
+				// The panel shows the chain progress (0% on a fresh run).
+				await expect.element(panel.getByText('0%')).toBeVisible();
+			}
+		}
+
+		await userEvent.keyboard('{Escape}');
+		await vi.waitFor(() =>
+			expect(page.getByTestId('quest-chapter-progress').elements()).toHaveLength(0)
+		);
+		updatePreferences({ locale: 'en' });
 	});
 });

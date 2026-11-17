@@ -253,12 +253,24 @@ test('Field HUD capture through a real New Run', async ({ page }) => {
 	await expect(commandGrid).toBeVisible();
 
 	// The eight field commands in their exact plan order (Bag, Gear, Quest,
-	// Map, Skill, Rest, Save, System) with button roles.
+	// Map, Skill, Rest, Save, System) with button roles. The focus ids come
+	// from the internal command ids, NOT the display labels: HPA-841 renamed
+	// the Rest tile to "Heal" while its id stayed `rest`.
 	const expectedCommands = ['Bag', 'Gear', 'Quest', 'Map', 'Skill', 'Heal', 'Save', 'System'];
+	const expectedFocusIds = [
+		'field-cmd-bag',
+		'field-cmd-gear',
+		'field-cmd-quest',
+		'field-cmd-map',
+		'field-cmd-skill',
+		'field-cmd-rest',
+		'field-cmd-save',
+		'field-cmd-system'
+	];
 	const focusIds = await commandGrid
 		.locator('[data-focus-id]')
 		.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-focus-id')));
-	expect(focusIds).toEqual(expectedCommands.map((command) => `field-cmd-${command.toLowerCase()}`));
+	expect(focusIds).toEqual(expectedFocusIds);
 	for (const name of expectedCommands) {
 		await expect(commandGrid.getByRole('button', { name, exact: true })).toBeVisible();
 	}

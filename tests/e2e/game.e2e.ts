@@ -51,7 +51,7 @@ type HudStateSnapshot = {
 	battle?: unknown;
 	nearbyShop?: { shopId?: string; merchantName?: string } | null;
 	wallet?: { coins?: number };
-	quests?: { main?: { objectiveId?: string | null } | null };
+	quests?: { main?: { objectiveId?: string | null } | null; completed?: unknown[]; total?: number };
 	inventory?: {
 		consumables?: Array<{ itemId?: string; quantity?: number }>;
 		equipment?: Array<{ itemId?: string }>;
@@ -14777,5 +14777,124 @@ test('quest log shows main quest and completes proving morning at Borak', async 
 	await questDialog.getByRole('button', { name: 'Close' }).click();
 	await page.keyboard.press('Escape');
 	// The status pill only renders while the command grid is closed (Task 4).
-	await expect(fieldStatus(page)).toHaveText('Dialogue closed');
+	// HPA-841 removed the "Dialogue closed" toast: closing dialogue clears
+	// the transient status instead.
+	await expect(fieldStatus(page)).toHaveText('');
+});
+
+// HPA-841 acceptance: one seeded near-end run through the whole ending on a
+// normal saved game (no ?startMap=, which would disable autosave). The save
+// sits at the real ridge anchor with `climb-to-the-ridge` current; the run
+// inspects the ridge sign, plays the final scenes to the completion card,
+// dismisses to Title, and Continue restores the ridge without a replay.
+test('a seeded near-end saved run finishes the prologue and Continue restores the ridge without replay', async ({
+	page
+}) => {
+	test.setTimeout(120_000);
+	const ridge = anchorPoint('wildwood-ridge-overlook');
+	const save = createSaveFixture({
+		player: { level: 1, xp: 0, hp: 200, attack: 50, x: ridge.x, y: ridge.y, facing: 'up' },
+		quests: questStateAt('climb-to-the-ridge'),
+		seenDiscoveries: []
+	});
+	await seedSaveSlots(page, [{ state: save }]);
+	await page.addInitScript(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		probeWindow.__glieseLastHudState = undefined;
+		window.addEventListener('gliese:hud-state', (event) => {
+			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
+		});
+	});
+	// Instant reveal keeps the advance count deterministic (Heroic reveal
+	// grammar: confirm completes the line, the next confirm advances).
+	await page.addInitScript(() =>
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		)
+	);
+	await continueFromTitle(page);
+
+	// The saved run booted onto the actual ridge coordinates.
+	await page.waitForFunction(
+		(target) => {
+			const state = (window as GlieseProbeWindow).__glieseLastHudState;
+			return (
+				state?.mapId === 'overworld' &&
+				Math.abs((state?.areaMap?.player?.x ?? NaN) - target.x) < 1 &&
+				Math.abs((state?.areaMap?.player?.y ?? NaN) - target.y) < 1
+			);
+		},
+		ridge,
+		{ timeout: 30_000 }
+	);
+
+	// Inspect the ridge sign: the final story scene, then the vow and the
+	// chapter-one cue, then the terminal autosave and the completion card.
+	await page.keyboard.press('e', { delay: 50 });
+	const anyDialog = page.getByRole('dialog');
+	const endCard = page.getByRole('dialog', { name: 'End of the Prologue' });
+	for (let advance = 0; advance < 80; advance += 1) {
+		if ((await endCard.count()) > 0) break;
+		const hud = await page.evaluate(
+			() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+		);
+		if (!hud?.dialogue) {
+			await page.waitForTimeout(300);
+			continue;
+		}
+		const next = anyDialog.getByRole('button', { name: 'Next' });
+		if ((await next.count()) > 0) {
+			await next.click();
+		} else {
+			await page.keyboard.press('Enter');
+		}
+		await page.waitForTimeout(200);
+	}
+	await expect(endCard).toBeVisible({ timeout: 30_000 });
+
+	// No gameplay behind the card: the field HUD (and its Menu chip) is gone.
+	await expect(page.getByRole('button', { name: 'Menu' })).toHaveCount(0);
+
+	// The terminal autosave persisted the finished state before the card:
+	// seven completed quests and no pending marker (Continue validates this).
+	const envelope = await readSlotEnvelope(page);
+	const terminalState = envelope?.slots[0]?.state as
+		| { quests?: { entries?: Record<string, { status?: string }>; pendingEffects?: unknown[] } }
+		| undefined;
+	expect(terminalState?.quests?.pendingEffects).toEqual([]);
+	const entries = Object.values(terminalState?.quests?.entries ?? {});
+	expect(entries).toHaveLength(7);
+	expect(entries.every((entry) => entry?.status === 'completed')).toBe(true);
+
+	// Dismiss once: Title returns with a refreshed Continue subtitle over the
+	// finished save's region (the ridge sits in the Wildwood).
+	await endCard.click();
+	await expect(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+	await expect(endCard).toHaveCount(0);
+	await expect(page.getByRole('button', { name: /continue/i })).toContainText('Wildwood');
+
+	// Continue loads the finished run: the ridge coordinates are restored, the
+	// card does not replay, and the tracker reads Prologue complete.
+	await continueFromTitle(page);
+	await page.waitForFunction(
+		(target) => {
+			const state = (window as GlieseProbeWindow).__glieseLastHudState;
+			return (
+				state?.mapId === 'overworld' &&
+				Math.abs((state?.areaMap?.player?.x ?? NaN) - target.x) < 1 &&
+				Math.abs((state?.areaMap?.player?.y ?? NaN) - target.y) < 1
+			);
+		},
+		ridge,
+		{ timeout: 30_000 }
+	);
+	await page.waitForTimeout(1_500);
+	await expect(endCard).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await expect(page.getByTestId('hud-side-panel').getByText('Prologue complete')).toBeVisible();
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+		return state?.quests?.main === null && state?.quests?.completed?.length === 7;
+	});
 });

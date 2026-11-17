@@ -7958,6 +7958,57 @@ describe('WorldScene', () => {
 
 			expect(phaserState.playerMarker.x).toBe(openGround.x);
 			expect(phaserState.playerMarker.y).toBe(openGround.y);
+
+			// Interaction stays frozen too: even with the save unconfirmed,
+			// pressing interact beside an ambient villager opens no conversation
+			// behind the card (the freeze outlives the flush, whatever its result).
+			Object.assign(phaserState.playerMarker, anchorPoint('sundrop-wanderer'));
+			phaserState.interactKeys.e.justDown = true;
+			scene.update(0, 16);
+			phaserState.interactKeys.e.justDown = false;
+			expect(sceneState.dialogueSession).toBeNull();
+
+			expect(sceneState.storyEffectRunning).toBe(true);
+			expect(scene.scene.restart).not.toHaveBeenCalled();
+			expect(emitPrologueEndSpy).toHaveBeenCalledTimes(1);
+		} finally {
+			emitPrologueEndSpy.mockRestore();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('keeps Grik frozen behind the card after a successful terminal save: no movement, no interaction', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		const storage = await import('$lib/game/save/storage');
+		const memoryStorage = createSlotCaptureStorage();
+		storage.setSaveStorage(memoryStorage);
+		const { scene, sceneState } = await createPrologueEndScene();
+
+		try {
+			scene.update(0, 16);
+			await flushStoryDialogue();
+			closeStoryDialogue(sceneState);
+			scene.update(16, 16);
+			await vi.waitFor(() => expect(emitPrologueEndSpy).toHaveBeenCalledWith({ success: true }));
+
+			// The confirmed terminal write does not unfreeze the world: movement
+			// stays blocked until the shell tears the scene down on dismissal.
+			Object.assign(phaserState.playerMarker, openGround);
+			phaserState.wasdKeys.down.isDown = true;
+			scene.update(0, 1000);
+			phaserState.wasdKeys.down.isDown = false;
+			expect(phaserState.playerMarker.x).toBe(openGround.x);
+			expect(phaserState.playerMarker.y).toBe(openGround.y);
+
+			// Interaction stays blocked as well: beside an ambient villager, the
+			// drained interact press must not open a conversation behind the card.
+			Object.assign(phaserState.playerMarker, anchorPoint('sundrop-wanderer'));
+			phaserState.interactKeys.e.justDown = true;
+			scene.update(0, 16);
+			phaserState.interactKeys.e.justDown = false;
+			expect(sceneState.dialogueSession).toBeNull();
+
 			expect(sceneState.storyEffectRunning).toBe(true);
 			expect(scene.scene.restart).not.toHaveBeenCalled();
 			expect(emitPrologueEndSpy).toHaveBeenCalledTimes(1);
@@ -9527,6 +9578,15 @@ describe('WorldScene', () => {
 		recreated.create(restartPayload);
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({ status: 'HPを回復した' })
+		);
+
+		// And a third locale after another restart: the same carried descriptor
+		// retranslates through the whole supported chain, not just one hop.
+		switchLocale('zh-Hant');
+		const zhRecreated = new WorldScene();
+		zhRecreated.create(restartPayload);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: '生命值回復' })
 		);
 	});
 
