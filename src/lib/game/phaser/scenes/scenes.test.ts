@@ -18,6 +18,8 @@ import {
 	villagerHouse3Map
 } from '$lib/game/content/maps';
 import type { MapBackgroundImage, WorldMapDefinition } from '$lib/game/content/maps/types';
+import type { EquipmentState } from '$lib/game/core/equipment';
+import { createEmptyEquipment } from '$lib/game/core/equipment';
 import {
 	NPC_INTERACTION_RADIUS,
 	NPC_PACK_COLLISION_RADIUS,
@@ -7670,7 +7672,7 @@ describe('WorldScene', () => {
 	/** Seeds the end-of-prologue moment: every quest completed, the final
 	 * chapter-one scene queued just ahead of the terminal card marker, exactly
 	 * as the chapter-one checkpoint on disk would hold it. */
-	async function createPrologueEndScene() {
+	async function createPrologueEndScene(equipment?: EquipmentState) {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
 		const { WorldScene } = await import('./WorldScene');
@@ -7679,6 +7681,7 @@ describe('WorldScene', () => {
 			dialogueSession: unknown;
 			quests: { pendingEffects: unknown[] };
 			storyEffectRunning: boolean;
+			storySceneHold: boolean;
 			handleHudCommand: (command: HudCommand) => void;
 		};
 
@@ -7686,6 +7689,7 @@ describe('WorldScene', () => {
 			saveState: {
 				...createNewSaveState(),
 				mapId: 'overworld',
+				...(equipment ? { equipment } : {}),
 				quests: {
 					...questStateAt(null),
 					pendingEffects: [
@@ -8089,6 +8093,227 @@ describe('WorldScene', () => {
 		} finally {
 			emitPrologueEndSpy.mockRestore();
 			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('keeps an in-flight chapter-one scene in saves during its request, so rejection and reload still resume with cue and marker', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const storyClient = await import('$lib/game/story/client');
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		const storage = await import('$lib/game/save/storage');
+		const memoryStorage = createSlotCaptureStorage();
+		storage.setSaveStorage(memoryStorage);
+
+		// The chapter-one checkpoint is already durable, carrying both effects
+		// and the hero's sword.
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		slots.writeSaveSlot(0, {
+			kind: 'autosave',
+			savedAt: '2026-11-15T12:00:00.000Z',
+			playtimeSeconds: 600,
+			state: {
+				...createNewSaveState(),
+				mapId: 'overworld',
+				equipment: { ...createEmptyEquipment(), weapon: 'training-sword' },
+				quests: {
+					...questStateAt(null),
+					pendingEffects: [
+						{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+						{ type: 'show-prologue-end' }
+					]
+				}
+			}
+		});
+
+		// The chapter-one prose request hangs; its effect has been popped off
+		// the queue while the player waits.
+		let rejectScene: (error: Error) => void = () => {};
+		vi.mocked(storyClient.getStoryScene).mockImplementationOnce(
+			() =>
+				new Promise((_, reject) => {
+					rejectScene = reject as (error: Error) => void;
+				})
+		);
+
+		const { scene, sceneState } = await createPrologueEndScene({
+			...createEmptyEquipment(),
+			weapon: 'training-sword'
+		});
+		try {
+			scene.update(0, 16);
+			await flushStoryDialogue();
+			expect(sceneState.dialogueSession).toBeNull();
+
+			// While the request hangs, the player opens the Bag and unequips
+			// the sword: a durable mutation that autosaves the scene-less window.
+			sceneState.handleHudCommand({ type: 'unequip-slot', slot: 'weapon' });
+			await vi.waitFor(() => expect(memoryStorage.setItem).toHaveBeenCalledTimes(2));
+
+			// The intervening autosave must still carry the unseen cue.
+			const pending = slots.loadSaveSlots(memoryStorage).slots[0];
+			expect(pending?.state.equipment.weapon).toBeNull();
+			expect(pending?.state.quests.pendingEffects).toEqual([
+				{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+				{ type: 'show-prologue-end' }
+			]);
+
+			// The request rejects: requeue in memory and hold, writing nothing.
+			rejectScene(new Error('story service unavailable'));
+			await flushStoryDialogue();
+			expect(emitPrologueEndSpy).not.toHaveBeenCalled();
+			expect(sceneState.quests.pendingEffects).toEqual([
+				{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+				{ type: 'show-prologue-end' }
+			]);
+			expect(sceneState.storySceneHold).toBe(true);
+			expect(memoryStorage.setItem).toHaveBeenCalledTimes(2);
+
+			// Restart → Continue: the checkpoint on disk still replays the cue
+			// ahead of the marker.
+			const reloaded = slots.loadSaveSlots(memoryStorage).slots[0];
+			expect(reloaded?.state.quests.pendingEffects).toEqual([
+				{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+				{ type: 'show-prologue-end' }
+			]);
+
+			const { WorldScene } = await import('./WorldScene');
+			const replay = new WorldScene();
+			replay.create({ saveState: reloaded!.state });
+			replay.update(0, 16);
+			await flushStoryDialogue();
+			expect(storyClient.getStoryScene).toHaveBeenCalledWith(
+				expect.objectContaining({ sceneId: 'prologue.chapter-one' })
+			);
+			expect(emitPrologueEndSpy).not.toHaveBeenCalled();
+		} finally {
+			emitPrologueEndSpy.mockRestore();
+			vi.mocked(storyClient.getStoryScene).mockClear();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('consumes a shown chapter-one scene exactly once even when an autosave landed during its request', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const storyClient = await import('$lib/game/story/client');
+		const { createDialogueSession } = await import('$lib/game/core/dialogue');
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		const storage = await import('$lib/game/save/storage');
+		const memoryStorage = createSlotCaptureStorage();
+		storage.setSaveStorage(memoryStorage);
+
+		// Hold the chapter-one prose request in flight.
+		let resolveScene: (session: unknown) => void = () => {};
+		vi.mocked(storyClient.getStoryScene).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveScene = resolve as (session: unknown) => void;
+				})
+		);
+
+		const { scene, sceneState } = await createPrologueEndScene({
+			...createEmptyEquipment(),
+			weapon: 'training-sword'
+		});
+		try {
+			scene.update(0, 16);
+			await flushStoryDialogue();
+
+			// The same scene-less window: the unequip autosave lands mid-request
+			// and must carry the scene ahead of the marker.
+			sceneState.handleHudCommand({ type: 'unequip-slot', slot: 'weapon' });
+			await vi.waitFor(() => expect(memoryStorage.setItem).toHaveBeenCalledTimes(1));
+			expect(slots.loadSaveSlots(memoryStorage).slots[0]?.state.quests.pendingEffects).toEqual([
+				{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+				{ type: 'show-prologue-end' }
+			]);
+
+			// The request succeeds: the scene is shown and its consumption is
+			// persisted exactly once — the scene must not reappear in the
+			// snapshot that records it as shown.
+			resolveScene(
+				createDialogueSession({
+					id: 'prologue.chapter-one',
+					lines: [{ speaker: 'Narrator', text: 'Chapter One: The Hunt.' }]
+				})
+			);
+			await flushStoryDialogue();
+			expect(sceneState.dialogueSession).toBeTruthy();
+			await vi.waitFor(() => expect(memoryStorage.setItem).toHaveBeenCalledTimes(2));
+			expect(slots.loadSaveSlots(memoryStorage).slots[0]?.state.quests.pendingEffects).toEqual([
+				{ type: 'show-prologue-end' }
+			]);
+			expect(emitPrologueEndSpy).not.toHaveBeenCalled();
+		} finally {
+			emitPrologueEndSpy.mockRestore();
+			vi.mocked(storyClient.getStoryScene).mockClear();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('carries an in-flight scene through a re-create and drops its stale response without duplicating the restored cue', async () => {
+		const storyClient = await import('$lib/game/story/client');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			quests: { pendingEffects: unknown[] };
+			storySceneHold: boolean;
+		};
+
+		// Hold the chapter-one prose request in flight.
+		let resolveScene: (session: unknown) => void = () => {};
+		vi.mocked(storyClient.getStoryScene).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveScene = resolve as (session: unknown) => void;
+				})
+		);
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'overworld',
+				quests: {
+					...questStateAt(null),
+					pendingEffects: [
+						{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+						{ type: 'show-prologue-end' }
+					]
+				}
+			}
+		});
+		try {
+			scene.update(0, 16);
+			await flushStoryDialogue();
+
+			// A story-gate restart re-creates the same instance from a snapshot;
+			// that snapshot must carry the in-flight scene at the queue head.
+			const payload = (
+				scene as unknown as { buildSaveState(): ReturnType<typeof createNewSaveState> }
+			).buildSaveState();
+			scene.events.emit('shutdown');
+			scene.create({ saveState: payload });
+			expect(sceneState.quests.pendingEffects).toEqual([
+				{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+				{ type: 'show-prologue-end' }
+			]);
+
+			// The stale response arrives after re-create: the restored queue
+			// already owns the scene, so the failure path must not re-add it or
+			// hold a fresh scene that is about to replay it.
+			resolveScene({ speaker: 'Narrator', line: 'Late line' });
+			await flushStoryDialogue();
+			expect(sceneState.quests.pendingEffects).toEqual([
+				{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+				{ type: 'show-prologue-end' }
+			]);
+			expect(sceneState.storySceneHold).toBe(false);
+		} finally {
+			vi.mocked(storyClient.getStoryScene).mockClear();
 		}
 	});
 
