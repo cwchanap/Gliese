@@ -37,7 +37,6 @@ export const ja = {
 		map: '地図',
 		areaMap: 'エリア地図',
 		areaMapDialog: '{{areaName}}の地図',
-		regionSubline: '緑の地方 / 3日目',
 		unexplored: '未探索',
 		currentPosition: '現在位置',
 		areaMapSelectedMarker: '選択中: {{name}}',
@@ -59,14 +58,13 @@ export const ja = {
 			save: 'セーブ',
 			system: 'システム'
 		},
-		titleChapterPill: '翠緑地方・第一章',
-		chapterLabel: '第一章',
+		titleChapterPill: 'サンドロップ・プロローグ',
+		chapterLabel: 'プロローグ',
 		titleNewRun: 'ニューゲーム',
-		titleNewRunSub: '第一章',
+		titleNewRunSub: 'プロローグ',
 		titleSystemSub: '言語・オーディオ',
 		titleNoSaveData: 'セーブデータなし',
 		titleHintSelect: '決定',
-		titleHintEnter: '進む',
 		titleNewRunConfirm: '新しい冒険をはじめますか？オートセーブは上書きされます。',
 		prologueEndHeading: 'プロローグの終わり',
 		prologueEndThanks: '遊んでくれてありがとう',
@@ -138,7 +136,6 @@ export const ja = {
 		main: 'メイン',
 		questDone: '完了',
 		questRewards: '報酬',
-		questTurnedInBy: '報告先',
 		questChapterProgress: '章の進行状況',
 		questMapContext: 'マップ情報',
 		questJournalEmpty: 'まだ依頼はありません。',
@@ -596,6 +593,12 @@ export const ja = {
 				'villager-lynn': { name: 'リン' },
 				'villager-toma': { name: 'トマ' },
 				'villager-io': { name: 'イオ' }
+			},
+			regions: {
+				sundrop: 'サンドロップ',
+				wildwood: '野林',
+				silverpine: '銀松林',
+				mistfen: '霧沼'
 			},
 			areas: {
 				'hero-house': 'グリクの家',

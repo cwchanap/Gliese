@@ -9392,6 +9392,59 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('republishes when the hero crosses back into an already revealed region', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const exploration = await import('$lib/game/core/map-exploration');
+		const revealSpy = vi.spyOn(exploration, 'revealMapArea');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as { player: { x: number; y: number } };
+		const door = anchorPoint('sundrop-grik-home-door');
+		const lirraForest = anchorPoint('wildwood-lirra-forest');
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'overworld',
+				player: { ...createNewSaveState().player, ...door },
+				quests: questStateAt('talk-to-mott')
+			}
+		});
+		emitHudStateSpy.mockClear();
+		revealSpy.mockClear();
+
+		// Standing still republishes nothing: fog and region are unchanged.
+		scene.update(0, 16);
+		expect(emitHudStateSpy).not.toHaveBeenCalled();
+
+		// First entry into the Wildwood reveals new fog and republishes.
+		sceneState.player.x = lirraForest.x;
+		sceneState.player.y = lirraForest.y;
+		scene.update(16, 16);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				areaMap: expect.objectContaining({ name: 'The Wildwood' })
+			})
+		);
+		emitHudStateSpy.mockClear();
+		revealSpy.mockClear();
+
+		// Crossing back to the spawn region: the fog there was already revealed
+		// on arrival, so only the region change may drive the publish.
+		sceneState.player.x = door.x;
+		sceneState.player.y = door.y;
+		scene.update(32, 16);
+		expect(revealSpy.mock.results.at(-1)?.value.changed).toBe(false);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				areaMap: expect.objectContaining({ name: 'Sundrop' })
+			})
+		);
+	});
+
 	it('retranslates a published status through en → ja → zh-Hant switches', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');

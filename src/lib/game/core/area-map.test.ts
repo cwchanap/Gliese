@@ -20,6 +20,8 @@ import {
 	buildAreaMapState,
 	buildInitialAreaMapState,
 	clampedLocalMapView,
+	getAreaName,
+	getRegionId,
 	markerLabelExtent,
 	type HudAreaMapState
 } from '$lib/game/core/area-map';
@@ -49,13 +51,71 @@ const revealAround = ({ x, y }: { x: number; y: number }) =>
 const grikDoor = overworldAnchors['sundrop-grik-home-door']!;
 const lodgeDoor = overworldAnchors['sundrop-lodge-door']!;
 
+const lirraForest = overworldAnchors['wildwood-lirra-forest']!;
+const lirraBridge = overworldAnchors['mistfen-lirra-bridge']!;
+const droggFalls = overworldAnchors['silverpine-drogg-falls']!;
+const caveArrival = overworldAnchors['wildwood-cave-arrival']!;
+/** A point inside the unbuilt elven-wood outline chunk. */
+const elvenWoodPoint = { x: 30 * 32 + 16, y: 30 * 32 + 16 };
+/** A point in the open sea no chunk covers. */
+const openSeaPoint = { x: 64 * 32, y: 370 * 32 };
+
+describe('built-region names', () => {
+	it('names the overworld by the placed chunk at the point', () => {
+		expect(getAreaName('en', 'overworld', grikDoor)).toBe('Sundrop');
+		expect(getAreaName('en', 'overworld', lirraForest)).toBe('The Wildwood');
+		expect(getAreaName('en', 'overworld', lirraBridge)).toBe('Mistfen Basin');
+		expect(getAreaName('en', 'overworld', droggFalls)).toBe('Silverpine');
+	});
+
+	it('both Wildwood chunks share one localized label', () => {
+		expect(getRegionId('overworld', lirraForest)).toBe('wildwood-east');
+		expect(getRegionId('overworld', caveArrival)).toBe('wildwood-north');
+		expect(getAreaName('en', 'overworld', caveArrival)).toBe('The Wildwood');
+	});
+
+	it('falls back to the generic wilds name off the built regions', () => {
+		expect(getAreaName('en', 'overworld', elvenWoodPoint)).toBe('The Wilds');
+		expect(getAreaName('en', 'overworld', openSeaPoint)).toBe('The Wilds');
+		expect(getRegionId('overworld', elvenWoodPoint)).toBe('elven-wood');
+		expect(getRegionId('overworld', openSeaPoint)).toBe('overworld');
+	});
+
+	it('keeps interior names even when a point is passed', () => {
+		expect(getAreaName('en', 'hero-house', { x: 160, y: 224 })).toBe("Grik's House");
+		expect(getRegionId('hero-house', { x: 160, y: 224 })).toBe('hero-house');
+	});
+
+	it('localizes the built regions in every locale', () => {
+		expect(getAreaName('ja', 'overworld', grikDoor)).toBe('サンドロップ');
+		expect(getAreaName('ja', 'overworld', lirraForest)).toBe('野林');
+		expect(getAreaName('ja', 'overworld', droggFalls)).toBe('銀松林');
+		expect(getAreaName('ja', 'overworld', lirraBridge)).toBe('霧沼');
+		expect(getAreaName('zh-Hant', 'overworld', grikDoor)).toBe('晴滴');
+		expect(getAreaName('zh-Hant', 'overworld', lirraForest)).toBe('野林');
+		expect(getAreaName('zh-Hant', 'overworld', droggFalls)).toBe('銀松林');
+		expect(getAreaName('zh-Hant', 'overworld', lirraBridge)).toBe('霧沼');
+	});
+
+	it('names the area map after the region under the player', () => {
+		const areaMap = buildAreaMapState({
+			map: overworldMap,
+			player: lirraBridge,
+			revealedCells: [],
+			quests: createInitialQuestState(),
+			locale: 'en'
+		});
+		expect(areaMap.name).toBe('Mistfen Basin');
+	});
+});
+
 describe('area map payload', () => {
 	it('builds the initial area map from the overworld', () => {
 		const areaMap = buildInitialAreaMapState('ja');
 
 		expect(areaMap).toMatchObject<Partial<HudAreaMapState>>({
 			mapId: overworldMap.id,
-			name: '荒野',
+			name: 'サンドロップ',
 			worldWidth: overworldMap.width * 32,
 			worldHeight: overworldMap.height * 32,
 			player: overworldMap.spawn,
@@ -74,7 +134,7 @@ describe('area map payload', () => {
 
 		expect(areaMap).toMatchObject<Partial<HudAreaMapState>>({
 			mapId: 'overworld',
-			name: 'The Wilds',
+			name: 'Sundrop',
 			worldWidth: overworldMap.width * 32,
 			worldHeight: overworldMap.height * 32,
 			player: { x: 4_464, y: 7_024 },

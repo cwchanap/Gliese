@@ -187,7 +187,7 @@ test('root boots to the Title screen without mounting Phaser', async ({ page }) 
 
 	const wordmark = page.locator('.title-wordmark');
 	await expect(wordmark).toHaveText('GLIESE');
-	await expect(page.locator('.title-chapter-pill')).toContainText('Verdant Region');
+	await expect(page.locator('.title-chapter-pill')).toContainText('Sundrop');
 	await expect(page.getByRole('button', { name: /Continue/i })).toBeDisabled();
 	await expect(page.getByRole('button', { name: /New Run/i })).toBeVisible();
 	await expect(page.getByRole('button', { name: /System/ })).toBeVisible();
@@ -273,7 +273,9 @@ test('Field HUD capture through a real New Run', async ({ page }) => {
 	await expect(heroCard).toContainText('XP');
 	const minimap = page.getByTestId('hud-minimap');
 	await expect(minimap).toBeVisible();
-	await expect(minimap).toContainText('Sundrop Meadows');
+	// Names follow the live region under the hero (HPA-841): the run spawns
+	// at Sundrop's door, so the pill reads the built region.
+	await expect(minimap).toContainText('Sundrop');
 	await expect(page.getByTestId('hud-side-panel').getByText(/\d+G/)).toBeVisible();
 	// The transient status pill stays a playing-HUD surface only; the mockup's
 	// grid-open composition has no bottom-center pill, so it is gated on
@@ -321,16 +323,16 @@ test('Title screen capture', async ({ page }) => {
 	// then the Continue / New Run / System card row, then the prompt hints.
 	await expect(page.locator('.title-key-art')).toBeVisible();
 	await expect(page.locator('.title-crest svg')).toBeVisible();
-	await expect(page.locator('.title-chapter-pill')).toContainText('Chapter I');
+	await expect(page.locator('.title-chapter-pill')).toContainText('Prologue');
 
 	// Selected-card treatment: Continue is the enabled cream-gold primary card.
 	const continueCard = page.locator('.title-card-primary');
 	await expect(continueCard).toContainText('Continue');
-	await expect(continueCard).toContainText('Sundrop Meadows · 1:42:00');
+	await expect(continueCard).toContainText('Sundrop · 1:42:00');
 	await expect(page.getByRole('button', { name: /Continue/i })).toBeEnabled();
 	await expect(page.getByRole('button', { name: /New Run/i })).toBeVisible();
 	await expect(page.getByRole('button', { name: /System/ })).toBeVisible();
-	await expect(page.locator('.title-hints .title-hint')).toHaveCount(2);
+	await expect(page.locator('.title-hints .title-hint')).toHaveCount(1);
 	await expect(page.locator('canvas')).toHaveCount(0);
 
 	await page.waitForTimeout(700);

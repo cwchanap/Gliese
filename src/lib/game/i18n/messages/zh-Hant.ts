@@ -37,7 +37,6 @@ export const zhHant = {
 		map: '地圖',
 		areaMap: '區域地圖',
 		areaMapDialog: '{{areaName}}地圖',
-		regionSubline: '翠綠地區 / 第 3 日',
 		unexplored: '未探索',
 		currentPosition: '目前位置',
 		areaMapSelectedMarker: '已選擇：{{name}}',
@@ -59,14 +58,13 @@ export const zhHant = {
 			save: '儲存',
 			system: '系統'
 		},
-		titleChapterPill: '翠綠之地・第一章',
-		chapterLabel: '第一章',
+		titleChapterPill: '晴滴・序章',
+		chapterLabel: '序章',
 		titleNewRun: '新的旅程',
-		titleNewRunSub: '第一章',
+		titleNewRunSub: '序章',
 		titleSystemSub: '語言・音訊',
 		titleNoSaveData: '沒有儲存資料',
 		titleHintSelect: '選擇',
-		titleHintEnter: '確認',
 		titleNewRunConfirm: '開始新的旅程？自動儲存將被覆寫。',
 		prologueEndHeading: '序章結束',
 		prologueEndThanks: '感謝你參與這段旅程',
@@ -138,7 +136,6 @@ export const zhHant = {
 		main: '主線',
 		questDone: '已完成',
 		questRewards: '獎勵',
-		questTurnedInBy: '回報對象',
 		questChapterProgress: '章節進度',
 		questMapContext: '地圖資訊',
 		questJournalEmpty: '日誌中尚無任務。',
@@ -594,6 +591,12 @@ export const zhHant = {
 				'villager-lynn': { name: '琳恩' },
 				'villager-toma': { name: '托馬' },
 				'villager-io': { name: '伊歐' }
+			},
+			regions: {
+				sundrop: '晴滴',
+				wildwood: '野林',
+				silverpine: '銀松林',
+				mistfen: '霧沼'
 			},
 			areas: {
 				'hero-house': '格里克的家',

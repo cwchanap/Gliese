@@ -160,4 +160,37 @@ describe('BagScreen short viewports', () => {
 			expect(detail.getBoundingClientRect().bottom).toBeLessThanOrEqual(height);
 		});
 	}
+
+	describe('BagScreen equipped badge', () => {
+		it('keeps the EQUIPPED badge clear of the slot label at 640×360', async () => {
+			await page.viewport(640, 360);
+			window.scrollTo(0, 0);
+			render(GameShell);
+			emitHudState(baseHudState(fullyEquipped));
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: 'Bag' }).click();
+			await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
+
+			// Equipment slots (with their labels) live on the Gear tab.
+			await page.getByRole('tab', { name: 'Gear' }).click();
+			await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
+
+			// Badge and slot label live in different rows: no two rects intersect.
+			const slots = Array.from(document.querySelectorAll<HTMLElement>('.bag-slot')).filter(
+				(slot) => slot.querySelector('.bag-slot-pos') && slot.querySelector('.bag-slot-worn')
+			);
+			expect(slots.length).toBeGreaterThan(0);
+			const intersects = (a: DOMRect, b: DOMRect) =>
+				a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+			for (const slot of slots) {
+				const label = slot.querySelector<HTMLElement>('.bag-slot-pos')!.getBoundingClientRect();
+				const badge = slot.querySelector<HTMLElement>('.bag-slot-worn')!.getBoundingClientRect();
+				expect(
+					intersects(label, badge),
+					`label ${JSON.stringify(label.toJSON())} vs badge ${JSON.stringify(badge.toJSON())}`
+				).toBe(false);
+			}
+		});
+	});
 });

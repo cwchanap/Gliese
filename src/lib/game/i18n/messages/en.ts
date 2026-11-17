@@ -34,7 +34,6 @@ export const en = {
 		map: 'Map',
 		areaMap: 'Area Map',
 		areaMapDialog: '{{areaName}} map',
-		regionSubline: 'Verdant Region / Day 03',
 		unexplored: 'Unexplored',
 		currentPosition: 'Current position',
 		areaMapSelectedMarker: 'Selected: {{name}}',
@@ -56,14 +55,13 @@ export const en = {
 			save: 'Save',
 			system: 'System'
 		},
-		titleChapterPill: 'Verdant Region · Chapter I',
-		chapterLabel: 'Chapter I',
+		titleChapterPill: 'Sundrop · Prologue',
+		chapterLabel: 'Prologue',
 		titleNewRun: 'New Run',
-		titleNewRunSub: 'Chapter I',
+		titleNewRunSub: 'Prologue',
 		titleSystemSub: 'Language · Audio',
 		titleNoSaveData: 'No save data',
 		titleHintSelect: 'Select',
-		titleHintEnter: 'Enter',
 		titleNewRunConfirm: 'Start a new run? The autosave will be overwritten.',
 		prologueEndHeading: 'End of the Prologue',
 		prologueEndThanks: 'Thank you for playing',
@@ -135,7 +133,6 @@ export const en = {
 		main: 'Main',
 		questDone: 'Done',
 		questRewards: 'Reward',
-		questTurnedInBy: 'Turned in by',
 		questChapterProgress: 'Chapter Progress',
 		questMapContext: 'Map Context',
 		questJournalEmpty: 'No quests in the journal yet.',
@@ -596,6 +593,12 @@ export const en = {
 				'villager-lynn': { name: 'Lynn' },
 				'villager-toma': { name: 'Toma' },
 				'villager-io': { name: 'Io' }
+			},
+			regions: {
+				sundrop: 'Sundrop',
+				wildwood: 'The Wildwood',
+				silverpine: 'Silverpine',
+				mistfen: 'Mistfen Basin'
 			},
 			areas: {
 				'hero-house': "Grik's House",

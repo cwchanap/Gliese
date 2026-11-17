@@ -83,7 +83,7 @@ import {
 } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
 import { emitPlayerMovementDiagnostic } from '$lib/game/phaser/player-movement-diagnostics';
 import { advanceBossPhase } from '$lib/game/core/boss';
-import { buildAreaMapState } from '$lib/game/core/area-map';
+import { buildAreaMapState, getRegionId } from '$lib/game/core/area-map';
 import {
 	applyBattleResultToSaveState,
 	rollBattleEnemyCount,
@@ -795,6 +795,13 @@ export class WorldScene extends Phaser.Scene {
 
 		this.updateHeroOcclusion(false);
 
+		// The arrival publish names the arrival region; the update loop only
+		// republishes once the hero has actually left it.
+		this.lastPublishedRegionId = getRegionId(
+			this.mapId,
+			this.player ? { x: this.player.x, y: this.player.y } : map.spawn
+		);
+
 		// `??` would resurrect a cleared status: an explicit null must survive the
 		// story-gate restart instead of falling back to the reason default.
 		this.publishHudState(
@@ -901,7 +908,8 @@ export class WorldScene extends Phaser.Scene {
 		this.facing = this.resolveFacing(direction, this.facing);
 
 		const explorationChanged = this.revealCurrentMapArea();
-		if (explorationChanged) {
+		const areaChanged = this.refreshPublishedRegion();
+		if (explorationChanged || areaChanged) {
 			// Fog reveal mutates exploration in memory only; the next durable
 			// mutation persists it. Movement itself never writes the save.
 			this.publishHudState(this.lastPublishedStatus);
@@ -2933,9 +2941,22 @@ export class WorldScene extends Phaser.Scene {
 		return result.changed;
 	}
 
+	/** The region the HUD last named; crossing an already-revealed border must
+	 *  still republish, so this compares independently of fog discovery. */
+	private refreshPublishedRegion(): boolean {
+		const regionId = getRegionId(
+			this.mapId,
+			this.player ? { x: this.player.x, y: this.player.y } : this.resolveMap(this.mapId).spawn
+		);
+		if (regionId === this.lastPublishedRegionId) return false;
+		this.lastPublishedRegionId = regionId;
+		return true;
+	}
+
 	// Copying the canvas and encoding a JPEG is expensive, so thumbnails are
 	// captured once per map and reused while the save stays on it.
 	private lastThumbnailMapId: string | null = null;
+	private lastPublishedRegionId: string | null = null;
 	private lastThumbnail: string | undefined;
 
 	// Bumped on scene shutdown: a deferred POST_RENDER callback that was queued
