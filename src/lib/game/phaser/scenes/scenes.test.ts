@@ -7682,6 +7682,7 @@ describe('WorldScene', () => {
 			quests: { pendingEffects: unknown[] };
 			storyEffectRunning: boolean;
 			storySceneHold: boolean;
+			lastPublishedStatus: unknown;
 			handleHudCommand: (command: HudCommand) => void;
 		};
 
@@ -8101,6 +8102,7 @@ describe('WorldScene', () => {
 		const storyClient = await import('$lib/game/story/client');
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const storage = await import('$lib/game/save/storage');
 		const memoryStorage = createSlotCaptureStorage();
 		storage.setSaveStorage(memoryStorage);
@@ -8170,6 +8172,17 @@ describe('WorldScene', () => {
 			expect(sceneState.storySceneHold).toBe(true);
 			expect(memoryStorage.setItem).toHaveBeenCalledTimes(2);
 
+			// The hold is not silent: the existing field status names the
+			// failure (as a retranslatable descriptor), while the world and
+			// checkpoint stay as they were.
+			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+				expect.objectContaining({ status: 'Story could not load' })
+			);
+			expect(sceneState.lastPublishedStatus).toEqual({
+				key: 'status.storySceneFailed',
+				params: {}
+			});
+
 			// Restart → Continue: the checkpoint on disk still replays the cue
 			// ahead of the marker.
 			const reloaded = slots.loadSaveSlots(memoryStorage).slots[0];
@@ -8189,6 +8202,7 @@ describe('WorldScene', () => {
 			expect(emitPrologueEndSpy).not.toHaveBeenCalled();
 		} finally {
 			emitPrologueEndSpy.mockRestore();
+			emitHudStateSpy.mockRestore();
 			vi.mocked(storyClient.getStoryScene).mockClear();
 			storage.setSaveStorage(undefined);
 		}
@@ -12581,6 +12595,46 @@ describe('WorldScene', () => {
 			{ type: 'play-scene', sceneId: 'prologue.boar-king-felled' },
 			{ type: 'move-player', mapId: 'guild-hall', x: 800, y: 200, facing: 'up' }
 		]);
+	});
+
+	it('plays the quest-complete cue for a scripted captain loss that completes the raid', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			buildSaveState: () => ReturnType<typeof createNewSaveState>;
+		};
+		const save = createNewSaveState();
+		const play = vi.fn();
+		Object.assign(scene, {
+			sound: { play, add: vi.fn(() => ({ play: vi.fn(), destroy: vi.fn() })) },
+			cache: { audio: { exists: (key: string) => key === 'quest-complete' } }
+		});
+
+		scene.create({
+			saveState: {
+				...save,
+				mapId: 'overworld',
+				quests: questStateAt('charge-the-captain')
+			},
+			reason: 'battle-result',
+			battleResult: {
+				outcome: 'defeat',
+				sourceMapId: 'overworld',
+				sourceEncounterId: 'sun-crest-captain',
+				sourceEnemyId: 'sun-crest-captain',
+				finalHeroHp: 0,
+				inventory: save.inventory,
+				defeatedUnits: []
+			}
+		});
+
+		// The scripted loss reports no summary, but it completed the raid: the
+		// reward cue must sound exactly like a summarized completion.
+		expect(play).toHaveBeenCalledWith('quest-complete', expect.anything());
+		const built = sceneState.buildSaveState();
+		expect(built.quests.entries['prologue-raid']?.status).toBe('completed');
 	});
 
 	it('keeps the cave into the old tunnel closed until the escape begins', async () => {

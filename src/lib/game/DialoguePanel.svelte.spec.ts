@@ -289,6 +289,33 @@ describe('DialoguePanel.svelte', () => {
 		expect(onadvance).toHaveBeenCalledOnce();
 	});
 
+	it('mirrors Enter on a protected choice: Escape reveals, then confirms the selected row', async () => {
+		// Ruling pin (dual final review): a protected choice session cannot
+		// arise in current story content — scenes are mode 'system' with no
+		// choices, and every quest-advancing NPC branch is a multi-line
+		// conversation. The spec binds Escape on protected dialogue to Enter's
+		// behavior, and Enter on a choice confirms the selected row, so Escape
+		// does the same; this test pins that ruling instead of inventing a
+		// different Escape semantics for an unreachable state.
+		updatePreferences({ textSpeed: 'normal' });
+		const { onchoose, onclose, onadvance } = renderDialogue({ canClose: false });
+		const panel = page.getByRole('dialog', { name: 'Guild Master Arlen' });
+		await expect.element(panel).toHaveFocus();
+
+		// Mid-reveal: Escape reveals like Enter, never closes.
+		await userEvent.keyboard('{Escape}');
+		expect(onclose).not.toHaveBeenCalled();
+		expect(onadvance).not.toHaveBeenCalled();
+		expect(onchoose).not.toHaveBeenCalled();
+
+		// A fresh press confirms the gilded row — exactly what Enter does.
+		await userEvent.keyboard('{Escape}');
+		expect(onchoose).toHaveBeenCalledOnce();
+		expect(onchoose).toHaveBeenCalledWith('quest:thin-village-slimes');
+		expect(onclose).not.toHaveBeenCalled();
+		expect(onadvance).not.toHaveBeenCalled();
+	});
+
 	it('closes a fallback notice with Escape', async () => {
 		const { onadvance, onclose } = renderDialogue({
 			...conversationDialogue,

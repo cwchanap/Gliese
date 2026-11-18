@@ -234,6 +234,7 @@ export const en = {
 		saved: 'Saved',
 		savedWithoutThumbnail: 'Saved without preview image',
 		saveFailed: 'Could not save',
+		storySceneFailed: 'Story could not load',
 		saveResumed: 'Save resumed',
 		enteredArea: 'Entered area',
 		newRun: 'New run',

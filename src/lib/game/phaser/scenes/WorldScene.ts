@@ -834,8 +834,17 @@ export class WorldScene extends Phaser.Scene {
 		) {
 			this.events?.once?.('render', () => void this.writeAutosave(this.buildSaveState()));
 		}
-		// Battles complete quests outside applyQuestProgress; cue it once on the return.
-		if (battleApplication?.summary?.completedQuestIds.length) {
+		// Battles complete quests outside applyQuestProgress; cue it once on the
+		// return. A scripted loss completes quests without a summary, so fall
+		// back to the completed-entry counts: quest completion only ever grows.
+		const completedQuestCount = (state: QuestState) =>
+			Object.values(state.entries).filter((entry) => entry?.status === 'completed').length;
+		const completedQuestsWithoutSummary =
+			battleApplication &&
+			data.saveState &&
+			completedQuestCount(battleApplication.saveState.quests) >
+				completedQuestCount(data.saveState.quests);
+		if (battleApplication?.summary?.completedQuestIds.length || completedQuestsWithoutSummary) {
 			playSfx(this, 'quest-complete');
 		}
 		if (reason === 'story-move') {
@@ -3532,6 +3541,10 @@ export class WorldScene extends Phaser.Scene {
 						// The on-disk checkpoint still carries it, so Continue replays.
 						this.quests.pendingEffects.unshift(effect);
 						this.storySceneHold = true;
+						// The hold is not silent: the field status names the failure
+						// so the player knows why later beats stopped. No retry here —
+						// a reload replays the preserved checkpoint.
+						this.publishHudState(this.statusMessage('status.storySceneFailed'));
 						return;
 					}
 					// The scene is on screen: persist its consumption so a reload
