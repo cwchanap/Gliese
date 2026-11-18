@@ -367,7 +367,7 @@ describe('save slots', () => {
 		expect(loadSaveSlots(storage)).toEqual(createEmptySaveSlots());
 		expect(saveSlotsUnreadable(storage)).toBe(true);
 		// The bare payload survives for a later retry.
-		expect(JSON.parse(storage.getItem(SAVE_SLOTS_STORAGE_KEY) ?? 'null').version).toBe(10);
+		expect(JSON.parse(storage.getItem(SAVE_SLOTS_STORAGE_KEY) ?? 'null').version).toBe(11);
 		expect(() => writeSaveSlot(1, record('2026-09-04T12:00:00.000Z'), storage)).toThrow();
 	});
 

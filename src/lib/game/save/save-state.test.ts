@@ -57,7 +57,7 @@ function buildingCentre(type: string) {
 describe('save state', () => {
 	it('creates a level 1 starting save', () => {
 		expect(createNewSaveState()).toEqual({
-			version: 10,
+			version: 11,
 			mapId: homeBedside.mapId,
 			player: {
 				level: 1,
@@ -513,9 +513,9 @@ describe('save state', () => {
 		expect(parseSaveState('[]')).toBeNull();
 	});
 
-	it('rejects older schema versions and accepts version 10', () => {
-		expect(parseSaveState(JSON.stringify({ ...overworldSaveState(), version: 9 }))).toBeNull();
-		expect(parseSaveState(JSON.stringify(overworldSaveState()))?.version).toBe(10);
+	it('rejects older schema versions and accepts version 11', () => {
+		expect(parseSaveState(JSON.stringify({ ...overworldSaveState(), version: 10 }))).toBeNull();
+		expect(parseSaveState(JSON.stringify(overworldSaveState()))?.version).toBe(11);
 	});
 
 	it('rejects a payload with wrong player field types', () => {

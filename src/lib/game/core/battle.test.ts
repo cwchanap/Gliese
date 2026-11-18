@@ -525,5 +525,27 @@ describe('battle contracts', () => {
 		expect(application.saveState.player.hp).toBe(
 			deriveEffectiveStats(getHeroBaseStats(saveState.player), saveState.equipment).maxHp
 		);
+		expect(application.completedQuestIds).toEqual([]);
+	});
+
+	it('surfaces completedQuestIds directly on BattleApplication for a scripted loss without summary', () => {
+		const saveState = {
+			...createNewSaveState(),
+			mapId: 'overworld',
+			quests: questStateAt('charge-the-captain')
+		};
+
+		const application = applyBattleResultToSaveState(saveState, {
+			outcome: 'defeat',
+			sourceMapId: 'overworld',
+			sourceEncounterId: 'sun-crest-captain',
+			sourceEnemyId: 'sun-crest-captain',
+			finalHeroHp: 0,
+			inventory: saveState.inventory,
+			defeatedUnits: []
+		});
+
+		expect(application.summary).toBeNull();
+		expect(application.completedQuestIds).toEqual(['prologue-raid']);
 	});
 });

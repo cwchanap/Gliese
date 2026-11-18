@@ -9,6 +9,7 @@ import {
 	createInitialQuestState,
 	getCurrentObjective,
 	getStoryProgress,
+	questEventAdvanced,
 	takeNextQuestEffect,
 	type QuestEvent,
 	type QuestEventResult,
@@ -240,5 +241,33 @@ describe('quest core', () => {
 			objective: '炉端のモット爺と話す。',
 			progress: { label: 'モット爺と話した' }
 		});
+	});
+
+	it('reports via questEventAdvanced whether an event progressed or completed a quest', () => {
+		const initial = createInitialQuestState();
+		const noMatch = applyQuestEvent({
+			state: initial,
+			event: { type: 'talk-to-npc', npcId: 'borak' }
+		});
+		expect(questEventAdvanced(noMatch)).toBe(false);
+
+		const progressOnly = applyQuestEvent({
+			state: questStateAt('repel-the-soldiers'),
+			event: {
+				type: 'defeat-enemy',
+				mapId: 'overworld',
+				encounterId: 'raid-soldiers-lane',
+				enemyId: 'human-soldier',
+				sourceId: 'unit:0'
+			}
+		});
+		expect(questEventAdvanced(progressOnly)).toBe(true);
+
+		const completed = applyQuestEvent({
+			state: questStateAt('charge-the-captain'),
+			event: { type: 'lose-battle', enemyId: 'sun-crest-captain' }
+		});
+		expect(completed.completedQuestIds).toEqual(['prologue-raid']);
+		expect(questEventAdvanced(completed)).toBe(true);
 	});
 });

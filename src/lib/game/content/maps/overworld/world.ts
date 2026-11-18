@@ -59,19 +59,29 @@ export const overworld = compileGridWorld({
 /** Named points on the overworld, for transitions, spawns, and story placements. */
 export const overworldAnchors = overworld.anchors;
 
+const chunkIndexByTile = (() => {
+	const grid = new Int16Array(overworld.width * overworld.height).fill(-1);
+	for (let index = 0; index < overworld.chunks.length; index++) {
+		const chunk = overworld.chunks[index]!;
+		for (let row = chunk.row; row < chunk.row + chunk.height; row++) {
+			const rowOffset = row * overworld.width;
+			for (let col = chunk.col; col < chunk.col + chunk.width; col++) {
+				grid[rowOffset + col] = index;
+			}
+		}
+	}
+	return grid;
+})();
+
 /** The placed chunk covering a world-pixel point, or null for the open-sea fill. */
 export function overworldChunkAt(point: { x: number; y: number }): PlacedGridChunk | null {
 	const col = Math.floor(point.x / GRID_TILE_SIZE);
 	const row = Math.floor(point.y / GRID_TILE_SIZE);
-	return (
-		overworld.chunks.find(
-			(chunk) =>
-				col >= chunk.col &&
-				col < chunk.col + chunk.width &&
-				row >= chunk.row &&
-				row < chunk.row + chunk.height
-		) ?? null
-	);
+	if (col < 0 || col >= overworld.width || row < 0 || row >= overworld.height) {
+		return null;
+	}
+	const index = chunkIndexByTile[row * overworld.width + col]!;
+	return index >= 0 ? overworld.chunks[index]! : null;
 }
 
 /** The pixel centre of a named anchor. A typo throws instead of placing anything at 0,0. */

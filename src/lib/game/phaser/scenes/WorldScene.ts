@@ -125,6 +125,7 @@ import {
 	cloneQuestState,
 	createInitialQuestState,
 	getStoryProgress,
+	questEventAdvanced,
 	takeNextQuestEffect,
 	type QuestEvent,
 	type QuestRewardGrant,
@@ -160,7 +161,12 @@ import type { Direction } from '$lib/game/core/types';
 import { getItemText, getNpcText, getQuestText, getShopText } from '$lib/game/i18n/content';
 import { getActiveLocale, preferences } from '$lib/game/i18n/store';
 import { t, type MessageKey } from '$lib/game/i18n/translate';
-import { createNewSaveState, serializeSaveState, type SaveState } from '$lib/game/save/save-state';
+import {
+	createNewSaveState,
+	SAVE_STATE_VERSION,
+	serializeSaveState,
+	type SaveState
+} from '$lib/game/save/save-state';
 import { getPlaytimeSeconds } from '$lib/game/save/playtime';
 import { writeSaveSlot, type SaveSlotRecord } from '$lib/game/save/slots';
 import { flushSaveStorage } from '$lib/game/save/storage';
@@ -248,6 +254,8 @@ interface WorldSceneData {
 	saveState?: SaveState | null;
 	/** `null` keeps the field copy cleared (an omitted status resolves the reason default). */
 	status?: WorldSceneStatus | null;
+	/** Preserves an active story-scene hold across a story-gate scene restart. */
+	storySceneHold?: boolean;
 }
 
 type DirectionKey = {
@@ -671,7 +679,7 @@ export class WorldScene extends Phaser.Scene {
 		this.fledPackZone = 'awaiting-entry';
 		this.simulationPaused = false;
 		this.storyEffectRunning = false;
-		this.storySceneHold = false;
+		this.storySceneHold = data.storySceneHold ?? false;
 		this.storySceneIncarnation += 1;
 		this.storySceneInFlight = null;
 		this.storyRefreshPending = false;
@@ -834,17 +842,7 @@ export class WorldScene extends Phaser.Scene {
 		) {
 			this.events?.once?.('render', () => void this.writeAutosave(this.buildSaveState()));
 		}
-		// Battles complete quests outside applyQuestProgress; cue it once on the
-		// return. A scripted loss completes quests without a summary, so fall
-		// back to the completed-entry counts: quest completion only ever grows.
-		const completedQuestCount = (state: QuestState) =>
-			Object.values(state.entries).filter((entry) => entry?.status === 'completed').length;
-		const completedQuestsWithoutSummary =
-			battleApplication &&
-			data.saveState &&
-			completedQuestCount(battleApplication.saveState.quests) >
-				completedQuestCount(data.saveState.quests);
-		if (battleApplication?.summary?.completedQuestIds.length || completedQuestsWithoutSummary) {
+		if (battleApplication?.completedQuestIds.length) {
 			playSfx(this, 'quest-complete');
 		}
 		if (reason === 'story-move') {
@@ -1032,7 +1030,7 @@ export class WorldScene extends Phaser.Scene {
 			quests.pendingEffects.unshift({ ...this.storySceneInFlight.effect });
 		}
 		return {
-			version: 10,
+			version: SAVE_STATE_VERSION,
 			mapId: this.mapId,
 			player: {
 				level: this.playerProgress.level,
@@ -1252,11 +1250,17 @@ export class WorldScene extends Phaser.Scene {
 	}
 
 	/** Applies one quest event; true when the event actually advanced the quest. */
-	private applyQuestProgress(event: QuestEvent, fallbackStatus: WorldSceneStatus | null): boolean {
+	private applyQuestProgress(
+		event: QuestEvent,
+		fallbackStatus: WorldSceneStatus | null,
+		onEvaluated?: (advanced: boolean) => void
+	): boolean {
 		const result = applyQuestEvent({ state: this.quests, event });
+		const advanced = questEventAdvanced(result);
 		this.quests = result.state;
 		this.applyQuestRewards(result.rewards);
 		this.storyRefreshPending = true;
+		onEvaluated?.(advanced);
 
 		const completedGrant = result.rewards.find((grant) =>
 			result.completedQuestIds.includes(grant.questId)
@@ -1275,7 +1279,7 @@ export class WorldScene extends Phaser.Scene {
 				: fallbackStatus
 		);
 
-		return result.progressUpdates.length > 0 || result.completedQuestIds.length > 0;
+		return advanced;
 	}
 
 	private applyQuestRewards(rewards: QuestRewardGrant[]) {
@@ -1341,13 +1345,39 @@ export class WorldScene extends Phaser.Scene {
 				return;
 			case 'pause-game':
 				this.simulationPaused = true;
-				// Opening an overlay takes over the footer: drop the transient
-				// field copy (a non-mutating publish) so stale text like
-				// "Recovered HP" or "Saved" cannot leak into Save/System.
-				this.publishHudState(null);
+				// Opening an overlay takes over the footer: drop transient field
+				// copy (a non-mutating publish) so stale text like "Recovered HP"
+				// or "Saved" cannot leak into Save/System, while keeping an
+				// active story-scene hold notice visible.
+				if (this.storySceneHold) {
+					if (
+						!this.lastPublishedStatus ||
+						!('key' in this.lastPublishedStatus) ||
+						this.lastPublishedStatus.key !== 'status.storySceneFailed'
+					) {
+						this.publishHudState(this.statusMessage('status.storySceneFailed'));
+					}
+				} else {
+					this.publishHudState(null);
+				}
 				return;
 			case 'resume-game':
 				this.simulationPaused = false;
+				if (this.storySceneHold) {
+					if (
+						!this.lastPublishedStatus ||
+						!('key' in this.lastPublishedStatus) ||
+						this.lastPublishedStatus.key !== 'status.storySceneFailed'
+					) {
+						this.publishHudState(this.statusMessage('status.storySceneFailed'));
+					}
+				} else if (
+					this.currentNearbyNpcId &&
+					this.currentNearbyNpcStatus &&
+					this.lastPublishedStatus === null
+				) {
+					this.publishHudState(this.currentNearbyNpcStatus);
+				}
 				return;
 			case 'heal':
 				this.consumeHeal();
@@ -1380,6 +1410,9 @@ export class WorldScene extends Phaser.Scene {
 				this.advanceDialogueCommand();
 				return;
 			case 'dialogue-close':
+				if (this.dialogueSession && !this.dialogueSession.canClose) {
+					return;
+				}
 				this.storyDialogueSeq++;
 				this.dialogueSession = null;
 				this.publishHudState(null);
@@ -3491,16 +3524,15 @@ export class WorldScene extends Phaser.Scene {
 
 		// A queued scene failed to load: hold later effects (the terminal card
 		// must never run past a cue the player never saw) until a reload replays
-		// the preserved checkpoint. The world itself stays playable.
-		if (this.storySceneHold) {
-			return false;
-		}
-
-		const next = takeNextQuestEffect(this.quests);
-		if (next.effect) {
-			this.quests = next.state;
-			this.runQuestEffect(next.effect);
-			return true;
+		// the preserved checkpoint. Story-gate refreshes still run so new
+		// story-window overlays and NPCs render.
+		if (!this.storySceneHold) {
+			const next = takeNextQuestEffect(this.quests);
+			if (next.effect) {
+				this.quests = next.state;
+				this.runQuestEffect(next.effect);
+				return true;
+			}
 		}
 
 		if (this.storyRefreshPending) {
@@ -3509,7 +3541,8 @@ export class WorldScene extends Phaser.Scene {
 				this.scene.restart({
 					saveState: this.buildSaveState(),
 					reason: 'story',
-					status: this.lastPublishedStatus
+					status: this.lastPublishedStatus,
+					storySceneHold: this.storySceneHold
 				});
 				return true;
 			}
@@ -3529,13 +3562,20 @@ export class WorldScene extends Phaser.Scene {
 			// a queue missing the unseen cue.
 			this.storySceneInFlight = { effect, seq: requestSeq };
 			void this.playStoryScene(effect.sceneId, requestSeq)
-				.then((shown) => {
+				.then((outcome) => {
 					// A shutdown or re-create fenced this response (create() cleared
 					// the field): the re-created scene already owns the restored
 					// queue from its snapshot, so settling would duplicate the cue.
 					if (this.storySceneInFlight?.seq !== requestSeq) return;
 					this.storySceneInFlight = null;
-					if (!shown) {
+					if (outcome === 'cancelled') {
+						// Superseded before the prose arrived (for example, the player
+						// opened a shop): re-queue without holding or reporting an error
+						// so the scene plays once clear.
+						this.quests.pendingEffects.unshift(effect);
+						return;
+					}
+					if (outcome === 'failed') {
 						// The request failed: put the scene back and hold the queue so
 						// the marker behind it can't run and save past an unseen cue.
 						// The on-disk checkpoint still carries it, so Continue replays.
@@ -3615,19 +3655,22 @@ export class WorldScene extends Phaser.Scene {
 		emitPrologueEnd({ success: saved });
 	}
 
-	/** Shows a story scene as a system dialogue once its prose arrives; true once shown. */
-	private async playStoryScene(sceneId: string, requestSeq: number): Promise<boolean> {
+	/** Shows a story scene as a system dialogue once its prose arrives. */
+	private async playStoryScene(
+		sceneId: string,
+		requestSeq: number
+	): Promise<'shown' | 'cancelled' | 'failed'> {
 		try {
 			const session = await getStoryScene({ sceneId, locale: this.getLocale() });
-			if (this.storyDialogueSeq !== requestSeq) return false;
+			if (this.storyDialogueSeq !== requestSeq) return 'cancelled';
 			this.dialogueSession = session;
 			const cue = sceneSfx[sceneId];
 			if (cue) playSfx(this, cue);
 			this.publishHudState(this.statusMessage('status.dialogueUpdated'));
-			return true;
+			return 'shown';
 		} catch (error) {
 			console.error('[story] story scene failed for scene=%s:', sceneId, error);
-			return false;
+			return this.storyDialogueSeq !== requestSeq ? 'cancelled' : 'failed';
 		}
 	}
 
@@ -3695,16 +3738,17 @@ export class WorldScene extends Phaser.Scene {
 			// Talking is what a talk objective counts, so the line the player reads
 			// is the one written for the objective it completes. A talk that
 			// advances the quest is a story beat: it cannot be closed or skipped.
-			const advanced = this.applyQuestProgress(
+			this.applyQuestProgress(
 				{ type: 'talk-to-npc', npcId: nearbyNpc.dialogueId },
 				this.statusMessage('status.npcNearby', {
 					npcName: { npcId: nearbyNpc.id, fallback: nearbyNpc.name }
-				})
+				}),
+				(advanced) => {
+					if (advanced && this.dialogueSession === session) {
+						session.canClose = false;
+					}
+				}
 			);
-			if (advanced && this.dialogueSession === session) {
-				session.canClose = false;
-				this.publishHudState(this.lastPublishedStatus);
-			}
 			void this.writeAutosave(this.buildSaveState());
 		} catch (error) {
 			console.error(

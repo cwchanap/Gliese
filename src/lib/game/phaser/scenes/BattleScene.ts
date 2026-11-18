@@ -705,12 +705,11 @@ export class BattleScene extends Phaser.Scene {
 		playSfx(this, outcome === 'fled' ? 'flee' : outcome);
 
 		const application = applyBattleResultToSaveState(this.payload.saveState, this.pendingResult);
-		this.appliedSaveState = application.saveState;
 
 		// Fleeing and a story-scripted defeat never carry a summary: hand the
 		// result straight back to the field exactly once — with flee-grace
 		// metadata only for a genuine flee — and let the field take over.
-		if (outcome === 'fled' || application.summary === null) {
+		if (application.summary === null) {
 			this.scene.start(WorldScene.key, {
 				saveState: this.payload.saveState,
 				reason: 'battle-result',
@@ -722,8 +721,9 @@ export class BattleScene extends Phaser.Scene {
 			return;
 		}
 
+		this.appliedSaveState = application.saveState;
 		this.publishHudState(
-			this.getBattleSummaryStatus(outcome),
+			this.getBattleSummaryStatus(application.summary.outcome),
 			application.summary,
 			application.saveState
 		);
