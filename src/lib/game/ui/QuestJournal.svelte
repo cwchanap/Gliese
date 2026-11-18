@@ -150,18 +150,21 @@
 	const chapterProgress = $derived.by(() => {
 		const main = quests.main;
 		const total = quests.total > 0 ? quests.total : mainQuestIds.length;
-		const currentIndex = main ? mainQuestIds.indexOf(main.questId) : total;
+		const currentIndex = main ? mainQuestIds.indexOf(main.questId) : -1;
+		// A row is done only when the HUD reports its quest completed: with no
+		// active main quest the chain can't assume every earlier quest finished
+		// (a hand-edited or corrupted save can load that state).
+		const completedIds = new Set(quests.completed.map((entry) => entry.questId));
 		return {
 			percent: total > 0 ? Math.round((quests.completed.length / total) * 100) : 0,
 			rows: mainQuestIds.map((questId, index) => ({
 				id: questId,
 				label: getQuestText($locale, questId)?.title ?? questId,
-				state:
-					index < currentIndex
-						? ('done' as const)
-						: index === currentIndex
-							? ('current' as const)
-							: ('pending' as const),
+				state: completedIds.has(questId)
+					? ('done' as const)
+					: index === currentIndex
+						? ('current' as const)
+						: ('pending' as const),
 				count:
 					main && index === currentIndex && main.status !== 'completed'
 						? (`${main.progress.current} / ${main.progress.target}` as const)

@@ -8431,6 +8431,71 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('drops the prologue-end signal when the terminal save settles after shutdown', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		const storage = await import('$lib/game/save/storage');
+		const memoryStorage = createSlotCaptureStorage();
+		storage.setSaveStorage(memoryStorage);
+		const { scene, sceneState } = await createPrologueEndScene();
+
+		try {
+			scene.update(0, 16);
+			await flushStoryDialogue();
+			closeStoryDialogue(sceneState);
+			scene.update(16, 16);
+
+			// The terminal write is in flight when teardown lands — the same
+			// window a return-to-title hits while the adapter flush pends.
+			scene.events.emit('shutdown');
+			// A macrotask drains the whole write chain: the stale continuation
+			// must resolve without announcing the card over a dead run.
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(emitPrologueEndSpy).not.toHaveBeenCalled();
+		} finally {
+			emitPrologueEndSpy.mockRestore();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
+	it('drops the prologue-end signal when the terminal save settles after a re-create', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		const storage = await import('$lib/game/save/storage');
+		const memoryStorage = createSlotCaptureStorage();
+		storage.setSaveStorage(memoryStorage);
+		const { scene, sceneState } = await createPrologueEndScene();
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+
+		try {
+			scene.update(0, 16);
+			await flushStoryDialogue();
+			closeStoryDialogue(sceneState);
+			scene.update(16, 16);
+
+			// Teardown plus a fresh run's create() land while the old run's
+			// write is still in flight. The re-created scene clears the
+			// shutdown flag, so only the incarnation fence can drop the stale
+			// completion — its emit must never flash the card over the new run.
+			scene.events.emit('shutdown');
+			scene.create({
+				saveState: {
+					...createNewSaveState(),
+					mapId: 'overworld',
+					quests: questStateAt('report-boar-king')
+				}
+			});
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(emitPrologueEndSpy).not.toHaveBeenCalled();
+		} finally {
+			emitPrologueEndSpy.mockRestore();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
 	it('fences late story responses after shutdown: no dialogue, no HUD publish, and the guard resets on create', async () => {
 		const storyClient = await import('$lib/game/story/client');
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
