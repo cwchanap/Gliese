@@ -3606,7 +3606,12 @@ export class WorldScene extends Phaser.Scene {
 	 * world stays frozen behind the card until the shell tears this scene down.
 	 */
 	private async completePrologueEnd() {
+		// Same fence as the story-scene continuations: the write outlives a
+		// teardown, so its result must only reach the shell while this run —
+		// not a re-created scene or a dead one — still owns the card.
+		const requestIncarnation = this.storySceneIncarnation;
 		const saved = await this.writeAutosave(this.buildSaveState());
+		if (this.sceneShutDown || this.storySceneIncarnation !== requestIncarnation) return;
 		emitPrologueEnd({ success: saved });
 	}
 

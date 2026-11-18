@@ -2404,6 +2404,39 @@ describe('GameShell heroic quest journal', () => {
 				.filter((row) => row.classList.contains('quest-chapter-row-current'))
 		).toHaveLength(0);
 	});
+
+	it('marks checklist rows done only for quests the HUD reports completed when no main quest is active', async () => {
+		// The save validator accepts a state with no active main quest; a
+		// hand-edited save can load one with fewer than seven completions.
+		// Rows must mirror the completed set, not the absent chain position.
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				quests: {
+					main: null,
+					completed: [mockCompletedQuest({ questId: 'prologue-proving-morning' })],
+					total: 7
+				}
+			})
+		);
+
+		const questDialog = await openQuestLog();
+		const rows = questDialog.getByTestId('quest-progress-row').elements();
+		expect(rows).toHaveLength(7);
+		expect(rows.map((row) => row.classList.contains('quest-chapter-row-done'))).toEqual([
+			true,
+			false,
+			false,
+			false,
+			false,
+			false,
+			false
+		]);
+		expect(rows.filter((row) => row.classList.contains('quest-chapter-row-current'))).toHaveLength(
+			0
+		);
+		await expect.element(questDialog.getByText('14%')).toBeVisible();
+	});
 });
 
 describe('GameShell area map', () => {

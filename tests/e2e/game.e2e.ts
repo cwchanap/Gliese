@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
 	continueFromTitle,
+	continueFromTitlePicker,
 	readSlotEnvelope,
 	saveThroughSaveScreen,
 	seedSaveSlots,
@@ -14881,9 +14882,10 @@ test('a seeded near-end saved run finishes the prologue and Continue restores th
 	await expect(endCard).toHaveCount(0);
 	await expect(page.getByRole('button', { name: /continue/i })).toContainText('Wildwood');
 
-	// Continue loads the finished run: the ridge coordinates are restored, the
-	// card does not replay, and the tracker reads Prologue complete.
-	await continueFromTitle(page);
+	// Continue loads the finished run on the same page — no reload, so stale
+	// teardown state would still be there to fail — restoring the ridge
+	// coordinates without replaying the card.
+	await continueFromTitlePicker(page);
 	await page.waitForFunction(
 		(target) => {
 			const state = (window as GlieseProbeWindow).__glieseLastHudState;

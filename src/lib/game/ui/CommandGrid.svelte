@@ -128,12 +128,14 @@
 			></span>
 			<span class="heroic-cmd-label">{t($locale, `ui.fieldCmds.${command}`)}</span>
 		</button>
-		{#if healExplanation}
-			<!-- Outside the button: sr-only text inside it would join the
-				accessible name instead of staying the description. -->
-			<span id="field-cmd-heal-unavailable" class="sr-only">{healExplanation}</span>
-		{/if}
 	{/each}
+	{#if !enabled.rest && healUnavailable}
+		<!-- Visible copy, not sr-only: a disabled tile cannot take focus or
+			show its title tooltip, so hidden text would reach nobody. The
+			span sits outside the button so it stays the description, not the
+			accessible name. -->
+		<span id="field-cmd-heal-unavailable" class="heroic-cmd-note">{healUnavailable}</span>
+	{/if}
 </div>
 
 <style>
@@ -243,6 +245,18 @@
 	.heroic-cmd-disabled {
 		cursor: not-allowed;
 		opacity: 0.42;
+	}
+
+	/* Disabled-Heal explanation: full-width footer row under the tiles. */
+	.heroic-cmd-note {
+		grid-column: 1 / -1;
+		color: var(--color-muted);
+		font-family: var(--font-display);
+		font-size: 0.6rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-align: center;
+		text-transform: uppercase;
 	}
 
 	/* Narrow screens: compact 2×4 menu hugging the left edge of the row the

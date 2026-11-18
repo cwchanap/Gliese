@@ -45,6 +45,15 @@ export async function startNewRunThroughOpening(page: Page) {
 /** Boots through the Title screen: Continue opens the Load picker, then resumes the first occupied slot. */
 export async function continueFromTitle(page: Page) {
 	await page.goto('/');
+	await continueFromTitlePicker(page);
+}
+
+/**
+ * The picker half of Continue, for a Title screen that is already rendered:
+ * same-page returns (e.g. dismissing the completion card) must not reload
+ * the document, which would clear the state the test is there to exercise.
+ */
+export async function continueFromTitlePicker(page: Page) {
 	await page.getByRole('button', { name: /Continue/i }).click();
 	const loadDialog = page.getByRole('dialog', { name: /load/i });
 	await expect(loadDialog).toBeVisible();
