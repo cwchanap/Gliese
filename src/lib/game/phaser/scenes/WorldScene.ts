@@ -3486,17 +3486,13 @@ export class WorldScene extends Phaser.Scene {
 
 	private readDiscovery(discovery: MapDiscovery) {
 		const locale = this.getLocale();
-		const requestSeq = ++this.storyDialogueSeq;
+		this.storyDialogueSeq++;
 		if (discovery.sceneId) {
-			// Hold queued effects until the scene arrives, so they play after it.
-			this.storyEffectRunning = true;
-			const requestIncarnation = this.storySceneIncarnation;
-			void this.playStoryScene(discovery.sceneId, requestSeq).finally(() => {
-				// Same fence as runQuestEffect: a stale response from a shut-down
-				// incarnation must not release the re-created scene's hold.
-				if (this.storySceneIncarnation !== requestIncarnation) return;
-				this.storyEffectRunning = false;
-			});
+			// The discovery's own scene queues ahead of whatever this inspection
+			// unlocks, so a failed fetch takes the same hold-and-replay path as
+			// any queued play-scene effect: later cues wait behind it and the
+			// checkpoint still carries it for Continue to replay.
+			this.quests.pendingEffects.unshift({ type: 'play-scene', sceneId: discovery.sceneId });
 		} else if (discovery.descriptionKey) {
 			this.dialogueSession = buildDialogueFallback(
 				t(locale, discovery.labelKey),

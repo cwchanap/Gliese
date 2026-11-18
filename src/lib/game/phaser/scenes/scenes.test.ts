@@ -8309,6 +8309,123 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('holds the cues the ridge inspection unlocks when its scene fails, and replays the ridge cue after reload', async () => {
+		const slots = await import('$lib/game/save/slots');
+		const storyClient = await import('$lib/game/story/client');
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitPrologueEndSpy = vi.spyOn(events, 'emitPrologueEnd');
+		const storage = await import('$lib/game/save/storage');
+		const memoryStorage = createSlotCaptureStorage();
+		storage.setSaveStorage(memoryStorage);
+
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			dialogueSession: unknown;
+			quests: { pendingEffects: unknown[] };
+			storyEffectRunning: boolean;
+			storySceneHold: boolean;
+		};
+
+		// The cues inspecting the ridge queues behind its own scene.
+		const unlockedCues = [
+			{ type: 'play-scene', sceneId: 'prologue.the-vow' },
+			{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+			{ type: 'show-prologue-end' }
+		];
+		const ridgeCue = { type: 'play-scene', sceneId: 'prologue.ridge-overlook' };
+		const discovery = (overworldMap.discoveries ?? []).find(
+			(candidate) => candidate.id === 'ridge-overlook'
+		);
+		expect(discovery).toBeDefined();
+
+		// Only the ridge scene rejects; the unlocked scenes still load.
+		storyClientMock.getStoryScene.mockRejectedValueOnce(new Error('story service unavailable'));
+
+		scene.create({
+			saveState: {
+				...createNewSaveState(),
+				mapId: 'overworld',
+				quests: { ...questStateAt('climb-to-the-ridge') }
+			}
+		});
+		memoryStorage.setItem.mockClear();
+
+		try {
+			Object.assign(phaserState.playerMarker, { x: discovery!.x, y: discovery!.y });
+			phaserState.interactKeys.e.justDown = true;
+			scene.update(0, 16);
+
+			// The inspection completes climb-to-the-ridge and checkpoints the
+			// ridge cue ahead of every cue it unlocked.
+			await vi.waitFor(() => expect(memoryStorage.setItem).toHaveBeenCalledTimes(1));
+			const checkpoint = slots.loadSaveSlots(memoryStorage).slots[0];
+			expect(checkpoint?.state.quests.pendingEffects).toEqual([ridgeCue, ...unlockedCues]);
+			expect(checkpoint?.state.seenDiscoveries).toContain('ridge-overlook');
+
+			// The ridge request pops and rejects: the unlocked cues stay queued
+			// behind it, the hold status shows, and no card or terminal write runs.
+			scene.update(16, 16);
+			await vi.waitFor(() => expect(sceneState.storyEffectRunning).toBe(false));
+			expect(sceneState.storySceneHold).toBe(true);
+			expect(sceneState.dialogueSession).toBeNull();
+			expect(emitPrologueEndSpy).not.toHaveBeenCalled();
+			expect(sceneState.quests.pendingEffects).toEqual([ridgeCue, ...unlockedCues]);
+			expect(memoryStorage.setItem).toHaveBeenCalledTimes(1);
+
+			// Later frames keep holding: a story-gate restart preserves the cue,
+			// and the on-disk checkpoint never loses it either.
+			scene.update(32, 16);
+			await flushStoryDialogue();
+			expect(emitPrologueEndSpy).not.toHaveBeenCalled();
+			expect(memoryStorage.setItem).toHaveBeenCalledTimes(1);
+			expect(scene.scene.restart).toHaveBeenCalledWith(
+				expect.objectContaining({ reason: 'story', storySceneHold: true })
+			);
+			expect(slots.loadSaveSlots(memoryStorage).slots[0]?.state.quests.pendingEffects).toEqual([
+				ridgeCue,
+				...unlockedCues
+			]);
+
+			// Continue replays the preserved checkpoint: the ridge scene loads this
+			// time, then the unlocked cues run on to the end card.
+			const reloaded = slots.loadSaveSlots(memoryStorage).slots[0];
+			const replay = new WorldScene();
+			const replayState = replay as unknown as {
+				dialogueSession: unknown;
+				quests: { pendingEffects: unknown[] };
+				handleHudCommand: (command: HudCommand) => void;
+			};
+			replay.create({ saveState: reloaded!.state });
+			replay.update(0, 16);
+			await flushStoryDialogue();
+			expect(storyClient.getStoryScene).toHaveBeenCalledWith(
+				expect.objectContaining({ sceneId: 'prologue.ridge-overlook' })
+			);
+			expect(replayState.dialogueSession).toBeTruthy();
+
+			closeStoryDialogue(replayState);
+			replay.update(16, 16);
+			await flushStoryDialogue();
+			expect(replayState.dialogueSession).toBeTruthy();
+			closeStoryDialogue(replayState);
+			replay.update(32, 16);
+			await flushStoryDialogue();
+			expect(replayState.dialogueSession).toBeTruthy();
+			closeStoryDialogue(replayState);
+			replay.update(48, 16);
+
+			await vi.waitFor(() => expect(emitPrologueEndSpy).toHaveBeenCalledWith({ success: true }));
+			expect(replayState.quests.pendingEffects).toEqual([]);
+		} finally {
+			emitPrologueEndSpy.mockRestore();
+			vi.mocked(storyClient.getStoryScene).mockClear();
+			storage.setSaveStorage(undefined);
+		}
+	});
+
 	it('consumes a shown chapter-one scene exactly once even when an autosave landed during its request', async () => {
 		const slots = await import('$lib/game/save/slots');
 		const storyClient = await import('$lib/game/story/client');
