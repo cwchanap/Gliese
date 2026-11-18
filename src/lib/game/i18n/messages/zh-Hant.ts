@@ -236,6 +236,7 @@ export const zhHant = {
 		saved: '已存檔',
 		savedWithoutThumbnail: '已存檔（無預覽圖）',
 		saveFailed: '無法存檔',
+		storySceneFailed: '劇情無法載入',
 		saveResumed: '已讀取存檔',
 		enteredArea: '已進入區域',
 		newRun: '新旅程',

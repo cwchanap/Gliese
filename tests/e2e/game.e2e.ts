@@ -47,7 +47,7 @@ type HudStateSnapshot = {
 	status?: string;
 	heroOccluded?: boolean;
 	areaMap?: { player?: { x?: number; y?: number } };
-	dialogue?: unknown;
+	dialogue?: { id?: string; lineIndex?: number } | null;
 	battle?: unknown;
 	nearbyShop?: { shopId?: string; merchantName?: string } | null;
 	wallet?: { coins?: number };
@@ -14834,23 +14834,30 @@ test('a seeded near-end saved run finishes the prologue and Continue restores th
 	await page.keyboard.press('e', { delay: 50 });
 	const anyDialog = page.getByRole('dialog');
 	const endCard = page.getByRole('dialog', { name: 'End of the Prologue' });
-	for (let advance = 0; advance < 80; advance += 1) {
-		if ((await endCard.count()) > 0) break;
-		const hud = await page.evaluate(
-			() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
-		);
-		if (!hud?.dialogue) {
-			await page.waitForTimeout(300);
-			continue;
-		}
+	// Drive every line to the completion card, synchronized on the HUD
+	// dialogue state instead of fixed sleeps: each pass performs at most one
+	// advance, and only once the previous one has landed (the line id/index
+	// moved, the session closed, or the card appeared).
+	let lastDialogueKey: string | null = null;
+	await expect(async () => {
+		if ((await endCard.count()) > 0) return;
+		const key = await page.evaluate(() => {
+			const state = (window as GlieseProbeWindow).__glieseLastHudState;
+			return state?.dialogue ? `${state.dialogue.id}:${state.dialogue.lineIndex}` : null;
+		});
+		if (key === null) throw new Error('final dialogue not open yet');
+		if (key === lastDialogueKey) throw new Error('previous advance has not landed yet');
+		lastDialogueKey = key;
 		const next = anyDialog.getByRole('button', { name: 'Next' });
 		if ((await next.count()) > 0) {
 			await next.click();
 		} else {
 			await page.keyboard.press('Enter');
 		}
-		await page.waitForTimeout(200);
-	}
+		// One advance per pass: keep retrying until the early return above
+		// sees the completion card.
+		throw new Error('advanced a line; driving until the completion card');
+	}).toPass({ timeout: 60_000 });
 	await expect(endCard).toBeVisible({ timeout: 30_000 });
 
 	// No gameplay behind the card: the field HUD (and its Menu chip) is gone.

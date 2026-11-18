@@ -5670,6 +5670,33 @@ describe('GameShell prologue end card and return to title', () => {
 		expect(endCard().elements()).toHaveLength(0);
 	});
 
+	it('describes the card for screen readers: heading named, dismiss hint described', async () => {
+		await bootPlaying();
+
+		emitPrologueEnd({ success: true });
+		const card = endCard();
+		await expect.element(card).toBeVisible();
+		const surface = card.elements()[0] as HTMLElement;
+		expect(surface.getAttribute('aria-labelledby')).toBe('prologue-end-heading');
+		// The dismiss hint is a described-by reference, so it is read with the
+		// dialog name instead of only being visible text.
+		expect(surface.getAttribute('aria-describedby')?.split(' ')).toEqual(['prologue-end-hint']);
+		expect(document.getElementById('prologue-end-heading')).not.toBeNull();
+		expect(document.getElementById('prologue-end-hint')).not.toBeNull();
+	});
+
+	it('announces a failed terminal save through the described-by warning', async () => {
+		await bootPlaying();
+
+		emitPrologueEnd({ success: false });
+		const card = endCard();
+		await expect.element(card).toBeVisible();
+		await expect.element(page.getByText('Could not save')).toBeVisible();
+		const failed = (card.elements()[0] as HTMLElement).getAttribute('aria-describedby') ?? '';
+		expect(failed.split(' ')).toEqual(['prologue-end-warning', 'prologue-end-hint']);
+		expect(document.getElementById('prologue-end-warning')).not.toBeNull();
+	});
+
 	it('Continue from the refreshed Title loads the finished run without repeating the card', async () => {
 		const createGameMock = vi.mocked(createGame);
 		writeSaveSlot(0, {

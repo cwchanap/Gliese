@@ -237,6 +237,7 @@ export const ja = {
 		saved: 'セーブした',
 		savedWithoutThumbnail: 'プレビュー画像なしでセーブしました',
 		saveFailed: 'セーブできませんでした',
+		storySceneFailed: 'ストーリーを読み込めませんでした',
 		saveResumed: 'セーブを再開した',
 		enteredArea: 'エリアに入った',
 		newRun: '新しい冒険',

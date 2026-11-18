@@ -1349,6 +1349,9 @@
 				role="dialog"
 				aria-modal="true"
 				aria-labelledby="prologue-end-heading"
+				aria-describedby={prologueEnd.success
+					? 'prologue-end-hint'
+					: 'prologue-end-warning prologue-end-hint'}
 				tabindex="-1"
 				bind:this={prologueEndCard}
 				onclick={dismissPrologueEnd}
@@ -1368,9 +1371,13 @@
 					</h2>
 					<p class="prologue-end-thanks font-display">{t($locale, 'ui.prologueEndThanks')}</p>
 					{#if !prologueEnd.success}
-						<p class="prologue-end-warning">{t($locale, 'status.saveFailed')}</p>
+						<p id="prologue-end-warning" class="prologue-end-warning">
+							{t($locale, 'status.saveFailed')}
+						</p>
 					{/if}
-					<p class="prologue-end-hint">{t($locale, 'ui.prologueEndDismiss')}</p>
+					<p id="prologue-end-hint" class="prologue-end-hint">
+						{t($locale, 'ui.prologueEndDismiss')}
+					</p>
 				</div>
 			</div>
 		{/if}
