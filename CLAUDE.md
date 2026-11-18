@@ -212,7 +212,7 @@ a walkable graybox first.
   builds) migrates into the autosave slot. Manual saves additionally await the Tauri disk
   flush and report `status.saveFailed` when the file write fails.
   Each slot's `state` payload is a `SaveState` whose `version` field
-  (currently `10`) tracks the schema; bump it and update `isSaveState` in
+  (currently `11`) tracks the schema; bump it and update `isSaveState` in
   `save/save-state.ts` whenever `SaveState` changes shape.
 
 ### Overworld grid maps

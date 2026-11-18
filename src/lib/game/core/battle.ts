@@ -7,9 +7,11 @@ import { applyExperienceGain } from '$lib/game/core/progression';
 import {
 	applyQuestEvent,
 	getCurrentObjective,
+	questEventAdvanced,
 	type QuestProgressUpdate,
 	type QuestRewardGrant
 } from '$lib/game/core/quests';
+import type { QuestId } from '$lib/game/content/quests';
 import { deriveEffectiveStats, getHeroBaseStats } from '$lib/game/core/stats';
 import { normalizePlayerPosition, type SaveState } from '$lib/game/save/save-state';
 
@@ -86,6 +88,7 @@ export type BattleSummary = {
 export type BattleApplication = {
 	saveState: SaveState;
 	summary: BattleSummary | null;
+	completedQuestIds: QuestId[];
 };
 
 export function rollBattleEnemyCount(random: () => number = Math.random): number {
@@ -190,7 +193,7 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 	);
 	let quests = saveState.quests;
 	const questRewards: QuestRewardGrant[] = [];
-	const completedQuestIds: string[] = [];
+	const completedQuestIds: QuestId[] = [];
 	const allProgressUpdates: QuestProgressUpdate[] = [];
 
 	for (const unit of defeatedUnits) {
@@ -286,8 +289,11 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 	}
 	const questProgress = Array.from(questProgressMap.values());
 
+	const uniqueCompletedQuestIds = Array.from(new Set(completedQuestIds));
+
 	return {
 		saveState: nextSaveState,
+		completedQuestIds: uniqueCompletedQuestIds,
 		summary: {
 			outcome: 'victory',
 			enemiesDefeated: defeatedUnits.length,
@@ -295,7 +301,7 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 			coinsGained: coinsGained + questRewardCoins,
 			drops: combinedDrops,
 			leveledUp: progression.level > previousLevel,
-			completedQuestIds: Array.from(new Set(completedQuestIds)),
+			completedQuestIds: uniqueCompletedQuestIds,
 			questRewards,
 			questProgress
 		}
@@ -312,6 +318,7 @@ function applyBattleFled(saveState: SaveState, result: BattleResult): BattleAppl
 			},
 			inventory: result.inventory
 		},
+		completedQuestIds: [],
 		summary: null
 	};
 }
@@ -344,8 +351,7 @@ function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleAp
 	// A fall that actually completes its `lose-battle` objective is the story's
 	// own beat: no summary — the queued scene takes over directly. Any other
 	// defeat keeps the standard summary.
-	const scriptedLoss =
-		questResult.progressUpdates.length > 0 || questResult.completedQuestIds.length > 0;
+	const scriptedLoss = questEventAdvanced(questResult);
 	const wake = getCurrentObjective(questResult.state)?.respawn ?? {
 		mapId: shrine.id,
 		...shrine.spawn,
@@ -370,6 +376,7 @@ function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleAp
 			inventory,
 			quests: questResult.state
 		},
+		completedQuestIds: questResult.completedQuestIds,
 		summary: scriptedLoss
 			? null
 			: {

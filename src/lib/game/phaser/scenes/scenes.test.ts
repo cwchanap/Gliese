@@ -8208,6 +8208,107 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('requeues a superseded quest scene without holding or failing when a shop opens mid-load', async () => {
+		const storyClient = await import('$lib/game/story/client');
+		const { createDialogueSession } = await import('$lib/game/core/dialogue');
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+
+		let resolveCancelled: (session: unknown) => void = () => {};
+		vi.mocked(storyClient.getStoryScene)
+			.mockImplementationOnce(
+				() =>
+					new Promise((resolve) => {
+						resolveCancelled = resolve as (session: unknown) => void;
+					})
+			)
+			.mockResolvedValueOnce(
+				createDialogueSession({
+					id: 'prologue.chapter-one',
+					lines: [{ speaker: 'Narrator', text: 'Chapter One: The Hunt.' }],
+					mode: 'system'
+				})
+			);
+
+		const { scene, sceneState } = await createPrologueEndScene();
+		const typedState = sceneState as unknown as {
+			nearbyShopId: string | null;
+			openShopId: string | null;
+			lastPublishedStatus: unknown;
+		};
+		typedState.nearbyShopId = 'sundrop-forge';
+		try {
+			scene.update(0, 16);
+			await flushStoryDialogue();
+
+			// Player opens the nearby shop before the scene request settles.
+			sceneState.handleHudCommand({ type: 'open-shop', shopId: 'sundrop-forge' });
+			expect(typedState.openShopId).toBe('sundrop-forge');
+
+			resolveCancelled(
+				createDialogueSession({
+					id: 'prologue.chapter-one',
+					lines: [{ speaker: 'Narrator', text: 'Late arrival.' }],
+					mode: 'system'
+				})
+			);
+			await flushStoryDialogue();
+
+			// Superseded request puts the cue back without holding or failing.
+			expect(sceneState.storySceneHold).toBe(false);
+			expect(sceneState.quests.pendingEffects).toEqual([
+				{ type: 'play-scene', sceneId: 'prologue.chapter-one' },
+				{ type: 'show-prologue-end' }
+			]);
+			expect(typedState.lastPublishedStatus).not.toEqual({
+				key: 'status.storySceneFailed',
+				params: {}
+			});
+
+			// Closing the shop lets the re-queued scene play normally.
+			sceneState.handleHudCommand({ type: 'close-shop' });
+			scene.update(16, 16);
+			await flushStoryDialogue();
+			expect(sceneState.dialogueSession).toBeTruthy();
+			expect(sceneState.storySceneHold).toBe(false);
+		} finally {
+			emitHudStateSpy.mockRestore();
+			vi.mocked(storyClient.getStoryScene).mockClear();
+		}
+	});
+
+	it('still runs story-gate refreshes while storySceneHold is active and preserves the hold', async () => {
+		const storyClient = await import('$lib/game/story/client');
+		vi.mocked(storyClient.getStoryScene).mockRejectedValueOnce(
+			new Error('story service unavailable')
+		);
+
+		const { scene, sceneState } = await createPrologueEndScene();
+		const typedState = sceneState as unknown as {
+			storyRefreshPending: boolean;
+			storyGateKey: string;
+		};
+		try {
+			scene.update(0, 16);
+			await vi.waitFor(() => expect(sceneState.storyEffectRunning).toBe(false));
+			expect(sceneState.storySceneHold).toBe(true);
+
+			typedState.storyRefreshPending = true;
+			typedState.storyGateKey = 'stale';
+			scene.update(16, 16);
+
+			expect(scene.scene.restart).toHaveBeenCalledWith(
+				expect.objectContaining({
+					reason: 'story',
+					storySceneHold: true,
+					status: { key: 'status.storySceneFailed', params: {} }
+				})
+			);
+		} finally {
+			vi.mocked(storyClient.getStoryScene).mockClear();
+		}
+	});
+
 	it('consumes a shown chapter-one scene exactly once even when an autosave landed during its request', async () => {
 		const slots = await import('$lib/game/save/slots');
 		const storyClient = await import('$lib/game/story/client');
@@ -10252,6 +10353,43 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(expect.objectContaining({ status: '' }));
 	});
 
+	it('restores the nearby NPC prompt on resume-game and keeps storySceneFailed across pause/resume', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			storySceneHold: boolean;
+		};
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, borakApproach);
+		scene.update(0, 16);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Borak nearby' })
+		);
+
+		sceneState.handleHudCommand({ type: 'pause-game' });
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(expect.objectContaining({ status: '' }));
+
+		sceneState.handleHudCommand({ type: 'resume-game' });
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Borak nearby' })
+		);
+
+		// When a story scene hold is active, pause-game must not silence the notice.
+		sceneState.storySceneHold = true;
+		sceneState.handleHudCommand({ type: 'pause-game' });
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Story could not load' })
+		);
+		sceneState.handleHudCommand({ type: 'resume-game' });
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Story could not load' })
+		);
+	});
+
 	it('clears the field status instead of publishing a Dialogue closed toast', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
@@ -10656,6 +10794,13 @@ describe('WorldScene', () => {
 				dialogue: expect.objectContaining({ mode: 'system', canClose: false })
 			})
 		);
+
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: unknown;
+		};
+		sceneState.handleHudCommand({ type: 'dialogue-close' });
+		expect(sceneState.dialogueSession).not.toBeNull();
 	});
 
 	it('falls back to noDialogueAvailable when story dialogue rejects', async () => {
@@ -11258,8 +11403,11 @@ describe('WorldScene', () => {
 			'collect-practice-spear'
 		);
 
-		// With the objective done, the same counter position gets the everyday shop branch.
-		sceneState.handleHudCommand({ type: 'dialogue-close' });
+		// With the objective done, advancing through Oren's 5 protected lines ends
+		// the story talk, and the same counter position gets the everyday shop branch.
+		for (let line = 0; line < 5; line += 1) {
+			sceneState.handleHudCommand({ type: 'dialogue-advance' });
+		}
 		phaserState.interactKeys.e.justDown = true;
 		scene.update(elapsed + 32, 16);
 		await flushStoryDialogue();

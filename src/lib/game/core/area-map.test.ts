@@ -79,6 +79,8 @@ describe('built-region names', () => {
 		expect(getAreaName('en', 'overworld', openSeaPoint)).toBe('The Wilds');
 		expect(getRegionId('overworld', elvenWoodPoint)).toBe('elven-wood');
 		expect(getRegionId('overworld', openSeaPoint)).toBe('overworld');
+		expect(getRegionId('overworld', { x: -32, y: -32 })).toBe('overworld');
+		expect(getRegionId('overworld', { x: 400 * 32, y: 400 * 32 })).toBe('overworld');
 	});
 
 	it('keeps interior names even when a point is passed', () => {

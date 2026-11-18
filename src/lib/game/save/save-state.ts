@@ -48,8 +48,10 @@ import {
 	type QuestEffect
 } from '$lib/game/content/quests';
 
+export const SAVE_STATE_VERSION = 11 as const;
+
 export type SaveState = {
-	version: 10;
+	version: typeof SAVE_STATE_VERSION;
 	mapId: string;
 	player: {
 		level: number;
@@ -94,7 +96,7 @@ export const NORMALIZE_TRANSITION_RADIUS = 18;
 /** A new run wakes Grik in his own house on the morning of his proving hunt. */
 export function createNewSaveState(): SaveState {
 	return {
-		version: 10,
+		version: SAVE_STATE_VERSION,
 		mapId: homeBedside.mapId,
 		player: {
 			level: 1,
@@ -168,7 +170,7 @@ function isSaveState(value: unknown): value is SaveState {
 	// Version and isSaveState must move in lockstep on every schema change. Bumping
 	// version without updating isSaveState lets old-shape payloads pass validation.
 	if (
-		version !== 10 ||
+		version !== SAVE_STATE_VERSION ||
 		typeof mapId !== 'string' ||
 		!isRecord(player) ||
 		!isRecord(flags) ||

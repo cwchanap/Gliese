@@ -69,6 +69,13 @@ export type QuestEventResult = {
 	progressUpdates: QuestProgressUpdate[];
 };
 
+/** True when a quest event advanced progress or completed a quest. */
+export function questEventAdvanced(
+	result: Pick<QuestEventResult, 'progressUpdates' | 'completedQuestIds'>
+): boolean {
+	return result.progressUpdates.length > 0 || result.completedQuestIds.length > 0;
+}
+
 export type HudQuestEntry = {
 	questId: QuestId;
 	title: string;

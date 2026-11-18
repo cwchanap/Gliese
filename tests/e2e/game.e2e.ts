@@ -292,7 +292,7 @@ type SaveFixtureOverrides = Partial<{
 // kept local (not imported) so the Playwright Node worker doesn't have to
 // resolve the game's `$lib` alias. addInitScript callbacks run in the browser
 // and cannot close over Node bindings, so the key is passed to them as an arg.
-const SAVE_VERSION = 10;
+const SAVE_VERSION = 11;
 const SAVES_STORAGE_KEY = 'gliese.saves.v1';
 
 // addInitScript serializes its callback to the browser and accepts only one
