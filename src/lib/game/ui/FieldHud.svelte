@@ -700,7 +700,7 @@
 	/* Narrow portrait: flow the card above the command-grid / side-HUD row so
 	   the gap is real no matter how tall the card renders — a fixed top anchor
 	   silently overlapped the card once its content grew past min-height. */
-	@media (max-width: 832px) and (min-height: 560px) {
+	@media (max-width: 832px) and (min-height: 720px) {
 		.heroic-hud-top {
 			position: absolute;
 			top: 0.75rem;
@@ -753,45 +753,73 @@
 		}
 	}
 
-	@media (max-height: 559px) {
+	/* Compact HUD: one breakpoint owns every viewport under 720px tall, so
+	   560–719px windows can never activate the narrow-portrait rules too. */
+	@media (max-height: 719px) {
 		.hero-card {
 			top: 0.75rem;
 			left: 0.9rem;
 			min-height: 0;
-			width: 19rem;
+			width: 15rem;
 			gap: 0.7rem;
 			padding: 0.6rem 0.85rem;
 		}
 		.hero-copy {
+			align-self: center;
 			gap: 0.25rem;
 		}
+		/* The name is the card's only accessible identification string, so it
+		   stays in the tree as a clipped 1px box rather than display:none. */
 		.hero-name {
-			font-size: 1.15rem;
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			padding: 0;
+			margin: -1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
+			border: 0;
 		}
 		.hero-portrait img {
 			width: 3.2rem;
 			height: 3.2rem;
 		}
+		.hero-meter:has(.hero-meter-label-xp),
+		.hero-stats {
+			display: none;
+		}
 		.hero-meter-value {
 			font-size: 0.9rem;
 		}
-		.hero-stats {
-			margin-top: 0;
-			padding-top: 0.25rem;
-		}
 		.heroic-side-hud {
-			top: 0.75rem;
+			/* Below the Menu chip pinned top-right in GameShell — with the
+			   minimap gone the old .75rem pin would collide with it. */
+			top: 3.5rem;
 			right: 0.75rem;
-			width: 11rem;
+			width: min(11rem, calc(100vw - 1.5rem));
 			gap: 0.6rem;
 		}
-		.minimap-medallion {
-			width: 6rem;
-			height: 6rem;
+		.minimap-card {
+			display: none;
 		}
 		.quest-banner {
 			padding: 0.65rem 0.7rem;
 			margin-top: 0;
+		}
+		/* Compact tracker keeps only the current objective; when no objective
+		   renders (prologue complete) the heading is the visible line. */
+		.quest-banner-eyebrow,
+		.quest-banner:has(.quest-banner-objective) h2 {
+			display: none;
+		}
+		.wallet-pill {
+			padding: 0.2rem 0.6rem;
+			font-size: 0.8rem;
+		}
+		.wallet-coin {
+			width: 0.7rem;
+			height: 0.7rem;
 		}
 	}
 </style>

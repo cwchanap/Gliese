@@ -4,39 +4,64 @@ import { heroCardZone, heroScreenPosition, isHeroInHeroCardZone } from './hud-oc
 
 describe('heroCardZone', () => {
 	it('picks the compact-height zone for short viewports', () => {
-		expect(heroCardZone(640, 480)).toEqual({ width: 326, height: 148 });
-		expect(heroCardZone(1280, 550)).toEqual({ width: 326, height: 148 });
+		expect(heroCardZone(640, 360)).toEqual({ width: 264, height: 96 });
+		expect(heroCardZone(640, 480)).toEqual({ width: 264, height: 96 });
+		expect(heroCardZone(1280, 550)).toEqual({ width: 264, height: 96 });
+		expect(heroCardZone(1280, 719)).toEqual({ width: 264, height: 96 });
+	});
+
+	it('picks the compact zone for narrow mid-height windows (560–719px)', () => {
+		// The 560–719 band used to activate the narrow-portrait layout (and
+		// the desktop zone at widths over 832); the compact card owns it now.
+		expect(heroCardZone(640, 560)).toEqual({ width: 264, height: 96 });
+		expect(heroCardZone(832, 560)).toEqual({ width: 264, height: 96 });
+		expect(heroCardZone(833, 560)).toEqual({ width: 264, height: 96 });
+		expect(heroCardZone(832, 719)).toEqual({ width: 264, height: 96 });
 	});
 
 	it('picks the narrow-portrait zone for tall compact viewports', () => {
 		expect(heroCardZone(420, 760)).toEqual({ width: 326, height: 222 });
-		expect(heroCardZone(720, 560)).toEqual({ width: 326, height: 222 });
-		expect(heroCardZone(832, 560)).toEqual({ width: 326, height: 222 });
+		expect(heroCardZone(832, 720)).toEqual({ width: 326, height: 222 });
 		expect(heroCardZone(360, 760)).toEqual({ width: 270, height: 222 });
 	});
 
 	it('picks the desktop zone for large viewports', () => {
 		expect(heroCardZone(1280, 800)).toEqual({ width: 412, height: 240 });
-		expect(heroCardZone(833, 560)).toEqual({ width: 412, height: 240 });
+		expect(heroCardZone(1280, 720)).toEqual({ width: 412, height: 240 });
+		expect(heroCardZone(833, 720)).toEqual({ width: 412, height: 240 });
 	});
 });
 
 describe('isHeroInHeroCardZone', () => {
-	it('flags heroes whose sprite extents enter the compact-height card at 640x480', () => {
-		expect(isHeroInHeroCardZone(80, 80, 640, 480)).toBe(true);
-		expect(isHeroInHeroCardZone(160, 120, 640, 480)).toBe(true);
-		expect(isHeroInHeroCardZone(0, 0, 640, 480)).toBe(true);
+	it('flags heroes whose sprite extents enter the compact-height card at 640x360', () => {
+		expect(isHeroInHeroCardZone(80, 60, 640, 360)).toBe(true);
+		expect(isHeroInHeroCardZone(160, 80, 640, 360)).toBe(true);
+		expect(isHeroInHeroCardZone(0, 0, 640, 360)).toBe(true);
 		// Hero whose center is beside the card but left edge enters the card zone
-		expect(isHeroInHeroCardZone(350, 80, 640, 480)).toBe(true);
+		expect(isHeroInHeroCardZone(300, 60, 640, 360)).toBe(true);
 		// Hero whose center is below the card but top edge enters the card zone
-		expect(isHeroInHeroCardZone(160, 170, 640, 480)).toBe(true);
+		expect(isHeroInHeroCardZone(160, 130, 640, 360)).toBe(true);
 	});
 
-	it('leaves genuinely clear positions beside and below the 640x480 card untouched', () => {
-		expect(isHeroInHeroCardZone(160, 224, 640, 480)).toBe(false);
-		expect(isHeroInHeroCardZone(160, 200, 640, 480)).toBe(false);
-		expect(isHeroInHeroCardZone(380, 60, 640, 480)).toBe(false);
-		expect(isHeroInHeroCardZone(400, 40, 640, 480)).toBe(false);
+	it('leaves genuinely clear positions beside and below the 640x360 card untouched', () => {
+		expect(isHeroInHeroCardZone(160, 141, 640, 360)).toBe(false);
+		expect(isHeroInHeroCardZone(160, 200, 640, 360)).toBe(false);
+		expect(isHeroInHeroCardZone(310, 60, 640, 360)).toBe(false);
+		expect(isHeroInHeroCardZone(500, 200, 640, 360)).toBe(false);
+	});
+
+	it('stops falsely dimming heroes the stale 412x240 desktop zone caught at mid heights', () => {
+		// 833x560 and 1280x719 used to pick the desktop zone: heroes beside or
+		// below the compact card were dimmed even though the card never drew
+		// there. The compact zone leaves them alone.
+		expect(isHeroInHeroCardZone(300, 200, 833, 560)).toBe(false);
+		expect(isHeroInHeroCardZone(350, 150, 833, 560)).toBe(false);
+		expect(isHeroInHeroCardZone(280, 150, 1280, 719)).toBe(false);
+		expect(isHeroInHeroCardZone(200, 200, 1280, 719)).toBe(false);
+		// …while heroes under the compact card still flag.
+		expect(isHeroInHeroCardZone(200, 60, 1280, 719)).toBe(true);
+		// One pixel taller restores the desktop zone and its taller dim area.
+		expect(isHeroInHeroCardZone(200, 200, 1280, 720)).toBe(true);
 	});
 
 	it('flags heroes under the narrow-portrait card at 420x760', () => {
@@ -71,15 +96,15 @@ describe('isHeroInHeroCardZone', () => {
 	});
 
 	it('stays half-open at the zone edge accounting for hero sprite extents', () => {
-		// zone width 326, height 148. With heroHalfSize=45: threshold is 371 on X, 193 on Y.
-		expect(isHeroInHeroCardZone(370, 192, 640, 480)).toBe(true);
-		expect(isHeroInHeroCardZone(371, 192, 640, 480)).toBe(false);
-		expect(isHeroInHeroCardZone(370, 193, 640, 480)).toBe(false);
+		// zone width 264, height 96. With heroHalfSize=45: threshold is 309 on X, 141 on Y.
+		expect(isHeroInHeroCardZone(308, 140, 640, 360)).toBe(true);
+		expect(isHeroInHeroCardZone(309, 140, 640, 360)).toBe(false);
+		expect(isHeroInHeroCardZone(308, 141, 640, 360)).toBe(false);
 
 		// With heroHalfSize=0 (center point only)
-		expect(isHeroInHeroCardZone(325, 147, 640, 480, 0)).toBe(true);
-		expect(isHeroInHeroCardZone(326, 147, 640, 480, 0)).toBe(false);
-		expect(isHeroInHeroCardZone(325, 148, 640, 480, 0)).toBe(false);
+		expect(isHeroInHeroCardZone(263, 95, 640, 360, 0)).toBe(true);
+		expect(isHeroInHeroCardZone(264, 95, 640, 360, 0)).toBe(false);
+		expect(isHeroInHeroCardZone(263, 96, 640, 360, 0)).toBe(false);
 	});
 });
 
