@@ -15,6 +15,7 @@ import {
 	AREA_MAP_MARKER_EMPHASIS_FONT_PX,
 	AREA_MAP_MARKER_LABEL_DX,
 	areaMapLocalView,
+	areaMapMarkerScale,
 	areaMapMarkerFocusCoords,
 	areaMapMarkersInView,
 	buildAreaMapState,
@@ -497,6 +498,66 @@ describe('local area map view', () => {
 			width: state.worldWidth,
 			height: state.worldHeight
 		});
+	});
+
+	it('scales small-room markers down and keeps full-size maps at the tuned size', () => {
+		const small = buildAreaMapState({
+			map: heroHouseMap,
+			player: heroHouseMap.spawn,
+			revealedCells: [],
+			quests: createInitialQuestState(),
+			locale: 'en'
+		});
+		const scale = areaMapMarkerScale(small);
+		expect(scale).toBe(small.worldWidth / (AREA_MAP_CELL_SIZE * 12));
+		expect(scale).toBeLessThan(1);
+		expect(areaMapMarkerScale({ worldWidth: 12_288, worldHeight: 12_288 })).toBe(1);
+	});
+
+	it('grows a small-room frame until scaled marker labels fit on both axes', () => {
+		const state = buildAreaMapState({
+			map: heroHouseMap,
+			player: heroHouseMap.spawn,
+			revealedCells: [],
+			quests: createInitialQuestState(),
+			locale: 'en'
+		});
+		const edge: HudAreaMapState['markers'][number] = {
+			id: 'edge-quest',
+			kind: 'quest',
+			x: state.worldWidth - 48,
+			y: 32,
+			label: 'The Proving Morning',
+			emphasis: true
+		};
+		const withMarker = { ...state, markers: [edge] };
+		const scale = areaMapMarkerScale(withMarker);
+		const view = areaMapLocalView(withMarker);
+
+		// Still covers the whole room; the growth is only for the marker.
+		expect(view.x).toBeLessThanOrEqual(0);
+		expect(view.y).toBeLessThanOrEqual(0);
+		expect(view.x + view.width).toBeGreaterThanOrEqual(state.worldWidth);
+		expect(view.y + view.height).toBeGreaterThanOrEqual(state.worldHeight);
+
+		// Horizontal: the scaled label tail must fit inside the frame.
+		expect(view.x + view.width).toBeGreaterThanOrEqual(edge.x + markerLabelExtent(edge, scale));
+		// Vertical: the scaled label cap rises above the marker centre.
+		const labelTop = edge.y + 18 * scale - AREA_MAP_MARKER_EMPHASIS_FONT_PX * scale;
+		expect(view.y).toBeLessThanOrEqual(labelTop);
+		expect(view.width).toBeGreaterThan(state.worldWidth);
+	});
+
+	it('scales markerLabelExtent for small-room frames', () => {
+		const marker = {
+			id: 'forge',
+			kind: 'exit' as const,
+			x: 0,
+			y: 0,
+			label: 'Sundrop Forge',
+			emphasis: false
+		};
+		expect(markerLabelExtent(marker, 0.5)).toBeCloseTo(markerLabelExtent(marker) * 0.5, 6);
 	});
 
 	it('estimates Latin labels at roughly 0.55em and CJK labels at 1.0em', () => {
