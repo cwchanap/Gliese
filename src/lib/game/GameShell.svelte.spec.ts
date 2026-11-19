@@ -5631,7 +5631,10 @@ describe('GameShell compact HUD layout (HPA-840)', () => {
 			expect(rectOf(menuAnchor).bottom).toBeLessThanOrEqual(rectOf(sideHud).top);
 
 			// CSS/TypeScript agreement: heroCardZone() tracks the rendered
-			// compact card plus its margin — never the stale 412×240 desktop box.
+			// compact card plus its intended minimal margin — never the stale
+			// 412×240 desktop box. Measured on the full viewport×locale matrix:
+			// card right edge 254.39 (slack 9.6), bottom 84.38 (slack 11.6, which
+			// also covers the level badge's ~6px overhang below the card edge).
 			const zone = heroCardZone(width, height);
 			const cardBox = rectOf(party);
 			expect(zone.width, `zone width vs ${JSON.stringify(cardBox)}`).toBeGreaterThanOrEqual(
@@ -5640,8 +5643,8 @@ describe('GameShell compact HUD layout (HPA-840)', () => {
 			expect(zone.height, `zone height vs ${JSON.stringify(cardBox)}`).toBeGreaterThanOrEqual(
 				cardBox.bottom
 			);
-			expect(zone.width - cardBox.right).toBeLessThan(48);
-			expect(zone.height - cardBox.bottom).toBeLessThan(48);
+			expect(zone.width - cardBox.right, 'right-edge slack').toBeLessThanOrEqual(16);
+			expect(zone.height - cardBox.bottom, 'bottom-edge slack').toBeLessThanOrEqual(16);
 		}
 	);
 
