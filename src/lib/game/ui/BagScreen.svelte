@@ -56,16 +56,27 @@
 	const bagCategories: BagCategory[] = ['potions', 'gear', 'key', 'loot'];
 	const bagSlotCount = 24;
 	// Pad focus-grid geometry mirrors the slot grid: 4 columns at the 640px
-	// breakpoint below; short landscape drops to 3 columns at ≤900px and 2 at
-	// ≤640px so every slot keeps its 6.6rem width as well as height.
+	// breakpoint below. In short landscape the rail/main/side chrome leaves
+	// ~W−409px for the grid, so the column count steps down by width band to
+	// keep every slot ≥6.6rem (105.6px) wide — the CSS media queries below
+	// use the same cutoffs.
 	const compactBagGrid = new MediaQuery('(max-width: 640px)');
-	const narrowBagGrid = new MediaQuery('(max-width: 900px)');
 	const landscapeGrid = new MediaQuery('(max-height: 719px) and (min-aspect-ratio: 1/1)');
+	const bagGrid2 = new MediaQuery('(max-width: 754px)');
+	const bagGrid3 = new MediaQuery('(max-width: 874px)');
+	const bagGrid4 = new MediaQuery('(max-width: 994px)');
+	const bagGrid5 = new MediaQuery('(max-width: 1114px)');
 	const bagGridColumns = $derived(
-		landscapeGrid.current && narrowBagGrid.current
-			? compactBagGrid.current
+		landscapeGrid.current
+			? bagGrid2.current
 				? 2
-				: 3
+				: bagGrid3.current
+					? 3
+					: bagGrid4.current
+						? 4
+						: bagGrid5.current
+							? 5
+							: 6
 			: compactBagGrid.current
 				? 4
 				: 6
@@ -1212,31 +1223,42 @@
 		}
 	}
 
-	/* ≤900px short landscape only: drop to 3 slot columns so slots stay
-	   ~70–120px wide and the slot label/EQUIPPED badge keep their default
-	   readable size inside the slot (HPA-841). bagGridColumns mirrors this
-	   via the same media query. */
-	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (max-width: 900px) {
+	/* Short-landscape slot bands: the rail/main/side chrome + scroll padding
+	   leave ~W−388px (≤559px tall) or ~W−409px (560–719px tall) for the grid.
+	   Each band is the widest column count that still gives every slot its
+	   6.6rem width at the band's low edge; bagGridColumns mirrors the same
+	   cutoffs for the focus lattice. */
+	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (max-width: 754px) {
+		.bag-slot-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 755px) and (max-width: 874px) {
 		.bag-slot-grid {
 			grid-template-columns: repeat(3, minmax(0, 1fr));
 		}
+	}
+	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 875px) and (max-width: 994px) {
+		.bag-slot-grid {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+	}
+	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 995px) and (max-width: 1114px) {
+		.bag-slot-grid {
+			grid-template-columns: repeat(5, minmax(0, 1fr));
+		}
+	}
 
-		/* Tighten tracking only — the 0.52rem text stays readable while
-		   ACCESSORY/EQUIPPED fit inside the narrower slots. */
+	/* ≤900px short landscape only: tighten tracking — the 0.52rem
+	   ACCESSORY/EQUIPPED text keeps its default readable size inside the
+	   narrower slots (HPA-841). */
+	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (max-width: 900px) {
 		.bag-slot-pos {
 			letter-spacing: 0.05em;
 		}
 
 		.bag-slot-worn {
 			letter-spacing: 0.06em;
-		}
-	}
-
-	/* ≤640px short landscape needs 2 columns to keep the 6.6rem slot width
-	   inside the ~226px grid viewport; bagGridColumns mirrors this. */
-	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (max-width: 640px) {
-		.bag-slot-grid {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 	}
 </style>

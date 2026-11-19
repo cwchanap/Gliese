@@ -396,8 +396,9 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 	);
 
 	it.each([
-		// ≤640px short landscape drops to 2 columns so each slot keeps its
-		// 6.6rem (105.6px) width as well as height; 641–900px keeps 3.
+		// Short-landscape column bands keep each slot ≥6.6rem (105.6px) wide:
+		// 2 columns ≤754px, 3 columns at 755–874px (see the boundary audit
+		// below for the full width sweep).
 		[640, 360, 2, '14', '1'],
 		[832, 560, 3, '9', '2']
 	] as const)(
@@ -456,6 +457,37 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 					).toBe(true);
 				}
 			}
+		}
+	);
+
+	// Boundary audit (review finding): the rendered column count must keep
+	// every slot ≥6.6rem (105.6px) wide across the whole short-landscape
+	// width range — not only at the two sizes the column tests pin — and the
+	// grid must never clip horizontally. Reproduces the reviewer's ~88px
+	// slots at 1000×360 and the sub-6.6rem cliff at 641px where the grid
+	// jumps from 2 to 3 columns.
+	it.each([640, 641, 700, 774, 775, 900, 901, 1000, 1014, 1015, 1128, 1280])(
+		'keeps every slot at least 6.6rem wide without horizontal clipping at %d×360',
+		async (width) => {
+			await page.viewport(width, 360);
+			window.scrollTo(0, 0);
+			render(GameShell);
+			emitHudState(baseHudState(stockedBag));
+			await openBag();
+
+			const screen = bagScreen();
+			const scroll = screen.querySelector<HTMLElement>('.bag-grid-scroll')!;
+			const gridEl = screen.querySelector<HTMLElement>('.bag-slot-grid')!;
+			const slot = gridEl.querySelector<HTMLElement>('.bag-slot')!;
+			const slotWidth = slot.getBoundingClientRect().width;
+			expect(
+				slotWidth,
+				`slot width ${slotWidth}px at ${width}×360 — columns: ${getComputedStyle(gridEl).gridTemplateColumns}, grid inner ${scroll.clientWidth}px`
+			).toBeGreaterThanOrEqual(105.6);
+			expect(
+				scroll.scrollWidth,
+				`horizontal overflow at ${width}×360 (scrollWidth ${scroll.scrollWidth} > clientWidth ${scroll.clientWidth})`
+			).toBeLessThanOrEqual(scroll.clientWidth + 1);
 		}
 	);
 
