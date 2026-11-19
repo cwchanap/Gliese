@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { chromium, expect, test, type Locator, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
@@ -14985,16 +14985,83 @@ test('a seeded near-end saved run finishes the prologue and Continue restores th
 });
 
 // ======================= HPA-840 Task 4: live resize integration gates =======
-// One checked-in gate per named scenario, driven on the same runtime the MCP
-// acceptance run replays: real `?startMap=` interior boots (opening scene
+// One checked-in gate per named scenario: real `?startMap=` interior boots (opening scene
 // dismissed), live setViewportSize resizes, camera bounds axes, movement, and
 // viewport screenshots for the evidence pack.
 
-const HPA840_EVIDENCE_ROOT = resolve('docs/superpowers/reports/img/hpa-840-responsive');
+function hpa840Evidence(override?: string) {
+	const root = resolve(override ?? 'docs/superpowers/reports/img/hpa-840-responsive');
+	let initialized = false;
+	return {
+		root,
+		async shot(page: Pick<Page, 'screenshot'>, name: string) {
+			if (!initialized) {
+				mkdirSync(root, { recursive: override === undefined });
+				initialized = true;
+			}
+			const path = resolve(root, name);
+			if (override !== undefined) writeFileSync(path, '', { flag: 'wx' });
+			await page.screenshot({ path });
+		}
+	};
+}
+
+test('evidence output defaults safely and rejects reused isolated paths', async ({
+	browserName
+}, testInfo) => {
+	expect(browserName).toBe('chromium');
+	const screenshots: string[] = [];
+	const page = {
+		screenshot: async (options?: { path?: string }) => {
+			screenshots.push(options?.path ?? '');
+			return Buffer.alloc(0);
+		}
+	};
+	const defaults = hpa840Evidence();
+	expect(defaults.root).toBe(resolve('docs/superpowers/reports/img/hpa-840-responsive'));
+	await defaults.shot(page, 'unused-default.png');
+	mkdirSync(testInfo.outputDir, { recursive: true });
+	const root = testInfo.outputPath('isolated-evidence');
+	const isolated = hpa840Evidence(root);
+	await isolated.shot(page, 'first.png');
+	await isolated.shot(page, 'second.png');
+	expect(screenshots).toEqual([
+		resolve(defaults.root, 'unused-default.png'),
+		resolve(root, 'first.png'),
+		resolve(root, 'second.png')
+	]);
+	await expect(isolated.shot(page, 'first.png')).rejects.toThrow();
+	await expect(hpa840Evidence(root).shot(page, 'other.png')).rejects.toThrow();
+});
+
+if (process.env.HPA840_SHARED_CDP) {
+	test.beforeEach(async ({ page }) => {
+		const endpoint = process.env.HPA840_SHARED_CDP!;
+		const url = new URL(endpoint);
+		if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.username || url.password) {
+			throw new Error('HPA840_SHARED_CDP must be a localhost HTTP endpoint');
+		}
+		const pageSession = await page.context().newCDPSession(page);
+		const { targetInfo } = await pageSession.send('Target.getTargetInfo');
+		await pageSession.detach();
+		const shared = await chromium.connectOverCDP(endpoint);
+		try {
+			const browserSession = await shared.newBrowserCDPSession();
+			const { targetInfos } = await browserSession.send('Target.getTargets');
+			await browserSession.detach();
+			if (!targetInfos.some((target) => target.targetId === targetInfo.targetId)) {
+				throw new Error(`Playwright target ${targetInfo.targetId} is not in HPA840_SHARED_CDP`);
+			}
+		} finally {
+			await shared.close();
+		}
+	});
+}
+
+const hpa840Capture = hpa840Evidence(process.env.HPA840_EVIDENCE_ROOT);
 
 async function hpa840Shot(page: Page, name: string) {
-	mkdirSync(HPA840_EVIDENCE_ROOT, { recursive: true });
-	await page.screenshot({ path: resolve(HPA840_EVIDENCE_ROOT, name) });
+	await hpa840Capture.shot(page, name);
 }
 
 /**
