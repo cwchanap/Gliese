@@ -1139,4 +1139,84 @@
 			gap: 0.55rem;
 		}
 	}
+
+	/* Short landscape (640×360, 832×560): compact parallel columns. Declared
+	   after the ≤900px stack so it undoes the single-column opt-outs — rail,
+	   grid and WORN/detail stay side by side and each scrolls inside its own
+	   panel. Portrait and narrow/tall sizes keep the stacked column. */
+	@media (max-height: 719px) and (min-aspect-ratio: 1/1) {
+		.bag-screen {
+			flex-direction: row;
+			gap: 0.9rem;
+			padding: 1rem;
+			overflow: hidden;
+		}
+
+		.bag-rail {
+			width: 4.8rem;
+		}
+
+		.bag-rail-tabs {
+			grid-template-columns: 1fr;
+		}
+
+		.bag-rail-card {
+			width: 100%;
+		}
+
+		.bag-main {
+			flex: 1;
+			min-width: 0;
+			padding-right: 0;
+		}
+
+		.bag-grid-panel {
+			flex: 1;
+			min-height: 0;
+		}
+
+		.bag-side {
+			flex: none;
+			width: 15.5rem;
+			min-height: 0;
+		}
+
+		.bag-worn {
+			flex: 1;
+			height: auto;
+			min-height: 0;
+			overflow-y: auto;
+		}
+
+		.bag-detail {
+			flex: 0 1 auto;
+			min-height: 0;
+			overflow-y: auto;
+		}
+
+		/* Narrower side column: slim the paper doll so the full-size worn
+		   tiles (and their corner remove buttons) stay inside the grid. */
+		.bag-worn-doll {
+			width: 5.5rem;
+		}
+
+		/* Slots shrink to ~52px at 640×360: tighten the slot label and the
+		   EQUIPPED badge so both stay fully inside the slot (HPA-841). */
+		.bag-slot-pos {
+			left: 0.4rem;
+			font-size: 0.42rem;
+			letter-spacing: 0.06em;
+		}
+
+		.bag-slot-worn {
+			left: 0.4rem;
+			font-size: 0.45rem;
+			letter-spacing: 0.06em;
+		}
+
+		.bag-slot-icon {
+			width: 2.6rem;
+			height: 2.6rem;
+		}
+	}
 </style>
