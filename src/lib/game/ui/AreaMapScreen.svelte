@@ -5,10 +5,15 @@
 	import { parseCellKey } from '$lib/game/core/map-exploration';
 	import {
 		AREA_MAP_MARKER_EMPHASIS_FONT_PX,
+		AREA_MAP_MARKER_EMPHASIS_RADIUS_PX,
 		AREA_MAP_MARKER_FONT_PX,
 		AREA_MAP_MARKER_LABEL_DX,
+		AREA_MAP_MARKER_LABEL_DY,
+		AREA_MAP_MARKER_RADIUS_PX,
+		AREA_MAP_PLAYER_RADIUS_PX,
 		areaMapLocalView,
 		areaMapMarkerFocusCoords,
+		areaMapMarkerScale,
 		areaMapMarkersInView,
 		type HudAreaMapState
 	} from '$lib/game/core/area-map';
@@ -32,6 +37,10 @@
 	}: Props = $props();
 
 	const mapView = $derived(areaMapLocalView(areaMap));
+	// Room-sized maps render smaller glyphs so labels stay readable and inside
+	// the frame (see areaMapLocalView); 1 on full-size views, preserving the
+	// tuned overworld look.
+	const markerScale = $derived(areaMapMarkerScale(areaMap));
 	const mapViewBox = $derived(`${mapView.x} ${mapView.y} ${mapView.width} ${mapView.height}`);
 	const visibleMarkers = $derived(areaMapMarkersInView(areaMap.markers, mapView));
 
@@ -86,6 +95,7 @@
 						data-testid="area-map-svg"
 						class="area-map-svg"
 						viewBox={mapViewBox}
+						style:--area-map-marker-scale={markerScale}
 						role="img"
 						aria-label={t($locale, 'ui.areaMapDialog', {
 							areaName: areaMap.name
@@ -128,13 +138,17 @@
 									if (focusedMarkerId === marker.id) focusedMarkerId = null;
 								}}
 							>
-								<circle r={marker.emphasis ? 64 : 48} />
+								<circle
+									r={(marker.emphasis
+										? AREA_MAP_MARKER_EMPHASIS_RADIUS_PX
+										: AREA_MAP_MARKER_RADIUS_PX) * markerScale}
+								/>
 								<text
-									x={AREA_MAP_MARKER_LABEL_DX}
-									y="18"
-									font-size={marker.emphasis
+									x={AREA_MAP_MARKER_LABEL_DX * markerScale}
+									y={AREA_MAP_MARKER_LABEL_DY * markerScale}
+									font-size={(marker.emphasis
 										? AREA_MAP_MARKER_EMPHASIS_FONT_PX
-										: AREA_MAP_MARKER_FONT_PX}
+										: AREA_MAP_MARKER_FONT_PX) * markerScale}
 								>
 									{marker.label}
 								</text>
@@ -145,7 +159,7 @@
 							class="area-map-player-marker"
 							cx={areaMap.player.x}
 							cy={areaMap.player.y}
-							r="54"
+							r={AREA_MAP_PLAYER_RADIUS_PX * markerScale}
 						>
 							<title>{t($locale, 'ui.currentPosition')}</title>
 						</circle>
@@ -253,7 +267,7 @@
 	}
 
 	.area-map-marker circle {
-		stroke-width: 16;
+		stroke-width: calc(16px * var(--area-map-marker-scale, 1));
 	}
 
 	.area-map-marker text {
@@ -262,7 +276,7 @@
 		font-weight: 900;
 		paint-order: stroke;
 		stroke: rgba(5, 7, 20, 0.92);
-		stroke-width: 18px;
+		stroke-width: calc(18px * var(--area-map-marker-scale, 1));
 	}
 
 	.area-map-marker {
@@ -272,7 +286,7 @@
 
 	.area-map-marker:focus-visible circle {
 		stroke: #fff7df;
-		stroke-width: 30;
+		stroke-width: calc(30px * var(--area-map-marker-scale, 1));
 		filter: drop-shadow(0 0 30px rgba(255, 247, 223, 0.9));
 	}
 
@@ -302,7 +316,7 @@
 
 	.area-map-marker-emphasis circle {
 		filter: drop-shadow(0 0 26px rgba(255, 211, 122, 0.72));
-		stroke-width: 24;
+		stroke-width: calc(24px * var(--area-map-marker-scale, 1));
 	}
 
 	.area-map-marker-emphasis text {
@@ -312,7 +326,7 @@
 	.area-map-player-marker {
 		fill: var(--color-rose);
 		stroke: #fff7df;
-		stroke-width: 18;
+		stroke-width: calc(18px * var(--area-map-marker-scale, 1));
 		filter: drop-shadow(0 0 28px rgba(240, 82, 104, 0.78));
 	}
 

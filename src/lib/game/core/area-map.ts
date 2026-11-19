@@ -39,11 +39,16 @@ export type AreaMapView = {
 };
 
 export const AREA_MAP_MARKER_LABEL_DX = 76;
+export const AREA_MAP_MARKER_LABEL_DY = 18;
 export const AREA_MAP_MARKER_FONT_PX = 104;
 export const AREA_MAP_MARKER_EMPHASIS_FONT_PX = 116;
+export const AREA_MAP_MARKER_RADIUS_PX = 48;
+export const AREA_MAP_MARKER_EMPHASIS_RADIUS_PX = 64;
+export const AREA_MAP_PLAYER_RADIUS_PX = 54;
 
 const AREA_MAP_VIEW_MIN_SPAN = AREA_MAP_CELL_SIZE * 12;
 const AREA_MAP_VIEW_PADDING = AREA_MAP_CELL_SIZE + AREA_MAP_CELL_SIZE / 2;
+const AREA_MAP_SMALL_VIEW_PAD = 32;
 
 export type HudAreaMapState = {
 	mapId: string;
@@ -310,17 +315,48 @@ export function clampedLocalMapView({
 	};
 }
 
+/**
+ * Marker glyphs (dots, labels, player pin) are authored in world units tuned
+ * for a view at least AREA_MAP_VIEW_MIN_SPAN across. A room-sized map frames
+ * its whole world, so the same constants would render oversized and clip at
+ * the frame edge; scale them by the world's ratio to that span instead.
+ */
+export function areaMapMarkerScale(
+	areaMap: Pick<HudAreaMapState, 'worldWidth' | 'worldHeight'>
+): number {
+	return Math.min(1, Math.max(areaMap.worldWidth, areaMap.worldHeight) / AREA_MAP_VIEW_MIN_SPAN);
+}
+
 export function areaMapLocalView(areaMap: HudAreaMapState): AreaMapView {
 	if (
 		areaMap.worldWidth <= AREA_MAP_VIEW_MIN_SPAN &&
 		areaMap.worldHeight <= AREA_MAP_VIEW_MIN_SPAN
 	) {
-		return {
-			x: 0,
-			y: 0,
-			width: areaMap.worldWidth,
-			height: areaMap.worldHeight
-		};
+		// The whole room is the frame; grow it past the world rect only as far
+		// as needed so every scaled marker dot and its label stay inside the
+		// viewBox on both axes instead of clipping at the frame edge.
+		const scale = areaMapMarkerScale(areaMap);
+		const pad = AREA_MAP_SMALL_VIEW_PAD * scale;
+		let minX = 0;
+		let minY = 0;
+		let maxX = areaMap.worldWidth;
+		let maxY = areaMap.worldHeight;
+		for (const marker of areaMap.markers) {
+			const fontPx =
+				(marker.emphasis ? AREA_MAP_MARKER_EMPHASIS_FONT_PX : AREA_MAP_MARKER_FONT_PX) * scale;
+			const radius =
+				(marker.emphasis ? AREA_MAP_MARKER_EMPHASIS_RADIUS_PX : AREA_MAP_MARKER_RADIUS_PX) * scale;
+			const labelDy = AREA_MAP_MARKER_LABEL_DY * scale;
+			minX = Math.min(minX, marker.x - radius - pad);
+			maxX = Math.max(
+				maxX,
+				marker.x + radius + pad,
+				marker.x + markerLabelExtent(marker, scale) + pad
+			);
+			minY = Math.min(minY, marker.y - radius - pad, marker.y + labelDy - fontPx - pad);
+			maxY = Math.max(maxY, marker.y + radius + pad, marker.y + labelDy + fontPx * 0.4 + pad);
+		}
+		return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 	}
 
 	const focusPoints = [
@@ -423,12 +459,12 @@ export function areaMapMarkerFocusCoords(
 	return coords;
 }
 
-export function markerLabelExtent(marker: HudAreaMapMarker): number {
+export function markerLabelExtent(marker: HudAreaMapMarker, scale = 1): number {
 	const fontPx = marker.emphasis ? AREA_MAP_MARKER_EMPHASIS_FONT_PX : AREA_MAP_MARKER_FONT_PX;
 	let widthEm = 0;
 	for (const char of marker.label) {
 		const code = char.charCodeAt(0);
 		widthEm += code > 255 ? 1.0 : 0.55;
 	}
-	return AREA_MAP_MARKER_LABEL_DX + Math.ceil(widthEm * fontPx);
+	return (AREA_MAP_MARKER_LABEL_DX + Math.ceil(widthEm * fontPx)) * scale;
 }

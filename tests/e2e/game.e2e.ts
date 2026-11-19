@@ -14996,7 +14996,11 @@ function hpa840Evidence(override?: string) {
 		root,
 		async shot(page: Pick<Page, 'screenshot'>, name: string) {
 			if (!initialized) {
-				mkdirSync(root, { recursive: override === undefined });
+				// recursive: a restarted Playwright worker gets a fresh helper over
+				// the same isolated root; the root may already exist. Overwrite
+				// safety lives at the file level ('wx' below), so new names always
+				// write while any previously written name still refuses.
+				mkdirSync(root, { recursive: true });
 				initialized = true;
 			}
 			const path = resolve(root, name);
@@ -15025,13 +15029,20 @@ test('evidence output defaults safely and rejects reused isolated paths', async 
 	const isolated = hpa840Evidence(root);
 	await isolated.shot(page, 'first.png');
 	await isolated.shot(page, 'second.png');
+	// A restarted worker gets a fresh helper instance over the same root: it
+	// must write new names without tripping on the existing directory, while
+	// every previously written name still refuses to overwrite.
+	const restarted = hpa840Evidence(root);
+	await restarted.shot(page, 'other.png');
 	expect(screenshots).toEqual([
 		resolve(defaults.root, 'unused-default.png'),
 		resolve(root, 'first.png'),
-		resolve(root, 'second.png')
+		resolve(root, 'second.png'),
+		resolve(root, 'other.png')
 	]);
 	await expect(isolated.shot(page, 'first.png')).rejects.toThrow();
-	await expect(hpa840Evidence(root).shot(page, 'other.png')).rejects.toThrow();
+	await expect(restarted.shot(page, 'first.png')).rejects.toThrow();
+	await expect(restarted.shot(page, 'other.png')).rejects.toThrow();
 });
 
 if (process.env.HPA840_SHARED_CDP) {
@@ -15447,18 +15458,52 @@ for (const interior of [
 		await expect(indoorMap).toBeVisible();
 		await settleMotion(indoorMap);
 		await expectFocusInside(indoorMap);
+		// Chrome is pinned outside the scrollable body.
 		await expectUnclipped(indoorMap.getByRole('heading').first());
 		const indoorClose = indoorMap.getByRole('button', { name: /close/i }).first();
 		await expectUnclipped(indoorClose);
-		await expectUnclipped(indoorMap.getByTestId('area-map-svg'));
+		// The map body is intentionally the scrollport: at 640×360 the SVG is
+		// allowed to be taller than it, so assert bounded scrolling instead of
+		// an unclipped SVG height. Horizontally nothing may overflow.
+		const indoorBody = indoorMap.locator('.jrpg-area-map-body');
+		await expectUnclipped(indoorBody);
+		const indoorBodyBox = await indoorBody.evaluate((el) => ({
+			clientWidth: el.clientWidth,
+			scrollWidth: el.scrollWidth,
+			clientHeight: el.clientHeight,
+			scrollHeight: el.scrollHeight
+		}));
+		expect(indoorBodyBox.scrollWidth).toBeLessThanOrEqual(indoorBodyBox.clientWidth + 1);
+		expect(indoorBodyBox.scrollHeight).toBeGreaterThan(indoorBodyBox.clientHeight);
+		const indoorBodyScrolled = await indoorBody.evaluate((el) => {
+			el.scrollTop = el.scrollHeight;
+			const top = el.scrollTop;
+			el.scrollTop = 0;
+			return top;
+		});
+		expect(indoorBodyScrolled).toBeGreaterThan(0);
 		// Each interior's exit transition marker sits within the spawn reveal
-		// radius, so a real marker joins the Tab/focus lattice and its live
-		// label publishes on focus.
+		// radius, so a real marker joins the Tab/focus lattice, scrolls fully
+		// into the scrollport on focus, and publishes its live label.
 		const indoorMarkers = indoorMap.getByTestId('area-map-marker');
 		await expect(indoorMarkers.first()).toBeVisible();
 		await indoorMarkers.first().focus();
 		await expect(indoorMarkers.first()).toBeFocused();
+		await indoorMarkers.first().scrollIntoViewIfNeeded({ timeout: 5_000 });
+		await expectCenterVisible(indoorMarkers.first());
+		await expectUnclipped(indoorMarkers.first());
 		await expect(indoorMap.getByTestId('area-map-selected')).toContainText(/\S/);
+		// The focused marker's rendered label must sit inside the SVG frame
+		// horizontally — the regression was long titles clipped at the edge.
+		const indoorLabelInside = await indoorMarkers.first().evaluate((g) => {
+			const text = g.querySelector('text');
+			const svg = g.closest('svg');
+			if (!text || !svg) return false;
+			const frame = svg.getBoundingClientRect();
+			const box = text.getBoundingClientRect();
+			return box.left >= frame.left - 1 && box.right <= frame.right + 1;
+		});
+		expect(indoorLabelInside).toBe(true);
 		await hpa840Shot(page, `${interior.mapId}-area-map-640x360.png`);
 		expect(await documentScrollTop(page)).toBe(0);
 		await page.keyboard.press('m');

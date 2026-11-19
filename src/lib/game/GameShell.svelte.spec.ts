@@ -25,7 +25,7 @@ import { PREFERENCES_STORAGE_KEY } from '$lib/game/i18n/preferences';
 import { updatePreferences } from '$lib/game/i18n/store';
 import { t } from '$lib/game/i18n/translate';
 import type { ConsumableDefinition, EquipmentDefinition } from '$lib/game/content/items';
-import { getAreaName } from '$lib/game/core/area-map';
+import { AREA_MAP_MARKER_FONT_PX, getAreaName } from '$lib/game/core/area-map';
 import { heroCardZone } from '$lib/game/core/hud-occlusion';
 import { anchorPoint } from '$lib/game/content/maps/overworld/world';
 import { buildHudQuestState, type HudQuestEntry } from '$lib/game/core/quests';
@@ -2585,6 +2585,74 @@ describe('GameShell area map', () => {
 			expect(labelBox.top).toBeGreaterThanOrEqual(frame.top);
 			expect(labelBox.right).toBeLessThanOrEqual(frame.right + 1);
 			expect(labelBox.bottom).toBeLessThanOrEqual(frame.bottom + 1);
+		}
+	);
+
+	it.each(['en', 'ja', 'zh-Hant'] as const)(
+		'scales small-room marker labels so they stay readable inside the frame (%s)',
+		async (locale) => {
+			const label = {
+				en: 'The Proving Morning',
+				ja: '証明の朝の試練',
+				'zh-Hant': '證明之晨的試煉'
+			}[locale];
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					mapId: 'hero-house',
+					areaMap: {
+						...baseHudState().areaMap,
+						mapId: 'hero-house',
+						name: "Grik's Home",
+						worldWidth: 704,
+						worldHeight: 576,
+						player: { x: 352, y: 480 },
+						markers: [
+							{ id: 'hero-house-exit', kind: 'exit', x: 640, y: 300, label: 'Sundrop' },
+							{ id: 'top-exit', kind: 'exit', x: 120, y: 40, label },
+							{
+								id: 'quest-pin',
+								kind: 'quest',
+								x: 560,
+								y: 240,
+								label,
+								emphasis: true
+							}
+						]
+					}
+				})
+			);
+
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: /map/i }).click();
+			const svg = page.getByTestId('area-map-svg');
+			await expect.element(svg).toBeVisible();
+
+			const svgEl = svg.element() as SVGSVGElement;
+			const [viewX, viewY, viewWidth, viewHeight] = (svgEl.getAttribute('viewBox') ?? '')
+				.split(' ')
+				.map(Number);
+			// The frame still covers the whole room, growing only to fit labels.
+			expect(viewX).toBeLessThanOrEqual(0);
+			expect(viewY).toBeLessThanOrEqual(0);
+			expect(viewX + viewWidth).toBeGreaterThanOrEqual(704);
+			expect(viewY + viewHeight).toBeGreaterThanOrEqual(576);
+
+			const frame = svgEl.getBoundingClientRect();
+			for (const markerEl of svgEl.querySelectorAll<SVGGElement>(
+				'[data-testid="area-map-marker"]'
+			)) {
+				const text = markerEl.querySelector('text');
+				expect(text).not.toBeNull();
+				const box = text!.getBoundingClientRect();
+				// Room-scale glyphs, not the fixed overworld size.
+				expect(Number(text!.getAttribute('font-size'))).toBeLessThan(AREA_MAP_MARKER_FONT_PX);
+				expect(box.width).toBeGreaterThan(0);
+				expect(box.left).toBeGreaterThanOrEqual(frame.left - 1);
+				expect(box.top).toBeGreaterThanOrEqual(frame.top - 1);
+				expect(box.right).toBeLessThanOrEqual(frame.right + 1);
+				expect(box.bottom).toBeLessThanOrEqual(frame.bottom + 1);
+			}
 		}
 	);
 
