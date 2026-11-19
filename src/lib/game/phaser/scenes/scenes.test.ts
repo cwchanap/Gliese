@@ -6807,10 +6807,15 @@ describe('WorldScene', () => {
 		const resizeHandler = resizeCalls.find((call) => call[0] === 'resize')?.[1];
 		expect(resizeHandler).toBeTypeOf('function');
 
+		// The clamped bounds equal create()'s initial setBounds call, so the spy
+		// must be cleared first — otherwise this passes without a second call.
+		const setBoundsMock = scene.cameras.main.setBounds as unknown as import('vitest').Mock;
+		setBoundsMock.mockClear();
 		Object.assign(phaserState.mainCamera, { width: 960, height: 700 });
 		resizeHandler!();
 
-		expect(scene.cameras.main.setBounds).toHaveBeenLastCalledWith(0, 0, 1024, 832);
+		expect(setBoundsMock).toHaveBeenCalledTimes(1);
+		expect(setBoundsMock).toHaveBeenLastCalledWith(0, 0, 1024, 832);
 
 		scene.events.emit('shutdown');
 
@@ -6876,10 +6881,15 @@ describe('WorldScene', () => {
 		expect(secondHandler).toBeTypeOf('function');
 		expect(secondHandler).not.toBe(firstHandler);
 
+		// Same clamped-bounds ambiguity as the large-room test: clear the spy so
+		// the restarted create()'s initial call cannot satisfy the assertion.
+		const setBoundsMock = scene.cameras.main.setBounds as unknown as import('vitest').Mock;
+		setBoundsMock.mockClear();
 		Object.assign(phaserState.mainCamera, { width: 960, height: 700 });
 		secondHandler!();
 
-		expect(scene.cameras.main.setBounds).toHaveBeenLastCalledWith(0, 0, 1024, 832);
+		expect(setBoundsMock).toHaveBeenCalledTimes(1);
+		expect(setBoundsMock).toHaveBeenLastCalledWith(0, 0, 1024, 832);
 
 		scene.events.emit('destroy');
 		expect(scaleOffMock).toHaveBeenCalledTimes(2);

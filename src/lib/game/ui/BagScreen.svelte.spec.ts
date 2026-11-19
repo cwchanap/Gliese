@@ -503,6 +503,43 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 		}
 	);
 
+	// Mid-height band audit (architecture review): the ≤559px block shrinks
+	// .bag-grid-scroll to 0.6rem padding, but the 560–719px landscape block
+	// left the desktop 1.25rem — at 640×560 (2 columns) and 755×560
+	// (3 columns) every slot dropped below the intended 6.6rem.
+	it.each([
+		[640, 560],
+		[640, 719],
+		[755, 560],
+		[832, 560],
+		[874, 719],
+		[1000, 640]
+	])(
+		'keeps every slot at least 6.6rem wide without horizontal clipping at %d×%d',
+		async (width, height) => {
+			await page.viewport(width, height);
+			window.scrollTo(0, 0);
+			render(GameShell);
+			emitHudState(baseHudState(stockedBag));
+			await openBag();
+
+			const screen = bagScreen();
+			const scroll = screen.querySelector<HTMLElement>('.bag-grid-scroll')!;
+			const gridEl = screen.querySelector<HTMLElement>('.bag-slot-grid')!;
+			const slotWidth = gridEl
+				.querySelector<HTMLElement>('.bag-slot')!
+				.getBoundingClientRect().width;
+			expect(
+				slotWidth,
+				`slot width ${slotWidth}px at ${width}×${height} — columns: ${getComputedStyle(gridEl).gridTemplateColumns}, grid inner ${scroll.clientWidth}px`
+			).toBeGreaterThanOrEqual(105.6);
+			expect(
+				scroll.scrollWidth,
+				`horizontal overflow at ${width}×${height} (scrollWidth ${scroll.scrollWidth} > clientWidth ${scroll.clientWidth})`
+			).toBeLessThanOrEqual(scroll.clientWidth + 1);
+		}
+	);
+
 	it('keeps rendered columns consistent with the focus lattice at fractional viewport widths', async () => {
 		// Fractional widths (e.g. 754.5px, reachable via browser zoom) fell
 		// between the CSS band min-width lower bound and the JS max-width
@@ -681,31 +718,42 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 			await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
 			await settleEntrance();
 
-			for (const locale of ['ja', 'zh-Hant'] as const) {
-				updatePreferences({ locale });
-				const screen = bagScreen();
-				for (const card of screen.querySelectorAll<HTMLElement>('.bag-rail-card')) {
+			// Locale-specific rail labels prove Svelte flushed each locale into
+			// the DOM before geometry is read — a bare updatePreferences() only
+			// schedules the re-render (same stale-en bug the Quest fix solved).
+			const potionsLabel = { en: 'Potions', ja: 'ポーション', 'zh-Hant': '藥水' } as const;
+			const lootLabel = { en: 'Loot', ja: '戦利品', 'zh-Hant': '戰利品' } as const;
+			try {
+				for (const locale of ['ja', 'zh-Hant'] as const) {
+					updatePreferences({ locale });
+					await expect.element(page.getByRole('tab', { name: potionsLabel[locale] })).toBeVisible();
+					await expect.element(page.getByRole('tab', { name: lootLabel[locale] })).toBeVisible();
+					const screen = bagScreen();
+					for (const card of screen.querySelectorAll<HTMLElement>('.bag-rail-card')) {
+						expect(
+							insideViewport(card.getBoundingClientRect(), width, height),
+							`rail card ${card.textContent} inside ${width}×${height} (${locale})`
+						).toBe(true);
+						expect(
+							card.scrollWidth <= card.clientWidth + 1,
+							`rail card ${card.textContent} not clipped at ${width}×${height} (${locale})`
+						).toBe(true);
+					}
+					const close = screen.querySelector<HTMLElement>('.bag-rail-close')!;
 					expect(
-						insideViewport(card.getBoundingClientRect(), width, height),
-						`rail card ${card.textContent} inside ${width}×${height} (${locale})`
+						insideViewport(close.getBoundingClientRect(), width, height),
+						`Close inside ${width}×${height} (${locale})`
 					).toBe(true);
+					const title = screen.querySelector<HTMLElement>('.bag-title')!;
 					expect(
-						card.scrollWidth <= card.clientWidth + 1,
-						`rail card ${card.textContent} not clipped at ${width}×${height} (${locale})`
+						insideViewport(title.getBoundingClientRect(), width, height),
+						`title inside ${width}×${height} (${locale})`
 					).toBe(true);
 				}
-				const close = screen.querySelector<HTMLElement>('.bag-rail-close')!;
-				expect(
-					insideViewport(close.getBoundingClientRect(), width, height),
-					`Close inside ${width}×${height} (${locale})`
-				).toBe(true);
-				const title = screen.querySelector<HTMLElement>('.bag-title')!;
-				expect(
-					insideViewport(title.getBoundingClientRect(), width, height),
-					`title inside ${width}×${height} (${locale})`
-				).toBe(true);
+			} finally {
+				updatePreferences({ locale: 'en' });
+				await expect.element(page.getByRole('tab', { name: 'Potions' })).toBeVisible();
 			}
-			updatePreferences({ locale: 'en' });
 		}
 	);
 });

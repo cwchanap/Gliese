@@ -15437,6 +15437,32 @@ for (const interior of [
 		);
 		await expectPlayerMoves(page, interior.mapId);
 		await hpa840Shot(page, `${interior.mapId}-resized-640x360.png`);
+
+		// Indoor Area Map leg (architecture review): the persisted sweep's
+		// only map evidence was the outdoor Wilds. Open the real interior map
+		// at 640×360 — chrome, marker focus, containment and no document
+		// scroll all checked in this same persisted execution.
+		await page.keyboard.press('m');
+		const indoorMap = page.getByRole('dialog', { name: /map$/i });
+		await expect(indoorMap).toBeVisible();
+		await settleMotion(indoorMap);
+		await expectFocusInside(indoorMap);
+		await expectUnclipped(indoorMap.getByRole('heading').first());
+		const indoorClose = indoorMap.getByRole('button', { name: /close/i }).first();
+		await expectUnclipped(indoorClose);
+		await expectUnclipped(indoorMap.getByTestId('area-map-svg'));
+		// Each interior's exit transition marker sits within the spawn reveal
+		// radius, so a real marker joins the Tab/focus lattice and its live
+		// label publishes on focus.
+		const indoorMarkers = indoorMap.getByTestId('area-map-marker');
+		await expect(indoorMarkers.first()).toBeVisible();
+		await indoorMarkers.first().focus();
+		await expect(indoorMarkers.first()).toBeFocused();
+		await expect(indoorMap.getByTestId('area-map-selected')).toContainText(/\S/);
+		await hpa840Shot(page, `${interior.mapId}-area-map-640x360.png`);
+		expect(await documentScrollTop(page)).toBe(0);
+		await page.keyboard.press('m');
+		await expect(indoorMap).toBeHidden();
 	});
 }
 
