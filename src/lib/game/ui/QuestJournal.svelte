@@ -1116,6 +1116,31 @@
 			overflow: visible;
 		}
 	}
+	/* Short landscape (640×360, 832×560): compact parallel columns. Declared
+	   after the ≤900px stack so it undoes the single-column opt-outs — rail and
+	   detail stay side by side and each scrolls inside its own panel. */
+	@media (max-height: 719px) and (min-aspect-ratio: 1/1) {
+		.quest-screen {
+			flex-direction: row;
+			gap: 0.9rem;
+			padding: 0.9rem;
+			overflow: hidden;
+		}
+
+		.quest-rail {
+			width: 14rem;
+		}
+
+		.quest-rail-entries {
+			overflow-y: auto;
+		}
+
+		.quest-detail {
+			flex: 1;
+			padding: 1rem 1.1rem;
+			overflow-y: auto;
+		}
+	}
 	@media (max-width: 1200px) and (min-width: 901px) {
 		.quest-rail {
 			width: 18rem;

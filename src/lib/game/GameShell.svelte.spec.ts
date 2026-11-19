@@ -28,7 +28,7 @@ import type { ConsumableDefinition, EquipmentDefinition } from '$lib/game/conten
 import { getAreaName } from '$lib/game/core/area-map';
 import { heroCardZone } from '$lib/game/core/hud-occlusion';
 import { anchorPoint } from '$lib/game/content/maps/overworld/world';
-import type { HudQuestEntry } from '$lib/game/core/quests';
+import { buildHudQuestState, type HudQuestEntry } from '$lib/game/core/quests';
 import { questStateAt } from '$lib/game/core/quests.fixtures';
 import { get } from 'svelte/store';
 import { hudState } from '$lib/game/ui-bridge/store';
@@ -6506,5 +6506,126 @@ describe('HPA-840 overlay containment on small viewports', () => {
 
 		await skillDialog.getByRole('button', { name: /back/i }).click();
 		expect(skillDialog.elements()).toHaveLength(0);
+	});
+
+	// A live mid-chain state: five completed chapters plus the raid, so the
+	// rail roster overflows its slice and the seven-row checklist must scroll.
+	function emitMidChainQuests() {
+		emitHudState(
+			baseHudState({
+				quests: buildHudQuestState({
+					state: questStateAt('repel-the-soldiers'),
+					locale: 'en'
+				})
+			})
+		);
+	}
+
+	it.each([
+		[640, 360],
+		[832, 560],
+		[1280, 640]
+	])(
+		'keeps the quest journal title and Close pinned while the rail and detail scroll at %d×%d',
+		async (width, height) => {
+			await page.viewport(width, height);
+			render(GameShell);
+			emitMidChainQuests();
+
+			const questDialog = await openQuestLog();
+			await expect.element(questDialog).toBeVisible();
+			const screen = questDialog.element() as HTMLElement;
+			const rail = screen.querySelector<HTMLElement>('.quest-rail')!;
+			const title = screen.querySelector<HTMLElement>('.quest-title')!;
+			const close = screen.querySelector<HTMLElement>('.quest-rail-close')!;
+			const entries = screen.querySelector<HTMLElement>('.quest-rail-entries')!;
+			const chapter = screen.querySelector<HTMLElement>('.quest-chapter')!;
+			const detail = screen.querySelector<HTMLElement>('.quest-detail')!;
+
+			// Short landscape keeps the rail and detail side by side, each
+			// bounded inside the viewport.
+			expect(getComputedStyle(screen).flexDirection).toBe('row');
+			expect(insideViewport(rail.getBoundingClientRect(), width, height)).toBe(true);
+			expect(insideViewport(title.getBoundingClientRect(), width, height)).toBe(true);
+			expect(insideViewport(close.getBoundingClientRect(), width, height)).toBe(true);
+			expect(insideViewport(detail.getBoundingClientRect(), width, height)).toBe(true);
+
+			// The roster scrolls inside its own slice of the rail.
+			expect(entries.scrollHeight).toBeGreaterThan(entries.clientHeight);
+			entries.scrollTop = entries.scrollHeight;
+			expect(entries.scrollTop).toBeGreaterThan(0);
+			expect(insideViewport(title.getBoundingClientRect(), width, height)).toBe(true);
+			expect(insideViewport(close.getBoundingClientRect(), width, height)).toBe(true);
+
+			// The seven-row chapter checklist scrolls inside the rail; every row
+			// — including the seventh — becomes readable while title and Close
+			// stay pinned.
+			const chapterRows = questDialog.getByTestId('quest-progress-row').elements();
+			expect(chapterRows).toHaveLength(7);
+			expect(chapter.scrollHeight).toBeGreaterThan(chapter.clientHeight);
+			chapter.scrollTop = chapter.scrollHeight;
+			expect(chapter.scrollTop).toBeGreaterThan(0);
+			expect(insideViewport(chapterRows[6]!.getBoundingClientRect(), width, height)).toBe(true);
+			expect(insideViewport(title.getBoundingClientRect(), width, height)).toBe(true);
+			expect(insideViewport(close.getBoundingClientRect(), width, height)).toBe(true);
+
+			// The detail column scrolls independently; the document never moves.
+			expect(detail.scrollHeight).toBeGreaterThan(detail.clientHeight);
+			detail.scrollTop = detail.scrollHeight;
+			expect(detail.scrollTop).toBeGreaterThan(0);
+			expect(insideViewport(detail.getBoundingClientRect(), width, height)).toBe(true);
+			expectDocumentUnscrolled();
+
+			// Actions still work: a completed chapter can be selected.
+			await questDialog.getByTestId('quest-entry-completed').first().click();
+			await expect
+				.element(questDialog.getByTestId('quest-entry-completed').first())
+				.toHaveClass(/quest-entry-selected/);
+		}
+	);
+
+	it('keeps the quest chain wrapped inside the detail column at 640×360', async () => {
+		await page.viewport(640, 360);
+		render(GameShell);
+		emitMidChainQuests();
+
+		const questDialog = await openQuestLog();
+		await expect.element(questDialog).toBeVisible();
+		const detail = questDialog.getByTestId('quest-detail');
+		const nodes = detail.getByTestId('quest-chain-node').elements();
+		expect(nodes.length).toBeGreaterThan(1);
+
+		// Every chain node sits inside the detail column's box and the chain
+		// wraps to more than one row rather than clipping (HPA-841).
+		const detailBox = detail.element().getBoundingClientRect();
+		const tops = new Set<number>();
+		for (const node of nodes) {
+			const rect = node.getBoundingClientRect();
+			expect(rect.left).toBeGreaterThanOrEqual(detailBox.left);
+			expect(rect.right).toBeLessThanOrEqual(detailBox.right + 1);
+			tops.add(Math.round(rect.top));
+		}
+		expect(tops.size).toBeGreaterThan(1);
+	});
+
+	it.each([
+		[390, 844],
+		[832, 760]
+	])('keeps the quest journal stacked under the document at %d×%d', async (width, height) => {
+		await page.viewport(width, height);
+		render(GameShell);
+		emitMidChainQuests();
+
+		const questDialog = await openQuestLog();
+		await expect.element(questDialog).toBeVisible();
+		const screen = questDialog.element() as HTMLElement;
+		// Portrait and taller narrow viewports keep the single-column stack.
+		expect(getComputedStyle(screen).flexDirection).toBe('column');
+		expect(getComputedStyle(screen).overflowY).toBe('auto');
+		// The rail stacks above the detail, both spanning the screen's inner width.
+		const railRect = screen.querySelector<HTMLElement>('.quest-rail')!.getBoundingClientRect();
+		const detailRect = screen.querySelector<HTMLElement>('.quest-detail')!.getBoundingClientRect();
+		expect(railRect.top).toBeLessThan(detailRect.top);
+		expect(Math.round(railRect.left)).toBe(Math.round(detailRect.left));
 	});
 });
