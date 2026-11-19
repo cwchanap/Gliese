@@ -55,11 +55,12 @@
 	const equipmentSlots: EquipmentSlot[] = ['head', 'weapon', 'body', 'hands', 'accessory'];
 	const bagCategories: BagCategory[] = ['potions', 'gear', 'key', 'loot'];
 	const bagSlotCount = 24;
-	// Pad focus-grid geometry mirrors the slot grid: 4 columns at the 640px
-	// breakpoint below. In short landscape the rail/main/side chrome leaves
-	// ~W−409px for the grid, so the column count steps down by width band to
-	// keep every slot ≥6.6rem (105.6px) wide — the CSS media queries below
-	// use the same cutoffs.
+	// Pad focus-grid geometry mirrors the slot grid — grid-template-columns is
+	// bound to this value on the element so rendered columns and the focus
+	// lattice can never disagree (fractional-width band gaps, b666231 review).
+	// 4 columns at the ≤640px breakpoint; in short landscape the
+	// rail/main/side chrome leaves ~W−409px for the grid, so the column count
+	// steps down by width band to keep every slot ≥6.6rem (105.6px) wide.
 	const compactBagGrid = new MediaQuery('(max-width: 640px)');
 	const landscapeGrid = new MediaQuery('(max-height: 719px) and (min-aspect-ratio: 1/1)');
 	const bagGrid2 = new MediaQuery('(max-width: 754px)');
@@ -311,6 +312,7 @@
 					<div
 						data-testid="inventory-slot-grid"
 						class="bag-slot-grid"
+						style:grid-template-columns={`repeat(${bagGridColumns}, minmax(0, 1fr))`}
 						aria-label={t($locale, 'ui.inventorySlotsLabel', {
 							section: getCategoryTitle(activeCategory)
 						})}
@@ -650,7 +652,9 @@
 
 	.bag-slot-grid {
 		display: grid;
-		grid-template-columns: repeat(6, minmax(0, 1fr));
+		/* Column count is bound to bagGridColumns on the element (single
+		   source of truth): duplicated CSS/JS bands disagreed at fractional
+		   viewport widths (b666231 review). */
 		gap: 0.85rem;
 	}
 
@@ -1157,7 +1161,6 @@
 		}
 
 		.bag-slot-grid {
-			grid-template-columns: repeat(4, minmax(0, 1fr));
 			gap: 0.55rem;
 		}
 	}
@@ -1220,32 +1223,6 @@
 		   tiles (and their corner remove buttons) stay inside the grid. */
 		.bag-worn-doll {
 			width: 5.5rem;
-		}
-	}
-
-	/* Short-landscape slot bands: the rail/main/side chrome + scroll padding
-	   leave ~W−388px (≤559px tall) or ~W−409px (560–719px tall) for the grid.
-	   Each band is the widest column count that still gives every slot its
-	   6.6rem width at the band's low edge; bagGridColumns mirrors the same
-	   cutoffs for the focus lattice. */
-	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (max-width: 754px) {
-		.bag-slot-grid {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-	}
-	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 755px) and (max-width: 874px) {
-		.bag-slot-grid {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
-		}
-	}
-	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 875px) and (max-width: 994px) {
-		.bag-slot-grid {
-			grid-template-columns: repeat(4, minmax(0, 1fr));
-		}
-	}
-	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 995px) and (max-width: 1114px) {
-		.bag-slot-grid {
-			grid-template-columns: repeat(5, minmax(0, 1fr));
 		}
 	}
 

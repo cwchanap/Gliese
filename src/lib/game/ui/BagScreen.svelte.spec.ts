@@ -491,6 +491,72 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 		}
 	);
 
+	it('keeps rendered columns consistent with the focus lattice at fractional viewport widths', async () => {
+		// Fractional widths (e.g. 754.5px, reachable via browser zoom) fell
+		// between the CSS band min-width lower bound and the JS max-width
+		// chain: CSS rendered the base 6 columns while bagGridColumns computed
+		// 3, so the focus lattice targeted wrong tiles on ~50px slots
+		// (b666231 review). page.viewport rounds to integers, so an iframe at
+		// 754.5px supplies the fractional CSS viewport while the component's
+		// MediaQuery still reads the top-level viewport (754px → 2 columns).
+		await page.viewport(754, 360);
+		window.scrollTo(0, 0);
+
+		const iframe = document.createElement('iframe');
+		iframe.style.cssText = 'position:absolute;inset:0;width:754.5px;height:360px;border:0;';
+		document.body.appendChild(iframe);
+		const iframeDoc = iframe.contentDocument!;
+		for (const node of document.head.querySelectorAll('style,link[rel="stylesheet"]')) {
+			iframeDoc.head.appendChild(node.cloneNode(true));
+		}
+		try {
+			const { mount } = await import('svelte');
+			mount(GameShell, { target: iframeDoc.body });
+
+			let menu: HTMLElement | undefined;
+			await vi.waitFor(() => {
+				emitHudState(baseHudState(stockedBag));
+				menu = Array.from(iframeDoc.querySelectorAll('button')).find((b) =>
+					/menu/i.test(b.textContent ?? '')
+				);
+				expect(menu, 'Menu button inside iframe').toBeTruthy();
+			});
+			menu!.click();
+			let bag: HTMLElement | undefined;
+			await vi.waitFor(() => {
+				bag = Array.from(iframeDoc.querySelectorAll('button')).find((b) =>
+					(b.textContent ?? '').includes('Bag')
+				);
+				expect(bag, 'Bag tile inside iframe command grid').toBeTruthy();
+			});
+			bag!.click();
+			await vi.waitFor(() => {
+				expect(
+					iframeDoc.querySelector('[data-testid="inventory-slot-grid"]'),
+					'bag grid inside iframe'
+				).not.toBeNull();
+			});
+			await settleEntrance();
+
+			const gridEl = iframeDoc.querySelector<HTMLElement>('.bag-slot-grid')!;
+			const renderedColumns = getComputedStyle(gridEl).gridTemplateColumns.split(' ').length;
+			const focusSlots = iframeDoc.querySelectorAll<HTMLElement>('[data-focus-id^="bag-slot-"]');
+			const last = focusSlots[focusSlots.length - 1]!; // 30 stocked potions → index 29
+			expect(+last.dataset.focusColumn!, 'last focus column vs rendered columns').toBe(
+				29 % renderedColumns
+			);
+			expect(+last.dataset.focusRow!, 'last focus row vs rendered columns').toBe(
+				Math.floor(29 / renderedColumns)
+			);
+			expect(
+				gridEl.querySelector<HTMLElement>('.bag-slot')!.getBoundingClientRect().width,
+				'slot width at 754.5px'
+			).toBeGreaterThanOrEqual(105.6);
+		} finally {
+			iframe.remove();
+		}
+	});
+
 	it('keeps the detail action reachable and working at 640×360', async () => {
 		await withCommands(async (commands) => {
 			await page.viewport(640, 360);
