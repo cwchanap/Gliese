@@ -6771,6 +6771,50 @@ describe('WorldScene', () => {
 		expect(heroHouseMap.width).toBe(22);
 		expect(heroHouseMap.height).toBe(18);
 		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(-48, -12, 800, 600);
+
+		// The resize handler re-centers the captured map bounds on the new viewport.
+		const scaleOnMock = scene.scale.on as unknown as import('vitest').Mock;
+		const resizeCalls = scaleOnMock.mock.calls as Array<[string, () => void]>;
+		const resizeHandler = resizeCalls.find((call) => call[0] === 'resize')?.[1];
+		expect(resizeHandler).toBeTypeOf('function');
+
+		Object.assign(phaserState.mainCamera, { width: 960, height: 640 });
+		resizeHandler!();
+
+		expect(scene.cameras.main.setBounds).toHaveBeenLastCalledWith(-128, -32, 960, 640);
+
+		scene.events.emit('shutdown');
+
+		expect(scene.scale.off).toHaveBeenCalledWith('resize', resizeHandler);
+	});
+
+	it('keeps a large interior clamped to map bounds on resize and unregisters the listener', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const { guildHallMap } = await import('$lib/game/content/maps');
+		const scene = new WorldScene();
+
+		Object.assign(phaserState.mainCamera, { width: 800, height: 600 });
+
+		scene.create({ mapId: guildHallMap.id });
+
+		// 32x26 tiles -> 1024x832 px, larger than the viewport: no centering padding.
+		expect(guildHallMap.width).toBe(32);
+		expect(guildHallMap.height).toBe(26);
+		expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(0, 0, 1024, 832);
+
+		const scaleOnMock = scene.scale.on as unknown as import('vitest').Mock;
+		const resizeCalls = scaleOnMock.mock.calls as Array<[string, () => void]>;
+		const resizeHandler = resizeCalls.find((call) => call[0] === 'resize')?.[1];
+		expect(resizeHandler).toBeTypeOf('function');
+
+		Object.assign(phaserState.mainCamera, { width: 960, height: 700 });
+		resizeHandler!();
+
+		expect(scene.cameras.main.setBounds).toHaveBeenLastCalledWith(0, 0, 1024, 832);
+
+		scene.events.emit('shutdown');
+
+		expect(scene.scale.off).toHaveBeenCalledWith('resize', resizeHandler);
 	});
 
 	it('flags heroOccluded only while the hero projects inside the hero-card screen zone', async () => {
