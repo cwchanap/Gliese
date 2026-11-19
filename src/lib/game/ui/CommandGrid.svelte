@@ -49,7 +49,7 @@
 	// Pad focus-grid geometry mirrors the rendered grid: tall narrow
 	// viewports reflow to 2 columns below (the short-viewport override
 	// keeps the desktop 4×2 at any width, so both conditions are required).
-	const compactCommandGrid = new MediaQuery('(max-width: 832px) and (min-height: 560px)');
+	const compactCommandGrid = new MediaQuery('(max-width: 832px) and (min-height: 720px)');
 	const commandColumns = $derived(compactCommandGrid.current ? 2 : 4);
 
 	function rowAt(index: number): number {
@@ -261,7 +261,7 @@
 
 	/* Narrow screens: compact 2×4 menu hugging the left edge of the row the
 	   FieldHud wrapper flows below the hero card, so it needs a tall viewport. */
-	@media (max-width: 832px) and (min-height: 560px) {
+	@media (max-width: 832px) and (min-height: 720px) {
 		.heroic-cmd {
 			min-height: 0;
 			padding: 0.55rem 0.25rem;
@@ -285,7 +285,7 @@
 	   click retries). Every short viewport uses the 4×2 grid anchored higher
 	   so every button stays inside the viewport; tall narrow screens keep
 	   the compact 2×4 stack above. */
-	@media (max-height: 559px) {
+	@media (max-height: 719px) {
 		.heroic-cmd {
 			min-height: 0;
 		}
@@ -293,7 +293,9 @@
 			top: 8.5rem;
 			left: 0.9rem;
 			grid-template-columns: repeat(4, 1fr);
-			width: min(24.5rem, calc(100vw - 2rem));
+			/* The 11.5rem right reserve keeps the grid clear of the compact
+			   side HUD (quest + wallet) on narrow short windows. */
+			width: min(24.5rem, calc(100vw - 11.5rem));
 		}
 	}
 </style>

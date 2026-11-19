@@ -19,6 +19,13 @@ describe('heroCardZone', () => {
 		expect(heroCardZone(832, 719)).toEqual({ width: 264, height: 96 });
 	});
 
+	it('shrinks the compact zone with the narrowed card below ~452px wide', () => {
+		// Card = left inset 14.4 + min(240, vw-208); zone adds ~10px margin.
+		expect(heroCardZone(390, 650)).toEqual({ width: 206, height: 96 });
+		expect(heroCardZone(448, 650)).toEqual({ width: 264, height: 96 });
+		expect(heroCardZone(300, 360)).toEqual({ width: 116, height: 96 });
+	});
+
 	it('picks the narrow-portrait zone for tall compact viewports', () => {
 		expect(heroCardZone(420, 760)).toEqual({ width: 326, height: 222 });
 		expect(heroCardZone(832, 720)).toEqual({ width: 326, height: 222 });

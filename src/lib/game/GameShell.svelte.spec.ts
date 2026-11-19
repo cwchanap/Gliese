@@ -5048,9 +5048,9 @@ describe('GameShell pad layer', () => {
 		expect(focusedFocusId()).toBe('bag-detail-action');
 	});
 
-	it('tracks the command grid’s 2-column breakpoint at 640×600', async () => {
+	it('tracks the command grid’s 2-column breakpoint at 640×760', async () => {
 		installPadStub();
-		await page.viewport(640, 600);
+		await page.viewport(640, 760);
 		render(GameShell);
 		emitHudState(baseHudState());
 
@@ -5547,7 +5547,8 @@ describe('GameShell compact HUD layout (HPA-840)', () => {
 				{ width: 640, height: 560 },
 				{ width: 832, height: 560 },
 				{ width: 833, height: 560 },
-				{ width: 1280, height: 719 }
+				{ width: 1280, height: 719 },
+				{ width: 390, height: 650 }
 			] as const
 		).flatMap((viewport) =>
 			(['en', 'ja', 'zh-Hant'] as const).map((locale) => ({ ...viewport, locale }))
@@ -5580,6 +5581,13 @@ describe('GameShell compact HUD layout (HPA-840)', () => {
 			expect(heroName.getClientRects().length).toBeGreaterThan(0);
 			expect(heroName.getBoundingClientRect().width).toBeLessThanOrEqual(1);
 			expect(getComputedStyle(heroName).display).not.toBe('none');
+
+			// The level badge is likewise visually hidden but keeps its
+			// accessible level string (the sr-only "LV n" inside it).
+			const levelBadge = party.querySelector<HTMLElement>('.hero-level')!;
+			expect(levelBadge.getBoundingClientRect().width).toBeLessThanOrEqual(1);
+			expect(getComputedStyle(levelBadge).display).not.toBe('none');
+			expect(levelBadge.querySelector('.sr-only')?.textContent).toContain('1');
 
 			// The compact tracker shows only the current objective — no eyebrow
 			// or quest title line.
@@ -5645,6 +5653,54 @@ describe('GameShell compact HUD layout (HPA-840)', () => {
 			);
 			expect(zone.width - cardBox.right, 'right-edge slack').toBeLessThanOrEqual(16);
 			expect(zone.height - cardBox.bottom, 'bottom-edge slack').toBeLessThanOrEqual(16);
+		}
+	);
+
+	it.each([
+		{ width: 640, height: 600 },
+		{ width: 390, height: 650 }
+	])(
+		'keeps the opened command menu onscreen and clear of the compact HUD at $width×$height',
+		async ({ width, height }) => {
+			await page.viewport(width, height);
+			render(GameShell);
+			emitHudState(baseHudState({ quests: { main: mockMainQuest(), completed: [], total: 1 } }));
+			await expect.element(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+
+			await page.getByRole('button', { name: 'Menu' }).click();
+			const commandMenu = page.getByRole('region', { name: 'Command' });
+			await expect.element(commandMenu).toBeVisible();
+
+			const menuRect = (commandMenu.element() as HTMLElement).getBoundingClientRect();
+			expect(menuRect.width).toBeGreaterThan(0);
+			expect(menuRect.height).toBeGreaterThan(0);
+			expect(menuRect.top, `menu top ${JSON.stringify(menuRect)}`).toBeGreaterThanOrEqual(0);
+			expect(menuRect.left, `menu left ${JSON.stringify(menuRect)}`).toBeGreaterThanOrEqual(0);
+			expect(menuRect.bottom, `menu bottom ${JSON.stringify(menuRect)}`).toBeLessThanOrEqual(
+				height
+			);
+			expect(menuRect.right, `menu right ${JSON.stringify(menuRect)}`).toBeLessThanOrEqual(width);
+
+			const others = [
+				['party', page.getByTestId('hud-party-panel').element() as HTMLElement],
+				['menuChip', document.querySelector<HTMLElement>('.jrpg-menu-anchor')!],
+				['sideHud', page.getByTestId('hud-side-panel').element() as HTMLElement]
+			] as const;
+			for (const [id, element] of others) {
+				expect(
+					rectsIntersect(menuRect, rectOf(element)),
+					`command menu vs ${id} at ${width}×${height}`
+				).toBe(false);
+			}
+
+			// Every tile keeps a real onscreen box (clipped-away tiles hang
+			// pointer input in the real shell, which clips overflow).
+			for (const button of commandMenu.getByRole('button').elements() as HTMLElement[]) {
+				const tile = button.getBoundingClientRect();
+				expect(tile.width).toBeGreaterThan(0);
+				expect(tile.bottom).toBeLessThanOrEqual(height);
+				expect(tile.right).toBeLessThanOrEqual(width);
+			}
 		}
 	);
 
