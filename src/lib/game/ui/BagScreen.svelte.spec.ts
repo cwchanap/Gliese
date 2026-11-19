@@ -396,11 +396,13 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 	);
 
 	it.each([
-		[640, 360],
-		[832, 560]
-	])(
-		'renders 3 readable columns with full-size labels and badges at %d×%d',
-		async (width, height) => {
+		// ≤640px short landscape drops to 2 columns so each slot keeps its
+		// 6.6rem (105.6px) width as well as height; 641–900px keeps 3.
+		[640, 360, 2, '14', '1'],
+		[832, 560, 3, '9', '2']
+	] as const)(
+		'renders %2$d readable columns with 6.6rem slots and full-size badges at %d×%d',
+		async (width, height, columns, lastRow, lastCol) => {
 			await page.viewport(width, height);
 			window.scrollTo(0, 0);
 			render(GameShell);
@@ -409,18 +411,22 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 
 			const screen = bagScreen();
 			const gridEl = screen.querySelector<HTMLElement>('.bag-slot-grid')!;
-			// Short landscape renders 3 columns (not the 4-col ≤640 compact
-			// stack), and each slot stays wide enough for its label and badge.
-			expect(getComputedStyle(gridEl).gridTemplateColumns.split(' ')).toHaveLength(3);
+			expect(getComputedStyle(gridEl).gridTemplateColumns.split(' ')).toHaveLength(columns);
 			const slot = gridEl.querySelector<HTMLElement>('.bag-slot')!;
-			expect(slot.getBoundingClientRect().width).toBeGreaterThanOrEqual(68);
+			const slotRect = slot.getBoundingClientRect();
+			expect(
+				slotRect.width,
+				`slot width at ${width}×${height}: ${slotRect.width}px`
+			).toBeGreaterThanOrEqual(105.6);
+			// 6.6rem height: subpixel rounding lands at 105.59.
+			expect(slotRect.height).toBeGreaterThanOrEqual(105.5);
 
-			// Focus geometry mirrors the rendered 3 columns: only filled slots
-			// carry focus ids, so the 30 stocked potions end at row 9, col 2.
+			// Focus geometry mirrors the rendered columns: only filled slots
+			// carry focus ids, so the 30 stocked potions end at the last cell.
 			const focusSlots = screen.querySelectorAll<HTMLElement>('[data-focus-id^="bag-slot-"]');
 			const lastFocus = focusSlots[focusSlots.length - 1]!;
-			expect(lastFocus.getAttribute('data-focus-row')).toBe('9');
-			expect(lastFocus.getAttribute('data-focus-column')).toBe('2');
+			expect(lastFocus.getAttribute('data-focus-row')).toBe(lastRow);
+			expect(lastFocus.getAttribute('data-focus-column')).toBe(lastCol);
 
 			await page.getByRole('tab', { name: 'Gear' }).click();
 			await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
