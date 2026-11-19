@@ -49,7 +49,7 @@
 	// Pad focus-grid geometry mirrors the rendered grid: tall narrow
 	// viewports reflow to 2 columns below (the short-viewport override
 	// keeps the desktop 4×2 at any width, so both conditions are required).
-	const compactCommandGrid = new MediaQuery('(max-width: 832px) and (min-height: 720px)');
+	const compactCommandGrid = new MediaQuery('(max-width: 832px) and (min-height: 560px)');
 	const commandColumns = $derived(compactCommandGrid.current ? 2 : 4);
 
 	function rowAt(index: number): number {
@@ -261,7 +261,7 @@
 
 	/* Narrow screens: compact 2×4 menu hugging the left edge of the row the
 	   FieldHud wrapper flows below the hero card, so it needs a tall viewport. */
-	@media (max-width: 832px) and (min-height: 720px) {
+	@media (max-width: 832px) and (min-height: 560px) {
 		.heroic-cmd {
 			min-height: 0;
 			padding: 0.55rem 0.25rem;
@@ -285,7 +285,7 @@
 	   click retries). Every short viewport uses the 4×2 grid anchored higher
 	   so every button stays inside the viewport; tall narrow screens keep
 	   the compact 2×4 stack above. */
-	@media (max-height: 719px) {
+	@media (max-height: 559px) {
 		.heroic-cmd {
 			min-height: 0;
 		}
@@ -293,9 +293,22 @@
 			top: 8.5rem;
 			left: 0.9rem;
 			grid-template-columns: repeat(4, 1fr);
-			/* The 11.5rem right reserve keeps the grid clear of the compact
-			   side HUD (quest + wallet) on narrow short windows. */
-			width: min(24.5rem, calc(100vw - 11.5rem));
+			width: min(24.5rem, calc(100vw - 2rem));
+		}
+	}
+
+	/* The 560–719px-tall band still belongs to the 2-column portrait rule
+	   above — and its pad focus geometry — but FieldHud's compact mode
+	   leaves the menu's wrapper display:contents there, so position:
+	   relative has nothing to flow against and the menu lands under the
+	   hero card. Keep the same columns and anchor the grid absolutely
+	   below the card instead; the 10.5rem portrait width stays clear of
+	   the compact side HUD even at 390px wide. */
+	@media (max-width: 832px) and (min-height: 560px) and (max-height: 719px) {
+		.heroic-field-menu {
+			position: absolute;
+			top: 8.5rem;
+			left: 0.9rem;
 		}
 	}
 </style>

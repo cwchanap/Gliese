@@ -5048,9 +5048,9 @@ describe('GameShell pad layer', () => {
 		expect(focusedFocusId()).toBe('bag-detail-action');
 	});
 
-	it('tracks the command grid’s 2-column breakpoint at 640×760', async () => {
+	it('tracks the command grid’s 2-column breakpoint at 640×600', async () => {
 		installPadStub();
-		await page.viewport(640, 760);
+		await page.viewport(640, 600);
 		render(GameShell);
 		emitHudState(baseHudState());
 
@@ -5066,6 +5066,22 @@ describe('GameShell pad layer', () => {
 		document.querySelector<HTMLElement>('[data-focus-id="field-cmd-bag"]')?.focus();
 		await tiltAxis(0.8, 0);
 		expect(focusedFocusId()).toBe('field-cmd-gear');
+	});
+
+	it('keeps the command grid’s independent 4-column layout at 640×559', async () => {
+		installPadStub();
+		await page.viewport(640, 559);
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await press(9);
+		// CommandGrid owns its own <=559px short rule (independent of the
+		// compact HUD breakpoint): the 4×2 grid puts Skill directly below
+		// Bag, where 2-column math would land on Quest.
+		await tiltAxis(0.8, 0);
+		expect(focusedFocusId()).toBe('field-cmd-bag');
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('field-cmd-skill');
 	});
 
 	it('stacks the manual Save slots into a column at 640×360', async () => {
@@ -5653,6 +5669,38 @@ describe('GameShell compact HUD layout (HPA-840)', () => {
 			);
 			expect(zone.width - cardBox.right, 'right-edge slack').toBeLessThanOrEqual(16);
 			expect(zone.height - cardBox.bottom, 'bottom-edge slack').toBeLessThanOrEqual(16);
+		}
+	);
+
+	it.each([
+		// CommandGrid keeps its independent breakpoints: <=559px tall renders
+		// the 4×2 grid, the 560–719 band (and tall portrait) renders 2×4.
+		{ width: 640, height: 559, columns: 4 },
+		{ width: 640, height: 560, columns: 2 },
+		{ width: 640, height: 600, columns: 2 },
+		{ width: 390, height: 650, columns: 2 }
+	])(
+		'renders the opened command menu in $columns columns at $width×$height',
+		async ({ width, height, columns }) => {
+			await page.viewport(width, height);
+			render(GameShell);
+			emitHudState(baseHudState({ quests: { main: mockMainQuest(), completed: [], total: 1 } }));
+			await expect.element(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+			await page.getByRole('button', { name: 'Menu' }).click();
+			const commandMenu = page.getByRole('region', { name: 'Command' });
+			await expect.element(commandMenu).toBeVisible();
+
+			const tiles = commandMenu.getByRole('button').elements() as HTMLElement[];
+			expect(tiles.length).toBe(8);
+			const tops = tiles.map((tile) => tile.getBoundingClientRect().top);
+			const rowZero = tops.filter((top) => Math.abs(top - tops[0]) < 2);
+			expect(rowZero.length, `first-row tile count ${JSON.stringify(tops)}`).toBe(columns);
+
+			// Pad focus geometry must mirror the rendered grid: Quest is
+			// index 2 → row 0 col 2 in 4 columns, row 1 col 0 in 2 columns.
+			const quest = tiles.find((tile) => tile.dataset.focusId === 'field-cmd-quest')!;
+			expect(quest.dataset.focusColumn).toBe(columns === 4 ? '2' : '0');
+			expect(quest.dataset.focusRow).toBe(columns === 4 ? '0' : '1');
 		}
 	);
 
