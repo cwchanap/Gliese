@@ -300,6 +300,39 @@
 		}
 	}
 
+	/* Very narrow + short (e.g. 390×559): the 13.5rem side-HUD reserve leaves
+	   only ~174px for four tiles, so icons/labels overflow the menu frame —
+	   and the reserve itself is generous: the compact side HUD never exceeds
+	   0.75rem offset + 11rem width. Reclaim the slack and tighten the tile
+	   chrome so all four columns stay inside the menu rect. The 559/560
+	   breakpoint and the 4-column pad geometry are unchanged. */
+	@media (max-height: 559px) and (max-width: 30rem) {
+		.heroic-field-menu {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 0.3rem;
+			width: min(24.5rem, calc(100vw - 12rem));
+			padding: 0.5rem;
+		}
+
+		.heroic-cmd {
+			min-width: 0;
+			padding: 0.45rem 0.15rem 0.35rem;
+			gap: 0.25rem;
+			font-size: 0.55rem;
+		}
+
+		.heroic-cmd-icon {
+			width: 1.4rem;
+			height: 1.4rem;
+		}
+
+		.heroic-cmd-label {
+			max-width: 100%;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+	}
+
 	/* The 560–719px-tall band still belongs to the 2-column portrait rule
 	   above — and its pad focus geometry — but FieldHud's compact mode
 	   leaves the menu's wrapper display:contents there, so position:

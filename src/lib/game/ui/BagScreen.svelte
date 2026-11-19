@@ -1200,6 +1200,13 @@
 			min-height: 0;
 		}
 
+		/* Same inner padding the ≤559px block sets: the desktop 1.25rem ate
+		   enough grid width to drop slots below 6.6rem at 560–719px heights
+		   (e.g. 640×560 2-col, 755×560 3-col — architecture review). */
+		.bag-grid-scroll {
+			padding: 0.6rem;
+		}
+
 		.bag-side {
 			flex: none;
 			width: 15.5rem;

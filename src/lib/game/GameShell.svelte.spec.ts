@@ -5763,6 +5763,56 @@ describe('GameShell compact HUD layout (HPA-840)', () => {
 		}
 	);
 
+	it.each([{ width: 390, height: 559 }])(
+		'keeps every command tile and icon inside the menu frame and clear of the side HUD at $width×$height',
+		async ({ width, height }) => {
+			// Architecture review: at 390×559 the 13.5rem side-HUD reserve left
+			// ~174px for four tiles — the outer menu rect still passed its
+			// viewport gate while tile/icon content overflowed past its frame.
+			await page.viewport(width, height);
+			render(GameShell);
+			emitHudState(baseHudState({ quests: { main: mockMainQuest(), completed: [], total: 1 } }));
+			await page.getByRole('button', { name: 'Menu' }).click();
+			const commandMenu = page.getByRole('region', { name: 'Command' });
+			await expect.element(commandMenu).toBeVisible();
+
+			const menuRect = (commandMenu.element() as HTMLElement).getBoundingClientRect();
+			const tiles = commandMenu.getByRole('button').elements() as HTMLElement[];
+			expect(tiles.length).toBe(8);
+			for (const tile of tiles) {
+				const tileRect = tile.getBoundingClientRect();
+				expect(
+					tileRect.left >= menuRect.left - 1 && tileRect.right <= menuRect.right + 1,
+					`tile ${tile.dataset.focusId} inside menu x at ${width}×${height}: ${JSON.stringify(tileRect)} vs ${JSON.stringify(menuRect)}`
+				).toBe(true);
+				expect(
+					tileRect.top >= menuRect.top - 1 && tileRect.bottom <= menuRect.bottom + 1,
+					`tile ${tile.dataset.focusId} inside menu y at ${width}×${height}`
+				).toBe(true);
+				const icon = tile.querySelector<HTMLElement>('.heroic-cmd-icon')!;
+				const iconRect = icon.getBoundingClientRect();
+				expect(
+					iconRect.left >= tileRect.left - 1 && iconRect.right <= tileRect.right + 1,
+					`icon inside ${tile.dataset.focusId} at ${width}×${height}: ${JSON.stringify(iconRect)} vs ${JSON.stringify(tileRect)}`
+				).toBe(true);
+				// The label must not paint past its tile either.
+				const label = tile.querySelector<HTMLElement>('.heroic-cmd-label')!;
+				expect(
+					label.scrollWidth <= label.clientWidth + 1,
+					`label clipped inside ${tile.dataset.focusId} at ${width}×${height}`
+				).toBe(true);
+			}
+
+			// The menu still cannot reach under the compact side HUD.
+			const sideHud = page.getByTestId('hud-side-panel').element() as HTMLElement;
+			expect(
+				rectsIntersect(menuRect, rectOf(sideHud)),
+				`command menu vs sideHud at ${width}×${height}`
+			).toBe(false);
+			expect(document.documentElement.scrollTop + document.body.scrollTop).toBe(0);
+		}
+	);
+
 	it('keeps only the completed-prologue line when the tracker has no objective', async () => {
 		await page.viewport(640, 360);
 		render(GameShell);
