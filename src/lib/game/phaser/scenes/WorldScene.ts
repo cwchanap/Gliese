@@ -775,6 +775,15 @@ export class WorldScene extends Phaser.Scene {
 			WorldScene.cameraFollowLerp
 		);
 
+		// Live viewport resize re-centers the camera bounds; the captured map
+		// dimensions belong to this create() so a transition/restart swaps the
+		// closure via the shutdown cleanup below.
+		const onResize = () => {
+			const bounds = this.getCenteredCameraBounds(width, height);
+			this.cameras.main.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
+		};
+		this.scale.on('resize', onResize);
+
 		this.cursorKeys = this.input?.keyboard?.createCursorKeys?.();
 		this.wasdKeys = this.input?.keyboard?.addKeys?.({
 			left: Phaser.Input.Keyboard.KeyCodes.A,
@@ -815,6 +824,7 @@ export class WorldScene extends Phaser.Scene {
 			this.removeHudCommandListener();
 			this.unsubscribePreferences?.();
 			this.unsubscribePreferences = null;
+			this.scale.off('resize', onResize);
 			this.events?.off?.('shutdown', cleanup);
 			this.events?.off?.('destroy', cleanup);
 		};
