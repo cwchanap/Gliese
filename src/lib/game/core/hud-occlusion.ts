@@ -11,10 +11,12 @@ export type HeroScreenCamera = {
 };
 
 const DESKTOP_CARD_ZONE = { width: 412, height: 240 } as const;
-const SHORT_CARD_ZONE = { width: 326, height: 148 } as const;
+// Rendered compact hero card (portrait + HP only) plus its top/left margins;
+// FieldHud's @media (max-height: 719px) owns the same breakpoint.
+const SHORT_CARD_ZONE = { width: 264, height: 96 } as const;
 
 export function heroCardZone(viewWidth: number, viewHeight: number) {
-	if (viewHeight <= 559) return SHORT_CARD_ZONE;
+	if (viewHeight <= 719) return SHORT_CARD_ZONE;
 	if (viewWidth <= 832) {
 		const renderedWidth = Math.min(304, Math.max(0, viewWidth - 112));
 		const width = Math.min(326, 12 + renderedWidth + 10);

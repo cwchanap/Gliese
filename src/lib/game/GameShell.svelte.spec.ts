@@ -26,6 +26,7 @@ import { updatePreferences } from '$lib/game/i18n/store';
 import { t } from '$lib/game/i18n/translate';
 import type { ConsumableDefinition, EquipmentDefinition } from '$lib/game/content/items';
 import { getAreaName } from '$lib/game/core/area-map';
+import { heroCardZone } from '$lib/game/core/hud-occlusion';
 import { anchorPoint } from '$lib/game/content/maps/overworld/world';
 import type { HudQuestEntry } from '$lib/game/core/quests';
 import { questStateAt } from '$lib/game/core/quests.fixtures';
@@ -5446,7 +5447,7 @@ describe('GameShell menu toggle placement', () => {
 			}))
 		)
 	)(
-		'does not intersect the field HUD cards at $width×$height ($locale/$promptMode), prompt glyph included',
+		'does not intersect the compact field HUD cards at $width×$height ($locale/$promptMode), prompt glyph included',
 		async ({ width, height, locale, promptMode }) => {
 			updatePreferences({ locale, promptMode });
 			await page.viewport(width, height);
@@ -5456,6 +5457,12 @@ describe('GameShell menu toggle placement', () => {
 			const menuButton = page.getByRole('button', { name: t(locale, 'ui.menu'), exact: true });
 			await expect.element(menuButton).toBeVisible();
 			expect(Number(getComputedStyle(menuButton.element()).opacity)).toBeGreaterThan(0);
+
+			// Every viewport in this matrix is under 720px tall: compact mode
+			// removes the minimap box entirely rather than shrinking it.
+			const minimap = page.getByTestId('hud-minimap').element() as HTMLElement;
+			expect(getComputedStyle(minimap).display).toBe('none');
+			expect(minimap.getClientRects().length).toBe(0);
 
 			const glyph = menuButton.element().querySelector<HTMLElement>('.heroic-prompt-glyph');
 			expect(glyph).not.toBeNull();
@@ -5473,11 +5480,15 @@ describe('GameShell menu toggle placement', () => {
 				bottom: Math.max(menuBox.bottom, glyphBox.bottom)
 			};
 			const surfaces = [
-				{ id: 'hud-minimap', element: page.getByTestId('hud-minimap').element() },
+				{ id: 'hud-side-panel', element: page.getByTestId('hud-side-panel').element() },
 				{ id: 'hud-party-panel', element: page.getByTestId('hud-party-panel').element() },
 				{
 					id: 'quest-banner',
 					element: document.querySelector<HTMLElement>('.quest-banner')
+				},
+				{
+					id: 'wallet-pill',
+					element: document.querySelector<HTMLElement>('.wallet-pill')
 				}
 			];
 			for (const surface of surfaces) {
@@ -5494,8 +5505,239 @@ describe('GameShell menu toggle placement', () => {
 					`${surface.id} ${JSON.stringify(box)} vs menu union ${JSON.stringify(union)}`
 				).toBe(false);
 			}
+
+			// The compact side HUD anchors below the actual Menu chip: the old
+			// top:.75rem pin collided once the minimap left the column.
+			const sideHudBox = (
+				page.getByTestId('hud-side-panel').element() as HTMLElement
+			).getBoundingClientRect();
+			expect(
+				union.bottom,
+				`menu union ${JSON.stringify(union)} vs side HUD ${JSON.stringify(sideHudBox)}`
+			).toBeLessThanOrEqual(sideHudBox.top);
 		}
 	);
+});
+
+describe('GameShell compact HUD layout (HPA-840)', () => {
+	function rectOf(element: HTMLElement): DOMRect {
+		return element.getBoundingClientRect();
+	}
+
+	function rectsIntersect(a: DOMRect, b: DOMRect): boolean {
+		return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+	}
+
+	function compactSurfaces() {
+		return {
+			party: page.getByTestId('hud-party-panel').element() as HTMLElement,
+			menuAnchor: document.querySelector<HTMLElement>('.jrpg-menu-anchor')!,
+			sideHud: page.getByTestId('hud-side-panel').element() as HTMLElement,
+			questBanner: document.querySelector<HTMLElement>('.quest-banner')!,
+			wallet: document.querySelector<HTMLElement>('.wallet-pill')!,
+			minimap: page.getByTestId('hud-minimap').element() as HTMLElement
+		};
+	}
+
+	it.each(
+		(
+			[
+				{ width: 640, height: 360 },
+				{ width: 640, height: 559 },
+				{ width: 640, height: 560 },
+				{ width: 832, height: 560 },
+				{ width: 833, height: 560 },
+				{ width: 1280, height: 719 }
+			] as const
+		).flatMap((viewport) =>
+			(['en', 'ja', 'zh-Hant'] as const).map((locale) => ({ ...viewport, locale }))
+		)
+	)(
+		'lays out the compact HUD below the Menu chip at $width×$height ($locale)',
+		async ({ width, height, locale }) => {
+			updatePreferences({ locale });
+			await page.viewport(width, height);
+			render(GameShell);
+			emitHudState(baseHudState({ quests: { main: mockMainQuest(), completed: [], total: 1 } }));
+
+			await expect.element(page.getByTestId('hud-party-panel')).toBeVisible();
+			await expect.element(page.getByTestId('hud-side-panel')).toBeVisible();
+			const { party, menuAnchor, sideHud, questBanner, wallet, minimap } = compactSurfaces();
+
+			// Compact mode drops the minimap, the XP meter, and the stat row
+			// entirely: no leftover boxes to collide with.
+			expect(getComputedStyle(minimap).display).toBe('none');
+			expect(minimap.getClientRects().length).toBe(0);
+			expect(party.querySelector<HTMLElement>('.hero-stats')!.getClientRects().length).toBe(0);
+			const xpMeter = Array.from(party.querySelectorAll<HTMLElement>('.hero-meter')).find((meter) =>
+				meter.querySelector('.hero-meter-label-xp')
+			)!;
+			expect(xpMeter.getClientRects().length).toBe(0);
+
+			// The hero name is the card's only accessible identification string:
+			// clipped to a 1px box, never display:none.
+			const heroName = party.querySelector<HTMLElement>('.hero-name')!;
+			expect(heroName.getClientRects().length).toBeGreaterThan(0);
+			expect(heroName.getBoundingClientRect().width).toBeLessThanOrEqual(1);
+			expect(getComputedStyle(heroName).display).not.toBe('none');
+
+			// The compact tracker shows only the current objective — no eyebrow
+			// or quest title line.
+			expect(
+				document.querySelector<HTMLElement>('.quest-banner-eyebrow')!.getClientRects().length
+			).toBe(0);
+			expect(questBanner.querySelector('h2')!.getClientRects().length).toBe(0);
+			expect(
+				questBanner.querySelector<HTMLElement>('.quest-banner-objective')!.getClientRects().length
+			).toBeGreaterThan(0);
+
+			// Every visible compact surface stays inside the viewport.
+			const named = [
+				['party', party],
+				['menu', menuAnchor],
+				['sideHud', sideHud],
+				['questBanner', questBanner],
+				['wallet', wallet]
+			] as const;
+			for (const [id, element] of named) {
+				const rect = rectOf(element);
+				expect(rect.width, `${id} width`).toBeGreaterThan(0);
+				expect(rect.height, `${id} height`).toBeGreaterThan(0);
+				expect(rect.top, `${id} top`).toBeGreaterThanOrEqual(0);
+				expect(rect.left, `${id} left`).toBeGreaterThanOrEqual(0);
+				expect(
+					rect.bottom,
+					`${id} bottom ${JSON.stringify(rect)} vs ${width}×${height}`
+				).toBeLessThanOrEqual(height);
+				expect(
+					rect.right,
+					`${id} right ${JSON.stringify(rect)} vs ${width}×${height}`
+				).toBeLessThanOrEqual(width);
+			}
+
+			// Menu sits above the side HUD and clear of every card.
+			const pairs = [
+				['menu', menuAnchor, 'sideHud', sideHud],
+				['menu', menuAnchor, 'party', party],
+				['menu', menuAnchor, 'questBanner', questBanner],
+				['menu', menuAnchor, 'wallet', wallet],
+				['party', party, 'sideHud', sideHud]
+			] as const;
+			for (const [idA, a, idB, b] of pairs) {
+				expect(rectsIntersect(rectOf(a), rectOf(b)), `${idA} vs ${idB} at ${width}×${height}`).toBe(
+					false
+				);
+			}
+			expect(rectOf(menuAnchor).bottom).toBeLessThanOrEqual(rectOf(sideHud).top);
+
+			// CSS/TypeScript agreement: heroCardZone() tracks the rendered
+			// compact card plus its margin — never the stale 412×240 desktop box.
+			const zone = heroCardZone(width, height);
+			const cardBox = rectOf(party);
+			expect(zone.width, `zone width vs ${JSON.stringify(cardBox)}`).toBeGreaterThanOrEqual(
+				cardBox.right
+			);
+			expect(zone.height, `zone height vs ${JSON.stringify(cardBox)}`).toBeGreaterThanOrEqual(
+				cardBox.bottom
+			);
+			expect(zone.width - cardBox.right).toBeLessThan(48);
+			expect(zone.height - cardBox.bottom).toBeLessThan(48);
+		}
+	);
+
+	it('keeps only the completed-prologue line when the tracker has no objective', async () => {
+		await page.viewport(640, 360);
+		render(GameShell);
+		emitHudState(
+			baseHudState({
+				quests: { main: null, completed: [mockCompletedQuest()], total: 1 }
+			})
+		);
+		await expect.element(page.getByTestId('hud-side-panel')).toBeVisible();
+
+		const questBanner = document.querySelector<HTMLElement>('.quest-banner')!;
+		expect(questBanner).not.toBeNull();
+		// The completed banner carries no objective line, so its heading (the
+		// prologue-complete text) is the one string that stays visible.
+		expect(questBanner.querySelector('.quest-banner-objective')).toBeNull();
+		expect(questBanner.querySelector('h2')!.getClientRects().length).toBeGreaterThan(0);
+		expect(questBanner.textContent).toContain(t('en', 'ui.prologueComplete'));
+	});
+
+	it('keeps every compact HUD rect onscreen, disjoint, and under a third of the 640×360 field', async () => {
+		await page.viewport(640, 360);
+		render(GameShell);
+		emitHudState(baseHudState({ quests: { main: mockMainQuest(), completed: [], total: 1 } }));
+		await expect.element(page.getByTestId('hud-party-panel')).toBeVisible();
+
+		// Distinct visible HUD/control rectangles only — wrappers already
+		// represented by their children (side HUD, hud-top/hud-row) are skipped,
+		// as is the removed minimap.
+		const surfaces = [
+			['hud-party-panel', page.getByTestId('hud-party-panel').element() as HTMLElement],
+			['jrpg-menu-anchor', document.querySelector<HTMLElement>('.jrpg-menu-anchor')!],
+			['quest-banner', document.querySelector<HTMLElement>('.quest-banner')!],
+			['wallet-pill', document.querySelector<HTMLElement>('.wallet-pill')!],
+			['field-status', document.querySelector<HTMLElement>('.heroic-field-status')!]
+		] as const;
+		const rects = surfaces.map(([id, element]) => [id, rectOf(element)] as const);
+		for (const [id, rect] of rects) {
+			expect(rect.width, `${id} width`).toBeGreaterThan(0);
+			expect(rect.height, `${id} height`).toBeGreaterThan(0);
+			expect(rect.top, `${id} top`).toBeGreaterThanOrEqual(0);
+			expect(rect.left, `${id} left`).toBeGreaterThanOrEqual(0);
+			expect(rect.bottom, `${id} bottom ${JSON.stringify(rect)}`).toBeLessThanOrEqual(360);
+			expect(rect.right, `${id} right ${JSON.stringify(rect)}`).toBeLessThanOrEqual(640);
+		}
+		for (let i = 0; i < rects.length; i += 1) {
+			for (let j = i + 1; j < rects.length; j += 1) {
+				const [idA, a] = rects[i];
+				const [idB, b] = rects[j];
+				expect(
+					rectsIntersect(a, b),
+					`${idA} ${JSON.stringify(a)} overlaps ${idB} ${JSON.stringify(b)}`
+				).toBe(false);
+			}
+		}
+		const totalArea = rects.reduce((sum, [, rect]) => sum + rect.width * rect.height, 0);
+		expect(totalArea).toBeLessThanOrEqual((640 * 360) / 3);
+	});
+
+	it('keeps the full desktop HUD at 1280×720', async () => {
+		await page.viewport(1280, 720);
+		render(GameShell);
+		emitHudState(baseHudState({ quests: { main: mockMainQuest(), completed: [], total: 1 } }));
+
+		await expect.element(page.getByTestId('hud-minimap')).toBeVisible();
+		const party = page.getByTestId('hud-party-panel').element() as HTMLElement;
+		expect(rectOf(party).width).toBeGreaterThan(300);
+		expect(
+			party.querySelector<HTMLElement>('.hero-name')!.getBoundingClientRect().width
+		).toBeGreaterThan(1);
+		expect(
+			party.querySelector<HTMLElement>('.hero-stats')!.getClientRects().length
+		).toBeGreaterThan(0);
+		expect(
+			document.querySelector<HTMLElement>('.quest-banner h2')!.getClientRects().length
+		).toBeGreaterThan(0);
+		// 720 is outside the compact breakpoint: the desktop occlusion zone.
+		expect(heroCardZone(1280, 720)).toEqual({ width: 412, height: 240 });
+	});
+
+	it('keeps the narrow-portrait HUD at 390×844', async () => {
+		await page.viewport(390, 844);
+		render(GameShell);
+		emitHudState(baseHudState({ quests: { main: mockMainQuest(), completed: [], total: 1 } }));
+
+		await expect.element(page.getByTestId('hud-minimap')).toBeVisible();
+		expect(
+			document.querySelector<HTMLElement>('.quest-banner h2')!.getClientRects().length
+		).toBeGreaterThan(0);
+		const party = page.getByTestId('hud-party-panel').element() as HTMLElement;
+		expect(
+			party.querySelector<HTMLElement>('.hero-name')!.getBoundingClientRect().width
+		).toBeGreaterThan(1);
+	});
 });
 
 describe('GameShell prologue end card and return to title', () => {
