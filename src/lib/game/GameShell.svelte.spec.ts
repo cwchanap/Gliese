@@ -6365,6 +6365,70 @@ describe('HPA-840 overlay containment on small viewports', () => {
 		expect(document.body.scrollTop).toBe(0);
 	}
 
+	// Fraction of the element's rect still visible after intersecting every
+	// ancestor clip context (overflow auto/scroll/hidden/clip) and the
+	// viewport — getBoundingClientRect alone misses ancestor clipping.
+	function unclippedFraction(el: HTMLElement): number {
+		const rect = el.getBoundingClientRect();
+		const area = rect.width * rect.height;
+		if (area <= 0) return 0;
+		let x1 = rect.left;
+		let y1 = rect.top;
+		let x2 = rect.right;
+		let y2 = rect.bottom;
+		for (let anc = el.parentElement; anc; anc = anc.parentElement) {
+			const s = getComputedStyle(anc);
+			if (!/(auto|scroll|hidden|clip)/.test(`${s.overflowX} ${s.overflowY}`)) continue;
+			const cr = anc.getBoundingClientRect();
+			const cl = cr.left + anc.clientLeft;
+			const ct = cr.top + anc.clientTop;
+			x1 = Math.max(x1, cl);
+			y1 = Math.max(y1, ct);
+			x2 = Math.min(x2, cl + anc.clientWidth);
+			y2 = Math.min(y2, ct + anc.clientHeight);
+		}
+		x1 = Math.max(x1, 0);
+		y1 = Math.max(y1, 0);
+		x2 = Math.min(x2, window.innerWidth);
+		y2 = Math.min(y2, window.innerHeight);
+		return (Math.max(0, x2 - x1) * Math.max(0, y2 - y1)) / area;
+	}
+
+	function expectUnclipped(el: HTMLElement, label: string) {
+		expect(
+			unclippedFraction(el),
+			`${label} clipped (rect ${JSON.stringify(el.getBoundingClientRect().toJSON())})`
+		).toBeGreaterThan(0.95);
+	}
+
+	// Whether the element's click point (rect center) survives ancestor clip
+	// contexts and the viewport — the honest gate for scroll-content controls
+	// taller than their panel, which can never reach ≥0.95 area visibility.
+	function centerVisible(el: HTMLElement): boolean {
+		const r = el.getBoundingClientRect();
+		const cx = r.left + r.width / 2;
+		const cy = r.top + r.height / 2;
+		if (cx < 0 || cy < 0 || cx > window.innerWidth || cy > window.innerHeight) return false;
+		for (let anc = el.parentElement; anc; anc = anc.parentElement) {
+			const s = getComputedStyle(anc);
+			if (!/(auto|scroll|hidden|clip)/.test(`${s.overflowX} ${s.overflowY}`)) continue;
+			const cr = anc.getBoundingClientRect();
+			const cl = cr.left + anc.clientLeft;
+			const ct = cr.top + anc.clientTop;
+			if (cx < cl || cx > cl + anc.clientWidth || cy < ct || cy > ct + anc.clientHeight) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	function expectCenterVisible(el: HTMLElement, label: string) {
+		expect(
+			centerVisible(el),
+			`${label} center clipped (rect ${JSON.stringify(el.getBoundingClientRect().toJSON())})`
+		).toBe(true);
+	}
+
 	async function openFieldCommand(name: string | RegExp) {
 		await page.getByRole('button', { name: /menu/i }).click();
 		await page.getByRole('button', { name }).click();
@@ -6694,20 +6758,36 @@ describe('HPA-840 overlay containment on small viewports', () => {
 		).toBe(true);
 		for (const el of els) {
 			expect(el).toBeTruthy();
-			expect(
-				insideViewport(el!.getBoundingClientRect(), w, h),
-				`chrome ${el!.className} ${JSON.stringify(el!.getBoundingClientRect().toJSON())} inside ${w}×${h}`
-			).toBe(true);
+			// Clip-aware: chrome must survive ancestor overflow clipping, not
+			// just sit inside raw viewport coordinates.
+			expectUnclipped(el!, `chrome ${el!.className}`);
 		}
 		expectDocumentUnscrolled();
 	}
 
 	async function expectFocusInsideAndTrapped(screen: HTMLElement) {
 		expect(screen.contains(document.activeElement)).toBe(true);
+		// Same focusable definition as trapTabFocus, so first/last here are the
+		// exact boundary elements the trap wraps between.
+		const focusable = [
+			...screen.querySelectorAll<HTMLElement>(
+				'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+			)
+		].filter((el) => el.tabIndex >= 0 && el.getClientRects().length > 0);
+		expect(focusable.length).toBeGreaterThan(0);
+		// Single-control surfaces (e.g. Skill's lone Back) wrap onto themselves.
+		const first = focusable[0]!;
+		const last = focusable.at(-1)!;
+		// Last → Tab wraps to first; first → Shift+Tab wraps to last. Real
+		// focus moves only through the trap's own keydown handling.
+		last.focus();
+		expect(document.activeElement).toBe(last);
 		await userEvent.keyboard('{Tab}');
-		expect(screen.contains(document.activeElement)).toBe(true);
+		expect(document.activeElement).toBe(first);
+		first.focus();
+		expect(document.activeElement).toBe(first);
 		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
-		expect(screen.contains(document.activeElement)).toBe(true);
+		expect(document.activeElement).toBe(last);
 	}
 
 	// Scrolls the panel to its end when it overflows; returns whether it
@@ -6720,12 +6800,30 @@ describe('HPA-840 overlay containment on small viewports', () => {
 		return true;
 	}
 
-	// Geometry must be measured after the 280ms heroic-anim entrance; mid-
+	// Geometry must be measured after the ~280ms heroic-anim entrance; mid-
 	// flight the window's rect is transformed and can read slightly larger
-	// than the viewport.
-	async function settleOverlayEntrance() {
-		await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
-		await new Promise((resolve) => setTimeout(resolve, 400));
+	// than the viewport. The settled conditions are real: any running CSS
+	// animation/transition inside the overlay must finish, then the window's
+	// rect must be identical across two consecutive frames (both bounded —
+	// never a fixed sleep).
+	async function settleOverlayEntrance(screen: HTMLElement) {
+		const animations = screen.getAnimations({ subtree: true });
+		await Promise.race([
+			Promise.all(animations.map((a) => a.finished.catch(() => {}))),
+			new Promise((resolve) => setTimeout(resolve, 2_000))
+		]);
+		await new Promise<void>((resolve) => {
+			let last = '';
+			const deadline = performance.now() + 1_000;
+			const probe = () => {
+				const r = screen.getBoundingClientRect();
+				const now = `${r.x},${r.y},${r.width},${r.height}`;
+				if (now === last || performance.now() > deadline) return resolve();
+				last = now;
+				requestAnimationFrame(probe);
+			};
+			requestAnimationFrame(probe);
+		});
 	}
 
 	function stockedBagHud(): HudState {
@@ -6801,20 +6899,18 @@ describe('HPA-840 overlay containment on small viewports', () => {
 				await expect.element(dialog).toBeVisible();
 				return dialog.element() as HTMLElement;
 			},
-			exercise: async (screen, w, h) => {
+			exercise: async (screen) => {
 				scrollPanelToEnd(screen.querySelector<HTMLElement>('.quest-rail-entries')!);
 				scrollPanelToEnd(screen.querySelector<HTMLElement>('.quest-chapter')!);
 				scrollPanelToEnd(screen.querySelector<HTMLElement>('.quest-detail')!);
-				const completed = screen.querySelectorAll<HTMLElement>(
-					'[data-testid="quest-entry-completed"]'
-				);
-				expect(completed.length).toBeGreaterThan(0);
-				// Scrolling the rail to its end parks the first completed entry
-				// above the fold; scrollIntoView is the reachability check.
-				completed[0]!.scrollIntoView({ block: 'nearest' });
-				completed[0]!.click();
-				await vi.waitFor(() => expect(completed[0]!.className).toContain('quest-entry-selected'));
-				expect(insideViewport(completed[0]!.getBoundingClientRect(), w, h)).toBe(true);
+				const completed = page.getByTestId('quest-entry-completed');
+				expect(completed.elements().length).toBeGreaterThan(0);
+				// Browser-backed click scrolls the entry into view and fires a
+				// real pointer activation — not a raw el.click().
+				const first = completed.first();
+				await first.click();
+				await expect.element(first).toHaveClass(/quest-entry-selected/);
+				expectCenterVisible(first.element() as HTMLElement, 'quest completed entry');
 			}
 		},
 		{
@@ -6826,11 +6922,14 @@ describe('HPA-840 overlay containment on small viewports', () => {
 				await expect.element(dialog).toBeVisible();
 				return dialog.element() as HTMLElement;
 			},
-			exercise: async (screen, w, h) => {
+			exercise: async (screen) => {
 				scrollPanelToEnd(screen.querySelector<HTMLElement>('.save-slots')!);
-				const lastSlot = screen.querySelector<HTMLElement>('[data-testid="save-slot-2"]')!;
-				expect(insideViewport(lastSlot.getBoundingClientRect(), w, h)).toBe(true);
-				lastSlot.click();
+				const lastSlot = page.getByTestId('save-slot-2');
+				await lastSlot.click();
+				// The 240px slot card exceeds the slot list's 640×360 slice, so
+				// the honest gate is its click point inside the clip, not ≥95%
+				// area visibility.
+				expectCenterVisible(lastSlot.element() as HTMLElement, 'save slot 3');
 			},
 			expectCommand: { type: 'save-slot', slot: 2 }
 		},
@@ -6850,12 +6949,11 @@ describe('HPA-840 overlay containment on small viewports', () => {
 				await expect.element(dialog).toBeVisible();
 				return dialog.element() as HTMLElement;
 			},
-			exercise: async (screen, w, h) => {
+			exercise: async (screen) => {
 				scrollPanelToEnd(screen.querySelector<HTMLElement>('.save-slots')!);
-				const lastSlot = screen.querySelector<HTMLElement>('[data-testid="save-slot-2"]')!;
-				expect(insideViewport(lastSlot.getBoundingClientRect(), w, h)).toBe(true);
-				lastSlot.click();
-				// Loading slot 3 starts the run — the field HUD returns.
+				await page.getByTestId('save-slot-2').click();
+				// Loading slot 3 starts the run — the field HUD returns (the
+				// dialog unmounts, so no post-click geometry here).
 				await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
 			}
 		},
@@ -6877,11 +6975,11 @@ describe('HPA-840 overlay containment on small viewports', () => {
 				await expect.element(dialog).toBeVisible();
 				return dialog.element() as HTMLElement;
 			},
-			exercise: async (screen, w, h) => {
+			exercise: async (screen) => {
 				const body = screen.querySelector<HTMLElement>('.jrpg-area-map-body')!;
 				const legend = screen.querySelector<HTMLElement>('.jrpg-area-map-legend')!;
 				body.scrollTop = body.scrollHeight;
-				expect(insideViewport(legend.getBoundingClientRect(), w, h)).toBe(true);
+				expectUnclipped(legend, 'area map legend');
 				await page.getByRole('img', { name: 'Guild Hall' }).click();
 				await vi.waitFor(() =>
 					expect(
@@ -6915,12 +7013,10 @@ describe('HPA-840 overlay containment on small viewports', () => {
 				}
 
 				scrollPanelToEnd(screen.querySelector<HTMLElement>('.heroic-rows')!);
-				const soundOff = [...screen.querySelectorAll<HTMLElement>('button')].find(
-					(b) => b.textContent?.trim() === 'Off'
-				)!;
-				expect(insideViewport(soundOff.getBoundingClientRect(), w, h)).toBe(true);
-				soundOff.click();
-				await vi.waitFor(() => expect(soundOff.getAttribute('aria-pressed')).toBe('true'));
+				const soundOff = page.getByRole('button', { name: 'Off', exact: true });
+				expectUnclipped(soundOff.element() as HTMLElement, 'sound Off segment');
+				await soundOff.click();
+				await expect.element(soundOff).toHaveAttribute('aria-pressed', 'true');
 			}
 		},
 		{
@@ -6935,9 +7031,13 @@ describe('HPA-840 overlay containment on small viewports', () => {
 			exercise: async (screen) => {
 				const empty = screen.querySelector<HTMLElement>('.skill-empty')!;
 				expect(empty).toBeTruthy();
-				// Skill's honest action is Back.
-				const back = screen.querySelector<HTMLElement>('.skill-back')!;
-				back.click();
+				// Skill's honest action is Back — activated through the real
+				// locator, not a raw el.click().
+				const back = page
+					.getByRole('dialog', { name: 'Skill' })
+					.getByRole('button', { name: /back/i });
+				expectUnclipped(back.element() as HTMLElement, 'skill Back');
+				await back.click();
 				await vi.waitFor(() => expect(screen.isConnected).toBe(false));
 			}
 		},
@@ -6950,23 +7050,24 @@ describe('HPA-840 overlay containment on small viewports', () => {
 				await expect.element(dialog).toBeVisible();
 				return dialog.element() as HTMLElement;
 			},
-			exercise: async (screen, w, h) => {
+			exercise: async (screen) => {
 				const scroll = screen.querySelector<HTMLElement>('.bag-grid-scroll')!;
 				scrollPanelToEnd(scroll);
 				const slots = screen.querySelectorAll<HTMLElement>('[data-testid="inventory-slot"]');
 				// 30 stocked consumables render one slot each in the Bag tab grid.
 				expect(slots.length).toBe(30);
-				// The last filled potion slot scrolls into view inside the grid.
-				const filled = [...slots].filter((s) => !s.className.includes('bag-slot-empty'));
-				const lastFilled = filled[filled.length - 1]!;
-				lastFilled.scrollIntoView({ block: 'nearest' });
-				expect(insideViewport(lastFilled.getBoundingClientRect(), w, h)).toBe(true);
-				lastFilled.click();
+				// The last filled potion slot scrolls into view inside the grid —
+				// the locator click performs the real pointer activation.
+				const lastFilled = page.getByRole('button', { name: 'Field Potion' }).last();
+				expectUnclipped(lastFilled.element() as HTMLElement, 'last potion slot');
+				await lastFilled.click();
 				const detail = screen.querySelector<HTMLElement>('[data-testid="inventory-detail"]')!;
 				await vi.waitFor(() => expect(detail.textContent).toContain('Field Potion'));
-				const action = detail.querySelector<HTMLElement>('.bag-detail-action')!;
-				expect(insideViewport(action.getBoundingClientRect(), w, h)).toBe(true);
-				action.click();
+				const action = page
+					.getByRole('dialog', { name: /inventory/i })
+					.getByRole('button', { name: /drink/i });
+				expectUnclipped(action.element() as HTMLElement, 'bag detail action');
+				await action.click();
 			},
 			expectCommand: { type: 'use-item', itemId: 'field-potion' }
 		},
@@ -6982,19 +7083,18 @@ describe('HPA-840 overlay containment on small viewports', () => {
 					.toHaveAttribute('aria-selected', 'true');
 				return dialog.element() as HTMLElement;
 			},
-			exercise: async (screen, w, h) => {
+			exercise: async (screen) => {
 				scrollPanelToEnd(screen.querySelector<HTMLElement>('.bag-grid-scroll')!);
-				const dagger = [...screen.querySelectorAll<HTMLElement>('button')].find((b) =>
-					b.getAttribute('aria-label')?.includes('Rusty Dagger')
-				)!;
-				dagger.scrollIntoView({ block: 'nearest' });
-				expect(insideViewport(dagger.getBoundingClientRect(), w, h)).toBe(true);
-				dagger.click();
+				const dagger = page.getByRole('button', { name: 'Rusty Dagger' });
+				await dagger.click();
+				expectUnclipped(dagger.element() as HTMLElement, 'rusty dagger slot');
 				const detail = screen.querySelector<HTMLElement>('[data-testid="inventory-detail"]')!;
 				await vi.waitFor(() => expect(detail.textContent).toContain('Rusty Dagger'));
-				const action = detail.querySelector<HTMLElement>('.bag-detail-action')!;
-				expect(insideViewport(action.getBoundingClientRect(), w, h)).toBe(true);
-				action.click();
+				const action = page
+					.getByRole('dialog', { name: /inventory/i })
+					.getByRole('button', { name: /equip/i });
+				expectUnclipped(action.element() as HTMLElement, 'gear detail action');
+				await action.click();
 			},
 			expectCommand: { type: 'equip-item', itemId: 'rusty-dagger' }
 		},
@@ -7022,18 +7122,18 @@ describe('HPA-840 overlay containment on small viewports', () => {
 				await expect.element(dialog).toBeVisible();
 				return dialog.element() as HTMLElement;
 			},
-			exercise: async (screen, w, h) => {
+			exercise: async (screen) => {
 				scrollPanelToEnd(screen.querySelector<HTMLElement>('.shop-grid-scroll')!);
-				const lastTile = [...screen.querySelectorAll<HTMLElement>('button')].find(
-					(b) => b.getAttribute('aria-label') === 'Field Potion 18'
-				)!;
-				expect(insideViewport(lastTile.getBoundingClientRect(), w, h)).toBe(true);
-				lastTile.click();
+				const lastTile = page.getByRole('button', { name: 'Field Potion 18' });
+				await lastTile.click();
+				expectUnclipped(lastTile.element() as HTMLElement, 'last buy tile');
 				const detail = screen.querySelector<HTMLElement>('[data-testid="shop-detail"]')!;
 				await vi.waitFor(() => expect(detail.textContent).toContain('Field Potion 18'));
-				const buy = detail.querySelector<HTMLElement>('.shop-detail-action')!;
-				expect(insideViewport(buy.getBoundingClientRect(), w, h)).toBe(true);
-				buy.click();
+				const buy = page
+					.getByRole('dialog', { name: "Mira's Item Shop" })
+					.getByRole('button', { name: /buy/i });
+				expectUnclipped(buy.element() as HTMLElement, 'shop detail action');
+				await buy.click();
 			},
 			expectCommand: {
 				type: 'buy-shop-item',
@@ -7107,7 +7207,7 @@ describe('HPA-840 overlay containment on small viewports', () => {
 				await prepare?.();
 				render(GameShell);
 				const screen = await open();
-				await settleOverlayEntrance();
+				await settleOverlayEntrance(screen);
 				await expectFocusInsideAndTrapped(screen);
 				const chrome = overlayChromeFor(screen, name);
 				expectChrome(screen, chrome, width, height);
@@ -7120,9 +7220,14 @@ describe('HPA-840 overlay containment on small viewports', () => {
 
 				// After exercising, chrome is still pinned and the document
 				// never scrolled (skip when the exercise closed the overlay —
-				// Skill Back and Load both unmount the dialog).
+				// Skill Back and Load both unmount the dialog). Focus must also
+				// remain inside the modal surface after the action lands.
 				if (screen.isConnected) {
 					expectChrome(screen, chrome, width, height);
+					expect(
+						screen.contains(document.activeElement),
+						`focus escaped ${name} after its action (now on ${document.activeElement?.tagName})`
+					).toBe(true);
 				}
 				expectDocumentUnscrolled();
 			} finally {
@@ -7144,7 +7249,7 @@ describe('HPA-840 overlay containment on small viewports', () => {
 			// Open under the default 'en' so localized command tiles are found,
 			// then switch live — chrome labels re-render in place.
 			const screen = await open();
-			await settleOverlayEntrance();
+			await settleOverlayEntrance(screen);
 			const backEl = overlayChromeFor(screen, name)[1]!;
 			const enText = backEl.textContent;
 			updatePreferences({ locale });
@@ -7174,7 +7279,7 @@ describe('HPA-840 overlay containment on small viewports', () => {
 			const dialog = await openQuestLog();
 			await expect.element(dialog).toBeVisible();
 			const screen = dialog.element() as HTMLElement;
-			await settleOverlayEntrance();
+			await settleOverlayEntrance(screen);
 
 			// Keyboard: the rail entries form a single-column focus lattice;
 			// ArrowDown moves to the next row and the move stays inside the
