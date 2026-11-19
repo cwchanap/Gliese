@@ -35,8 +35,21 @@ export async function startNewRunThroughOpening(page: Page) {
 	const opening = page.getByRole('dialog');
 	await opening.waitFor({ state: 'visible', timeout: 30_000 });
 	for (let advance = 0; advance < 40 && (await opening.count()) > 0; advance += 1) {
+		const before = (await opening.allTextContents()).join('');
 		await page.keyboard.press('Enter');
-		await page.waitForTimeout(200);
+		// Condition-based advance: the next line changes the dialog's text, the
+		// last one closes it. No probe dependency and no fixed sleep.
+		await page
+			.waitForFunction(
+				(prev) => {
+					const dialogs = document.querySelectorAll('dialog');
+					if (dialogs.length === 0) return true;
+					return [...dialogs].map((d) => d.textContent).join('') !== prev;
+				},
+				before,
+				{ timeout: 5_000 }
+			)
+			.catch(() => {});
 	}
 	await expect(opening).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
