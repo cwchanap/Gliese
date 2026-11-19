@@ -42,10 +42,26 @@
 	}: Props = $props();
 
 	const shopTabs: ShopTab[] = ['buy', 'sell'];
-	// Pad focus-grid geometry mirrors the stock grid, which drops to 3 columns
-	// at the 640px breakpoint below.
+	// Pad focus-grid geometry mirrors the stock grid — grid-template-columns is
+	// bound to this value on the element so rendered columns and the focus
+	// lattice can never disagree. 3 columns at the ≤640px narrow breakpoint;
+	// in short landscape the rail/main/detail chrome leaves ~W−368px for the
+	// grid, so the column count steps down by width band to keep tiles usable.
 	const compactShopGrid = new MediaQuery('(max-width: 640px)');
-	const shopGridColumns = $derived(compactShopGrid.current ? 3 : 4);
+	const landscapeShopGrid = new MediaQuery('(max-height: 719px) and (min-aspect-ratio: 1/1)');
+	const shopGrid2 = new MediaQuery('(max-width: 754px)');
+	const shopGrid3 = new MediaQuery('(max-width: 874px)');
+	const shopGridColumns = $derived(
+		landscapeShopGrid.current
+			? shopGrid2.current
+				? 2
+				: shopGrid3.current
+					? 3
+					: 4
+			: compactShopGrid.current
+				? 3
+				: 4
+	);
 
 	let activeShopTab = $state<ShopTab>('buy');
 	let selectedBuyStockId = $state<string | null>(null);
@@ -387,7 +403,11 @@
 				>
 					{#if activeShopTab === 'buy'}
 						{#if shop?.buy.length}
-							<div data-testid="shop-buy-grid" class="shop-grid">
+							<div
+								data-testid="shop-buy-grid"
+								class="shop-grid"
+								style:grid-template-columns={`repeat(${shopGridColumns}, minmax(0, 1fr))`}
+							>
 								{#each shop.buy as item, index (item.stockId)}
 									{@const affordable = canBuyShopItem(item)}
 									{@const selected = selectedBuyStockId === item.stockId}
@@ -434,7 +454,11 @@
 							<div class="shop-empty">{t($locale, 'ui.noStockAvailable')}</div>
 						{/if}
 					{:else if shop?.sell.length}
-						<div data-testid="shop-sell-grid" class="shop-grid">
+						<div
+							data-testid="shop-sell-grid"
+							class="shop-grid"
+							style:grid-template-columns={`repeat(${shopGridColumns}, minmax(0, 1fr))`}
+						>
 							{#each shop.sell as item, index (item.sellId)}
 								{@const selected = selectedSellId === item.sellId}
 								<button
@@ -863,7 +887,8 @@
 
 	.shop-grid {
 		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
+		/* Column count is bound to shopGridColumns on the element (single
+		   source of truth shared with the pad focus lattice). */
 		gap: 0.6rem 1.125rem;
 		align-content: start;
 	}
@@ -1222,8 +1247,115 @@
 		}
 
 		.shop-grid {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
 			gap: 0.55rem;
+		}
+	}
+
+	/* Short landscape (640×360, 832×560): compact parallel columns. Declared
+	   after the ≤1200px/≤600px stack so it undoes the single-column opt-outs —
+	   narrow rail, stock grid and detail stay side by side and each scrolls
+	   inside its own panel. The decorative merchant bust and quote yield to
+	   the business controls (name, purse, tabs, Close); portrait and
+	   narrow/tall sizes keep the stacked column with the full portrait. */
+	@media (max-height: 719px) and (min-aspect-ratio: 1/1) {
+		.shop-screen {
+			flex-direction: row;
+			gap: 0.75rem;
+			padding: 0.75rem;
+			overflow: hidden;
+		}
+
+		.shop-rail {
+			width: 7.5rem;
+		}
+
+		.shop-rail-top {
+			gap: 0.5rem;
+			overflow-y: auto;
+		}
+
+		.shop-portrait-panel {
+			flex: none;
+			min-height: 0;
+			padding: 0.55rem 0.65rem;
+		}
+
+		.shop-portrait-frame,
+		.shop-quote {
+			display: none;
+		}
+
+		.shop-merchant-name {
+			font-size: 1.05rem;
+		}
+
+		.shop-purse {
+			min-height: 0;
+			padding: 0.45rem 0.55rem;
+		}
+
+		.shop-modes {
+			margin-top: 0.4rem;
+			grid-template-columns: 1fr;
+		}
+
+		.shop-mode {
+			padding: 0.4rem 0.45rem;
+		}
+
+		.shop-mode svg {
+			width: 0.95rem;
+			height: 0.95rem;
+		}
+
+		.shop-rail-close {
+			margin-top: 0.4rem;
+		}
+
+		.shop-main {
+			flex: 1;
+			min-height: 0;
+		}
+
+		.shop-title {
+			font-size: 1.3rem;
+		}
+
+		.shop-grid-panel {
+			flex: 1;
+			min-height: 0;
+			margin-top: 0.6rem;
+		}
+
+		.shop-grid-scroll {
+			padding: 0.75rem;
+		}
+
+		.shop-tile {
+			height: 4.6rem;
+		}
+
+		.shop-tile-icon {
+			width: 2.4rem;
+			height: 2.4rem;
+		}
+
+		.shop-detail {
+			width: 12.5rem;
+			padding: 0.75rem;
+		}
+
+		.shop-detail-head {
+			min-height: 0;
+		}
+
+		.shop-detail-icon-frame {
+			width: 4.75rem;
+			height: 4.75rem;
+		}
+
+		.shop-detail-desc {
+			max-width: none;
 		}
 	}
 </style>

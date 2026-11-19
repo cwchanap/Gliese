@@ -1,0 +1,362 @@
+import { page } from 'vitest/browser';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-svelte';
+
+import '../../../app.css';
+import GameShell from '$lib/game/GameShell.svelte';
+
+vi.mock('$lib/game/phaser/createGame', () => ({
+	createGame: vi.fn(async () => ({ destroy: vi.fn() }))
+}));
+import { HUD_COMMAND_EVENT, HUD_STATE_EVENT } from '$lib/game/ui-bridge/events';
+import type { HudOpenShop, HudState } from '$lib/game/ui-bridge/events';
+import type { HudShopBuyEntry, HudShopSellEntry } from '$lib/game/core/shop';
+import type { ConsumableDefinition, EquipmentDefinition } from '$lib/game/content/items';
+import { updatePreferences } from '$lib/game/i18n/store';
+
+function emitHudState(state: HudState) {
+	window.dispatchEvent(new CustomEvent(HUD_STATE_EVENT, { detail: state }));
+}
+
+function baseHudState(overrides: Partial<HudState> = {}): HudState {
+	return {
+		ready: true,
+		mapId: 'overworld',
+		areaMap: {
+			mapId: 'overworld',
+			name: 'Sundrop Meadows',
+			worldWidth: 6_400,
+			worldHeight: 6_400,
+			cellSize: 128,
+			revealedCells: [],
+			player: { x: 0, y: 0 },
+			markers: []
+		},
+		hp: 12,
+		maxHp: 20,
+		level: 1,
+		xp: 0,
+		attack: 4,
+		defense: 0,
+		heals: 1,
+		status: 'Ready',
+		wallet: { coins: 500 },
+		heroOccluded: false,
+		nearbyShop: null,
+		shop: null,
+		dialogue: null,
+		battle: { phase: 'none', summary: null, active: null },
+		quests: { main: null, completed: [], total: 0 },
+		inventory: {
+			consumables: [],
+			equipment: [],
+			keyItems: [],
+			equipped: { weapon: null, head: null, body: null, hands: null, accessory: null }
+		},
+		...overrides
+	};
+}
+
+function mockConsumable(): ConsumableDefinition {
+	return {
+		id: 'field-potion',
+		nameKey: 'items.fieldPotion.name',
+		descriptionKey: 'items.fieldPotion.description',
+		name: 'Field Potion',
+		description: 'Restores a small amount of HP.',
+		iconPath: '/game/assets/items/field-potion.png',
+		stackable: true,
+		basePrice: 10,
+		type: 'consumable',
+		effect: { type: 'heal', amount: 15 }
+	} as unknown as ConsumableDefinition;
+}
+
+function mockEquipment(): EquipmentDefinition {
+	return {
+		id: 'practice-sword',
+		nameKey: 'items.practiceSword.name',
+		descriptionKey: 'items.practiceSword.description',
+		name: 'Practice Sword',
+		description: 'A wooden training blade.',
+		iconPath: '/game/assets/items/practice-sword.png',
+		stackable: false,
+		basePrice: 20,
+		type: 'equipment',
+		slot: 'weapon'
+	} as unknown as EquipmentDefinition;
+}
+
+function buyEntry(index: number, overrides: Partial<HudShopBuyEntry> = {}): HudShopBuyEntry {
+	return {
+		stockId: `potion-stock-${index}`,
+		itemId: 'field-potion',
+		name: `Field Potion ${index + 1}`,
+		description: 'Restores a small amount of HP.',
+		iconPath: '/game/assets/items/field-potion.png',
+		kind: 'consumable',
+		price: 10,
+		availability: { mode: 'unlimited' },
+		item: mockConsumable(),
+		...overrides
+	};
+}
+
+function sellEntry(index: number, overrides: Partial<HudShopSellEntry> = {}): HudShopSellEntry {
+	return {
+		sellId: `equipment:practice-sword:${index}`,
+		itemId: 'practice-sword',
+		name: `Practice Sword ${index + 1}`,
+		description: 'A wooden training blade.',
+		iconPath: '/game/assets/items/practice-sword.png',
+		kind: 'equipment',
+		quantity: 1,
+		price: 5,
+		item: mockEquipment(),
+		...overrides
+	};
+}
+
+// Populated shop: 18 buy rows overflow the stock viewport even in the widest
+// short-landscape column count, and 6 sell rows exercise the second tab.
+const stockedShop: HudOpenShop = {
+	shopId: 'miras-item-shop',
+	name: "Mira's Item Shop",
+	merchantName: 'Mira',
+	description: 'Potions, tonics and traveling gear — Sundrop prices, always.',
+	buy: Array.from({ length: 18 }, (_, index) => buyEntry(index)),
+	sell: Array.from({ length: 6 }, (_, index) => sellEntry(index))
+};
+
+function withCommands(fn: (commands: unknown[]) => Promise<void> | void): Promise<void> {
+	const commands: unknown[] = [];
+	const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
+	window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
+	try {
+		const result = fn(commands);
+		return result instanceof Promise
+			? result.finally(() => window.removeEventListener(HUD_COMMAND_EVENT, handleCommand))
+			: (Promise.resolve().finally(() =>
+					window.removeEventListener(HUD_COMMAND_EVENT, handleCommand)
+				) as Promise<void>);
+	} catch (err) {
+		window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
+		throw err;
+	}
+}
+
+function insideViewport(r: DOMRect, width: number, height: number): boolean {
+	return r.top >= 0 && r.left >= 0 && r.bottom <= height && r.right <= width;
+}
+
+// Entrance animations (heroic-anim, 280ms) must settle before measuring.
+async function settleEntrance() {
+	await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+	await new Promise((resolve) => setTimeout(resolve, 400));
+}
+
+afterEach(async () => {
+	emitHudState(baseHudState({ ready: false }));
+	updatePreferences({ locale: 'en' });
+	await page.viewport(1280, 720);
+});
+
+describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () => {
+	function shopScreen(): HTMLElement {
+		return document.querySelector<HTMLElement>('.shop-screen')!;
+	}
+
+	async function openShop() {
+		emitHudState(baseHudState({ shop: stockedShop }));
+		await expect.element(page.getByTestId('shop-buy-grid')).toBeVisible();
+		await settleEntrance();
+	}
+
+	it.each([
+		[640, 360],
+		[1280, 640]
+	])(
+		'keeps title, merchant name, tabs and Close pinned in parallel columns while stock and detail scroll at %d×%d',
+		async (width, height) => {
+			await withCommands(async (commands) => {
+				await page.viewport(width, height);
+				window.scrollTo(0, 0);
+				render(GameShell);
+				await openShop();
+
+				const screen = shopScreen();
+				const title = screen.querySelector<HTMLElement>('.shop-title')!;
+				const merchant = screen.querySelector<HTMLElement>('.shop-merchant-name')!;
+				const close = screen.querySelector<HTMLElement>('.shop-rail-close')!;
+				const tabs = Array.from(screen.querySelectorAll<HTMLElement>('.shop-mode'));
+				const scroll = screen.querySelector<HTMLElement>('.shop-grid-scroll')!;
+
+				// Short landscape stays in compact parallel columns — not the
+				// stacked scrolling column that narrow/tall viewports keep.
+				expect(getComputedStyle(screen).flexDirection).toBe('row');
+
+				for (const [name, el] of [
+					['title', title],
+					['merchant name', merchant],
+					['close', close],
+					...tabs.map((tab, i) => [`tab ${i}`, tab] as const)
+				] as const) {
+					expect(
+						insideViewport(el.getBoundingClientRect(), width, height),
+						`${name} inside ${width}×${height}`
+					).toBe(true);
+				}
+
+				// The panel scrolls internally; the screen and document never do.
+				expect(getComputedStyle(scroll).overflowY).toBe('auto');
+				expect(scroll.scrollHeight).toBeGreaterThan(scroll.clientHeight);
+				expect(screen.scrollHeight).toBeLessThanOrEqual(screen.clientHeight + 1);
+				scroll.scrollTop = scroll.scrollHeight;
+				expect(scroll.scrollTop).toBeGreaterThan(0);
+
+				// The final stock tile is reachable inside the clip panel while
+				// title and Close stayed pinned.
+				const tiles = screen.querySelectorAll<HTMLElement>('.shop-tile');
+				const last = tiles[tiles.length - 1]!;
+				const clip = scroll.getBoundingClientRect();
+				const lastRect = last.getBoundingClientRect();
+				expect(lastRect.top).toBeGreaterThanOrEqual(clip.top);
+				expect(lastRect.bottom).toBeLessThanOrEqual(clip.bottom);
+				expect(insideViewport(lastRect, width, height)).toBe(true);
+				expect(insideViewport(title.getBoundingClientRect(), width, height)).toBe(true);
+				expect(insideViewport(close.getBoundingClientRect(), width, height)).toBe(true);
+				expect(document.documentElement.scrollTop).toBe(0);
+				expect(document.body.scrollTop).toBe(0);
+
+				// Buying the final stock row works: tile select, then the detail
+				// action scrolls into reach inside the detail panel.
+				last.click();
+				const detail = screen.querySelector<HTMLElement>('.shop-detail')!;
+				let action: HTMLElement | null = null;
+				await vi.waitFor(() => {
+					action = detail.querySelector<HTMLElement>('.shop-detail-action');
+					expect(action).not.toBeNull();
+				});
+				expect((action as HTMLButtonElement | null)?.disabled).toBe(false);
+				action!.scrollIntoView({ block: 'nearest' });
+				expect(
+					insideViewport(action!.getBoundingClientRect(), width, height),
+					`detail action reachable at ${width}×${height}`
+				).toBe(true);
+				action!.click();
+				expect(commands).toContainEqual({
+					type: 'buy-shop-item',
+					shopId: 'miras-item-shop',
+					stockId: 'potion-stock-17'
+				});
+
+				// Sell tab stays reachable and functional in the compact rail.
+				const sellTab = tabs[1]!;
+				sellTab.scrollIntoView({ block: 'nearest' });
+				sellTab.click();
+				await expect.element(page.getByTestId('shop-sell-grid')).toBeVisible();
+				const sellTiles = screen.querySelectorAll<HTMLElement>('.shop-tile');
+				sellTiles[0]!.click();
+				let sellAction: HTMLElement | null = null;
+				await vi.waitFor(() => {
+					sellAction = screen.querySelector<HTMLElement>('.shop-detail-action');
+					expect(sellAction).not.toBeNull();
+				});
+				sellAction!.scrollIntoView({ block: 'nearest' });
+				sellAction!.click();
+				expect(commands).toContainEqual({ type: 'sell-inventory-item', itemId: 'practice-sword' });
+
+				// Close still emits close-shop.
+				close.click();
+				expect(commands).toContainEqual({ type: 'close-shop' });
+			});
+		}
+	);
+
+	it.each([
+		// Short-landscape column bands keep every tile a usable width:
+		// 2 columns ≤754px, 3 columns 755–874px, 4 columns above.
+		[640, 360, 2, '9', '1'],
+		[832, 560, 3, '6', '2']
+	] as const)(
+		'renders %3$d stock columns synchronized with the focus lattice at %d×%d',
+		async (width, height, columns, lastRow, lastCol) => {
+			await page.viewport(width, height);
+			window.scrollTo(0, 0);
+			render(GameShell);
+			await openShop();
+
+			const screen = shopScreen();
+			const gridEl = screen.querySelector<HTMLElement>('[data-testid="shop-buy-grid"]')!;
+			expect(getComputedStyle(gridEl).gridTemplateColumns.split(' ')).toHaveLength(columns);
+
+			const scroll = screen.querySelector<HTMLElement>('.shop-grid-scroll')!;
+			expect(
+				scroll.scrollWidth,
+				`horizontal overflow at ${width}×${height} (scrollWidth ${scroll.scrollWidth} > clientWidth ${scroll.clientWidth})`
+			).toBeLessThanOrEqual(scroll.clientWidth + 1);
+
+			// Focus geometry mirrors the rendered columns: 18 stocked potions
+			// end at 1 + floor(17 / columns), col 17 % columns.
+			const tiles = Array.from(screen.querySelectorAll<HTMLElement>('.shop-tile'));
+			const lastTile = tiles[tiles.length - 1]!;
+			expect(lastTile.getAttribute('data-focus-row')).toBe(lastRow);
+			expect(lastTile.getAttribute('data-focus-column')).toBe(lastCol);
+		}
+	);
+
+	it.each([
+		// Portrait and taller narrow layouts keep the stacked column.
+		[390, 844],
+		[832, 760]
+	])('keeps the stacked scrolling column at %d×%d', async (width, height) => {
+		await page.viewport(width, height);
+		window.scrollTo(0, 0);
+		render(GameShell);
+		await openShop();
+
+		const screen = shopScreen();
+		expect(getComputedStyle(screen).flexDirection).toBe('column');
+		expect(getComputedStyle(screen).overflowY).toBe('auto');
+		// Merchant portrait stays on the stacked rail.
+		expect(screen.querySelector('.shop-portrait-frame')).not.toBeNull();
+		expect(
+			getComputedStyle(screen.querySelector<HTMLElement>('.shop-portrait-frame')!).display
+		).not.toBe('none');
+	});
+
+	it.each(['ja', 'zh-Hant'] as const)(
+		'keeps shop chrome inside 640×360 and 832×560 with %s text',
+		async (locale) => {
+			updatePreferences({ locale });
+			for (const [width, height] of [
+				[640, 360],
+				[832, 560]
+			] as const) {
+				await page.viewport(width, height);
+				window.scrollTo(0, 0);
+				const { unmount } = render(GameShell);
+				await openShop();
+
+				const screen = shopScreen();
+				expect(
+					screen.scrollWidth,
+					`horizontal overflow at ${width}×${height} (${locale})`
+				).toBeLessThanOrEqual(screen.clientWidth + 1);
+				for (const [name, el] of [
+					['title', screen.querySelector<HTMLElement>('.shop-title')!],
+					['merchant name', screen.querySelector<HTMLElement>('.shop-merchant-name')!],
+					['close', screen.querySelector<HTMLElement>('.shop-rail-close')!],
+					['buy tab', document.getElementById('shop-buy-tab')!],
+					['sell tab', document.getElementById('shop-sell-tab')!]
+				] as const) {
+					expect(
+						insideViewport(el.getBoundingClientRect(), width, height),
+						`${name} inside ${width}×${height} (${locale}): ${JSON.stringify(el.getBoundingClientRect().toJSON())}`
+					).toBe(true);
+				}
+				unmount();
+			}
+		}
+	);
+});

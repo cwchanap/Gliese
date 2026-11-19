@@ -4974,7 +4974,7 @@ describe('GameShell pad layer', () => {
 		});
 	});
 
-	it('tracks the shop grid’s 3-column breakpoint for pad navigation at 640px', async () => {
+	it('tracks the shop grid’s 2-column short-landscape geometry for pad navigation at 640×360', async () => {
 		installPadStub();
 		await page.viewport(640, 360);
 		render(GameShell);
@@ -4997,14 +4997,16 @@ describe('GameShell pad layer', () => {
 		);
 		await expect.element(page.getByTestId('shop-buy-grid')).toBeVisible();
 
-		// At 640px the grid renders 3 columns: item 3 sits directly below item 0
-		// (4-column math would jump to the nonexistent shop-buy-4 / stall).
+		// At 640×360 the short-landscape shop renders 2 columns: item 2 sits
+		// directly below item 0 (4-column math would jump to the nonexistent
+		// shop-buy-4 / stall).
 		document.querySelector<HTMLElement>('[data-focus-id="shop-buy-0"]')?.focus();
 		await tiltAxis(0, 0.8);
-		expect(focusedFocusId()).toBe('shop-buy-3');
+		expect(focusedFocusId()).toBe('shop-buy-2');
 
-		// The detail action sits below the last tile's column; A selects, then
-		// Down reaches it in the same 3-column geometry.
+		// The detail action sits below the last tile's column; A selects the
+		// last tile, then Down reaches it in the same 2-column geometry.
+		document.querySelector<HTMLElement>('[data-focus-id="shop-buy-3"]')?.focus();
 		await press(0);
 		await tiltAxis(0, 0.8);
 		expect(focusedFocusId()).toBe('shop-detail-action');
