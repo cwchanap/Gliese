@@ -5,72 +5,79 @@
 **Delivery:** One ticket, one draft PR for design, plan, subsequent implementation and verification. This initial revision is documentation-only.  
 **Visual reference:** The Linear attachment is a *failure/UAT recording*, not an approved target mockup. Use reproducible browser screenshots as visual evidence.
 
+## Review reconciliation (PR #68, 2026-11-18)
+
+**Review:** https://github.com/cwchanap/Gliese/pull/68#pullrequestreview-5967994112
+
+All six review findings are accepted with one scope clarification: **Shop and Skill are regression targets, not a new redesign**. Existing shared window styling can affect them; make the smallest local fix only if the tests expose a failure. The camera resize handler only reapplies bounds; do not add a camera scroll/follow reconciliation layer. Persistent automated tests are the regression gate, and **MCP-driven E2E plus screenshots** remain mandatory acceptance evidence.
+
 ## Problem and current ownership
 
-The prologue's interior camera bounds are calculated from map dimensions in `WorldScene.create()` using `getCenteredCameraBounds()`. Unlike `BattleScene.centerArena()`, `WorldScene` does not currently subscribe to Phaser's scale resize event. Consequently the bounds were correct at creation but can be wrong after a window grows, especially where a small interior should be centred with negative camera bounds padding.
-
-The current field HUD is absolutely positioned in `FieldHud.svelte`. Its short-height media query reduces dimensions but still shows portrait, HP, XP, stats, a minimap, full quest text and wallet. `GameShell.svelte` moves the Menu chip inward to avoid the minimap, consuming more scarce horizontal space.
-
-The existing Svelte menu screens mix internal scrolling with scrolling/clipping of the entire screen: `QuestJournal` becomes full-screen scroll at <=900px; `SaveScreen` scrolls its whole surface; `SystemScreen` has unconstrained rows at short heights; `BagScreen` has a scrolling root in responsive layouts; `AreaMapScreen` already has an internal scroll region but its shared outer window may also scroll. This can move the page title and Back control out of sight. HPA-841 has already addressed Quest step-chain text wrapping; do not redo that ticket.
+- `WorldScene.create()` computes `getCenteredCameraBounds(mapWidth, mapHeight)` once; after the viewport changes, small interiors can stay pinned to an old corner. `BattleScene` already demonstrates `scale.on('resize', ...)` and listener cleanup.
+- The 640×360 field HUD currently still shows a minimap and full status. `FieldHud.svelte` and `GameShell.svelte` already contain short-height CSS at **559px**. **`core/hud-occlusion.ts` is a coupled TypeScript twin**: `heroCardZone()` decides when the hero card fades. Its old 326×148 compact zone and 412×240 desktop zone will become wrong if CSS changes without updating the zone and its tests.
+- Whole-surface scrolling comes both from `.heroic-window` in `heroic-ui.css` (affecting Area Map, System and Skill) and from responsive overflow on the Quest, Save, Bag and Shop screens. Several screens explicitly disable internal scrolling. A short viewport can push titles/Back offscreen.
+- HPA-841 already addressed Quest chain text wrapping; HPA-836 owns Escape/I/M and focus restoration. Preserve both.
 
 ## Chosen design
 
-### 1. Resize the *existing* WorldScene camera, not the world
+### 1. Reuse existing camera bounds on each resize
 
-- Keep `Phaser.Scale.RESIZE`, the existing camera follow and `getCenteredCameraBounds(width, height)`. Do not introduce a camera service, separate interior scene, zoom system or saved viewport state.
-- On each `WorldScene.create()`, capture the active map dimensions (`map.width * tileSize` and `map.height * tileSize`) and install one `scale.on('resize', callback)` that reapplies the calculated bounds for the new canvas viewport.
-- Immediately reconcile the camera position/follow target so an interior appears centred even while paused and on the first rendered frame after resize. A small map should be centred without exposing blank margins; a large map should retain follow/clamping behavior. Do not overwrite the player's world position.
-- Remove that precise listener on `shutdown` and `destroy` alongside the existing cleanup. Map transitions and story-gate restarts re-register for the newly active map, not an obsolete map's dimensions. Avoid duplicate listeners.
-- Reuse the same centering policy on initialization and subsequent resize. Do not change overworld or battle camera policies unless the regression tests reveal an actual breakage.
+- Keep `Phaser.Scale.RESIZE`, `WorldScene.getCenteredCameraBounds()`, the current player-follow settings and existing world positions. No camera service, custom camera interpolation, zoom subsystem or saved viewport state.
+- Capture the current map's pixel width and height inside `WorldScene.create()`. Attach one `this.scale.on('resize', onResize)` callback that **only** recalculates and sets the camera bounds with `getCenteredCameraBounds(width, height)` and `cameras.main.setBounds(...)`.
+- Phaser's camera pre-render updates/clamps scroll to those bounds on its next rendered frame, including when only gameplay simulation is paused behind a menu. Do **not** manually reset `scrollX`, `scrollY`, follow offset or player position, or introduce a second resize listener.
+- Unsubscribe that exact handler on `shutdown` and `destroy` in the existing scene cleanup closure; ensure restarts/transitions do not retain listeners from the previous map. Copy `BattleScene`'s lifecycle pattern.
+- Test newly centred small interiors, a large room's normal clamping, resizing with a menu open, and subsequent transitions. The existing `scenes.test.ts` mock supports `scale.on/off`.
 
-### 2. Compact *existing* field HUD below 720 px viewport height
+### 2. One compact HUD tier below 720px *and* matching hero occlusion
 
-Use a CSS-only compact presentation on `FieldHud.svelte` (the source `HudState` and existing bridge stay unchanged):
+Reuse/refactor the **existing** `@media (max-height: 559px)` blocks in `FieldHud.svelte` and `GameShell.svelte` as the single **`max-height: 719px`** tier, instead of adding conflicting styles at two heights. Delete obsolete compact minimap styling. `CommandGrid.svelte` can retain its independent 559px layout because it is a different UI.
 
-| Element | Normal-height field | Compact field (height < 720px) |
+| Element | Normal (720px height or more) | Compact (719px or less) |
 | --- | --- | --- |
-| Hero card | Portrait, name, level, HP, XP, ATK, DEF | Small portrait + HP bar/value only; hide XP, extra stats, name and level badge visually |
-| Minimap | Current medallion and location label | Hide the medallion/card; the existing **M** shortcut still opens Area Map |
-| Quest banner | Eyebrow, title and objective | Objective line only when active; for a completed prologue without objective, show the existing completion text |
-| Wallet | Existing coin display | Keep, but compact to a non-overlapping corner chip |
-| Menu | Existing visible button and keyboard glyph | Move to clear top-right space freed by hiding minimap; keep accessible button, keyboard/pad hints and focus behavior |
+| Hero | Portrait, name, level, HP, XP, attack, defence | Compact portrait + HP meter/value; retain name/level for assistive tech with visually-hidden text, not `display:none` on their only accessible copy |
+| Minimap | Current minimap/card | Hide visually; preserve the existing **M** command to open Area Map |
+| Active quest | Eyebrow, title, objective | One objective line only; if no active objective and the prologue is complete, show existing completion text |
+| Wallet | Current coin chip | Compact unobtrusive chip |
+| Menu | Existing visible chip and shortcuts | Move into unused upper-right minimap area; keep accessible/focusable and no overlap |
 
-- Keep `CommandGrid`'s separate compact behavior and the HPA-836 Escape/I/M pathways untouched. Do not hide a running battle HUD.
-- At 640x360 with the command grid closed, the union of visible field HUD panels must obstruct no more than one third of the rendered field area. Compute bounding rectangles in the automated browser check, and verify the screenshot shows usable gameplay space, including the player.
-- Menu, HP, quest, wallet, dialogue and status must not collide. Avoid adding a reactive viewport store or JS layout measurements; use existing Svelte markup plus scoped height media queries.
-- Preserve readable contrast and existing localization/wrapping for all supported languages.
+- Keep `HudState`, Phaser/Svelte event bridge and gameplay behaviour unchanged. No new reactive viewport store or `ResizeObserver`.
+- Update `core/hud-occlusion.ts` and `core/hud-occlusion.test.ts` **in the same implementation commit area**: make `heroCardZone(viewWidth, viewHeight)` use the new <=719px compact dimensions, measured against the actual rendered card (including its top/left offset) with a small margin. Preserve the narrower/taller-portrait branch for screens above 719px.
+- Regression-test 640×360, **1280×719** and **1280×720**: the `hud-party-panel` browser rectangle fits the corresponding TS `heroCardZone` and only heroes actually near the new card cause fade. Validate no false fade in the old 412×240 region.
+- At 640×360 with commands closed, visible **non-overlapping** card/control rectangles (hero, quest, wallet, Menu and status) must remain onscreen and sum to **no more than one third** of the field area. Do not double-count their wrapper `hud-side-panel`; no generic union-area engine is necessary. Screenshot-check that the player and centre of the field remain usable.
+- Preserve the existing taller 390×844 portrait treatment and desktop appearance, and validate Japanese/Traditional Chinese text wrapping.
 
-### 3. Bound menu surfaces to the game viewport; scroll content, not navigation
+### 3. Replace outer scrolling with bounded inner scrolling
 
-Preserve the current full-bleed Heroic aesthetic and each screen's focus/close handlers. Where a screen uses the entire viewport, `inset: 0` already bounds it; for the Area Map dialog, `max-height: calc(100vh - 2rem)` already bounds the frame. Fix internal layout/overflow rather than introducing a shared modal framework.
+Use the existing `heroic-ui.css` shared window owner **because this is genuinely shared**. Replace `.heroic-window`'s whole-window `overflow-y: auto` with bounded/clipped frame behaviour, with non-shrinking header and `min-height: 0` scrollable body. No new modal framework. For full-screen views, keep their existing `inset:0` frame, pin header and Back/Close, and scroll only their existing content collections.
 
-- **Quest:** Keep title and Close permanently visible in a compact header/navigation region; give quest entries, chapter information and details their own bounded scroll region as needed. Do not restore the old horizontal overflow of objective chains; HPA-841 owns its wrapping rules.
-- **Save/Load:** Header (including Back) and footer/confirmation remain visible. Make the save-slot collection the scrolling body, not the entire full-bleed screen. The third slot must remain reachable at 640x360 with pointer, keyboard and pad navigation.
-- **System:** Keep the title/Back region and category access reachable; bound `heroic-rows` as the internal scroll area. Preserve existing preference behavior and rail focus lattice.
-- **Gear/Bag:** Reuse `BagScreen`; keep category/Close controls and the title accessible at short heights. Let the inventory grid, worn equipment and detail panels scroll internally where needed, without moving the full screen or trapping action buttons below a clipped edge.
-- **Area Map:** Keep the header/Close outside `.jrpg-area-map-body`, bound the SVG and marker/legend section to available body space, and ensure the indoor and outdoor local views fit both 640x360 and 1920x1080. The earlier report of cropped indoor map / oversized “The Wilds” label is *unverified*: reproduce first, then adjust only existing SVG sizing/marker-label scaling if needed. Do not change map geometry, exploration/fog data, marker IDs or coordinate mapping.
-- Favor local CSS changes in the affected Svelte files; touch `heroic-ui.css` only for a rule truly shared across screens.
+- **QuestJournal:** delete/replace the <=900px whole-`.quest-screen` scrolling; preserve sticky title/Close and bounded quest entries/details. Do not change HPA-841 objective-chain wrapping.
+- **SaveScreen (save/load):** remove whole-`.save-screen` scrolling and responsive `flex:none` overrides that force `.save-slots` to spill. Keep header/Back/footer, with an internally scrollable slot list and reachable third slot.
+- **SystemScreen:** remove local `.heroic-rows { overflow: visible }` and short-height `.system-content { flex: none; min-height: auto }` overrides; reuse the existing shared `.heroic-rows` internal scrolling while keeping title/Back and rail accessible.
+- **BagScreen (Gear/Bag):** remove responsive whole-`.bag-screen` scrolling rules; retain category tabs, title and Close while existing inventory/worn/detail content scrolls internally. Keep every equipment action accessible.
+- **AreaMapScreen:** keep the map header/Close outside `.jrpg-area-map-body`, and size the SVG/body within remaining height. Test indoor/outdoor labels, fog and marker keyboard focus. **Reproduce** the reported oversized “The Wilds” label before changing it.
+- **SkillScreen:** shared `.heroic-window` change must preserve its existing header/Back and scrollable content. Small local adjustments only if a focused regression test fails.
+- **ShopScreen:** current responsive `.shop-screen` also scrolls as a whole. Include it in overlay regression tests; apply the same minimal scroll containment where necessary to keep purchase actions and Back visible. Do not change shop pricing/items/tooltip (HPA-839).
+- Avoid wholesale deletion of a responsive rule if it controls more than scrolling; preserve layout/columns/focus, and remove only conflicting overflow and flex opt-outs.
 
-### 4. Focus, responsiveness and narrow scope
+### 4. Breakpoints and controls
 
-- On opening/resizing an overlay, its close button remains visible and clickable without browser-page scrolling. List navigation may scroll *inside* that overlay; keyboard/pad focus targets may be scrolled into view.
-- A 640x360 viewport is the lower supported UI target. At 1280x720 and 1920x1080 preserve existing spatial hierarchy and desktop appearance.
-- Use CSS `min-height: 0` on flex/grid children with internal overflow and `flex: none` on fixed headers/footers as appropriate. No new Svelte stores, resize observer, overlay router, saved preferences, game content, images, audio or translations are required.
-- Work only within this single PR; implementation and tests get added to this branch after design review. No compatibility layer is required for a hobby project without released users.
+- At 640×360 and at least one intermediate **1280×640**, verify no height-gap between compact HUD and the existing 559px/600px/719px/720px menu rules. Also check 1280×719 and 1280×720 on the HUD boundary, plus 1920×1080 and 390×844.
+- No document/body scrolling; inner lists can scroll to their last actionable item without moving title and Back/Close, or stealing focus. Preserve Svelte keyboard/gamepad focus lattice and HPA-836 modal close behaviour.
+- No art/SFX, new strings, content, save changes, general responsive framework or second PR.
 
-## End-to-end acceptance contract (to execute during implementation)
+## Acceptance and persistent regression coverage
 
-All criteria must be verified by **MCP-driven browser E2E** using the real game and supported one-platform web build (cross-platform code only). Capture screenshot artifacts and assert DOM/Phaser geometry; do not rely on human sign-off.
+**Acceptance is MCP-driven E2E on one web platform**, backed by **checked-in automated tests** in the current harnesses. Screenshots supplement, not replace, assertions. This avoids a one-off unrepeatable visual pass and meets the project's E2E acceptance requirement.
 
-1. Starting inside Hunters' Lodge, Grik's house and the forge at 1280x720, resize to 1920x1080, then down to 640x360 and back. Each interior stays centred according to the room's dimensions and the player's camera follow; no top-left pinning or blank margins, and Grik can move after each resize.
-2. At 640x360 and command closed, the minimap is not visible; portrait + HP and one objective line remain; Menu is accessible and does not overlap other HUD panels; at least 2/3 of the viewport remains unobstructed by HUD panels. `M` still opens/closes Area Map.
-3. At 640x360, open Quest, Save, System, Gear, Bag and Area Map through the existing UI; in each, title and Back/Close remain in the viewport while scrolling any list to the final item. Save slot 3 and all System option controls are reachable, operable and focus-visible. Document/body itself does not scroll.
-4. At 640x360 and 1920x1080, the indoor and outdoor Area Map local views, legend and exit labels are not clipped, and marker navigation remains operational. Validate the previously reported oversized “The Wilds” label if reproducible.
-5. Screenshots at each viewport show the intended hierarchy. Because no target mockup is attached to HPA-840, automated screenshot/DOM geometry checks are the visual oracle; store or attach screenshots to the PR. Existing 1280x720 controls, keyboard/pad focus behavior and overworld/battle resizing do not regress.
-6. Existing unit, component-browser, type, lint, build and relevant Playwright E2E checks pass. The repository's broader CI E2E/LFS restoration belongs to HPA-694; use a working asset-equipped MCP browser environment for HPA-840's E2E evidence and report any external asset blocker explicitly.
+1. **Camera lifecycle regression — `scenes.test.ts`.** Extend the existing interior `setBounds` test: capture the registered `resize` handler via `scale.on` mock, modify `phaserState.mainCamera.width/height` (not just `scene.scale`), invoke the handler, verify new bounds; after scene shutdown verify `scale.off('resize', sameHandler)`. Confirm no stale listener after map/scene recreation.
+2. **Bounded overlays — `GameShell.svelte.spec.ts`.** Extend existing `it.each` overlay table for Map, Save, Skill, Quest, System, Gear/Bag and Shop. At 640×360 and 1280×640, assert title and Back/Close stay within viewport before and after `scrollIntoView()` on the final focusable item; `document.scrollingElement.scrollTop === 0`; focus/accessibility remains correct. Repeat compact-case checks in Japanese; include zh-Hant as targeted wrapping validation.
+3. **Real-game E2E — `tests/e2e/game.e2e.ts`.** Reuse `?startMap=` entries for guild-hall, hero-house and blacksmith-interior plus `installRuntimeProbes`/`__glieseActiveSceneCamera`. Live-resize 1280×720 → 1920×1080 → 640×360, assert camera `worldView` centering on axes where room is smaller than viewport, then move Grik. Extend the existing HUD-bounding-box test to verify at 640×360: hidden minimap; non-overlapping visible panels/controls; sum area <= one third; `M` still opens Area Map.
+4. **Occlusion calibration — `core/hud-occlusion.test.ts` plus browser assertion.** Verify TS zone for the 719/720 height boundary and the browser-rendered card containment at 640×360, 1280×719 and 1280×720; no false fading where the old oversized card used to be.
+5. **MCP E2E execution and screenshots.** Run the persisted browser scenarios through MCP on the web build with current interior assets, check all specified viewports and overlay controls, capture/attach screenshots before/after for centred rooms, compact HUD, Map, Save, Quest, System, Gear/Bag, Skill and Shop. No approved target UI mockup is attached to HPA-840: check against its written acceptance plus automated geometry, not human approval.
+6. Existing typecheck, lint, unit, browser component and build checks must pass. CI asset/LFS restoration is a separate HPA-694 ticket; do not merge that work into this PR. Report any unavailable asset-dependent CI checks explicitly rather than claiming a pass.
 
 ## Files likely involved
 
-`src/lib/game/phaser/scenes/WorldScene.ts`, `src/lib/game/ui/FieldHud.svelte`, `src/lib/game/GameShell.svelte`, `src/lib/game/ui/{QuestJournal,SaveScreen,SystemScreen,BagScreen,AreaMapScreen}.svelte`, and targeted tests (`src/lib/game/phaser/scenes/scenes.test.ts`, `src/lib/game/GameShell.svelte.spec.ts`, existing screen component specs, `tests/e2e/game.e2e.ts`).
+`src/lib/game/phaser/scenes/WorldScene.ts`, `src/lib/game/core/{hud-occlusion.ts,hud-occlusion.test.ts}`, `src/lib/game/ui/{FieldHud,QuestJournal,SaveScreen,SystemScreen,BagScreen,AreaMapScreen,SkillScreen,ShopScreen}.svelte`, `src/lib/game/GameShell.svelte`, `src/lib/game/ui/heroic-ui.css`, and current tests `src/lib/game/phaser/scenes/scenes.test.ts`, `src/lib/game/GameShell.svelte.spec.ts`, `tests/e2e/game.e2e.ts`.
 
-**Out of scope:** new art/SFX, content/text changes, old-map/LFS cleanup (HPA-694), battle tuning (HPA-837), unrelated menu/input redesign, new game data structures and save format changes.
+**Out of scope:** new art/SFX, content/text changes, old-map/LFS cleanup (HPA-694), battle tuning (HPA-837), unrelated menu/input redesign, new game data structures and save-format changes.
