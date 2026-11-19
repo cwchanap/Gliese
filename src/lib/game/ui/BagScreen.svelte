@@ -56,13 +56,20 @@
 	const bagCategories: BagCategory[] = ['potions', 'gear', 'key', 'loot'];
 	const bagSlotCount = 24;
 	// Pad focus-grid geometry mirrors the slot grid: 4 columns at the 640px
-	// breakpoint below, and 3 columns in the ≤900px short-landscape override
-	// so slots stay wide enough for their label and equipped badge.
+	// breakpoint below; short landscape drops to 3 columns at ≤900px and 2 at
+	// ≤640px so every slot keeps its 6.6rem width as well as height.
 	const compactBagGrid = new MediaQuery('(max-width: 640px)');
-	const shortLandscapeBag = new MediaQuery(
-		'(max-height: 719px) and (min-aspect-ratio: 1/1) and (max-width: 900px)'
+	const narrowBagGrid = new MediaQuery('(max-width: 900px)');
+	const landscapeGrid = new MediaQuery('(max-height: 719px) and (min-aspect-ratio: 1/1)');
+	const bagGridColumns = $derived(
+		landscapeGrid.current && narrowBagGrid.current
+			? compactBagGrid.current
+				? 2
+				: 3
+			: compactBagGrid.current
+				? 4
+				: 6
 	);
-	const bagGridColumns = $derived(shortLandscapeBag.current ? 3 : compactBagGrid.current ? 4 : 6);
 
 	let activeCategory = $state<BagCategory>('potions');
 	let selectedRef = $state<{ kind: BagSlotItem['kind']; itemId: string } | null>(null);
@@ -1214,14 +1221,22 @@
 			grid-template-columns: repeat(3, minmax(0, 1fr));
 		}
 
-		/* ~72px slots at 640×360: tighten tracking only — the 0.52rem text
-		   stays readable while ACCESSORY/EQUIPPED fit inside the slot. */
+		/* Tighten tracking only — the 0.52rem text stays readable while
+		   ACCESSORY/EQUIPPED fit inside the narrower slots. */
 		.bag-slot-pos {
 			letter-spacing: 0.05em;
 		}
 
 		.bag-slot-worn {
 			letter-spacing: 0.06em;
+		}
+	}
+
+	/* ≤640px short landscape needs 2 columns to keep the 6.6rem slot width
+	   inside the ~226px grid viewport; bagGridColumns mirrors this. */
+	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (max-width: 640px) {
+		.bag-slot-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 	}
 </style>
