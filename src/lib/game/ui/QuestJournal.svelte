@@ -496,6 +496,10 @@
 	.quest-entry {
 		display: flex;
 		align-items: center;
+		/* Grid item inside .quest-rail-entries: min-width auto would pin the
+		   row to its nowrap label's min-content, forcing horizontal overflow
+		   on the 14rem compact rail. */
+		min-width: 0;
 		gap: 0.8rem;
 		width: 100%;
 		border: 1px solid var(--color-frame);
@@ -685,6 +689,8 @@
 	.quest-chapter-row {
 		display: flex;
 		align-items: center;
+		/* Same grid-item min-content pin as .quest-entry for nowrap labels. */
+		min-width: 0;
 		gap: 0.5rem;
 		padding: 0.6rem 0.85rem;
 		border: 1px solid var(--color-frame);

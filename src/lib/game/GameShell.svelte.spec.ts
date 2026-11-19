@@ -6699,6 +6699,57 @@ describe('HPA-840 overlay containment on small viewports', () => {
 		}
 	);
 
+	it.each([
+		[1280, 719],
+		[640, 360]
+	])(
+		'keeps the quest roster free of horizontal overflow with unclipped progress rings at %d×%d',
+		async (width, height) => {
+			await page.viewport(width, height);
+			render(GameShell);
+			emitMidChainQuests();
+
+			const questDialog = await openQuestLog();
+			await expect.element(questDialog).toBeVisible();
+			const screen = questDialog.element() as HTMLElement;
+			const rail = screen.querySelector<HTMLElement>('.quest-rail')!;
+			const entries = screen.querySelector<HTMLElement>('.quest-rail-entries')!;
+			const chapter = screen.querySelector<HTMLElement>('.quest-chapter')!;
+
+			try {
+				for (const loc of ['en', 'ja', 'zh-Hant'] as const) {
+					updatePreferences({ locale: loc });
+
+					// The roster scrolls vertically only — no horizontal scrollbar,
+					// so the right-hand progress rings are never clipped by the
+					// entries/rail overflow edges.
+					expect(
+						entries.scrollWidth,
+						`entries x-overflow at ${width}×${height} (${loc})`
+					).toBeLessThanOrEqual(entries.clientWidth + 1);
+					expect(
+						chapter.scrollWidth,
+						`chapter x-overflow at ${width}×${height} (${loc})`
+					).toBeLessThanOrEqual(chapter.clientWidth + 1);
+					const railBox = rail.getBoundingClientRect();
+					for (const ring of entries.querySelectorAll<HTMLElement>('.quest-ring')) {
+						const r = ring.getBoundingClientRect();
+						expect(r.left, `ring left (${loc})`).toBeGreaterThanOrEqual(railBox.left - 1);
+						expect(r.right, `ring right (${loc})`).toBeLessThanOrEqual(railBox.right + 1);
+					}
+					// Chapter row labels truncate inside their own boxes too.
+					for (const row of chapter.querySelectorAll<HTMLElement>('.quest-chapter-row')) {
+						expect(row.scrollWidth, `chapter row x-overflow (${loc})`).toBeLessThanOrEqual(
+							row.clientWidth + 1
+						);
+					}
+				}
+			} finally {
+				updatePreferences({ locale: 'en' });
+			}
+		}
+	);
+
 	it('keeps the quest chain wrapped inside the detail column at 640×360', async () => {
 		await page.viewport(640, 360);
 		render(GameShell);
