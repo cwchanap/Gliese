@@ -303,6 +303,12 @@ type SaveInitPayload = { encoded: string; key: string };
 type SaveSeedInitPayload = SaveInitPayload & { marker: string };
 const SAVE_SEED_MARKER = '__gliese_e2e_save_seeded_v1';
 
+// WorldScene camera probe marker: the call ends with `,` or `;` depending on
+// how the chunk minifier groups it — the probe inherits either terminator.
+// Module scope so a cheap gate test can pin both accepted forms.
+const WORLDSCENE_START_FOLLOW_MARKER =
+	/this\.cameras\.main\.startFollow\(this\.player,[^;)]*cameraFollowLerp[^;)]*\)[;,]/;
+
 function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
 	return {
 		version: SAVE_VERSION,
@@ -465,11 +471,7 @@ async function installRuntimeProbes(
 			// the probe to one particular minified variable spelling.
 			if (options.captureFacing) {
 				const facingMatch = servedBody.match(/this\.facing=[^;]*?spawnDirection/);
-				// The call ends with `,` or `;` depending on how the minifier
-				// groups it — the probe inherits whichever terminator it finds.
-				const cameraMatch = servedBody.match(
-					/this\.cameras\.main\.startFollow\(this\.player,[^;)]*cameraFollowLerp[^;)]*\)[;,]/
-				);
+				const cameraMatch = servedBody.match(WORLDSCENE_START_FOLLOW_MARKER);
 				if (!facingMatch) {
 					throw new Error('WorldScene facing probe marker was not found in the served test chunk');
 				}
@@ -10253,6 +10255,31 @@ test('scene state probe preserves minified dollar-prefixed identifiers', () => {
 	expect(standardIdentifiers).toContain('for(let transition of map.transitions)');
 });
 
+test('camera probe marker accepts both minified call terminators', () => {
+	// Vite may emit the startFollow call with a `;` statement terminator or a
+	// `,` sequence-expression terminator depending on chunk grouping — the
+	// marker must match both or the facing/camera probes silently break.
+	for (const terminator of [';', ',']) {
+		const chunk = `this.cameras.main.startFollow(this.player,!0,a.cameraFollowLerp,a.cameraFollowLerp)${terminator}this.lastProbe=1`;
+		expect(WORLDSCENE_START_FOLLOW_MARKER.test(chunk)).toBe(true);
+	}
+	// Both lerp arguments (lerpX and lerpY) and a no-arg call are accepted.
+	expect(
+		WORLDSCENE_START_FOLLOW_MARKER.test(
+			'this.cameras.main.startFollow(this.player,!0,a.cameraFollowLerp,a.cameraFollowLerp);'
+		)
+	).toBe(true);
+	expect(
+		WORLDSCENE_START_FOLLOW_MARKER.test(
+			'this.cameras.main.startFollow(this.player,!0,a.cameraFollowLerp);'
+		)
+	).toBe(true);
+	// A different receiver or a call without cameraFollowLerp must not match.
+	expect(
+		WORLDSCENE_START_FOLLOW_MARKER.test('this.cameras.main.startFollow(this.npc,!0,a.x,a.x);')
+	).toBe(false);
+});
+
 test('Item Shop stockroom entry checks only its initial fixed-x northward phase', () => {
 	const routeStart = { x: 448, y: 301.60239999999817 };
 	const target = { x: 448, y: 160 };
@@ -15060,6 +15087,44 @@ async function settleMotion(target: Locator) {
 	});
 }
 
+/** Focus must land inside the dialog once it opens (bounded poll). */
+async function expectFocusInside(dialog: Locator) {
+	await expect
+		.poll(() => dialog.evaluate((el) => el.contains(document.activeElement)), {
+			timeout: 5_000
+		})
+		.toBe(true);
+}
+
+/**
+ * Focus containment: pressing Tab once per stop plus one wrap press never
+ * escapes the dialog into the field HUD behind it.
+ */
+async function expectTabContained(page: Page, dialog: Locator) {
+	const stops = await dialog
+		.locator('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+		.count();
+	for (let press = 0; press < stops + 1; press += 1) {
+		await page.keyboard.press('Tab');
+		const inside = await dialog.evaluate((el) => el.contains(document.activeElement));
+		expect(inside).toBe(true);
+	}
+}
+
+/**
+ * After a dialog closes, focus returns to a real control in the field chrome
+ * (the command tile or the Menu chip) — never into a hidden dialog or <body>.
+ */
+async function expectFocusRestoredToField(page: Page) {
+	const ok = await page.evaluate(() => {
+		const el = document.activeElement;
+		return (
+			el instanceof HTMLElement && el.tagName === 'BUTTON' && el.closest('[role="dialog"]') === null
+		);
+	});
+	expect(ok).toBe(true);
+}
+
 /**
  * Tags and returns the dialog's largest vertically scrollable panel, or null
  * when nothing inside overflows (small content never grows a scroller — the
@@ -15449,13 +15514,28 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 	};
 
 	const openQuestDetail = async (dialog: Locator) => {
-		const entry = dialog.getByTestId('quest-entry-main');
-		await entry.scrollIntoViewIfNeeded({ timeout: 5_000 });
+		// The seeded save has a main quest plus completed chapters. The main row
+		// is preselected on open — clicking it again would prove nothing, so the
+		// journey activates a previously UNSELECTED completed row and requires
+		// both the selection flag and the detail content to change.
+		const main = dialog.getByTestId('quest-entry-main');
+		const completed = dialog.getByTestId('quest-entry-completed').first();
+		await expect(main).toHaveAttribute('aria-pressed', 'true');
+		await expect(completed).toHaveAttribute('aria-pressed', 'false');
+		const detail = dialog.getByTestId('quest-detail');
+		await expect(detail).toBeVisible();
+		const beforeText = (await detail.textContent()) ?? '';
+		const completedTitle = (await completed.locator('.quest-entry-name').textContent()) ?? '';
+		expect(completedTitle.trim()).not.toBe('');
+		await completed.scrollIntoViewIfNeeded({ timeout: 5_000 });
 		// A quest row can be taller than the 640×360 scroll window — require the
 		// actionable centre to be hit-testable rather than a 95% area reveal.
-		await expectCenterVisible(entry);
-		await entry.click();
-		await expect(dialog.getByTestId('quest-detail')).toBeVisible();
+		await expectCenterVisible(completed);
+		await completed.click();
+		await expect(completed).toHaveAttribute('aria-pressed', 'true');
+		await expect(main).toHaveAttribute('aria-pressed', 'false');
+		await expect(detail).toContainText(completedTitle.trim());
+		expect(((await detail.textContent()) ?? '').trim()).not.toBe(beforeText.trim());
 	};
 
 	const closeWithKeyboard = (name: RegExp) => async (dialog: Locator) => {
@@ -15590,10 +15670,13 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 	await installRuntimeProbes(page);
 	// Deeper inventory so the Bag/Gear panels genuinely overflow at 640×360;
 	// hp:10 makes the potion's heal observable in the published hud state.
+	// questStateAt('gather-moonmoss') seeds a main quest PLUS completed earlier
+	// chapters so the Quest journey can select a previously unselected row.
 	await injectSave(
 		page,
 		createSaveFixture({
 			player: { level: 1, xp: 0, hp: 10, attack: 3, x: 256, y: 144, facing: 'down' },
+			quests: questStateAt('gather-moonmoss'),
 			inventory: {
 				stacks: [
 					{ itemId: 'field-potion', quantity: 3 },
@@ -15636,6 +15719,9 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 			await expect(dialog).toBeVisible();
 			// Entrance animation settled = rect stable across two frames.
 			await settleMotion(dialog);
+			// Opening a dialog lands focus inside it (real focus, not just an
+			// activation that could target anything).
+			await expectFocusInside(dialog);
 			// Pinned chrome must be inside the viewport, not clipped by a
 			// scrollable ancestor.
 			await expectUnclipped(dialog.getByRole('heading').first());
@@ -15643,7 +15729,8 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 
 			if (width === 640 && height === 360) {
 				// Inner-panel scrolling: where the overlay grows a scroller it must
-				// move (and the page document must not).
+				// move (and the page document must not). Runs BEFORE the Tab pass
+				// because focus-into-view already scrolls the panel.
 				const scroller = await findInnerScroller(dialog);
 				if (scroller) {
 					const { before, after } = await scrollInnerPanelToEnd(scroller);
@@ -15651,6 +15738,9 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 					// The pinned Close control stays visible after the inner scroll.
 					await expectUnclipped(dialog.getByRole('button', { name: overlay.close }).first());
 				}
+				// Focus containment: Tab cycles through every stop and stays
+				// inside the dialog — never falls through to the field HUD.
+				await expectTabContained(page, dialog);
 				await hpa840Shot(page, `${overlay.tile.toLowerCase()}-${width}x${height}.png`);
 				await overlay.journey?.(dialog);
 			} else {
@@ -15661,6 +15751,8 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 				await page.keyboard.press('Escape');
 				await expect(dialog).toBeHidden();
 			}
+			// Closing restores focus to a field control (tile or Menu chip).
+			await expectFocusRestoredToField(page);
 		}
 	}
 	// Leave the command grid before the locale/load legs.
@@ -15712,14 +15804,17 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 		await expect(shopDialog).toBeVisible();
 		await expect(page.getByTestId('shop-buy-grid')).toBeVisible();
 		await settleMotion(shopDialog);
+		await expectFocusInside(shopDialog);
 		if (width === 640) {
 			// Real buy journey: scroll the buy grid, reach the last stock row,
-			// open it, and complete a purchase with the detail action.
+			// open it, and complete a purchase with the detail action. The scroller
+			// check runs before the Tab pass (focus-into-view scrolls the grid).
 			const scroller = await findInnerScroller(shopDialog);
 			if (scroller) {
 				const { before, after } = await scrollInnerPanelToEnd(scroller);
 				expect(after).toBeGreaterThan(before);
 			}
+			await expectTabContained(page, shopDialog);
 			const lastRow = page.getByTestId('shop-buy-grid').getByRole('button').last();
 			await lastRow.scrollIntoViewIfNeeded({ timeout: 5_000 });
 			await expectCenterVisible(lastRow);
@@ -15789,19 +15884,44 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 	await expect(sysDialog).toBeHidden();
 	await page.keyboard.press('Escape');
 
-	// Load leg: the real Title → Continue → Load picker → resume journey. The
-	// picker lists the autosave the shop leg wrote; clicking it resumes play.
-	await page.setViewportSize({ width: 1280, height: 720 });
-	await page.goto('/');
-	await page.getByRole('button', { name: /Continue/i }).click();
-	const loadDialog = page.getByRole('dialog', { name: /load/i });
-	await expect(loadDialog).toBeVisible();
-	await settleMotion(loadDialog);
-	const enabledSlots = loadDialog.locator('[data-testid^="save-slot-"]:not([disabled])');
-	expect(await enabledSlots.count()).toBeGreaterThanOrEqual(1);
-	await hpa840Shot(page, 'load-1280x720.png');
-	await enabledSlots.first().click();
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
+	// Load leg: the real Title → Continue → Load picker → resume journey at each
+	// required small size. The picker lists the autosave the shop leg wrote;
+	// the last size clicks the enabled slot and resumes play.
+	for (const [width, height] of [
+		[640, 360],
+		[1280, 640],
+		[1280, 720]
+	] as const) {
+		await page.setViewportSize({ width, height });
+		await page.goto('/');
+		await page.getByRole('button', { name: /Continue/i }).click();
+		const loadDialog = page.getByRole('dialog', { name: /load/i });
+		await expect(loadDialog).toBeVisible();
+		await settleMotion(loadDialog);
+		await expectFocusInside(loadDialog);
+		await expectUnclipped(loadDialog.getByRole('heading').first());
+		const loadBack = loadDialog.getByRole('button', { name: /back/i }).first();
+		await expectUnclipped(loadBack);
+		const scroller = await findInnerScroller(loadDialog);
+		if (scroller) {
+			const { before, after } = await scrollInnerPanelToEnd(scroller);
+			expect(after).toBeGreaterThan(before);
+			// Pinned Back control stays visible after the inner scroll.
+			await expectUnclipped(loadBack);
+		}
+		const enabledSlots = loadDialog.locator('[data-testid^="save-slot-"]:not([disabled])');
+		expect(await enabledSlots.count()).toBeGreaterThanOrEqual(1);
+		await hpa840Shot(page, `load-${width}x${height}.png`);
+		expect(await documentScrollTop(page)).toBe(0);
+		if (width === 1280 && height === 720) {
+			await enabledSlots.first().click();
+			await expect(page.locator('canvas')).toBeVisible();
+			await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+			await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
+		} else {
+			// Real click on the pinned Back control returns to Title.
+			await loadBack.click();
+			await expect(page.getByRole('button', { name: /Continue/i })).toBeVisible();
+		}
+	}
 });
