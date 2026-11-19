@@ -6712,13 +6712,24 @@ describe('HPA-840 overlay containment on small viewports', () => {
 			const questDialog = await openQuestLog();
 			await expect.element(questDialog).toBeVisible();
 			const screen = questDialog.element() as HTMLElement;
-			const rail = screen.querySelector<HTMLElement>('.quest-rail')!;
 			const entries = screen.querySelector<HTMLElement>('.quest-rail-entries')!;
 			const chapter = screen.querySelector<HTMLElement>('.quest-chapter')!;
+
+			// Locale-specific rail strings prove Svelte flushed each locale into
+			// the DOM before geometry is read — a bare updatePreferences() only
+			// schedules the re-render.
+			const chapterLabel = {
+				en: 'Chapter Progress',
+				ja: '章の進行状況',
+				'zh-Hant': '章節進度'
+			} as const;
+			const doneLabel = { en: 'Done', ja: '完了', 'zh-Hant': '已完成' } as const;
 
 			try {
 				for (const loc of ['en', 'ja', 'zh-Hant'] as const) {
 					updatePreferences({ locale: loc });
+					await expect.element(page.getByText(chapterLabel[loc])).toBeVisible();
+					await expect.element(page.getByText(doneLabel[loc]).first()).toBeVisible();
 
 					// The roster scrolls vertically only — no horizontal scrollbar,
 					// so the right-hand progress rings are never clipped by the
@@ -6731,11 +6742,15 @@ describe('HPA-840 overlay containment on small viewports', () => {
 						chapter.scrollWidth,
 						`chapter x-overflow at ${width}×${height} (${loc})`
 					).toBeLessThanOrEqual(chapter.clientWidth + 1);
-					const railBox = rail.getBoundingClientRect();
+					// The real clipper is the entries scrollport: the client box is
+					// the border box minus borders and any classic scrollbar track.
+					const entriesBox = entries.getBoundingClientRect();
+					const clipLeft = entriesBox.left + entries.clientLeft;
+					const clipRight = entriesBox.right - (entries.offsetWidth - entries.clientWidth);
 					for (const ring of entries.querySelectorAll<HTMLElement>('.quest-ring')) {
 						const r = ring.getBoundingClientRect();
-						expect(r.left, `ring left (${loc})`).toBeGreaterThanOrEqual(railBox.left - 1);
-						expect(r.right, `ring right (${loc})`).toBeLessThanOrEqual(railBox.right + 1);
+						expect(r.left, `ring left (${loc})`).toBeGreaterThanOrEqual(clipLeft - 1);
+						expect(r.right, `ring right (${loc})`).toBeLessThanOrEqual(clipRight + 1);
 					}
 					// Chapter row labels truncate inside their own boxes too.
 					for (const row of chapter.querySelectorAll<HTMLElement>('.quest-chapter-row')) {
@@ -6746,6 +6761,7 @@ describe('HPA-840 overlay containment on small viewports', () => {
 				}
 			} finally {
 				updatePreferences({ locale: 'en' });
+				await expect.element(page.getByText('Chapter Progress')).toBeVisible();
 			}
 		}
 	);
