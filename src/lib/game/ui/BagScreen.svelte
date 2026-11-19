@@ -55,10 +55,14 @@
 	const equipmentSlots: EquipmentSlot[] = ['head', 'weapon', 'body', 'hands', 'accessory'];
 	const bagCategories: BagCategory[] = ['potions', 'gear', 'key', 'loot'];
 	const bagSlotCount = 24;
-	// Pad focus-grid geometry mirrors the slot grid, which drops to 4 columns
-	// at the 640px breakpoint below.
+	// Pad focus-grid geometry mirrors the slot grid: 4 columns at the 640px
+	// breakpoint below, and 3 columns in the ≤900px short-landscape override
+	// so slots stay wide enough for their label and equipped badge.
 	const compactBagGrid = new MediaQuery('(max-width: 640px)');
-	const bagGridColumns = $derived(compactBagGrid.current ? 4 : 6);
+	const shortLandscapeBag = new MediaQuery(
+		'(max-height: 719px) and (min-aspect-ratio: 1/1) and (max-width: 900px)'
+	);
+	const bagGridColumns = $derived(shortLandscapeBag.current ? 3 : compactBagGrid.current ? 4 : 6);
 
 	let activeCategory = $state<BagCategory>('potions');
 	let selectedRef = $state<{ kind: BagSlotItem['kind']; itemId: string } | null>(null);
@@ -1199,24 +1203,25 @@
 		.bag-worn-doll {
 			width: 5.5rem;
 		}
+	}
 
-		/* Slots shrink to ~52px at 640×360: tighten the slot label and the
-		   EQUIPPED badge so both stay fully inside the slot (HPA-841). */
+	/* ≤900px short landscape only: drop to 3 slot columns so slots stay
+	   ~70–120px wide and the slot label/EQUIPPED badge keep their default
+	   readable size inside the slot (HPA-841). bagGridColumns mirrors this
+	   via the same media query. */
+	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (max-width: 900px) {
+		.bag-slot-grid {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+
+		/* ~72px slots at 640×360: tighten tracking only — the 0.52rem text
+		   stays readable while ACCESSORY/EQUIPPED fit inside the slot. */
 		.bag-slot-pos {
-			left: 0.4rem;
-			font-size: 0.42rem;
-			letter-spacing: 0.06em;
+			letter-spacing: 0.05em;
 		}
 
 		.bag-slot-worn {
-			left: 0.4rem;
-			font-size: 0.45rem;
 			letter-spacing: 0.06em;
-		}
-
-		.bag-slot-icon {
-			width: 2.6rem;
-			height: 2.6rem;
 		}
 	}
 </style>
