@@ -463,8 +463,10 @@ async function installRuntimeProbes(
 			// the probe to one particular minified variable spelling.
 			if (options.captureFacing) {
 				const facingMatch = servedBody.match(/this\.facing=[^;]*?spawnDirection/);
+				// The call ends with `,` or `;` depending on how the minifier
+				// groups it — the probe inherits whichever terminator it finds.
 				const cameraMatch = servedBody.match(
-					/this\.cameras\.main\.startFollow\(this\.player,[^;]*?cameraFollowLerp\),/
+					/this\.cameras\.main\.startFollow\(this\.player,[^;)]*cameraFollowLerp[^;)]*\)[;,]/
 				);
 				if (!facingMatch) {
 					throw new Error('WorldScene facing probe marker was not found in the served test chunk');
@@ -478,7 +480,7 @@ async function installRuntimeProbes(
 				);
 				servedBody = servedBody.replace(
 					cameraMatch[0],
-					`${cameraMatch[0]}globalThis.__glieseActiveSceneCamera=this.cameras.main,`
+					`${cameraMatch[0]}globalThis.__glieseActiveSceneCamera=this.cameras.main${cameraMatch[0].endsWith(',') ? ',' : ';'}`
 				);
 			}
 			if (options.captureSceneState) {
@@ -14906,4 +14908,451 @@ test('a seeded near-end saved run finishes the prologue and Continue restores th
 		const state = (window as GlieseProbeWindow).__glieseLastHudState;
 		return state?.quests?.main === null && state?.quests?.completed?.length === 7;
 	});
+});
+
+// ======================= HPA-840 Task 4: live resize integration gates =======
+// One checked-in gate per named scenario, driven on the same runtime the MCP
+// acceptance run replays: real `?startMap=` interior boots (opening scene
+// dismissed), live setViewportSize resizes, camera bounds axes, movement, and
+// viewport screenshots for the evidence pack.
+
+const HPA840_EVIDENCE_ROOT = resolve('docs/superpowers/reports/img/hpa-840-responsive');
+
+async function hpa840Shot(page: Page, name: string) {
+	mkdirSync(HPA840_EVIDENCE_ROOT, { recursive: true });
+	await page.screenshot({ path: resolve(HPA840_EVIDENCE_ROOT, name) });
+}
+
+type LiveCameraSnapshot = {
+	view: { x: number; y: number; width: number; height: number } | null;
+	bounds: { x: number; y: number; width: number; height: number } | null;
+};
+
+async function waitForLiveCamera(page: Page, width: number, height: number) {
+	await page.waitForFunction(
+		({ w, h }) => {
+			const camera = (window as GlieseProbeWindow).__glieseActiveSceneCamera;
+			return camera?.worldView?.width === w && camera?.worldView?.height === h;
+		},
+		{ w: width, h: height },
+		{ timeout: 30_000 }
+	);
+}
+
+async function liveCamera(page: Page): Promise<LiveCameraSnapshot> {
+	return page.evaluate(() => {
+		const camera = (window as GlieseProbeWindow).__glieseActiveSceneCamera as
+			| (OverworldSceneCamera & {
+					getBounds?: () => { x: number; y: number; width: number; height: number };
+			  })
+			| undefined;
+		const bounds = camera?.getBounds?.();
+		const view = camera?.worldView;
+		return {
+			view:
+				view && typeof view.x === 'number' && typeof view.y === 'number'
+					? { x: view.x, y: view.y, width: view.width ?? 0, height: view.height ?? 0 }
+					: null,
+			bounds: bounds
+				? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+				: null
+		};
+	});
+}
+
+// The WorldScene resize contract per axis: when the map is smaller than the
+// viewport the camera bounds center it (equal negative padding, bounds sized
+// to the viewport so the whole window shows the room plus margin); when it is
+// larger the axis clamps to the map rect and the view stays inside it.
+function expectCameraAxes(
+	mapId: string,
+	mapW: number,
+	mapH: number,
+	vw: number,
+	vh: number,
+	cam: LiveCameraSnapshot
+) {
+	expect(cam.bounds, `${mapId} camera bounds`).not.toBeNull();
+	expect(cam.view, `${mapId} world view`).not.toBeNull();
+	const bounds = cam.bounds!;
+	const view = cam.view!;
+	expect({ width: view.width, height: view.height }, `${mapId} view size at ${vw}×${vh}`).toEqual({
+		width: vw,
+		height: vh
+	});
+	for (const axis of ['x', 'y'] as const) {
+		const mapDim = axis === 'x' ? mapW : mapH;
+		const viewDim = axis === 'x' ? vw : vh;
+		const boundsStart = axis === 'x' ? bounds.x : bounds.y;
+		const boundsSize = axis === 'x' ? bounds.width : bounds.height;
+		const viewStart = axis === 'x' ? view.x : view.y;
+		const label = `${mapId} ${axis} at ${vw}×${vh}`;
+		if (mapDim <= viewDim) {
+			expect(boundsStart, `${label}: centered bounds start`).toBeCloseTo((mapDim - viewDim) / 2, 0);
+			expect(boundsSize, `${label}: centered bounds size`).toBe(viewDim);
+			// Zero scroll slack: the view is pinned to the bounds origin.
+			expect(viewStart, `${label}: pinned view start`).toBeCloseTo(boundsStart, 0);
+		} else {
+			expect(boundsStart, `${label}: clamped bounds start`).toBe(0);
+			expect(boundsSize, `${label}: clamped bounds size`).toBe(mapDim);
+			expect(viewStart, `${label}: view start inside map`).toBeGreaterThanOrEqual(-1);
+			expect(viewStart + viewDim, `${label}: view end inside map`).toBeLessThanOrEqual(mapDim + 1);
+		}
+	}
+}
+
+async function playerHudPoint(page: Page): Promise<{ x: number; y: number }> {
+	const point = await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		const player =
+			probeWindow.__glieseLastMovementDiagnostic?.resolvedPosition ??
+			probeWindow.__glieseLastHudState?.areaMap?.player;
+		return typeof player?.x === 'number' && typeof player?.y === 'number'
+			? { x: player.x, y: player.y }
+			: null;
+	});
+	if (!point) throw new Error('HUD player position unavailable');
+	return point;
+}
+
+// Real-keyboard proof the scene keeps resolving movement at the new size:
+// try each cardinal direction until the resolved player position displaces.
+async function expectPlayerMoves(page: Page, mapId: string) {
+	const start = await playerHudPoint(page);
+	for (const key of ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'] as const) {
+		await page.keyboard.down(key);
+		let moved = false;
+		try {
+			await page.waitForFunction(
+				(origin) => {
+					const probeWindow = window as GlieseProbeWindow;
+					const player =
+						probeWindow.__glieseLastMovementDiagnostic?.resolvedPosition ??
+						probeWindow.__glieseLastHudState?.areaMap?.player;
+					return (
+						typeof player?.x === 'number' &&
+						typeof player?.y === 'number' &&
+						Math.hypot(player.x - origin.x, player.y - origin.y) >= 12
+					);
+				},
+				start,
+				{ timeout: 2_500 }
+			);
+			moved = true;
+		} catch {
+			// This direction is blocked or unreachable — try the next one.
+		}
+		await page.keyboard.up(key);
+		if (moved) return;
+	}
+	throw new Error(`${mapId}: player could not move in any direction from ${JSON.stringify(start)}`);
+}
+
+// `?startMap=` boots a fresh profile, and the proving-morning quest starts the
+// prologue.opening scene over the interior — Enter advances each line until the
+// dialog is gone, freeing both the Menu anchor and player movement.
+async function dismissOpeningScene(page: Page) {
+	const dialog = page.getByRole('dialog');
+	// The scene mounts only after the story catalog fetch; give it a bounded
+	// window before concluding there is nothing to dismiss.
+	try {
+		await dialog.first().waitFor({ state: 'visible', timeout: 30_000 });
+	} catch {
+		return;
+	}
+	for (let advance = 0; advance < 40 && (await dialog.count()) > 0; advance += 1) {
+		await page.keyboard.press('Enter');
+		await page.waitForTimeout(200);
+	}
+	await expect(dialog).toHaveCount(0);
+}
+
+for (const interior of [
+	{ mapId: 'hero-house', mapW: 704, mapH: 576, spawn: { x: 352, y: 480 } },
+	{ mapId: 'guild-hall', mapW: 1024, mapH: 832, spawn: { x: 512, y: 736 } },
+	{ mapId: 'blacksmith-interior', mapW: 896, mapH: 704, spawn: { x: 448, y: 576 } }
+] as const) {
+	test(`HPA-840 ${interior.mapId} recenters the camera across live resizes and keeps movement working`, async ({
+		page
+	}) => {
+		test.setTimeout(120_000);
+		await installRuntimeProbes(page, { captureFacing: true });
+		await page.setViewportSize({ width: 1280, height: 720 });
+		await page.goto(`/?movementDiagnostics=on&startMap=${interior.mapId}`);
+		await expect(page.locator('canvas')).toBeVisible();
+		await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
+		await dismissOpeningScene(page);
+		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+		await waitForHudPosition(page, interior.mapId, interior.spawn);
+
+		await waitForLiveCamera(page, 1280, 720);
+		expectCameraAxes(
+			interior.mapId,
+			interior.mapW,
+			interior.mapH,
+			1280,
+			720,
+			await liveCamera(page)
+		);
+		await hpa840Shot(page, `${interior.mapId}-before-1280x720.png`);
+
+		await page.setViewportSize({ width: 1920, height: 1080 });
+		await waitForLiveCamera(page, 1920, 1080);
+		expectCameraAxes(
+			interior.mapId,
+			interior.mapW,
+			interior.mapH,
+			1920,
+			1080,
+			await liveCamera(page)
+		);
+		await expectPlayerMoves(page, interior.mapId);
+		await hpa840Shot(page, `${interior.mapId}-resized-1920x1080.png`);
+
+		await page.setViewportSize({ width: 640, height: 360 });
+		await waitForLiveCamera(page, 640, 360);
+		expectCameraAxes(
+			interior.mapId,
+			interior.mapW,
+			interior.mapH,
+			640,
+			360,
+			await liveCamera(page)
+		);
+		await expectPlayerMoves(page, interior.mapId);
+		await hpa840Shot(page, `${interior.mapId}-resized-640x360.png`);
+	});
+}
+
+test('HPA-840 compact field HUD at 640×360 hides the minimap, keeps M, and stays disjoint', async ({
+	page
+}) => {
+	test.setTimeout(90_000);
+	await installRuntimeProbes(page);
+	// Same seeded-save reason as the interior gates: a `?startMap=` fresh boot
+	// would park the run inside the prologue.opening scene.
+	await injectSave(page, createSaveFixture());
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
+	await expect(page.getByTestId('hud-party-panel')).toBeVisible();
+
+	// Compact layout: the minimap is removed entirely while the shrunken
+	// card, Menu chip, quest tracker, wallet and status stay onscreen.
+	await expect(page.getByTestId('hud-minimap')).toBeHidden();
+	await expect(page.locator('.jrpg-menu-anchor')).toBeVisible();
+	await expect(page.locator('.quest-banner')).toBeVisible();
+	await expect(page.locator('.wallet-pill')).toBeVisible();
+	await hpa840Shot(page, 'field-hud-640x360.png');
+
+	const surfaceRects = await page.evaluate(() => {
+		const selectors = [
+			['party', '[data-testid="hud-party-panel"]'],
+			['menu', '.jrpg-menu-anchor'],
+			['questBanner', '.quest-banner'],
+			['wallet', '.wallet-pill'],
+			['status', '.heroic-field-status']
+		] as const;
+		return selectors
+			.map(([id, selector]) => {
+				const rect = document.querySelector(selector)?.getBoundingClientRect();
+				return rect ? ([id, rect.toJSON()] as const) : null;
+			})
+			.filter((entry) => entry !== null);
+	});
+	// An empty status pill can collapse to zero size; only surfaces with a real
+	// box participate in the bounds and disjointness gates.
+	const sizedRects = surfaceRects.filter(([, rect]) => rect.width > 0 && rect.height > 0);
+	expect(sizedRects.length).toBeGreaterThanOrEqual(4);
+	for (const [id, rect] of sizedRects) {
+		expect(rect.top, `${id} top`).toBeGreaterThanOrEqual(0);
+		expect(rect.left, `${id} left`).toBeGreaterThanOrEqual(0);
+		expect(rect.bottom, `${id} bottom`).toBeLessThanOrEqual(360);
+		expect(rect.right, `${id} right`).toBeLessThanOrEqual(640);
+	}
+	for (let i = 0; i < sizedRects.length; i += 1) {
+		for (let j = i + 1; j < sizedRects.length; j += 1) {
+			const [idA, a] = sizedRects[i]!;
+			const [idB, b] = sizedRects[j]!;
+			const overlaps = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+			expect(overlaps, `${idA} overlaps ${idB} at 640×360`).toBe(false);
+		}
+	}
+	const totalArea = sizedRects.reduce((sum, [, rect]) => sum + rect.width * rect.height, 0);
+	// The compact HUD must stay under a third of the tiny field.
+	expect(totalArea).toBeLessThanOrEqual((640 * 360) / 3);
+	expect(
+		await page.evaluate(() => document.documentElement.scrollTop + document.body.scrollTop)
+	).toBe(0);
+
+	// M still opens the area map even with the minimap medallion removed.
+	await page.keyboard.press('m');
+	const mapDialog = page.getByRole('dialog', { name: /map$/i });
+	await expect(mapDialog).toBeVisible();
+	await hpa840Shot(page, 'area-map-640x360.png');
+	await page.keyboard.press('m');
+	await expect(mapDialog).toBeHidden();
+});
+
+test('HPA-840 overlay evidence sweep across the required viewport matrix', async ({ page }) => {
+	test.setTimeout(300_000);
+	const overlayPlan: {
+		tile: string;
+		dialogName: RegExp | string;
+		viewports: [number, number][];
+	}[] = [
+		{
+			tile: 'Bag',
+			dialogName: /inventory/i,
+			viewports: [
+				[640, 360],
+				[1280, 640],
+				[1280, 719],
+				[1280, 720],
+				[1920, 1080],
+				[390, 844],
+				[832, 560]
+			]
+		},
+		{
+			tile: 'Gear',
+			dialogName: /inventory/i,
+			viewports: [
+				[640, 360],
+				[1280, 640]
+			]
+		},
+		{
+			tile: 'Quest',
+			dialogName: /quest log/i,
+			viewports: [
+				[640, 360],
+				[1280, 640],
+				[1280, 719],
+				[1280, 720],
+				[1920, 1080],
+				[390, 844],
+				[832, 560]
+			]
+		},
+		{
+			tile: 'Map',
+			dialogName: /map$/i,
+			viewports: [
+				[640, 360],
+				[1280, 640],
+				[390, 844]
+			]
+		},
+		{
+			tile: 'Skill',
+			dialogName: 'Skill',
+			viewports: [
+				[640, 360],
+				[1280, 640]
+			]
+		},
+		{
+			tile: 'Save',
+			dialogName: /save/i,
+			viewports: [
+				[640, 360],
+				[1280, 640]
+			]
+		},
+		{
+			tile: 'System',
+			dialogName: /display & text/i,
+			viewports: [
+				[640, 360],
+				[1280, 640],
+				[832, 560]
+			]
+		}
+	];
+
+	await installRuntimeProbes(page);
+	await injectSave(page, createSaveFixture());
+	await continueFromTitle(page);
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+
+	for (const overlay of overlayPlan) {
+		for (const [width, height] of overlay.viewports) {
+			await page.setViewportSize({ width, height });
+			const commandGrid = commandBox(page);
+			if (!(await commandGrid.isVisible())) {
+				await page.getByRole('button', { name: 'Menu' }).click();
+				await expect(commandGrid).toBeVisible();
+			}
+			await commandGrid.getByRole('button', { name: overlay.tile, exact: true }).click();
+			const dialog = page.getByRole('dialog', { name: overlay.dialogName });
+			await expect(dialog).toBeVisible();
+			// Let the 280ms entrance animation settle before the capture.
+			await page.waitForTimeout(350);
+			await hpa840Shot(page, `${overlay.tile.toLowerCase()}-${width}x${height}.png`);
+			expect(
+				await page.evaluate(() => document.documentElement.scrollTop + document.body.scrollTop)
+			).toBe(0);
+			await page.keyboard.press('Escape');
+			await expect(dialog).toBeHidden();
+		}
+	}
+	// Leave the command grid before the shop leg.
+	await page.keyboard.press('Escape');
+
+	// Shop is not a command tile: park the resume save at Mira's approach and
+	// open her dialog. injectSave only seeds once per page session, so the
+	// second fixture goes through localStorage before the reload.
+	const shopSave = createSaveFixture({
+		mapId: 'item-shop',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 416, y: 360, facing: 'up' }
+	});
+	const shopEnvelope = {
+		version: 1,
+		slots: [
+			{
+				kind: 'autosave',
+				savedAt: new Date().toISOString(),
+				playtimeSeconds: 0,
+				state: shopSave
+			},
+			null,
+			null
+		]
+	};
+	await page.evaluate(({ key, encoded }) => window.localStorage.setItem(key, encoded), {
+		key: SAVES_STORAGE_KEY,
+		encoded: JSON.stringify(shopEnvelope)
+	});
+	await continueFromTitle(page);
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+		return (
+			state?.nearbyShop?.shopId === 'miras-item-shop' ||
+			state?.status?.includes('Mira nearby') === true
+		);
+	});
+	for (const [width, height] of [
+		[640, 360],
+		[1280, 640]
+	] as const) {
+		await page.setViewportSize({ width, height });
+		await page.locator('canvas').click();
+		await page.keyboard.press('e', { delay: 50 });
+		const miraDialog = page.getByRole('dialog', { name: 'Mira' });
+		await expect(miraDialog).toBeVisible();
+		await miraDialog.getByRole('button', { name: 'Shop' }).click();
+		const shopDialog = page.getByRole('dialog', { name: /herb hut/i });
+		await expect(shopDialog).toBeVisible();
+		await expect(page.getByTestId('shop-buy-grid')).toBeVisible();
+		await page.waitForTimeout(350);
+		await hpa840Shot(page, `shop-${width}x${height}.png`);
+		expect(
+			await page.evaluate(() => document.documentElement.scrollTop + document.body.scrollTop)
+		).toBe(0);
+		await page.keyboard.press('Escape');
+		await expect(shopDialog).toBeHidden();
+	}
 });

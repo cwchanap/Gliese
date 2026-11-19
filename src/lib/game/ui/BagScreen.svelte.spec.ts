@@ -327,6 +327,7 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 
 	it.each([
 		[640, 360],
+		[832, 560],
 		[1280, 640]
 	])(
 		'keeps rail, title and Close pinned in parallel columns while the slot grid scrolls at %d×%d',
@@ -378,7 +379,8 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 				expect(document.documentElement.scrollTop).toBe(0);
 				expect(document.body.scrollTop).toBe(0);
 
-				// All five worn remove controls are operable.
+				// All five worn remove controls are operable — and reaching
+				// them never scrolls the pinned title or Close offscreen.
 				const removes = Array.from(screen.querySelectorAll<HTMLElement>('.bag-worn-remove'));
 				expect(removes).toHaveLength(5);
 				for (const remove of removes) {
@@ -388,9 +390,19 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 						`worn remove ${remove.getAttribute('aria-label')} reachable at ${width}×${height}`
 					).toBe(true);
 					expect((remove as HTMLButtonElement).disabled).toBe(false);
+					expect(
+						insideViewport(title.getBoundingClientRect(), width, height),
+						`title still pinned after reaching ${remove.getAttribute('aria-label')}`
+					).toBe(true);
+					expect(
+						insideViewport(close.getBoundingClientRect(), width, height),
+						`Close still pinned after reaching ${remove.getAttribute('aria-label')}`
+					).toBe(true);
 				}
 				removes[0]!.click();
 				expect(commands).toContainEqual({ type: 'unequip-slot', slot: 'head' });
+				expect(insideViewport(title.getBoundingClientRect(), width, height)).toBe(true);
+				expect(insideViewport(close.getBoundingClientRect(), width, height)).toBe(true);
 			});
 		}
 	);
@@ -557,9 +569,12 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 		}
 	});
 
-	it('keeps the detail action reachable and working at 640×360', async () => {
+	it.each([
+		[640, 360],
+		[832, 560]
+	])('keeps the detail action reachable and working at %d×%d', async (width, height) => {
 		await withCommands(async (commands) => {
-			await page.viewport(640, 360);
+			await page.viewport(width, height);
 			window.scrollTo(0, 0);
 			render(GameShell);
 			emitHudState(baseHudState(stockedBag));
@@ -568,15 +583,62 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 			await page.getByRole('tab', { name: 'Gear' }).click();
 			await page.getByRole('button', { name: 'Rusty Dagger' }).click();
 
+			const screen = bagScreen();
+			const title = screen.querySelector<HTMLElement>('.bag-title')!;
+			const close = screen.querySelector<HTMLElement>('.bag-rail-close')!;
 			const action = document.querySelector<HTMLElement>('.bag-detail-action')!;
 			action.scrollIntoView({ block: 'nearest' });
-			expect(insideViewport(action.getBoundingClientRect(), 640, 360)).toBe(true);
+			expect(insideViewport(action.getBoundingClientRect(), width, height)).toBe(true);
+			// Reaching the action must not scroll the pinned chrome away.
+			expect(insideViewport(title.getBoundingClientRect(), width, height)).toBe(true);
+			expect(insideViewport(close.getBoundingClientRect(), width, height)).toBe(true);
 			expect((action as HTMLButtonElement).disabled).toBe(false);
 			action.click();
 			expect(commands).toContainEqual({ type: 'equip-item', itemId: 'rusty-dagger' });
 			expect(document.documentElement.scrollTop).toBe(0);
 		});
 	});
+
+	it.each([
+		[640, 360],
+		[832, 560]
+	])(
+		'keeps the five worn tiles disjoint and inside the Worn panel at %d×%d',
+		async (width, height) => {
+			await page.viewport(width, height);
+			window.scrollTo(0, 0);
+			render(GameShell);
+			emitHudState(baseHudState(fullyEquipped));
+			await openBag();
+
+			const screen = bagScreen();
+			const worn = screen.querySelector<HTMLElement>('[data-testid="inventory-worn"]')!;
+			const wornRect = worn.getBoundingClientRect();
+			const tiles = Array.from(worn.querySelectorAll<HTMLElement>('.bag-worn-tile')).map((el) =>
+				el.getBoundingClientRect()
+			);
+			expect(tiles).toHaveLength(5);
+			for (const rect of tiles) {
+				expect(rect.width).toBeGreaterThan(0);
+				expect(rect.height).toBeGreaterThan(0);
+				expect(rect.left).toBeGreaterThanOrEqual(wornRect.left - 1);
+				expect(rect.right).toBeLessThanOrEqual(wornRect.right + 1);
+				expect(rect.top).toBeGreaterThanOrEqual(wornRect.top - 1);
+				expect(rect.bottom).toBeLessThanOrEqual(wornRect.bottom + 1);
+				expect(insideViewport(rect, width, height)).toBe(true);
+			}
+			for (let i = 0; i < tiles.length; i += 1) {
+				for (let j = i + 1; j < tiles.length; j += 1) {
+					const a = tiles[i]!;
+					const b = tiles[j]!;
+					expect(
+						a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom,
+						`worn tiles ${i} vs ${j} overlap at ${width}×${height}`
+					).toBe(false);
+				}
+			}
+		}
+	);
 
 	it('keeps keyboard navigation working across the rail tabs at 640×360', async () => {
 		await page.viewport(640, 360);
