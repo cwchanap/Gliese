@@ -6817,6 +6817,75 @@ describe('WorldScene', () => {
 		expect(scene.scale.off).toHaveBeenCalledWith('resize', resizeHandler);
 	});
 
+	it('re-centers camera bounds on resize while a menu pauses the simulation', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const { heroHouseMap } = await import('$lib/game/content/maps');
+		const scene = new WorldScene();
+
+		Object.assign(phaserState.mainCamera, { width: 800, height: 600 });
+		scene.create({ mapId: heroHouseMap.id });
+
+		const scaleOnMock = scene.scale.on as unknown as import('vitest').Mock;
+		const resizeCalls = scaleOnMock.mock.calls as Array<[string, () => void]>;
+		const resizeHandler = resizeCalls.find((call) => call[0] === 'resize')?.[1];
+		expect(resizeHandler).toBeTypeOf('function');
+
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+		};
+		sceneState.handleHudCommand({ type: 'pause-game' });
+		expect((scene as unknown as { simulationPaused: boolean }).simulationPaused).toBe(true);
+
+		Object.assign(phaserState.playerMarker, { x: 96, y: 128 });
+		Object.assign(phaserState.mainCamera, { width: 960, height: 640 });
+		resizeHandler!();
+
+		// Bounds still update while paused; the camera pre-render clamps scroll on
+		// the next frame, so the hero position and follow target must not move.
+		expect(scene.cameras.main.setBounds).toHaveBeenLastCalledWith(-128, -32, 960, 640);
+		expect(phaserState.playerMarker).toMatchObject({ x: 96, y: 128 });
+		expect(phaserState.mainCamera.startFollow).toHaveBeenCalledTimes(1);
+	});
+
+	it('swaps the resize handler across a restart and removes it on destroy', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const { heroHouseMap, guildHallMap } = await import('$lib/game/content/maps');
+		const scene = new WorldScene();
+		const scaleOnMock = scene.scale.on as unknown as import('vitest').Mock;
+		const scaleOffMock = scene.scale.off as unknown as import('vitest').Mock;
+		const resizeHandlers = () =>
+			(scaleOnMock.mock.calls as Array<[string, () => void]>)
+				.filter((call) => call[0] === 'resize')
+				.map((call) => call[1]);
+
+		Object.assign(phaserState.mainCamera, { width: 800, height: 600 });
+		scene.create({ mapId: heroHouseMap.id });
+
+		const firstHandler = resizeHandlers()[0];
+		expect(firstHandler).toBeTypeOf('function');
+
+		scene.events.emit('shutdown');
+		expect(scaleOffMock).toHaveBeenCalledTimes(1);
+		expect(scaleOffMock).toHaveBeenLastCalledWith('resize', firstHandler);
+
+		// A transition/restart re-runs create() on the same scene instance; the
+		// replacement handler must capture the new map's dimensions.
+		scene.create({ mapId: guildHallMap.id });
+
+		const secondHandler = resizeHandlers()[1];
+		expect(secondHandler).toBeTypeOf('function');
+		expect(secondHandler).not.toBe(firstHandler);
+
+		Object.assign(phaserState.mainCamera, { width: 960, height: 700 });
+		secondHandler!();
+
+		expect(scene.cameras.main.setBounds).toHaveBeenLastCalledWith(0, 0, 1024, 832);
+
+		scene.events.emit('destroy');
+		expect(scaleOffMock).toHaveBeenCalledTimes(2);
+		expect(scaleOffMock).toHaveBeenLastCalledWith('resize', secondHandler);
+	});
+
 	it('flags heroOccluded only while the hero projects inside the hero-card screen zone', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
