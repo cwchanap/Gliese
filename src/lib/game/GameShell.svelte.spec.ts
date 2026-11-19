@@ -5010,7 +5010,7 @@ describe('GameShell pad layer', () => {
 		expect(focusedFocusId()).toBe('shop-detail-action');
 	});
 
-	it('tracks the bag grid’s 4-column breakpoint for pad navigation at 640px', async () => {
+	it('tracks the bag grid’s 3-column short-landscape geometry for pad navigation at 640×360', async () => {
 		installPadStub();
 		await page.viewport(640, 360);
 		render(GameShell);
@@ -5035,14 +5035,14 @@ describe('GameShell pad layer', () => {
 		await page.getByRole('button', { name: 'Bag' }).click();
 		await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
 
-		// At 640px the grid renders 4 columns: item 4 sits directly below item 0
-		// (6-column math would leave it at row 0 / stall the Down move).
+		// At 640×360 the short-landscape bag renders 3 columns: item 3 sits
+		// directly below item 0 (6-column math would stall the Down move).
 		document.querySelector<HTMLElement>('[data-focus-id="bag-slot-0"]')?.focus();
 		await tiltAxis(0, 0.8);
-		expect(focusedFocusId()).toBe('bag-slot-4');
+		expect(focusedFocusId()).toBe('bag-slot-3');
 
 		// The detail action sits below the last tile's column; A selects, then
-		// Down reaches it in the same 4-column geometry.
+		// Down reaches it in the same 3-column geometry.
 		await press(0);
 		await tiltAxis(0, 0.8);
 		expect(focusedFocusId()).toBe('bag-detail-action');

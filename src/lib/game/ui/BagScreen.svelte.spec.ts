@@ -395,6 +395,64 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 		}
 	);
 
+	it.each([
+		[640, 360],
+		[832, 560]
+	])(
+		'renders 3 readable columns with full-size labels and badges at %d×%d',
+		async (width, height) => {
+			await page.viewport(width, height);
+			window.scrollTo(0, 0);
+			render(GameShell);
+			emitHudState(baseHudState(stockedBag));
+			await openBag();
+
+			const screen = bagScreen();
+			const gridEl = screen.querySelector<HTMLElement>('.bag-slot-grid')!;
+			// Short landscape renders 3 columns (not the 4-col ≤640 compact
+			// stack), and each slot stays wide enough for its label and badge.
+			expect(getComputedStyle(gridEl).gridTemplateColumns.split(' ')).toHaveLength(3);
+			const slot = gridEl.querySelector<HTMLElement>('.bag-slot')!;
+			expect(slot.getBoundingClientRect().width).toBeGreaterThanOrEqual(68);
+
+			// Focus geometry mirrors the rendered 3 columns: only filled slots
+			// carry focus ids, so the 30 stocked potions end at row 9, col 2.
+			const focusSlots = screen.querySelectorAll<HTMLElement>('[data-focus-id^="bag-slot-"]');
+			const lastFocus = focusSlots[focusSlots.length - 1]!;
+			expect(lastFocus.getAttribute('data-focus-row')).toBe('9');
+			expect(lastFocus.getAttribute('data-focus-column')).toBe('2');
+
+			await page.getByRole('tab', { name: 'Gear' }).click();
+			await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
+
+			// Slot label and EQUIPPED badge render at their default readable
+			// size (≥8px) and fully inside their own slot — not shrunk or
+			// clipped against the panel edge.
+			const labeled = Array.from(screen.querySelectorAll<HTMLElement>('.bag-slot')).filter(
+				(el) => el.querySelector('.bag-slot-pos') && el.querySelector('.bag-slot-worn')
+			);
+			expect(labeled.length).toBeGreaterThan(0);
+			for (const el of labeled) {
+				el.scrollIntoView({ block: 'nearest' });
+				const slotRect = el.getBoundingClientRect();
+				for (const [name, badgeEl] of [
+					['label', el.querySelector<HTMLElement>('.bag-slot-pos')!],
+					['badge', el.querySelector<HTMLElement>('.bag-slot-worn')!]
+				] as const) {
+					expect(
+						parseFloat(getComputedStyle(badgeEl).fontSize),
+						`${name} font-size at ${width}×${height}`
+					).toBeGreaterThanOrEqual(8);
+					const r = badgeEl.getBoundingClientRect();
+					expect(
+						r.left >= slotRect.left && r.right <= slotRect.right + 1,
+						`${name} inside slot at ${width}×${height}: ${JSON.stringify(r.toJSON())} vs ${JSON.stringify(slotRect.toJSON())}`
+					).toBe(true);
+				}
+			}
+		}
+	);
+
 	it('keeps the detail action reachable and working at 640×360', async () => {
 		await withCommands(async (commands) => {
 			await page.viewport(640, 360);
