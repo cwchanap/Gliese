@@ -293,7 +293,10 @@
 			top: 8.5rem;
 			left: 0.9rem;
 			grid-template-columns: repeat(4, 1fr);
-			width: min(24.5rem, calc(100vw - 2rem));
+			/* Below ~608px wide the compact side HUD (quest + wallet) reaches
+			   into the right edge, so the 4×2 grid narrows instead of
+			   overlapping it — same right reserve as the 2×4 portrait rule. */
+			width: min(24.5rem, calc(100vw - 13.5rem));
 		}
 	}
 
