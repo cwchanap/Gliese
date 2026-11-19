@@ -8,8 +8,9 @@ import GameShell from '$lib/game/GameShell.svelte';
 vi.mock('$lib/game/phaser/createGame', () => ({
 	createGame: vi.fn(async () => ({ destroy: vi.fn() }))
 }));
-import { HUD_STATE_EVENT } from '$lib/game/ui-bridge/events';
+import { HUD_COMMAND_EVENT, HUD_STATE_EVENT } from '$lib/game/ui-bridge/events';
 import type { HudState } from '$lib/game/ui-bridge/events';
+import { updatePreferences } from '$lib/game/i18n/store';
 
 function emitHudState(state: HudState) {
 	window.dispatchEvent(new CustomEvent(HUD_STATE_EVENT, { detail: state }));
@@ -98,6 +99,50 @@ const fullyEquipped: Partial<HudState> = {
 		}
 	}
 };
+
+// Enough consumables to overflow the slot viewport even at 1280×640's
+// six-column grid, so .bag-grid-scroll is provably the scroller.
+const stockedBag: Partial<HudState> = {
+	inventory: {
+		...fullyEquipped.inventory!,
+		consumables: Array.from({ length: 30 }, (_, index) => ({
+			itemId: 'field-potion',
+			name: 'Field Potion',
+			description: 'Restores HP.',
+			iconPath: '/game/assets/items/field-potion.png',
+			quantity: index + 1
+		})),
+		equipment: [
+			...fullyEquipped.inventory!.equipment,
+			{
+				itemId: 'rusty-dagger',
+				name: 'Rusty Dagger',
+				description: 'A spare blade.',
+				iconPath: '/game/assets/items/rusty-dagger.png',
+				slot: 'weapon' as const,
+				equipped: false,
+				modifiers: { attack: 1 }
+			}
+		]
+	}
+};
+
+function withCommands(fn: (commands: unknown[]) => Promise<void> | void): Promise<void> {
+	const commands: unknown[] = [];
+	const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
+	window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
+	try {
+		const result = fn(commands);
+		return result instanceof Promise
+			? result.finally(() => window.removeEventListener(HUD_COMMAND_EVENT, handleCommand))
+			: (Promise.resolve().finally(() =>
+					window.removeEventListener(HUD_COMMAND_EVENT, handleCommand)
+				) as Promise<void>);
+	} catch (err) {
+		window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
+		throw err;
+	}
+}
 
 function inViewport(selector: string, height: number): boolean {
 	return Array.from(document.querySelectorAll<HTMLElement>(selector)).every((el) => {
@@ -266,4 +311,177 @@ describe('BagScreen short viewports', () => {
 			}
 		});
 	});
+});
+
+describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () => {
+	function bagScreen(): HTMLElement {
+		return document.querySelector<HTMLElement>('.bag-screen')!;
+	}
+
+	async function openBag() {
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name: 'Bag' }).click();
+		await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
+		await settleEntrance();
+	}
+
+	it.each([
+		[640, 360],
+		[1280, 640]
+	])(
+		'keeps rail, title and Close pinned in parallel columns while the slot grid scrolls at %d×%d',
+		async (width, height) => {
+			await withCommands(async (commands) => {
+				await page.viewport(width, height);
+				window.scrollTo(0, 0);
+				render(GameShell);
+				emitHudState(baseHudState(stockedBag));
+				await openBag();
+
+				const screen = bagScreen();
+				const title = screen.querySelector<HTMLElement>('.bag-title')!;
+				const close = screen.querySelector<HTMLElement>('.bag-rail-close')!;
+				const scroll = screen.querySelector<HTMLElement>('.bag-grid-scroll')!;
+
+				// Short landscape stays in compact parallel columns — not the
+				// ≤900px stacked scrolling column that narrow/tall keeps.
+				expect(getComputedStyle(screen).flexDirection).toBe('row');
+				for (const card of screen.querySelectorAll<HTMLElement>('.bag-rail-card')) {
+					expect(
+						insideViewport(card.getBoundingClientRect(), width, height),
+						`rail card ${card.textContent} inside ${width}×${height}`
+					).toBe(true);
+				}
+				expect(insideViewport(title.getBoundingClientRect(), width, height)).toBe(true);
+				expect(insideViewport(close.getBoundingClientRect(), width, height)).toBe(true);
+
+				// The slot viewport is usable — never shrunk below one 6.6rem
+				// slot — and it is the scroller, not the screen or document.
+				expect(scroll.clientHeight).toBeGreaterThanOrEqual(104);
+				expect(getComputedStyle(scroll).overflowY).toBe('auto');
+				expect(scroll.scrollHeight).toBeGreaterThan(scroll.clientHeight);
+				expect(screen.scrollHeight).toBeLessThanOrEqual(screen.clientHeight + 1);
+				scroll.scrollTop = scroll.scrollHeight;
+				expect(scroll.scrollTop).toBeGreaterThan(0);
+
+				// After the inner scroll the last slot renders fully inside the
+				// clip panel, and title/Close stayed pinned.
+				const slots = screen.querySelectorAll<HTMLElement>('.bag-slot');
+				const last = slots[slots.length - 1]!;
+				const clip = scroll.getBoundingClientRect();
+				const lastRect = last.getBoundingClientRect();
+				expect(lastRect.top).toBeGreaterThanOrEqual(clip.top);
+				expect(lastRect.bottom).toBeLessThanOrEqual(clip.bottom);
+				expect(insideViewport(lastRect, width, height)).toBe(true);
+				expect(insideViewport(title.getBoundingClientRect(), width, height)).toBe(true);
+				expect(insideViewport(close.getBoundingClientRect(), width, height)).toBe(true);
+				expect(document.documentElement.scrollTop).toBe(0);
+				expect(document.body.scrollTop).toBe(0);
+
+				// All five worn remove controls are operable.
+				const removes = Array.from(screen.querySelectorAll<HTMLElement>('.bag-worn-remove'));
+				expect(removes).toHaveLength(5);
+				for (const remove of removes) {
+					remove.scrollIntoView({ block: 'nearest' });
+					expect(
+						insideViewport(remove.getBoundingClientRect(), width, height),
+						`worn remove ${remove.getAttribute('aria-label')} reachable at ${width}×${height}`
+					).toBe(true);
+					expect((remove as HTMLButtonElement).disabled).toBe(false);
+				}
+				removes[0]!.click();
+				expect(commands).toContainEqual({ type: 'unequip-slot', slot: 'head' });
+			});
+		}
+	);
+
+	it('keeps the detail action reachable and working at 640×360', async () => {
+		await withCommands(async (commands) => {
+			await page.viewport(640, 360);
+			window.scrollTo(0, 0);
+			render(GameShell);
+			emitHudState(baseHudState(stockedBag));
+			await openBag();
+
+			await page.getByRole('tab', { name: 'Gear' }).click();
+			await page.getByRole('button', { name: 'Rusty Dagger' }).click();
+
+			const action = document.querySelector<HTMLElement>('.bag-detail-action')!;
+			action.scrollIntoView({ block: 'nearest' });
+			expect(insideViewport(action.getBoundingClientRect(), 640, 360)).toBe(true);
+			expect((action as HTMLButtonElement).disabled).toBe(false);
+			action.click();
+			expect(commands).toContainEqual({ type: 'equip-item', itemId: 'rusty-dagger' });
+			expect(document.documentElement.scrollTop).toBe(0);
+		});
+	});
+
+	it('keeps keyboard navigation working across the rail tabs at 640×360', async () => {
+		await page.viewport(640, 360);
+		render(GameShell);
+		emitHudState(baseHudState(stockedBag));
+		await openBag();
+
+		const potions = document.getElementById('inventory-potions-tab')!;
+		potions.focus();
+		await expect.element(page.getByRole('tab', { name: 'Potions' })).toHaveFocus();
+		await userEvent.keyboard('{ArrowDown}');
+		await expect.element(page.getByRole('tab', { name: 'Gear' })).toHaveFocus();
+	});
+
+	it.each([
+		[390, 844],
+		[832, 760]
+	])('keeps the stacked scrolling column on narrow/tall %d×%d', async (width, height) => {
+		await page.viewport(width, height);
+		window.scrollTo(0, 0);
+		render(GameShell);
+		emitHudState(baseHudState(fullyEquipped));
+		await openBag();
+
+		expect(getComputedStyle(bagScreen()).flexDirection).toBe('column');
+	});
+
+	it.each([
+		[640, 360],
+		[832, 560]
+	])(
+		'keeps rail labels and Close unclipped in Japanese and Traditional Chinese at %d×%d',
+		async (width, height) => {
+			await page.viewport(width, height);
+			window.scrollTo(0, 0);
+			render(GameShell);
+			emitHudState(baseHudState(fullyEquipped));
+			await page.getByRole('button', { name: /menu/i }).click();
+			await page.getByRole('button', { name: 'Bag' }).click();
+			await expect.element(page.getByTestId('inventory-slot-grid')).toBeVisible();
+			await settleEntrance();
+
+			for (const locale of ['ja', 'zh-Hant'] as const) {
+				updatePreferences({ locale });
+				const screen = bagScreen();
+				for (const card of screen.querySelectorAll<HTMLElement>('.bag-rail-card')) {
+					expect(
+						insideViewport(card.getBoundingClientRect(), width, height),
+						`rail card ${card.textContent} inside ${width}×${height} (${locale})`
+					).toBe(true);
+					expect(
+						card.scrollWidth <= card.clientWidth + 1,
+						`rail card ${card.textContent} not clipped at ${width}×${height} (${locale})`
+					).toBe(true);
+				}
+				const close = screen.querySelector<HTMLElement>('.bag-rail-close')!;
+				expect(
+					insideViewport(close.getBoundingClientRect(), width, height),
+					`Close inside ${width}×${height} (${locale})`
+				).toBe(true);
+				const title = screen.querySelector<HTMLElement>('.bag-title')!;
+				expect(
+					insideViewport(title.getBoundingClientRect(), width, height),
+					`title inside ${width}×${height} (${locale})`
+				).toBe(true);
+			}
+			updatePreferences({ locale: 'en' });
+		}
+	);
 });
