@@ -8,41 +8,43 @@
 
 
 **Review reconciled:** https://github.com/cwchanap/Gliese/pull/68#pullrequestreview-5967994112 (all six findings adopted with Skill/Shop restricted to regression/smallest necessary fixes).
+**Second review reconciled:** https://github.com/cwchanap/Gliese/pull/68#pullrequestreview-5968584846. Three valid follow-ups addressed: conflicting 560–719px HUD rules, unworkable 640×360 vertical menu stacks, and duplicate acceptance passes. The review's CLI-only proposal is adapted to retain MCP-driven E2E acceptance while reusing one persisted Playwright/Vitest execution path.
 
 ## Design constraints
 
-- Keep Phaser 4, Svelte 5, the existing `WorldScene` and `BattleScene` owners, `GameShell` input/overlay flow, `HudState`, focus lattice, and current UI components. No new abstraction or dependency.
-- Keep **one compact field tier (height <= 719px)** in the existing FieldHud/GameShell CSS, with its **TypeScript `heroCardZone` occlusion twin**. The CommandGrid's own <=559px breakpoint is separate and stays intact.
-- Keep HPA-836 Escape/I/M/focus, HPA-841 Quest-chain wrapping and existing prologue gameplay. HPA-694 LFS/CI gate restoration stays separate.
-- No new art, SFX, translations, save data or separate implementation PR. This single draft PR remains documentation-only until coding begins.
+- Reuse Phaser 4 `WorldScene` camera bounds, Svelte 5 components, GameShell input/overlay, `HudState`, existing focus lattice and CSS. This is a layout/lifecycle fix, not a UI rewrite.
+- One <=719px compact field HUD tier **and** a matched `heroCardZone` occlusion twin. Raise `FieldHud`'s older `(max-width:832px) and (min-height:560px)` rule to min-height 720px so the two position policies do not both apply. Keep CommandGrid's independent <=559px rule.
+- For short **landscape**, keep Bag, Quest and Shop in constrained parallel columns with internal scrolling; do not vertically stack 3 large full-sized sections in a 360px-tall viewport. Retain portrait stacking as appropriate for 390×844.
+- Keep HPA-836 Escape/I/M and focus, HPA-841 quest wrapping, HPA-839 shop business rules and HPA-694's LFS/CI restoration outside this ticket. No art, SFX, text changes, save changes, new library or second PR.
+- Persist regression scenarios in existing Vitest/Playwright tests and use **MCP to execute the end-to-end acceptance** on the same web test harness, collecting screenshots there. Do not create a second parallel manual browser pass.
 
 ## File ownership
 
-| File | Minimal implementation scope |
+| File | Minimal change |
 | --- | --- |
-| `src/lib/game/phaser/scenes/WorldScene.ts` | Reuse `getCenteredCameraBounds()` in a scale resize listener; unregister on shutdown/destroy; no manual camera-scroll reconciliation |
-| `src/lib/game/core/hud-occlusion.ts` | Match `heroCardZone()` to the rendered compact card at <=719px, including top/left offset |
-| `src/lib/game/core/hud-occlusion.test.ts` | Update existing zone boundaries and false-positive assertions |
-| `src/lib/game/ui/FieldHud.svelte` | Refactor existing 559px block to the one 719px compact tier: portrait + HP, one-line objective, hidden minimap, compact wallet |
-| `src/lib/game/GameShell.svelte` | Refactor existing short-height Menu anchor at 719px; don't change shortcuts or focus |
-| `src/lib/game/ui/heroic-ui.css` | Change shared `.heroic-window` outer scrolling/overflow once, keeping header and inner body bounds |
-| `src/lib/game/ui/QuestJournal.svelte` | Remove outer scroll rules; keep title/Close and scroll inner quest lists/details |
-| `src/lib/game/ui/SaveScreen.svelte` | Remove root overflow and slot `flex:none` overrides; fixed header/footer, scrolling slot body |
-| `src/lib/game/ui/SystemScreen.svelte` | Delete overrides disabling `.heroic-rows` scrolling; fixed header/category access |
-| `src/lib/game/ui/BagScreen.svelte` | Remove outer scrolling; preserve visible rail/title/Close with scrolling inventory content |
-| `src/lib/game/ui/AreaMapScreen.svelte` | Keep header/Close and bound map SVG + body; change “The Wilds” label only if reproduced |
-| `src/lib/game/ui/SkillScreen.svelte` | Shared-window regression target; only local scroll fix if tests fail |
-| `src/lib/game/ui/ShopScreen.svelte` | Full-screen scroll regression target; smallest scroll fix needed to keep title/Back/purchase controls; no HPA-839 business logic |
-| `src/lib/game/phaser/scenes/scenes.test.ts` | Extend existing WorldScene interior camera bounds test and BattleScene-style scale listener test |
-| `src/lib/game/GameShell.svelte.spec.ts` | Extend existing overlay `it.each` geometry, scroll, focus checks at compact/intermediate heights |
-| `tests/e2e/game.e2e.ts` | Extend existing HUD overlap test and add persistent live-interior-resize gate with camera runtime probe |
+| `src/lib/game/phaser/scenes/WorldScene.ts` | Register one resize callback after startFollow, reapply `getCenteredCameraBounds`, unregister in cleanup |
+| `src/lib/game/core/hud-occlusion.ts` + `.test.ts` | Size compact `heroCardZone` to actual CSS card at <=719px; guard 719/720 transition and false fades |
+| `src/lib/game/ui/FieldHud.svelte` | Reuse existing short-height tier at <=719; **raise portrait min-height 560 → 720**; hide minimap; put quest/wallet below Menu |
+| `src/lib/game/GameShell.svelte` | Relocate Menu in compact tier; preserve key/pad handlers, verify localized glyph geometry |
+| `src/lib/game/ui/heroic-ui.css` | Bound shared `.heroic-window`; inner scroll only, no global modal framework |
+| `src/lib/game/ui/QuestJournal.svelte` | Short-landscape side-by-side rail/detail, chapter/entries/detail inner scroll, fixed rail Close |
+| `src/lib/game/ui/BagScreen.svelte` | Compact landscape rail/main/side with usable grid width; bounded worn/grid/detail regions; portrait stack preserved |
+| `src/lib/game/ui/ShopScreen.svelte` | **Required** short-landscape compact rail/stock/detail fix, not optional; preserve Buy/Sell, shop actions and focus grid |
+| `src/lib/game/ui/SaveScreen.svelte` | `save-slots` explicitly `overflow-y:auto`, fixed header/footer; no root scroll |
+| `src/lib/game/ui/SystemScreen.svelte` | Remove local overrides disabling row scroll; fixed header/Back |
+| `src/lib/game/ui/AreaMapScreen.svelte` | Fixed header; bounded map content; label changes only on reproduced bug |
+| `src/lib/game/ui/SkillScreen.svelte` | Fixed header and shared window scroll-regression check; minimum local adjustment |
+| `src/lib/game/phaser/scenes/scenes.test.ts` | Extend existing camera bounds and scale listener tests |
+| `src/lib/game/GameShell.svelte.spec.ts` | **Update existing** 833×560/832×560/640×560/640×559 localized HUD tests and overlay table with Shop-specific opener |
+| `src/lib/game/ui/BagScreen.svelte.spec.ts` | Preserve equipped-badge, slot scroll and worn-remove geometry at 640×360; update scroll-to-reach assertions if necessary |
+| `tests/e2e/game.e2e.ts` | Persist live interior resize, HUD visibility/area and area-map shortcut tests; screenshots from same E2E run |
 
-## Step 0 — reproduce failure and lock test expectations
+## Step 0 — make reproducible failing tests first
 
-1. Reconfirm latest `main` and HPA-840 / HPA-836 / HPA-841 status before implementation. Reuse existing tests, ids and mock fixtures rather than constructing a new test harness.
-2. Using an MCP-controlled web browser with real interior assets, capture baseline screenshots + camera/DOM rectangles at 1280×720 → 1920×1080 (Lodge, house, forge), and the field, menu, map and overlays at 640×360. This evidence is a baseline, not an acceptance substitute.
-3. Inspect CSS of `hud-party-panel` and calculated `heroCardZone()` at 640×360, 1280×719 and 1280×720. Document compact card dimensions/offsets from the actual rendered box; avoid guessed numbers.
-4. Add reproducible failing tests **in the existing files** for camera listener, compact HUD + occlusion and overlay scroll containment. Favor stable assertions and `scrollIntoView` over fixed timeouts.
+1. Refresh latest main, HPA-840 and related tickets before implementation. Work on this same branch; no additional PR.
+2. Start with the existing `scenes.test.ts`, `GameShell.svelte.spec.ts`, `BagScreen.svelte.spec.ts` and `game.e2e.ts` fixtures, adding red assertions for the broken camera, compact HUD, Menu overlap and overlay scroll containment. **No separate MCP browser baseline is a prerequisite** for writing tests.
+3. In browser specs, measure the actual compact `hud-party-panel` and `jrpg-menu-anchor` dimensions in `en`, `ja`, `zh-Hant` at 640×360, 640×559/560, 832×560, 833×560 and 1280×719/720. Derive `heroCardZone()` from the rendered box, not guessed numbers.
+4. Capture before/after images **inside the persisted E2E flow** when running it through MCP after implementation, not as a second manual acceptance suite. Reproduce “The Wilds” label issue before editing font/marker logic.
 
 ## Step 1 — camera bounds only
 
@@ -51,50 +53,51 @@
 3. **Do not** add manual scroll/follow alignment: Phaser's camera pre-render clamps to the new bounds on the next rendered frame even if `simulationPaused` stops player movement. If an automated test disproves this on the actual Phaser build, demonstrate the regression before considering an additional fix.
 4. In `scenes.test.ts`, extend `centers rebuilt interior maps inside larger camera viewports` and the existing resize spy pattern: capture `resize` from `scale.on`, update **`phaserState.mainCamera.width/height`** (the helper reads those values), invoke the callback, assert `setBounds`; emit `shutdown` and verify `scale.off('resize', sameFn)`. Cover a new create with different map dimensions.
 
-## Step 2 — one compact HUD/occlusion breakpoint
+## Step 2 — one compact HUD/occlusion breakpoint, no competing portrait CSS
 
-1. Refactor `FieldHud.svelte`'s existing `@media (max-height: 559px)` to `719px` rather than adding a competing block. Show compact portrait and HP meter; visually hide name/level but preserve their accessible text (no `display:none` on the sole accessible copy); hide XP/stats and minimap. Reduce quest banner to the objective and wallet to a small chip. Preserve a completed-prologue message if there is no active quest.
-2. Refactor `GameShell.svelte`'s 559px Menu-anchor block to the same `719px` tier, moving the Menu chip into space formerly occupied by the minimap. Keep PromptGlyph/focus/click/Escape handlers unchanged. Remove now-dead minimap-specific compact CSS. Keep `CommandGrid.svelte`'s separate <=559px layout unchanged.
-3. In `core/hud-occlusion.ts`, update `heroCardZone(viewWidth,viewHeight)`'s <=559 branch to <=719 and size its width/height **from the compact CSS's measured occupied bounding box including offsets**, leaving a minimal protective margin. The narrower portrait/tall case still applies to >719px screens. No Svelte viewport store is introduced.
-4. Update `hud-occlusion.test.ts` at 640×360, 1280×719 and 1280×720; assert no false hero fading where the old desktop card used to extend. Use an actual browser `hud-party-panel` rectangle plus `heroCardZone` assertion to guard CSS/TS drift, and verify that hidden portions remain available to accessibility where applicable.
-5. Extend `game.e2e.ts`'s existing `mobile HUD stacks without overlapping controls`: leave 390×844 portrait behavior intact; at 640×360, assert minimap hidden, Menu/hero/objective/wallet/status onscreen with no pairwise overlap. Sum **only distinct visible card/control rectangles** (not parent `hud-side-panel`) and assert <=1/3 of viewport area. `M` still opens the full map.
+1. Refactor the existing `FieldHud.svelte` `@media(max-height:559px)` to <=719px. **Also change its `@media(max-width:832px) and (min-height:560px)` to min-height:720px**, otherwise 560–719px narrow windows activate both layout modes and override compact positions. Retain the older narrow-portrait rules for heights >=720px. Do not change `CommandGrid`'s independent 559px breakpoint.
+2. Compact `.hero-card` to portrait + HP while preserving name/level for assistive tech (use visually-hidden CSS, not `display:none` for the only accessible string). Visually hide XP/stats and `.minimap-card`; remove dead `.minimap-medallion` short-height rules. Only show current quest objective or completed-prologue text. Shrink wallet.
+3. Refactor `GameShell.svelte`'s existing short-height Menu rule to <=719px and place Menu at the upper right. **Place the compact `.heroic-side-hud` (quest + wallet) below the actual Menu chip**; with minimap hidden the old `top:.75rem` would collide. Use rect assertions with keyboard/pad glyphs in all three locales and test narrow mid-height windows.
+4. Update `core/hud-occlusion.ts`'s <=559 branch to <=719 with dimensions matching visible compact card and its margins. Keep tall narrow-portrait branch. Test 640×360, 1280×719 and 1280×720, including hero positions previously falsely dimmed by 412×240.
+5. **Update, do not discard** the existing `GameShell.svelte.spec.ts` localized `it.each` of 833×560, 832×560, 640×560, 640×559: it currently expects visible minimap; change expected hidden minimap under 720 and assert Menu does not intersect `.heroic-side-hud` / `.quest-banner` / `.wallet-pill` or hero card. Keep 390×844 portrait and 1280×720 desktop tests. In `game.e2e.ts`, sum distinct HUD/card/control boxes at 640×360 (exclude parent wrappers) and assert <=1/3 screen, non-overlap, Menu/HP/objective visible, `M` opens map.
 
-## Step 3 — smaller menu fixes mostly by removing conflicting rules
+## Step 3 — scroll containment with viable 640×360 landscape geometry
 
-1. In `heroic-ui.css`, make the shared `.heroic-window` itself bounded/clipped instead of a whole-window scroll area. Keep headers non-shrinking and content `min-height:0` so it scrolls **inside**. Verify Area Map, System and Skill after this shared change; do not blindly clip all children.
-2. **SystemScreen:** remove local `.heroic-rows { overflow: visible }` and `@media (max-height:600px) .system-content { flex: none; min-height:auto }` opt-outs; rely on existing `.heroic-rows { overflow-y:auto }`, keep the header/Back and rail visible. Only modify short-height flex sizing if the test still fails.
-3. **SaveScreen:** remove whole `.save-screen` overflow and responsive `flex:none` on `.save-slots`; scroll slots internally with header/Back/footer fixed. Preserve overwrite confirmation and the third slot's keyboard/pointer access.
-4. **QuestJournal:** replace <=900px whole-`.quest-screen` scrolling with a fixed outer screen, a compact fixed title/Close region and bounded scrollable rail/details. Preserve HPA-841 wrapping.
-5. **BagScreen:** remove whole-`.bag-screen` overflow at <=559px/<=900px while retaining column stacking; make existing grid/worn/detail regions individually scrollable and leave category/Close accessible.
-6. **AreaMap:** keep the header/Close outside `.jrpg-area-map-body` and cap map SVG inside its bounded body; test indoor/outdoor fog, labels and marker focus. Change the oversized “The Wilds” label only on reproduced failure.
-7. **Skill/Shop:** run the same overlay test after the shared CSS change. If Shop's <=1200px/short-height `overflow-y:auto` or Skill's window sizing moves navigation offscreen, make only the minimal local scroll-containment fix. Do not change Shop items, costs or purchases.
-8. Check Japanese and Traditional Chinese labels at 640×360. If 600px legacy rules remain for Save/System/Shop, check 1280×640 explicitly; avoid expanding them merely for consistent breakpoint numbers.
+**Shared rule:** In `heroic-ui.css`, bound/clip the `.heroic-window` frame once; ensure its scrollable body has `min-height:0`. Explicitly set `flex:none` on each actual `.system-header`, `.jrpg-area-map-header`, and `.skill-header`. Do not assume all headers are immediate children of `.heroic-window`.
 
-## Step 4 — persistent automated regression gate + MCP E2E
+**Landscape vs portrait:** In Bag, Quest and Shop, gate old <=900px / <=1200px vertical stacking to *portrait* (e.g. `max-aspect-ratio:1/1`) so 640×360 and 832×560 use compact parallel columns. Override short landscape padding/gaps/rail/side widths **together** and test measured main grid width; retaining the existing Bag side `width:25rem` or Shop detail `width:23rem` would leave almost no grid at 640px. Keep narrow portrait stacks (390×844) navigable. Use the current component DOM and focus lattice, not a new tab/router.
 
-**Tests to commit in this same PR (not a one-off test script):**
+1. **QuestJournal:** At 640×360, keep `.quest-rail` and `.quest-detail` side-by-side with reduced left rail width and `min-height:0`. Keep rail header fixed and `.quest-rail-close` fixed at **rail bottom**, not assumed part of `<header>`; let `.quest-rail-entries` and the seven-row `.quest-chapter` scroll within the available height while `.quest-detail` scrolls independently. Remove landscape `flex:none` and root `overflow-y:auto` opt-outs. Test all seven checklist rows remain readable after inner scroll and HPA-841 chain wrapping remains correct.
+2. **BagScreen:** At 640×360, keep compact rail/main/side parallel, with a narrow rail, shrinkable center `min-width:0`, and a bounded narrower `.bag-side` rather than stacked `flex:none` panels. The 6.6rem slots and their label/equipped badges need a usable `.bag-grid-scroll` viewport; never shrink it below a slot and assume clipped items are reachable. Make worn/detail internals scroll as needed while rail category tabs/Close and Bag title remain visible. Update `BagScreen.svelte.spec.ts` equipped-badge/slot scroll tests and verify all five worn-remove buttons remain operable. Preserve existing 1000×360 and 390×844 cases; any change to grid column count must match the existing `bagGridColumns` focus geometry.
+3. **ShopScreen (required fix):** At 640×360, do not stack the 14rem merchant portrait, grid and detail. Use narrow rail/main/detail, with scrollable stock and detail, always-visible merchant name, Buy/Sell tabs, Close and shop title. Condense or hide decorative portrait for short landscape if necessary, not business controls. Keep Buy/Sell and shop-detail action reachable, `shopGridColumns` and actual CSS grid columns synchronized, and HPA-839 prices/tooltips unaffected.
+4. **SaveScreen:** Explicit `.save-slots { overflow-y:auto; min-height:0; flex:1 }` (currently `overflow:visible`); delete root `overflow-y:auto` and the responsive `.save-slots {flex:none}` overrides. Set `.save-header, .save-footer {flex:none}`. Verify title/Back/footer stay onscreen as slot 3 scrolls into view, including overwrite confirmation and load mode.
+5. **SystemScreen:** Remove `.heroic-rows { overflow:visible }` and short-height `.system-content { flex:none; min-height:auto }` overrides; `.heroic-rows` already scrolls in shared CSS. Keep header and category rail visible; scroll to last option inside.
+6. **AreaMap/Skill:** Keep nonshrinking map/skill headers and bounded internal body. Map SVG/legend/marker navigation must remain usable indoor and outdoor at 640×360 and 1920×1080. Only change oversized “The Wilds” label if reproduced.
+7. **Portrait and localization:** Preserve 390×844 portrait layout; inspect Japanese/Traditional Chinese longer text at 640×360 and 832×560. Keep responsive adjustments local and concise; avoid a new overlay framework.
 
-1. `scenes.test.ts`: camera setBounds after resize, correct camera-width/height mock, and listener cleanup after shutdown. Include reload/transition check.
-2. `GameShell.svelte.spec.ts`: extend existing overlay `it.each` for **Map, Save, Skill, Quest, System, Bag/Gear and Shop**. At 640×360 and 1280×640 check heading + Back/Close rectangle before and after scrolling the last focusable item; verify `document.scrollingElement.scrollTop === 0`, actions clickable, focus unchanged. Include a compact Japanese locale case; Traditional Chinese label width checks as targeted browser assertions.
-3. `game.e2e.ts`: one persistent interior gate using `?startMap=guild-hall`, `hero-house`, `blacksmith-interior` and existing `installRuntimeProbes(page, { captureFacing: true })`/`__glieseActiveSceneCamera`: live resize 1280×720 → 1920×1080 → 640×360, verify `worldView` centering on each axis smaller than the viewport, then move Grik; extend existing HUD geometry test for compact field. Also cover accessible area-map shortcut.
-4. Update existing `hud-occlusion.test.ts` with 719/720 boundary values and false-fade tests, plus the browser DOM-vs-zone assertion in the existing component/E2E harness.
+## Step 4 — checked-in tests; one MCP-driven acceptance execution
 
-**Run and collect evidence:**
+**Persist all regressions in existing harnesses:**
 
-- Run `bun run check`, `bun run lint`, `bun run test:unit -- --run`, relevant component-browser specs and `bun run build`. Record results rather than assuming success.
-- **MCP-driven browser E2E is the end-to-end acceptance executor** on one web platform. Use the persisted E2E scenarios and real assets; check resize, walking and overlay final action paths, including 640×360, 1280×640, 1280×719, 1280×720 and 1920×1080. Also validate 390×844 portrait baseline. Do not make CI recovery from HPA-694 a prerequisite for this plan's implementation.
-- Attach **MCP screenshots** for indoor resize before/after, field HUD and every compact menu including Skill/Shop, plus indoor/outdoor maps. Since HPA-840 has no approved UI mockup (only UAT failure recording), validate screenshots against ticket's written visual requirements and DOM geometry. No human acceptance criterion.
+1. `scenes.test.ts`: extend `centers rebuilt interior maps...` with captured resize callback, update `phaserState.mainCamera.width/height`, invoke and assert new `setBounds`, then emit shutdown and assert `scale.off('resize', sameFn)`. Ensure a new scene uses new map dims. Register callback after `startFollow` to preserve probe assumptions.
+2. `GameShell.svelte.spec.ts`: update the current localized 833/832/640×559/560 HUD table; add 719/720 breakpoint tests. Extend overlay `it.each` with **per-row opener helpers**, because Shop is opened by a populated `HudState.shop` fixture and Bag/Gear are distinct inventory paths rather than standard tile-only dialogs. Check Quest, Save/Load, Map, System, Skill, Bag/Gear, Shop at 640×360 and 1280×640: heading/Back remain visible before and after scrolling final action inside panel; document scrollTop=0; focus/keyboard and actual action work. Run en/ja/zh-Hant geometry checks.
+3. `BagScreen.svelte.spec.ts`: keep 1000×360 horizontally compact and 640×360 equipped label/badge clipping regressions, ensure a slot scrolls into the *inner grid*, and the worn remove controls and detail action can be reached without moving Close/Bag title.
+4. `game.e2e.ts`: real-game camera gate for `?startMap=guild-hall`, `hero-house`, `blacksmith-interior` (using existing `installRuntimeProbes` /`__glieseActiveSceneCamera`); live 1280×720 → 1920×1080 → 640×360, check small-room axes centre and player can move. Extend existing HUD test for hidden minimap, M shortcut, compact area sum and no overlaps; preserve 390×844 portrait baseline. Use screenshot capture **in these same scenarios**.
+5. `hud-occlusion.test.ts`: test <=719 zone and >719 fallback, no stale-card fading, and browser rect agreement.
+
+**Execute once:** After implementation run `bun run check`, `bun run lint`, `bun run test:unit -- --run`, relevant component specs, `bun run build` and the checked-in Playwright E2E. Run the **E2E acceptance via MCP**, invoking/driving these same browser scenarios and collecting screenshots from their run. This meets the MCP acceptance requirement without a separate duplicate manual E2E/baseline pass. One web platform is sufficient. If asset-dependent CI remains unavailable, record it under HPA-694 rather than declaring a pass.
+
+**Visual evidence:** Attach screenshot set generated by the persisted Playwright/MCP test run for 640×360 compact HUD and all menus (Bag/Gear, Quest, Shop, Save, System, Map, Skill), indoor before/after resize, 1280×640, 1280×719/720, 1920×1080 and portrait 390×844. Compare screenshots against HPA-840's written requirements (the ticket has failure footage, not an approved mockup). No human-approval criterion.
 
 ## End-to-end acceptance checklist (all required before merge)
 
-- [ ] **Persistent camera test + MCP E2E:** Guild Hall, hero house and forge centre properly after 1280×720 → 1920×1080 → 640×360; hero moves after each resize; callback is unregistered on shutdown, and map transitions use the new map's dimensions.
-- [ ] **Persistent compact HUD test + MCP E2E:** 640×360 hides minimap, preserves portrait/HP/objective/Menu and accessible identity, all visible distinct HUD/control rectangles stay in viewport without overlapping and total <= 1/3 area; `M` still opens Area Map.
-- [ ] **TS/CSS occlusion test:** At 640×360, 1280×719 and 1280×720 the rendered hero card fits its `heroCardZone`; no old oversized zone fades the hero spuriously.
-- [ ] **Persistent overlay matrix + MCP E2E:** At 640×360 and 1280×640 Quest, Save/Load, System, Bag/Gear, Map, Skill and Shop retain title and Back/Close while inner content scrolls to the last actionable item; third save slot/last option/last equipment action clickable; page scroll remains at zero; keyboard/pad focus paths preserved.
-- [ ] **Area Map test:** Indoor/outdoor map, marker labels, legend and Back/Close fit at 640×360 and 1920×1080. Only modify “The Wilds” label if its baseline reproduces a defect.
-- [ ] **MCP visual screenshot acceptance:** 640×360, 1280×640, 1280×719, 1280×720 and 1920×1080 screenshots and automated bounding-box checks demonstrate no clipped/overlapping controls and match written ticket UI intent; 390×844 portrait unchanged; screenshot evidence linked in PR.
-- [ ] **Automated suites:** Relevant unit, Svelte/browser, Playwright E2E, typecheck, lint and build pass. Report unrelated Git LFS CI blockers under HPA-694, not as false HPA-840 test passes.
-- [ ] **Scope:** No extra art/SFX tasks, new framework, gameplay changes or additional PR.
+- [ ] **Camera:** Committed WorldScene resize/cleanup tests pass and **MCP-driven Playwright E2E** proves guild-hall, hero house and forge stay centred/clamped through 1280×720 → 1920×1080 → 640×360, with hero movement after each resize.
+- [ ] **Compact HUD:** 640×360 minimap hidden, portrait/HP/objective/Menu/wallet visible without overlap, right-side HUD below Menu, <=1/3 total distinct HUD area, `M` opens Map; correct at 640×559/560, 832×560, 833×560, and 1280×719/720 across en/ja/zh-Hant.
+- [ ] **Occlusion:** Actual CSS card bounds fit `heroCardZone` at <=719/720 boundary and no false fade in the old 412×240 area.
+- [ ] **Menus:** Persisted browser tests and **MCP-run E2E** verify at 640×360 and 1280×640 that Quest, Bag/Gear, Shop, Save/Load, System, Area Map and Skill keep title and Back/Close onscreen while inner lists scroll to the last actionable item. No document scroll or focus loss.
+- [ ] **Inventory/quests/shop details:** Bag slot label/equipped badge fully visible after grid scroll, five worn remove buttons usable, seven quest checklist rows reachable, Shop Buy/Sell/confirmation action reachable, Save slot 3 and final System choice actionable. Desktop/portrait unaffected.
+- [ ] **Visual screenshot check:** From the existing MCP-driven Playwright run, capture and inspect before/after resized interiors and all short-height overlays at 640×360 plus 1280×640, 1280×719/720, 1920×1080 and 390×844; attach evidence to PR. No target mockup is supplied, so compare against the ticket's observable UI requirements and geometry assertions.
+- [ ] **Other checks:** Typecheck, lint, build, unit, component browser and persisted E2E pass. HPA-694 LFS/CI blockers reported separately; no art/SFX, new architecture, gameplay changes or second PR.
 
 ## Completion handoff
 
