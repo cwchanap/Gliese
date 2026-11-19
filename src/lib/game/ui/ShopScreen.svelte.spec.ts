@@ -149,6 +149,33 @@ function insideViewport(r: DOMRect, width: number, height: number): boolean {
 	return r.top >= 0 && r.left >= 0 && r.bottom <= height && r.right <= width;
 }
 
+// Element rect clipped by every ancestor that can clip (overflow
+// hidden/auto/scroll/clip): getBoundingClientRect alone misses content
+// scrolled past an overflow:hidden ancestor's fold.
+function visibleRect(el: HTMLElement): DOMRect {
+	const r = el.getBoundingClientRect();
+	let top = r.top;
+	let left = r.left;
+	let bottom = r.bottom;
+	let right = r.right;
+	for (let parent = el.parentElement; parent; parent = parent.parentElement) {
+		const { overflowX, overflowY } = getComputedStyle(parent);
+		const clipsY = overflowY !== 'visible';
+		const clipsX = overflowX !== 'visible';
+		if (!clipsY && !clipsX) continue;
+		const pr = parent.getBoundingClientRect();
+		if (clipsY) {
+			top = Math.max(top, pr.top);
+			bottom = Math.min(bottom, pr.bottom);
+		}
+		if (clipsX) {
+			left = Math.max(left, pr.left);
+			right = Math.min(right, pr.right);
+		}
+	}
+	return new DOMRect(left, top, Math.max(0, right - left), Math.max(0, bottom - top));
+}
+
 // Entrance animations (heroic-anim, 280ms) must settle before measuring.
 async function settleEntrance() {
 	await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
@@ -187,6 +214,7 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 				const screen = shopScreen();
 				const title = screen.querySelector<HTMLElement>('.shop-title')!;
 				const merchant = screen.querySelector<HTMLElement>('.shop-merchant-name')!;
+				const purse = screen.querySelector<HTMLElement>('[data-testid="shop-purse"]')!;
 				const close = screen.querySelector<HTMLElement>('.shop-rail-close')!;
 				const tabs = Array.from(screen.querySelectorAll<HTMLElement>('.shop-mode'));
 				const scroll = screen.querySelector<HTMLElement>('.shop-grid-scroll')!;
@@ -195,16 +223,26 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 				// stacked scrolling column that narrow/tall viewports keep.
 				expect(getComputedStyle(screen).flexDirection).toBe('row');
 
+				// Chrome must be visible *now*, not reachable only after an inner
+				// scroll: visibleRect walks every clipping ancestor, so the purse
+				// fails here if the portrait panel holds it below .shop-rail-top's
+				// fold (task-3d review finding).
 				for (const [name, el] of [
 					['title', title],
 					['merchant name', merchant],
+					['purse', purse],
 					['close', close],
 					...tabs.map((tab, i) => [`tab ${i}`, tab] as const)
 				] as const) {
+					const elRect = el.getBoundingClientRect();
+					const clipped = visibleRect(el);
 					expect(
-						insideViewport(el.getBoundingClientRect(), width, height),
-						`${name} inside ${width}×${height}`
+						clipped.height >= elRect.height - 0.5 && clipped.width >= elRect.width - 0.5,
+						`${name} clipped by an ancestor at ${width}×${height}: el ${JSON.stringify(elRect.toJSON())} visible ${JSON.stringify(clipped.toJSON())}`
 					).toBe(true);
+					expect(insideViewport(elRect, width, height), `${name} inside ${width}×${height}`).toBe(
+						true
+					);
 				}
 
 				// The panel scrolls internally; the screen and document never do.
@@ -346,13 +384,20 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 				for (const [name, el] of [
 					['title', screen.querySelector<HTMLElement>('.shop-title')!],
 					['merchant name', screen.querySelector<HTMLElement>('.shop-merchant-name')!],
+					['purse', screen.querySelector<HTMLElement>('[data-testid="shop-purse"]')!],
 					['close', screen.querySelector<HTMLElement>('.shop-rail-close')!],
 					['buy tab', document.getElementById('shop-buy-tab')!],
 					['sell tab', document.getElementById('shop-sell-tab')!]
 				] as const) {
+					const elRect = el.getBoundingClientRect();
+					const clipped = visibleRect(el);
 					expect(
-						insideViewport(el.getBoundingClientRect(), width, height),
-						`${name} inside ${width}×${height} (${locale}): ${JSON.stringify(el.getBoundingClientRect().toJSON())}`
+						clipped.height >= elRect.height - 0.5 && clipped.width >= elRect.width - 0.5,
+						`${name} clipped by an ancestor at ${width}×${height} (${locale}): el ${JSON.stringify(elRect.toJSON())} visible ${JSON.stringify(clipped.toJSON())}`
+					).toBe(true);
+					expect(
+						insideViewport(elRect, width, height),
+						`${name} inside ${width}×${height} (${locale}): ${JSON.stringify(elRect.toJSON())}`
 					).toBe(true);
 				}
 				unmount();

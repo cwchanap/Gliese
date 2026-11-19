@@ -1276,6 +1276,9 @@
 
 		.shop-portrait-panel {
 			flex: none;
+			/* Undo the stack media's height:14rem — the compact panel only
+			   holds the merchant name now that the bust frame is hidden. */
+			height: auto;
 			min-height: 0;
 			padding: 0.55rem 0.65rem;
 		}
