@@ -116,6 +116,8 @@
 
 	.skill-empty {
 		display: grid;
+		min-height: 0;
+		overflow-y: auto;
 		justify-items: center;
 		gap: 0.9rem;
 		margin-top: 1.4rem;

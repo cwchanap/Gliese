@@ -368,12 +368,12 @@
 		display: flex;
 		flex-direction: column;
 		padding: 3.25rem 3.5rem;
-		overflow-y: auto;
 		background: var(--heroic-screen-background);
 	}
 
 	.save-header {
 		display: flex;
+		flex: none;
 		align-items: flex-start;
 		justify-content: space-between;
 	}
@@ -416,7 +416,7 @@
 		gap: clamp(1.1rem, 2.1vw, 1.9rem);
 		grid-template-columns: repeat(3, 1fr);
 		margin-top: 1.9rem;
-		overflow: visible;
+		overflow-y: auto;
 	}
 
 	.save-slot {
@@ -589,6 +589,7 @@
 
 	.save-footer {
 		display: grid;
+		flex: none;
 		gap: 0.6rem;
 		margin-top: 1.1rem;
 	}
@@ -634,7 +635,6 @@
 		}
 
 		.save-slots {
-			flex: none;
 			grid-template-columns: 1fr;
 		}
 	}
@@ -642,9 +642,6 @@
 	@media (max-height: 600px) {
 		.save-screen {
 			padding: 1rem;
-		}
-		.save-slots {
-			flex: none;
 		}
 	}
 </style>

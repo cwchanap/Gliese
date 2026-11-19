@@ -6303,3 +6303,208 @@ describe('HPA-841 visual geometry at three viewports', () => {
 		updatePreferences({ locale: 'en' });
 	});
 });
+
+describe('HPA-840 overlay containment on small viewports', () => {
+	function insideViewport(r: DOMRect, width: number, height: number): boolean {
+		return r.top >= 0 && r.left >= 0 && r.bottom <= height + 1 && r.right <= width + 1;
+	}
+
+	function expectDocumentUnscrolled() {
+		expect(document.documentElement.scrollTop).toBe(0);
+		expect(document.body.scrollTop).toBe(0);
+	}
+
+	async function openFieldCommand(name: string | RegExp) {
+		await page.getByRole('button', { name: /menu/i }).click();
+		await page.getByRole('button', { name }).click();
+	}
+
+	it('keeps the Save header and footer pinned while the slot list scrolls at 640×360', async () => {
+		await page.viewport(640, 360);
+		await withCommands(async (commands) => {
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			await openFieldCommand('Save');
+			const saveDialog = page.getByRole('dialog', { name: /save/i });
+			await expect.element(saveDialog).toBeVisible();
+			const screen = saveDialog.element() as HTMLElement;
+			const header = screen.querySelector<HTMLElement>('.save-header')!;
+			const footer = screen.querySelector<HTMLElement>('.save-footer')!;
+			const slots = screen.querySelector<HTMLElement>('.save-slots')!;
+			expect(insideViewport(header.getBoundingClientRect(), 640, 360)).toBe(true);
+			expect(insideViewport(footer.getBoundingClientRect(), 640, 360)).toBe(true);
+
+			// The slot grid is the scroller — not the screen or the document.
+			expect(slots.scrollHeight).toBeGreaterThan(slots.clientHeight);
+			slots.scrollTop = slots.scrollHeight;
+			expect(slots.scrollTop).toBeGreaterThan(0);
+
+			// Slot 3 scrolls into view while title, Back, and footer stay onscreen.
+			const lastSlot = saveDialog.getByTestId('save-slot-2');
+			expect(insideViewport(lastSlot.element().getBoundingClientRect(), 640, 360)).toBe(true);
+			expect(insideViewport(header.getBoundingClientRect(), 640, 360)).toBe(true);
+			expect(insideViewport(footer.getBoundingClientRect(), 640, 360)).toBe(true);
+			expectDocumentUnscrolled();
+
+			await lastSlot.click();
+			expect(commands).toContainEqual({ type: 'save-slot', slot: 2 });
+		});
+	});
+
+	it('keeps the overwrite confirmation inside the viewport at 640×360', async () => {
+		await page.viewport(640, 360);
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await openFieldCommand('Save');
+		const saveDialog = page.getByRole('dialog', { name: /save/i });
+		await expect.element(saveDialog).toBeVisible();
+		const slots = (saveDialog.element() as HTMLElement).querySelector<HTMLElement>('.save-slots')!;
+		slots.scrollTop = slots.scrollHeight;
+
+		await withSaveSlotWriter(async () => {
+			await saveDialog.getByTestId('save-slot-1').click();
+			emitHudState(baseHudState({ status: 'Saved.' }));
+			await saveDialog.getByTestId('save-slot-1').click();
+			const confirm = saveDialog.getByTestId('confirm-overwrite');
+			await expect.element(confirm).toBeVisible();
+			expect(insideViewport(confirm.element().getBoundingClientRect(), 640, 360)).toBe(true);
+			await confirm.click();
+		});
+	});
+
+	it.each([
+		[640, 360],
+		[390, 844]
+	])(
+		'keeps the Load picker chrome pinned while the last slot scrolls into view at %d×%d',
+		async (width, height) => {
+			writeSaveSlot(0, { ...createSlotRecord(), kind: 'autosave' });
+			writeSaveSlot(1, createSlotRecord());
+			writeSaveSlot(2, createSlotRecord());
+			await page.viewport(width, height);
+			render(GameShell);
+			await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+
+			await page.getByRole('button', { name: /continue/i }).click();
+			const loadDialog = page.getByRole('dialog', { name: /load/i });
+			await expect.element(loadDialog).toBeVisible();
+			const screen = loadDialog.element() as HTMLElement;
+			const header = screen.querySelector<HTMLElement>('.save-header')!;
+			const slots = screen.querySelector<HTMLElement>('.save-slots')!;
+			expect(insideViewport(header.getBoundingClientRect(), width, height)).toBe(true);
+
+			expect(slots.scrollHeight).toBeGreaterThan(slots.clientHeight);
+			slots.scrollTop = slots.scrollHeight;
+			expect(slots.scrollTop).toBeGreaterThan(0);
+
+			const lastSlot = loadDialog.getByTestId('save-slot-2');
+			expect(insideViewport(lastSlot.element().getBoundingClientRect(), width, height)).toBe(true);
+			expect(insideViewport(header.getBoundingClientRect(), width, height)).toBe(true);
+			expectDocumentUnscrolled();
+
+			await lastSlot.click();
+			await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+		}
+	);
+
+	it.each([
+		[640, 360],
+		[1280, 640]
+	])(
+		'keeps the System header and rail pinned while the last option scrolls into view at %d×%d',
+		async (width, height) => {
+			await page.viewport(width, height);
+			render(GameShell);
+			emitHudState(baseHudState());
+
+			await openFieldCommand(/system/i);
+			const dialog = page.getByRole('dialog', { name: /display & text/i });
+			await expect.element(dialog).toBeVisible();
+			const screen = dialog.element() as HTMLElement;
+			const header = screen.querySelector<HTMLElement>('.system-header')!;
+			const rail = screen.querySelector<HTMLElement>('.heroic-rail')!;
+			const rows = screen.querySelector<HTMLElement>('.heroic-rows')!;
+			expect(insideViewport(header.getBoundingClientRect(), width, height)).toBe(true);
+			expect(insideViewport(rail.getBoundingClientRect(), width, height)).toBe(true);
+
+			// The settings rows scroll inside their own panel.
+			expect(rows.scrollHeight).toBeGreaterThan(rows.clientHeight);
+			rows.scrollTop = rows.scrollHeight;
+			expect(rows.scrollTop).toBeGreaterThan(0);
+
+			const soundOff = dialog.getByRole('button', { name: 'Off', exact: true });
+			expect(insideViewport(soundOff.element().getBoundingClientRect(), width, height)).toBe(true);
+			expect(insideViewport(header.getBoundingClientRect(), width, height)).toBe(true);
+			expect(insideViewport(rail.getBoundingClientRect(), width, height)).toBe(true);
+			expectDocumentUnscrolled();
+
+			await soundOff.click();
+			await expect.element(soundOff).toHaveAttribute('aria-pressed', 'true');
+		}
+	);
+
+	it.each([
+		[640, 360],
+		[1920, 1080]
+	])(
+		'keeps the area map header pinned while the legend scrolls inside the map body at %d×%d',
+		async (width, height) => {
+			await page.viewport(width, height);
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					areaMap: {
+						...baseHudState().areaMap,
+						markers: [
+							{ id: 'guild-hall', kind: 'building', x: 1_536, y: 5_504, label: 'Guild Hall' }
+						]
+					}
+				})
+			);
+
+			await openFieldCommand(/map/i);
+			const mapDialog = page.getByRole('dialog', { name: /map$/i });
+			await expect.element(mapDialog).toBeVisible();
+			const windowEl = mapDialog.element() as HTMLElement;
+			const header = windowEl.querySelector<HTMLElement>('.jrpg-area-map-header')!;
+			const body = windowEl.querySelector<HTMLElement>('.jrpg-area-map-body')!;
+			const legend = windowEl.querySelector<HTMLElement>('.jrpg-area-map-legend')!;
+			const windowRect = windowEl.getBoundingClientRect();
+			expect(insideViewport(windowRect, width, height)).toBe(true);
+			expect(insideViewport(header.getBoundingClientRect(), width, height)).toBe(true);
+			await expect.element(page.getByTestId('area-map-svg')).toBeVisible();
+
+			// When the body overflows it scrolls inside the window; the legend
+			// stays reachable without moving the header or the document.
+			body.scrollTop = body.scrollHeight;
+			expect(insideViewport(legend.getBoundingClientRect(), width, height)).toBe(true);
+			expect(insideViewport(header.getBoundingClientRect(), width, height)).toBe(true);
+			expectDocumentUnscrolled();
+
+			await mapDialog.getByRole('img', { name: 'Guild Hall' }).click();
+			await expect.element(page.getByTestId('area-map-selected')).toHaveTextContent('Guild Hall');
+		}
+	);
+
+	it('keeps the Skill header and body inside the window at 640×360', async () => {
+		await page.viewport(640, 360);
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await openFieldCommand('Skill');
+		const skillDialog = page.getByRole('dialog', { name: 'Skill' });
+		await expect.element(skillDialog).toBeVisible();
+		const windowEl = skillDialog.element() as HTMLElement;
+		const header = windowEl.querySelector<HTMLElement>('.skill-header')!;
+		const empty = windowEl.querySelector<HTMLElement>('.skill-empty')!;
+		expect(insideViewport(windowEl.getBoundingClientRect(), 640, 360)).toBe(true);
+		expect(insideViewport(header.getBoundingClientRect(), 640, 360)).toBe(true);
+		expect(insideViewport(empty.getBoundingClientRect(), 640, 360)).toBe(true);
+		expectDocumentUnscrolled();
+
+		await skillDialog.getByRole('button', { name: /back/i }).click();
+		expect(skillDialog.elements()).toHaveLength(0);
+	});
+});
