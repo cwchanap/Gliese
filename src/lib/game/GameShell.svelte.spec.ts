@@ -6603,6 +6603,50 @@ describe('HPA-840 overlay containment on small viewports', () => {
 		}
 	);
 
+	it('fully reveals the final Save slot’s action glyph at the end of the slot scroll at 640×360', async () => {
+		writeSaveSlot(0, { ...createSlotRecord(), kind: 'autosave' });
+		writeSaveSlot(1, createSlotRecord());
+		writeSaveSlot(2, createSlotRecord());
+		await page.viewport(640, 360);
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await openFieldCommand('Save');
+		const saveDialog = page.getByRole('dialog', { name: /save/i });
+		await expect.element(saveDialog).toBeVisible();
+		const screen = saveDialog.element() as HTMLElement;
+		const header = screen.querySelector<HTMLElement>('.save-header')!;
+		const slots = screen.querySelector<HTMLElement>('.save-slots')!;
+
+		// Scroll to the grid's actual end, not an intermediate position.
+		slots.scrollTop = slots.scrollHeight;
+		const clip = slots.getBoundingClientRect();
+		expect(slots.scrollTop).toBeGreaterThan(0);
+		expect(slots.scrollTop + slots.clientHeight).toBeGreaterThanOrEqual(slots.scrollHeight - 1);
+
+		// The final slot's Enter-glyph prompt is fully inside the clip box
+		// and the viewport — it can always be revealed, never stranded.
+		const lastSlot = saveDialog.getByTestId('save-slot-2');
+		const glyph = lastSlot.element().querySelector<HTMLElement>('.save-slot-prompt')!;
+		expect(glyph).not.toBeNull();
+		const glyphRect = glyph.getBoundingClientRect();
+		const centerX = glyphRect.left + glyphRect.width / 2;
+		const centerY = glyphRect.top + glyphRect.height / 2;
+		expect(glyphRect.top, 'glyph top inside clip').toBeGreaterThanOrEqual(clip.top);
+		expect(glyphRect.bottom, 'glyph bottom inside clip').toBeLessThanOrEqual(clip.bottom + 1);
+		expect(insideViewport(glyphRect, 640, 360)).toBe(true);
+		expect(
+			document.elementFromPoint(centerX, centerY)?.closest('[data-testid="save-slot-2"]')
+		).not.toBeNull();
+
+		// Title/Back/footer stay pinned; the slot still operates — the
+		// occupied slot raises the overwrite confirmation.
+		expect(insideViewport(header.getBoundingClientRect(), 640, 360)).toBe(true);
+		expectDocumentUnscrolled();
+		await lastSlot.click();
+		await expect.element(saveDialog.getByTestId('confirm-overwrite')).toBeVisible();
+	});
+
 	it('keeps the Skill header and body inside the window at 640×360', async () => {
 		await page.viewport(640, 360);
 		render(GameShell);
