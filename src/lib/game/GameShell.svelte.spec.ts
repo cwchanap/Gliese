@@ -5705,6 +5705,9 @@ describe('GameShell compact HUD layout (HPA-840)', () => {
 	);
 
 	it.each([
+		{ width: 640, height: 360 },
+		{ width: 390, height: 559 },
+		{ width: 500, height: 400 },
 		{ width: 640, height: 600 },
 		{ width: 390, height: 650 }
 	])(
