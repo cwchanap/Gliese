@@ -431,7 +431,6 @@
 	.heroic-rows {
 		flex: 1;
 		align-content: start;
-		overflow: visible;
 		gap: 1.125rem;
 		margin-top: 1.625rem;
 	}
@@ -490,10 +489,6 @@
 	@media (max-height: 600px) {
 		.system-screen {
 			padding: 1rem;
-		}
-		.system-content {
-			flex: none;
-			min-height: auto;
 		}
 	}
 </style>

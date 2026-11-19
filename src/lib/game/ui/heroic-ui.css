@@ -11,12 +11,12 @@
 		width: min(72rem, calc(100vw - 2rem));
 		max-height: calc(100vh - 2rem);
 		padding: 1.25rem;
-		/* Short viewports (e.g. 640×360) can't fit the stacked panels; scroll
-		   them instead of clipping — the shell's overflow: clip makes clipped
-		   content unreachable for clicks. Full-size viewports never overflow, so
-		   this is a no-op on desktop. */
-		overflow-x: hidden;
-		overflow-y: auto;
+		/* The frame is bounded once here; each screen's scrollable body owns
+		   overflow (min-height:0 + overflow-y:auto) so chrome — header, rail,
+		   footer — stays pinned instead of scrolling away with the window.
+		   `hidden` first for engines without `clip` (WebKit < 16). */
+		overflow: hidden;
+		overflow: clip;
 		border: 1px solid var(--color-frame);
 		border-radius: 1rem;
 		background: radial-gradient(
@@ -95,6 +95,16 @@
 		font-weight: 900;
 		letter-spacing: 0.24em;
 		text-transform: uppercase;
+	}
+
+	/* Overlay headers stay pinned while the panel body scrolls inside the
+	   clipped window. These headers are not all direct children of
+	   .heroic-window (system-header sits inside .system-content), so they
+	   opt out of flex shrinking explicitly. */
+	.system-header,
+	.jrpg-area-map-header,
+	.skill-header {
+		flex: none;
 	}
 
 	.heroic-title {
