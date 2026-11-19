@@ -32,6 +32,23 @@ describe('heroCardZone', () => {
 		expect(heroCardZone(360, 760)).toEqual({ width: 270, height: 222 });
 	});
 
+	it('hands off exactly at the CSS breakpoints: height 719/720 and width 832/833', () => {
+		// FieldHud owns the same boundaries: (max-height:719px) compact and
+		// (max-width:832px) and (min-height:720px) narrow-portrait. One pixel
+		// either way must not straddle zones or leave a gap where no card
+		// layout exists.
+		expect(heroCardZone(640, 719)).toEqual({ width: 264, height: 96 });
+		expect(heroCardZone(832, 719)).toEqual({ width: 264, height: 96 });
+		expect(heroCardZone(1280, 719)).toEqual({ width: 264, height: 96 });
+		expect(heroCardZone(640, 720)).toEqual({ width: 326, height: 222 });
+		expect(heroCardZone(832, 720)).toEqual({ width: 326, height: 222 });
+		expect(heroCardZone(833, 720)).toEqual({ width: 412, height: 240 });
+		expect(heroCardZone(1280, 720)).toEqual({ width: 412, height: 240 });
+		// Width boundary only matters on the tall side; under 720px the
+		// compact card owns every width.
+		expect(heroCardZone(832, 719)).toEqual(heroCardZone(833, 719));
+	});
+
 	it('picks the desktop zone for large viewports', () => {
 		expect(heroCardZone(1280, 800)).toEqual({ width: 412, height: 240 });
 		expect(heroCardZone(1280, 720)).toEqual({ width: 412, height: 240 });

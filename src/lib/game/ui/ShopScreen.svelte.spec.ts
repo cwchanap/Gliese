@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
@@ -402,6 +402,53 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 				}
 				unmount();
 			}
+		}
+	);
+
+	it.each([
+		[640, 360],
+		[832, 560]
+	])(
+		'keeps tab keyboard navigation and the focus tooltip working at %d×%d',
+		async (width, height) => {
+			await page.viewport(width, height);
+			window.scrollTo(0, 0);
+			render(GameShell);
+			await openShop();
+
+			// Arrow keys move focus AND selection between Buy/Sell tabs.
+			const buyTab = document.getElementById('shop-buy-tab')!;
+			buyTab.focus();
+			expect(document.activeElement).toBe(buyTab);
+			await userEvent.keyboard('{ArrowRight}');
+			const sellTab = document.getElementById('shop-sell-tab')!;
+			expect(document.activeElement).toBe(sellTab);
+			expect(sellTab.getAttribute('aria-selected')).toBe('true');
+			await expect.element(page.getByTestId('shop-sell-grid')).toBeVisible();
+			await userEvent.keyboard('{ArrowLeft}');
+			expect(document.activeElement).toBe(buyTab);
+			expect(buyTab.getAttribute('aria-selected')).toBe('true');
+			await expect.element(page.getByTestId('shop-buy-grid')).toBeVisible();
+
+			// Focusing a stock tile raises the tooltip inside the window; the
+			// tooltip leaves the tile and Close button clickable (it is
+			// pointer-events:none) and stays inside the viewport.
+			const tile = document.querySelector<HTMLElement>('[data-focus-id="shop-buy-0"]')!;
+			tile.focus();
+			const tooltip = await vi.waitFor(() => {
+				const el = document.querySelector<HTMLElement>('.shop-tooltip');
+				expect(el).not.toBeNull();
+				return el!;
+			});
+			expect(tooltip.textContent).toContain('Field Potion 1');
+			expect(getComputedStyle(tooltip).pointerEvents).toBe('none');
+			expect(insideViewport(tooltip.getBoundingClientRect(), width, height)).toBe(true);
+
+			// Moving focus away hides the tooltip again.
+			buyTab.focus();
+			await vi.waitFor(() => {
+				expect(document.querySelector('.shop-tooltip')).toBeNull();
+			});
 		}
 	);
 });

@@ -5567,6 +5567,8 @@ describe('GameShell compact HUD layout (HPA-840)', () => {
 				{ width: 640, height: 560 },
 				{ width: 832, height: 560 },
 				{ width: 833, height: 560 },
+				{ width: 640, height: 719 },
+				{ width: 832, height: 719 },
 				{ width: 1280, height: 719 },
 				{ width: 390, height: 650 }
 			] as const
@@ -5682,6 +5684,8 @@ describe('GameShell compact HUD layout (HPA-840)', () => {
 		{ width: 640, height: 559, columns: 4 },
 		{ width: 640, height: 560, columns: 2 },
 		{ width: 640, height: 600, columns: 2 },
+		{ width: 640, height: 719, columns: 2 },
+		{ width: 640, height: 720, columns: 2 },
 		{ width: 390, height: 650, columns: 2 }
 	])(
 		'renders the opened command menu in $columns columns at $width×$height',
@@ -5852,6 +5856,49 @@ describe('GameShell compact HUD layout (HPA-840)', () => {
 			party.querySelector<HTMLElement>('.hero-name')!.getBoundingClientRect().width
 		).toBeGreaterThan(1);
 	});
+
+	it.each([
+		// Height 719 stays compact at every width; height 720 hands off to
+		// narrow-portrait (width <=832) or desktop (width >=833). These pin
+		// the same CSS boundaries heroCardZone() implements.
+		{ width: 640, height: 719, mode: 'compact', zone: { width: 264, height: 96 } },
+		{ width: 832, height: 719, mode: 'compact', zone: { width: 264, height: 96 } },
+		{ width: 1280, height: 719, mode: 'compact', zone: { width: 264, height: 96 } },
+		{ width: 640, height: 720, mode: 'narrow', zone: { width: 326, height: 222 } },
+		{ width: 832, height: 720, mode: 'narrow', zone: { width: 326, height: 222 } },
+		{ width: 833, height: 720, mode: 'desktop', zone: { width: 412, height: 240 } },
+		{ width: 1280, height: 720, mode: 'desktop', zone: { width: 412, height: 240 } }
+	])(
+		'switches $width×$height to the $mode card layout with the matching occlusion zone',
+		async ({ width, height, mode, zone }) => {
+			await page.viewport(width, height);
+			render(GameShell);
+			emitHudState(baseHudState({ quests: { main: mockMainQuest(), completed: [], total: 1 } }));
+
+			await expect.element(page.getByTestId('hud-party-panel')).toBeVisible();
+			const party = page.getByTestId('hud-party-panel').element() as HTMLElement;
+			const minimap = page.getByTestId('hud-minimap').element() as HTMLElement;
+			const heroName = party.querySelector<HTMLElement>('.hero-name')!;
+			const heroStats = party.querySelector<HTMLElement>('.hero-stats')!;
+
+			if (mode === 'compact') {
+				expect(getComputedStyle(minimap).display).toBe('none');
+				expect(minimap.getClientRects().length).toBe(0);
+				expect(heroName.getBoundingClientRect().width).toBeLessThanOrEqual(1);
+				expect(heroStats.getClientRects().length).toBe(0);
+			} else {
+				await expect.element(page.getByTestId('hud-minimap')).toBeVisible();
+				expect(heroName.getBoundingClientRect().width).toBeGreaterThan(1);
+				expect(heroStats.getClientRects().length).toBeGreaterThan(0);
+			}
+
+			// CSS/TypeScript agreement on both sides of the boundary.
+			expect(heroCardZone(width, height)).toEqual(zone);
+			const cardBox = rectOf(party);
+			expect(zone.width).toBeGreaterThanOrEqual(cardBox.right);
+			expect(zone.height).toBeGreaterThanOrEqual(cardBox.bottom);
+		}
+	);
 });
 
 describe('GameShell prologue end card and return to title', () => {
@@ -6632,4 +6679,525 @@ describe('HPA-840 overlay containment on small viewports', () => {
 		expect(railRect.top).toBeLessThan(detailRect.top);
 		expect(Math.round(railRect.left)).toBe(Math.round(detailRect.left));
 	});
+
+	// ---- Task 4 integration gate: one uniform contract per overlay --------
+	// Every named overlay must hold the same invariants at both compact
+	// landscape sizes: chrome (heading + Back/Close) stays pinned inside the
+	// window and the viewport, overflow scrolls inside its own panel (never
+	// the document), focus starts inside the dialog and Tab stays trapped,
+	// and the final action still fires.
+	function expectChrome(screen: HTMLElement, els: (HTMLElement | null)[], w: number, h: number) {
+		const screenRect = screen.getBoundingClientRect();
+		expect(
+			insideViewport(screenRect, w, h),
+			`overlay window ${JSON.stringify(screenRect.toJSON())} inside ${w}×${h}`
+		).toBe(true);
+		for (const el of els) {
+			expect(el).toBeTruthy();
+			expect(
+				insideViewport(el!.getBoundingClientRect(), w, h),
+				`chrome ${el!.className} ${JSON.stringify(el!.getBoundingClientRect().toJSON())} inside ${w}×${h}`
+			).toBe(true);
+		}
+		expectDocumentUnscrolled();
+	}
+
+	async function expectFocusInsideAndTrapped(screen: HTMLElement) {
+		expect(screen.contains(document.activeElement)).toBe(true);
+		await userEvent.keyboard('{Tab}');
+		expect(screen.contains(document.activeElement)).toBe(true);
+		await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+		expect(screen.contains(document.activeElement)).toBe(true);
+	}
+
+	// Scrolls the panel to its end when it overflows; returns whether it
+	// scrolled. Larger viewports legitimately fit some panels without
+	// overflow — the gate is that the final action is reachable either way.
+	function scrollPanelToEnd(el: HTMLElement): boolean {
+		if (el.scrollHeight <= el.clientHeight) return false;
+		el.scrollTop = el.scrollHeight;
+		expect(el.scrollTop).toBeGreaterThan(0);
+		return true;
+	}
+
+	// Geometry must be measured after the 280ms heroic-anim entrance; mid-
+	// flight the window's rect is transformed and can read slightly larger
+	// than the viewport.
+	async function settleOverlayEntrance() {
+		await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+		await new Promise((resolve) => setTimeout(resolve, 400));
+	}
+
+	function stockedBagHud(): HudState {
+		return baseHudState({
+			inventory: {
+				consumables: Array.from({ length: 30 }, (_, index) => ({
+					itemId: 'field-potion',
+					name: 'Field Potion',
+					description: 'Restores HP.',
+					iconPath: '/game/assets/items/field-potion.png',
+					quantity: index + 1
+				})),
+				equipment: [
+					{
+						itemId: 'training-sword',
+						name: 'Training Sword',
+						description: 'A blade.',
+						iconPath: '/game/assets/items/training-sword.png',
+						slot: 'weapon' as const,
+						equipped: true,
+						modifiers: { attack: 1 }
+					},
+					{
+						itemId: 'rusty-dagger',
+						name: 'Rusty Dagger',
+						description: 'A spare blade.',
+						iconPath: '/game/assets/items/rusty-dagger.png',
+						slot: 'weapon' as const,
+						equipped: false,
+						modifiers: { attack: 1 }
+					}
+				],
+				keyItems: [],
+				equipped: {
+					weapon: 'training-sword',
+					head: null,
+					body: null,
+					hands: null,
+					accessory: null
+				}
+			}
+		});
+	}
+
+	interface OverlayCase {
+		name: string;
+		// Runs before render() (e.g. seeding save slots the title reads at
+		// mount).
+		prepare?: () => void | Promise<void>;
+		// Opens the overlay and returns its screen root element.
+		open: () => Promise<HTMLElement>;
+		// Runs the per-overlay scroll + action portion; chrome/focus/document
+		// assertions run around it in the shared test body.
+		exercise: (screen: HTMLElement, w: number, h: number) => Promise<void>;
+		// HUD command the final action must emit (when the action crosses the
+		// bridge — internal-only actions like quest selection omit this).
+		expectCommand?: Record<string, unknown>;
+	}
+
+	const hpa840Overlays: OverlayCase[] = [
+		{
+			name: 'Quest',
+			open: async () => {
+				emitHudState(
+					baseHudState({
+						quests: buildHudQuestState({
+							state: questStateAt('repel-the-soldiers'),
+							locale: 'en'
+						})
+					})
+				);
+				const dialog = await openQuestLog();
+				await expect.element(dialog).toBeVisible();
+				return dialog.element() as HTMLElement;
+			},
+			exercise: async (screen, w, h) => {
+				scrollPanelToEnd(screen.querySelector<HTMLElement>('.quest-rail-entries')!);
+				scrollPanelToEnd(screen.querySelector<HTMLElement>('.quest-chapter')!);
+				scrollPanelToEnd(screen.querySelector<HTMLElement>('.quest-detail')!);
+				const completed = screen.querySelectorAll<HTMLElement>(
+					'[data-testid="quest-entry-completed"]'
+				);
+				expect(completed.length).toBeGreaterThan(0);
+				// Scrolling the rail to its end parks the first completed entry
+				// above the fold; scrollIntoView is the reachability check.
+				completed[0]!.scrollIntoView({ block: 'nearest' });
+				completed[0]!.click();
+				await vi.waitFor(() => expect(completed[0]!.className).toContain('quest-entry-selected'));
+				expect(insideViewport(completed[0]!.getBoundingClientRect(), w, h)).toBe(true);
+			}
+		},
+		{
+			name: 'Save',
+			open: async () => {
+				emitHudState(baseHudState());
+				await openFieldCommand('Save');
+				const dialog = page.getByRole('dialog', { name: /save/i });
+				await expect.element(dialog).toBeVisible();
+				return dialog.element() as HTMLElement;
+			},
+			exercise: async (screen, w, h) => {
+				scrollPanelToEnd(screen.querySelector<HTMLElement>('.save-slots')!);
+				const lastSlot = screen.querySelector<HTMLElement>('[data-testid="save-slot-2"]')!;
+				expect(insideViewport(lastSlot.getBoundingClientRect(), w, h)).toBe(true);
+				lastSlot.click();
+			},
+			expectCommand: { type: 'save-slot', slot: 2 }
+		},
+		{
+			name: 'Load',
+			prepare: () => {
+				// The title reads the slots at mount — Continue only enables
+				// when at least one record exists.
+				writeSaveSlot(0, { ...createSlotRecord(), kind: 'autosave' });
+				writeSaveSlot(1, createSlotRecord());
+				writeSaveSlot(2, createSlotRecord());
+			},
+			open: async () => {
+				await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+				await page.getByRole('button', { name: /continue/i }).click();
+				const dialog = page.getByRole('dialog', { name: /load/i });
+				await expect.element(dialog).toBeVisible();
+				return dialog.element() as HTMLElement;
+			},
+			exercise: async (screen, w, h) => {
+				scrollPanelToEnd(screen.querySelector<HTMLElement>('.save-slots')!);
+				const lastSlot = screen.querySelector<HTMLElement>('[data-testid="save-slot-2"]')!;
+				expect(insideViewport(lastSlot.getBoundingClientRect(), w, h)).toBe(true);
+				lastSlot.click();
+				// Loading slot 3 starts the run — the field HUD returns.
+				await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+			}
+		},
+		{
+			name: 'Map',
+			open: async () => {
+				emitHudState(
+					baseHudState({
+						areaMap: {
+							...baseHudState().areaMap,
+							markers: [
+								{ id: 'guild-hall', kind: 'building', x: 1_536, y: 5_504, label: 'Guild Hall' }
+							]
+						}
+					})
+				);
+				await openFieldCommand(/map/i);
+				const dialog = page.getByRole('dialog', { name: /map$/i });
+				await expect.element(dialog).toBeVisible();
+				return dialog.element() as HTMLElement;
+			},
+			exercise: async (screen, w, h) => {
+				const body = screen.querySelector<HTMLElement>('.jrpg-area-map-body')!;
+				const legend = screen.querySelector<HTMLElement>('.jrpg-area-map-legend')!;
+				body.scrollTop = body.scrollHeight;
+				expect(insideViewport(legend.getBoundingClientRect(), w, h)).toBe(true);
+				await page.getByRole('img', { name: 'Guild Hall' }).click();
+				await vi.waitFor(() =>
+					expect(
+						screen.querySelector<HTMLElement>('[data-testid="area-map-selected"]')!.textContent
+					).toContain('Guild Hall')
+				);
+			}
+		},
+		{
+			name: 'System',
+			open: async () => {
+				emitHudState(baseHudState());
+				await openFieldCommand(/system/i);
+				const dialog = page.getByRole('dialog', { name: /display & text/i });
+				await expect.element(dialog).toBeVisible();
+				return dialog.element() as HTMLElement;
+			},
+			exercise: async (screen, w, h) => {
+				// Deferred item: the last rail card must not be clipped by the
+				// window's overflow:clip edge (≈8px bleed was suspected).
+				const windowRect = screen.getBoundingClientRect();
+				const railCards = screen.querySelectorAll<HTMLElement>('.heroic-rail-card');
+				expect(railCards.length).toBe(3);
+				for (const card of railCards) {
+					const r = card.getBoundingClientRect();
+					expect(r.left).toBeGreaterThanOrEqual(windowRect.left - 1);
+					expect(r.right).toBeLessThanOrEqual(windowRect.right + 1);
+					expect(r.top).toBeGreaterThanOrEqual(windowRect.top - 1);
+					expect(r.bottom).toBeLessThanOrEqual(windowRect.bottom + 1);
+					expect(insideViewport(r, w, h)).toBe(true);
+				}
+
+				scrollPanelToEnd(screen.querySelector<HTMLElement>('.heroic-rows')!);
+				const soundOff = [...screen.querySelectorAll<HTMLElement>('button')].find(
+					(b) => b.textContent?.trim() === 'Off'
+				)!;
+				expect(insideViewport(soundOff.getBoundingClientRect(), w, h)).toBe(true);
+				soundOff.click();
+				await vi.waitFor(() => expect(soundOff.getAttribute('aria-pressed')).toBe('true'));
+			}
+		},
+		{
+			name: 'Skill',
+			open: async () => {
+				emitHudState(baseHudState());
+				await openFieldCommand('Skill');
+				const dialog = page.getByRole('dialog', { name: 'Skill' });
+				await expect.element(dialog).toBeVisible();
+				return dialog.element() as HTMLElement;
+			},
+			exercise: async (screen) => {
+				const empty = screen.querySelector<HTMLElement>('.skill-empty')!;
+				expect(empty).toBeTruthy();
+				// Skill's honest action is Back.
+				const back = screen.querySelector<HTMLElement>('.skill-back')!;
+				back.click();
+				await vi.waitFor(() => expect(screen.isConnected).toBe(false));
+			}
+		},
+		{
+			name: 'Bag',
+			open: async () => {
+				emitHudState(stockedBagHud());
+				await openFieldCommand('Bag');
+				const dialog = page.getByRole('dialog', { name: /inventory/i });
+				await expect.element(dialog).toBeVisible();
+				return dialog.element() as HTMLElement;
+			},
+			exercise: async (screen, w, h) => {
+				const scroll = screen.querySelector<HTMLElement>('.bag-grid-scroll')!;
+				scrollPanelToEnd(scroll);
+				const slots = screen.querySelectorAll<HTMLElement>('[data-testid="inventory-slot"]');
+				// 30 stocked consumables render one slot each in the Bag tab grid.
+				expect(slots.length).toBe(30);
+				// The last filled potion slot scrolls into view inside the grid.
+				const filled = [...slots].filter((s) => !s.className.includes('bag-slot-empty'));
+				const lastFilled = filled[filled.length - 1]!;
+				lastFilled.scrollIntoView({ block: 'nearest' });
+				expect(insideViewport(lastFilled.getBoundingClientRect(), w, h)).toBe(true);
+				lastFilled.click();
+				const detail = screen.querySelector<HTMLElement>('[data-testid="inventory-detail"]')!;
+				await vi.waitFor(() => expect(detail.textContent).toContain('Field Potion'));
+				const action = detail.querySelector<HTMLElement>('.bag-detail-action')!;
+				expect(insideViewport(action.getBoundingClientRect(), w, h)).toBe(true);
+				action.click();
+			},
+			expectCommand: { type: 'use-item', itemId: 'field-potion' }
+		},
+		{
+			name: 'Gear',
+			open: async () => {
+				emitHudState(stockedBagHud());
+				await openFieldCommand('Gear');
+				const dialog = page.getByRole('dialog', { name: /inventory/i });
+				await expect.element(dialog).toBeVisible();
+				await expect
+					.element(dialog.getByRole('tab', { name: /gear/i }))
+					.toHaveAttribute('aria-selected', 'true');
+				return dialog.element() as HTMLElement;
+			},
+			exercise: async (screen, w, h) => {
+				scrollPanelToEnd(screen.querySelector<HTMLElement>('.bag-grid-scroll')!);
+				const dagger = [...screen.querySelectorAll<HTMLElement>('button')].find((b) =>
+					b.getAttribute('aria-label')?.includes('Rusty Dagger')
+				)!;
+				dagger.scrollIntoView({ block: 'nearest' });
+				expect(insideViewport(dagger.getBoundingClientRect(), w, h)).toBe(true);
+				dagger.click();
+				const detail = screen.querySelector<HTMLElement>('[data-testid="inventory-detail"]')!;
+				await vi.waitFor(() => expect(detail.textContent).toContain('Rusty Dagger'));
+				const action = detail.querySelector<HTMLElement>('.bag-detail-action')!;
+				expect(insideViewport(action.getBoundingClientRect(), w, h)).toBe(true);
+				action.click();
+			},
+			expectCommand: { type: 'equip-item', itemId: 'rusty-dagger' }
+		},
+		{
+			name: 'Shop',
+			open: async () => {
+				emitHudState(
+					baseHudState({
+						shop: {
+							shopId: 'miras-item-shop',
+							name: "Mira's Item Shop",
+							merchantName: 'Mira',
+							buy: Array.from({ length: 18 }, (_, i) =>
+								mockShopBuyEntry({
+									stockId: `potion-stock-${i}`,
+									name: `Field Potion ${i + 1}`,
+									item: { ...mockConsumable(), name: `Field Potion ${i + 1}` }
+								})
+							),
+							sell: [mockShopSellEntry()]
+						}
+					})
+				);
+				const dialog = page.getByRole('dialog', { name: "Mira's Item Shop" });
+				await expect.element(dialog).toBeVisible();
+				return dialog.element() as HTMLElement;
+			},
+			exercise: async (screen, w, h) => {
+				scrollPanelToEnd(screen.querySelector<HTMLElement>('.shop-grid-scroll')!);
+				const lastTile = [...screen.querySelectorAll<HTMLElement>('button')].find(
+					(b) => b.getAttribute('aria-label') === 'Field Potion 18'
+				)!;
+				expect(insideViewport(lastTile.getBoundingClientRect(), w, h)).toBe(true);
+				lastTile.click();
+				const detail = screen.querySelector<HTMLElement>('[data-testid="shop-detail"]')!;
+				await vi.waitFor(() => expect(detail.textContent).toContain('Field Potion 18'));
+				const buy = detail.querySelector<HTMLElement>('.shop-detail-action')!;
+				expect(insideViewport(buy.getBoundingClientRect(), w, h)).toBe(true);
+				buy.click();
+			},
+			expectCommand: {
+				type: 'buy-shop-item',
+				shopId: 'miras-item-shop',
+				stockId: 'potion-stock-17'
+			}
+		}
+	];
+
+	function overlayChromeFor(screen: HTMLElement, name: string): (HTMLElement | null)[] {
+		switch (name) {
+			case 'Quest':
+				return [
+					screen.querySelector<HTMLElement>('.quest-title'),
+					screen.querySelector<HTMLElement>('.quest-rail-close')
+				];
+			case 'Save':
+			case 'Load':
+				return [
+					screen.querySelector<HTMLElement>('.save-heading'),
+					screen.querySelector<HTMLElement>('.save-back')
+				];
+			case 'Map':
+				return [
+					screen.querySelector<HTMLElement>('.jrpg-area-map-header'),
+					screen.querySelector<HTMLElement>('.jrpg-area-map-close')
+				];
+			case 'System':
+				return [
+					screen.querySelector<HTMLElement>('.system-header'),
+					screen.querySelector<HTMLElement>('.heroic-chip-button')
+				];
+			case 'Skill':
+				return [
+					screen.querySelector<HTMLElement>('.skill-header'),
+					screen.querySelector<HTMLElement>('.skill-back')
+				];
+			case 'Bag':
+			case 'Gear':
+				return [
+					screen.querySelector<HTMLElement>('.bag-title'),
+					screen.querySelector<HTMLElement>('.bag-rail-close')
+				];
+			case 'Shop':
+				return [
+					screen.querySelector<HTMLElement>('.shop-title'),
+					screen.querySelector<HTMLElement>('.shop-rail-close')
+				];
+			default:
+				return [];
+		}
+	}
+
+	it.each(
+		hpa840Overlays.flatMap((overlay) =>
+			(
+				[
+					[640, 360],
+					[1280, 640]
+				] as const
+			).map(([width, height]) => ({ ...overlay, width, height }))
+		)
+	)(
+		'$name keeps chrome pinned, scrolls inside its panel, traps focus and acts at $width×$height',
+		async ({ name, prepare, open, exercise, expectCommand, width, height }) => {
+			await page.viewport(width, height);
+			const commands: unknown[] = [];
+			const handleCommand = (event: Event) => commands.push((event as CustomEvent).detail);
+			window.addEventListener(HUD_COMMAND_EVENT, handleCommand);
+			try {
+				await prepare?.();
+				render(GameShell);
+				const screen = await open();
+				await settleOverlayEntrance();
+				await expectFocusInsideAndTrapped(screen);
+				const chrome = overlayChromeFor(screen, name);
+				expectChrome(screen, chrome, width, height);
+
+				await exercise(screen, width, height);
+
+				if (expectCommand) {
+					expect(commands).toContainEqual(expectCommand);
+				}
+
+				// After exercising, chrome is still pinned and the document
+				// never scrolled (skip when the exercise closed the overlay —
+				// Skill Back and Load both unmount the dialog).
+				if (screen.isConnected) {
+					expectChrome(screen, chrome, width, height);
+				}
+				expectDocumentUnscrolled();
+			} finally {
+				window.removeEventListener(HUD_COMMAND_EVENT, handleCommand);
+			}
+		}
+	);
+
+	it.each(
+		hpa840Overlays
+			.filter((overlay) => overlay.name !== 'Load')
+			.flatMap((overlay) => (['ja', 'zh-Hant'] as const).map((locale) => ({ ...overlay, locale })))
+	)(
+		'$name keeps heading and Back/Close unclipped in $locale at 640×360',
+		async ({ name, prepare, open, locale }) => {
+			await page.viewport(640, 360);
+			await prepare?.();
+			render(GameShell);
+			// Open under the default 'en' so localized command tiles are found,
+			// then switch live — chrome labels re-render in place.
+			const screen = await open();
+			await settleOverlayEntrance();
+			const backEl = overlayChromeFor(screen, name)[1]!;
+			const enText = backEl.textContent;
+			updatePreferences({ locale });
+			await vi.waitFor(() => {
+				// Wait until the close/back label actually re-translated before
+				// measuring geometry.
+				expect(backEl.textContent).not.toBe(enText);
+			});
+			expectChrome(screen, overlayChromeFor(screen, name), 640, 360);
+			expect(screen.contains(document.activeElement)).toBe(true);
+		}
+	);
+
+	it.each(['ja', 'zh-Hant'] as const)(
+		'keeps quest keyboard navigation and chrome working in %s at 832×560',
+		async (locale) => {
+			await page.viewport(832, 560);
+			render(GameShell);
+			emitHudState(
+				baseHudState({
+					quests: buildHudQuestState({
+						state: questStateAt('repel-the-soldiers'),
+						locale: 'en'
+					})
+				})
+			);
+			const dialog = await openQuestLog();
+			await expect.element(dialog).toBeVisible();
+			const screen = dialog.element() as HTMLElement;
+			await settleOverlayEntrance();
+
+			// Keyboard: the rail entries form a single-column focus lattice;
+			// ArrowDown moves to the next row and the move stays inside the
+			// scrollable roster.
+			const entries = screen.querySelectorAll<HTMLElement>('[data-focus-id^="quest-row-"]');
+			expect(entries.length).toBeGreaterThan(1);
+			entries[0]!.focus();
+			expect(document.activeElement).toBe(entries[0]);
+			await userEvent.keyboard('{ArrowDown}');
+			const moved = document.activeElement as HTMLElement;
+			expect(moved.dataset.focusId).toMatch(/^quest-row-/);
+			expect(Number(moved.dataset.focusRow)).toBe(Number(entries[0]!.dataset.focusRow) + 1);
+			expect(screen.contains(moved)).toBe(true);
+
+			// Live locale switch keeps title and Close unclipped at this
+			// size (deferred ja/zh-Hant item).
+			const closeEl = screen.querySelector<HTMLElement>('.quest-rail-close')!;
+			const enText = closeEl.textContent;
+			updatePreferences({ locale });
+			await vi.waitFor(() => {
+				expect(closeEl.textContent).not.toBe(enText);
+			});
+			expectChrome(screen, overlayChromeFor(screen, 'Quest'), 832, 560);
+		}
+	);
 });
