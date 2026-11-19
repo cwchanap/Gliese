@@ -760,7 +760,9 @@
 			top: 0.75rem;
 			left: 0.9rem;
 			min-height: 0;
-			width: 15rem;
+			/* Below ~452px wide the card narrows instead of overlapping the
+			   side HUD (quest + wallet) anchored at the right edge. */
+			width: min(15rem, calc(100vw - 13rem));
 			gap: 0.7rem;
 			padding: 0.6rem 0.85rem;
 		}
@@ -768,11 +770,14 @@
 			align-self: center;
 			gap: 0.25rem;
 		}
-		/* The name is the card's only accessible identification string, so it
-		   stays in the tree as a clipped 1px box rather than display:none. */
-		.hero-name {
+		/* The name and level are the card's only accessible identification
+		   strings, so they stay in the tree as clipped 1px boxes rather
+		   than display:none. */
+		.hero-name,
+		.hero-level {
 			position: absolute;
 			width: 1px;
+			min-width: 0;
 			height: 1px;
 			padding: 0;
 			margin: -1px;
@@ -794,10 +799,11 @@
 		}
 		.heroic-side-hud {
 			/* Below the Menu chip pinned top-right in GameShell — with the
-			   minimap gone the old .75rem pin would collide with it. */
+			   minimap gone the old .75rem pin would collide with it. The
+			   width floor keeps it clear of the hero card on narrow widths. */
 			top: 3.5rem;
 			right: 0.75rem;
-			width: min(11rem, calc(100vw - 1.5rem));
+			width: min(11rem, calc(100vw - 15rem));
 			gap: 0.6rem;
 		}
 		.minimap-card {

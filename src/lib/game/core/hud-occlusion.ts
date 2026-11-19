@@ -16,7 +16,15 @@ const DESKTOP_CARD_ZONE = { width: 412, height: 240 } as const;
 const SHORT_CARD_ZONE = { width: 264, height: 96 } as const;
 
 export function heroCardZone(viewWidth: number, viewHeight: number) {
-	if (viewHeight <= 719) return SHORT_CARD_ZONE;
+	if (viewHeight <= 719) {
+		// Below ~452px wide the compact card narrows (15rem → 100vw-13rem)
+		// to stay clear of the side HUD; the zone tracks its rendered right
+		// edge plus the same ~10px margin (left inset 14.4 + card + margin).
+		return {
+			width: Math.min(SHORT_CARD_ZONE.width, Math.max(0, viewWidth - 184)),
+			height: SHORT_CARD_ZONE.height
+		};
+	}
 	if (viewWidth <= 832) {
 		const renderedWidth = Math.min(304, Math.max(0, viewWidth - 112));
 		const width = Math.min(326, 12 + renderedWidth + 10);
