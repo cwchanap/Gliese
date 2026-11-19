@@ -15112,20 +15112,6 @@ async function expectTabContained(page: Page, dialog: Locator) {
 }
 
 /**
- * After a dialog closes, focus returns to a real control in the field chrome
- * (the command tile or the Menu chip) — never into a hidden dialog or <body>.
- */
-async function expectFocusRestoredToField(page: Page) {
-	const ok = await page.evaluate(() => {
-		const el = document.activeElement;
-		return (
-			el instanceof HTMLElement && el.tagName === 'BUTTON' && el.closest('[role="dialog"]') === null
-		);
-	});
-	expect(ok).toBe(true);
-}
-
-/**
  * Tags and returns the dialog's largest vertically scrollable panel, or null
  * when nothing inside overflows (small content never grows a scroller — the
  * caller then asserts the document didn't scroll instead).
@@ -15744,6 +15730,10 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 				await hpa840Shot(page, `${overlay.tile.toLowerCase()}-${width}x${height}.png`);
 				await overlay.journey?.(dialog);
 			} else {
+				if (width === 1280 && height === 640) {
+					// Same containment contract at the second required size.
+					await expectTabContained(page, dialog);
+				}
 				await hpa840Shot(page, `${overlay.tile.toLowerCase()}-${width}x${height}.png`);
 			}
 			expect(await documentScrollTop(page)).toBe(0);
@@ -15751,8 +15741,11 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 				await page.keyboard.press('Escape');
 				await expect(dialog).toBeHidden();
 			}
-			// Closing restores focus to a field control (tile or Menu chip).
-			await expectFocusRestoredToField(page);
+			// leaveOverlay reopens the grid and returns focus to the SAME
+			// command tile that opened the overlay (field-cmd-<command>).
+			await expect(
+				page.locator(`[data-focus-id="field-cmd-${overlay.tile.toLowerCase()}"]`)
+			).toBeFocused();
 		}
 	}
 	// Leave the command grid before the locale/load legs.
@@ -15831,6 +15824,10 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 		expect(await documentScrollTop(page)).toBe(0);
 		await page.keyboard.press('Escape');
 		await expect(shopDialog).toBeHidden();
+		// The dialogue's Shop button is destroyed when the shop opens, so
+		// restoreOverlayFocus falls through to focusFieldStage(): the
+		// .game-stage mount — not just "any button" — must hold focus.
+		await expect(page.locator('.game-stage')).toBeFocused();
 	}
 
 	// Locale legs: switch the language inside the real System overlay, then
@@ -15857,6 +15854,8 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 		await expect(sysDialog.locator('#system-heading')).toHaveText(loc.heading);
 		await page.keyboard.press('Escape');
 		await expect(sysDialog).toBeHidden();
+		// Focus restore is locale-agnostic: the System tile (field-cmd-system).
+		await expect(page.locator('[data-focus-id="field-cmd-system"]')).toBeFocused();
 		// Reopen Bag via its localized tile and capture the localized overlay.
 		if (!(await grid.isVisible())) {
 			await menuChip().click();
@@ -15869,6 +15868,7 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 		await hpa840Shot(page, `bag-${loc.localeId.toLowerCase()}-640x360.png`);
 		await page.keyboard.press('Escape');
 		await expect(bagDialog).toBeHidden();
+		await expect(page.locator('[data-focus-id="field-cmd-bag"]')).toBeFocused();
 	}
 	// Restore English for the remaining legs (tile labels are localized now).
 	const restoreGrid = localeGrid();
@@ -15882,6 +15882,7 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 	await expect(sysDialog.locator('#system-heading')).toHaveText('Display & Text');
 	await page.keyboard.press('Escape');
 	await expect(sysDialog).toBeHidden();
+	await expect(page.locator('[data-focus-id="field-cmd-system"]')).toBeFocused();
 	await page.keyboard.press('Escape');
 
 	// Load leg: the real Title → Continue → Load picker → resume journey at each
@@ -15911,6 +15912,9 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 		}
 		const enabledSlots = loadDialog.locator('[data-testid^="save-slot-"]:not([disabled])');
 		expect(await enabledSlots.count()).toBeGreaterThanOrEqual(1);
+		// Same containment contract at every required size (scroller check ran
+		// first — focus-into-view scrolls the slot list).
+		await expectTabContained(page, loadDialog);
 		await hpa840Shot(page, `load-${width}x${height}.png`);
 		expect(await documentScrollTop(page)).toBe(0);
 		if (width === 1280 && height === 720) {
@@ -15919,9 +15923,11 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 			await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 			await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
 		} else {
-			// Real click on the pinned Back control returns to Title.
+			// Real click on the pinned Back control returns to Title — and
+			// closeLoadPicker restores focus onto Continue specifically.
 			await loadBack.click();
 			await expect(page.getByRole('button', { name: /Continue/i })).toBeVisible();
+			await expect(page.locator('[data-focus-id="title-continue"]')).toBeFocused();
 		}
 	}
 });
