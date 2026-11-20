@@ -828,4 +828,19 @@
 			height: 0.7rem;
 		}
 	}
+
+	/* ~367px wide and below, the 100vw-13rem card leaves .hero-copy under
+	   ~70px once the 3.2rem portrait and grid gap take their share, and the
+	   HP value spills past the card edge. Dropping the portrait frees the
+	   full content width; the level badge stays accessible — it is absolute
+	   and clipped inside the now-empty .hero-portrait. min-height keeps the
+	   card at its portrait-era bounds so heroCardZone() still tracks it. */
+	@media (max-width: 370px) and (height < 720px) {
+		.hero-card {
+			min-height: 4.5rem;
+		}
+		.hero-portrait img {
+			display: none;
+		}
+	}
 </style>
