@@ -48,7 +48,9 @@
 	// in short landscape the rail/main/detail chrome leaves ~W−368px for the
 	// grid, so the column count steps down by width band to keep tiles usable.
 	const compactShopGrid = new MediaQuery('(max-width: 640px)');
-	const landscapeShopGrid = new MediaQuery('(max-height: 719px) and (min-aspect-ratio: 1/1)');
+	const landscapeShopGrid = new MediaQuery(
+		'(max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 640px)'
+	);
 	const shopGrid2 = new MediaQuery('(max-width: 754px)');
 	const shopGrid3 = new MediaQuery('(max-width: 874px)');
 	const shopGridColumns = $derived(
@@ -1256,8 +1258,10 @@
 	   narrow rail, stock grid and detail stay side by side and each scrolls
 	   inside its own panel. The decorative merchant bust and quote yield to
 	   the business controls (name, purse, tabs, Close); portrait and
-	   narrow/tall sizes keep the stacked column with the full portrait. */
-	@media (max-height: 719px) and (min-aspect-ratio: 1/1) {
+	   narrow/tall sizes keep the stacked column with the full portrait, and
+	   so do narrow squares: below 640px wide the fixed rail+detail columns
+	   leave the stock grid no room (390×390 fits ~22px). */
+	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 640px) {
 		.shop-screen {
 			flex-direction: row;
 			gap: 0.75rem;

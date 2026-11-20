@@ -1124,8 +1124,10 @@
 	}
 	/* Short landscape (640×360, 832×560): compact parallel columns. Declared
 	   after the ≤900px stack so it undoes the single-column opt-outs — rail and
-	   detail stay side by side and each scrolls inside its own panel. */
-	@media (max-height: 719px) and (min-aspect-ratio: 1/1) {
+	   detail stay side by side and each scrolls inside its own panel. Narrow
+	   squares keep the stack too: below 640px wide the 14rem rail leaves the
+	   detail column no room (390×390 fits ~123px). */
+	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 640px) {
 		.quest-screen {
 			flex-direction: row;
 			gap: 0.9rem;

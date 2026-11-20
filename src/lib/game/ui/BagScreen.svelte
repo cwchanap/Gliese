@@ -62,7 +62,9 @@
 	// rail/main/side chrome leaves ~W−409px for the grid, so the column count
 	// steps down by width band to keep every slot ≥6.6rem (105.6px) wide.
 	const compactBagGrid = new MediaQuery('(max-width: 640px)');
-	const landscapeGrid = new MediaQuery('(max-height: 719px) and (min-aspect-ratio: 1/1)');
+	const landscapeGrid = new MediaQuery(
+		'(max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 640px)'
+	);
 	const bagGrid2 = new MediaQuery('(max-width: 754px)');
 	const bagGrid3 = new MediaQuery('(max-width: 874px)');
 	const bagGrid4 = new MediaQuery('(max-width: 994px)');
@@ -1168,8 +1170,10 @@
 	/* Short landscape (640×360, 832×560): compact parallel columns. Declared
 	   after the ≤900px stack so it undoes the single-column opt-outs — rail,
 	   grid and WORN/detail stay side by side and each scrolls inside its own
-	   panel. Portrait and narrow/tall sizes keep the stacked column. */
-	@media (max-height: 719px) and (min-aspect-ratio: 1/1) {
+	   panel. Portrait and narrow/tall sizes keep the stacked column, and so
+	   do narrow squares: below 640px wide the fixed rail+side columns leave
+	   the grid no room (390×390 fits ~4px of main column). */
+	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 640px) {
 		.bag-screen {
 			flex-direction: row;
 			gap: 0.9rem;
@@ -1236,7 +1240,7 @@
 	/* ≤900px short landscape only: tighten tracking — the 0.52rem
 	   ACCESSORY/EQUIPPED text keeps its default readable size inside the
 	   narrower slots (HPA-841). */
-	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (max-width: 900px) {
+	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 640px) and (max-width: 900px) {
 		.bag-slot-pos {
 			letter-spacing: 0.05em;
 		}
