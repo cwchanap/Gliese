@@ -12930,6 +12930,15 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 }) => {
 	test.setTimeout(240_000);
 	await installRuntimeProbes(page, { captureSceneState: true });
+	// Instant text: at normal speed a reveal-skip Enter never changes the HUD
+	// dialogue payload, so every advanceDialogue press would eat the full
+	// 5s payload-change timeout before the next press.
+	await page.addInitScript(() => {
+		localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		);
+	});
 	await startNewRunFromTitle(page);
 
 	const readHud = () =>
@@ -12996,6 +13005,8 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 			await page.keyboard.up(key);
 		}
 	};
+	// Relies on the instant text speed seeded above — a mid-reveal Enter only
+	// completes the typewriter and never republishes the dialogue payload.
 	const advanceDialogue = async () => {
 		for (let press = 0; press < 40; press += 1) {
 			const hud = await readHud();
