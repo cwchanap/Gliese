@@ -2639,6 +2639,14 @@ describe('GameShell area map', () => {
 			expect(viewY + viewHeight).toBeGreaterThanOrEqual(576);
 
 			const frame = svgEl.getBoundingClientRect();
+			// Assert the fixtures rendered: an empty querySelectorAll would
+			// otherwise skip every label assertion below.
+			for (const id of ['hero-house-exit', 'top-exit', 'quest-pin']) {
+				expect(
+					svgEl.querySelector(`[data-focus-id="map-marker-${id}"]`),
+					`marker ${id}`
+				).not.toBeNull();
+			}
 			for (const markerEl of svgEl.querySelectorAll<SVGGElement>(
 				'[data-testid="area-map-marker"]'
 			)) {
@@ -6614,8 +6622,14 @@ describe('HPA-840 overlay containment on small viewports', () => {
 		'keeps the Load picker chrome pinned while the last slot scrolls into view at %d×%d',
 		async (width, height) => {
 			writeSaveSlot(0, { ...createSlotRecord(), kind: 'autosave' });
-			writeSaveSlot(1, createSlotRecord());
-			writeSaveSlot(2, createSlotRecord());
+			writeSaveSlot(1, {
+				...createSlotRecord(),
+				state: { ...createNewSaveState(), mapId: 'hero-house' }
+			});
+			writeSaveSlot(2, {
+				...createSlotRecord(),
+				state: { ...createNewSaveState(), mapId: 'overworld' }
+			});
 			await page.viewport(width, height);
 			render(GameShell);
 			await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
@@ -6637,8 +6651,20 @@ describe('HPA-840 overlay containment on small viewports', () => {
 			expect(insideViewport(header.getBoundingClientRect(), width, height)).toBe(true);
 			expectDocumentUnscrolled();
 
+			const createGameCallsBefore = vi.mocked(createGame).mock.calls.length;
 			await lastSlot.click();
 			await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+
+			// The resumed run must carry the final slot's state — identical
+			// records would let an off-by-one load slip through.
+			await vi.waitFor(() => {
+				const calls = vi.mocked(createGame).mock.calls;
+				expect(calls.length).toBeGreaterThan(createGameCallsBefore);
+				expect(calls.at(-1)?.[1]).toMatchObject({
+					reason: 'resume',
+					saveState: { mapId: 'overworld' }
+				});
+			});
 		}
 	);
 
@@ -7166,10 +7192,17 @@ describe('HPA-840 overlay containment on small viewports', () => {
 			name: 'Load',
 			prepare: () => {
 				// The title reads the slots at mount — Continue only enables
-				// when at least one record exists.
+				// when at least one record exists. Distinct states per slot
+				// prove the picked slot's record is the one resumed.
 				writeSaveSlot(0, { ...createSlotRecord(), kind: 'autosave' });
-				writeSaveSlot(1, createSlotRecord());
-				writeSaveSlot(2, createSlotRecord());
+				writeSaveSlot(1, {
+					...createSlotRecord(),
+					state: { ...createNewSaveState(), mapId: 'hero-house' }
+				});
+				writeSaveSlot(2, {
+					...createSlotRecord(),
+					state: { ...createNewSaveState(), mapId: 'overworld' }
+				});
 			},
 			open: async () => {
 				await expect.element(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
@@ -7180,10 +7213,19 @@ describe('HPA-840 overlay containment on small viewports', () => {
 			},
 			exercise: async (screen) => {
 				scrollPanelToEnd(screen.querySelector<HTMLElement>('.save-slots')!);
+				const createGameCallsBefore = vi.mocked(createGame).mock.calls.length;
 				await page.getByTestId('save-slot-2').click();
 				// Loading slot 3 starts the run — the field HUD returns (the
 				// dialog unmounts, so no post-click geometry here).
 				await expect.element(page.getByRole('button', { name: /menu/i })).toBeVisible();
+				await vi.waitFor(() => {
+					const calls = vi.mocked(createGame).mock.calls;
+					expect(calls.length).toBeGreaterThan(createGameCallsBefore);
+					expect(calls.at(-1)?.[1]).toMatchObject({
+						reason: 'resume',
+						saveState: { mapId: 'overworld' }
+					});
+				});
 			}
 		},
 		{

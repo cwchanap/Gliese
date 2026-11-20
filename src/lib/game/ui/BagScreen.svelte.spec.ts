@@ -558,9 +558,10 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 		for (const node of document.head.querySelectorAll('style,link[rel="stylesheet"]')) {
 			iframeDoc.head.appendChild(node.cloneNode(true));
 		}
+		const { mount, unmount } = await import('svelte');
+		let shell: ReturnType<typeof mount> | undefined;
 		try {
-			const { mount } = await import('svelte');
-			mount(GameShell, { target: iframeDoc.body });
+			shell = mount(GameShell, { target: iframeDoc.body });
 
 			let menu: HTMLElement | undefined;
 			await vi.waitFor(() => {
@@ -602,6 +603,9 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 				'slot width at 754.5px'
 			).toBeGreaterThanOrEqual(105.6);
 		} finally {
+			// Removing the iframe alone skips Svelte teardown — the mounted
+			// shell would keep its parent-window key listeners alive.
+			if (shell) await unmount(shell);
 			iframe.remove();
 		}
 	});

@@ -11,11 +11,18 @@ import '@fontsource/zen-maru-gothic/500.css';
 import '@fontsource/zen-maru-gothic/700.css';
 import '@fontsource/zen-maru-gothic/900.css';
 
+// Zen Maru Gothic ships as ~120 unicode-range faces, so fonts.load() only
+// fetches the faces covering its sample text — the default ' ' loads just the
+// space face and CJK specs still measure fallback metrics. The sample is the
+// union of the CJK strings the specs render.
+const cjkSample =
+	'次へ閉じるミラモット爺グリクの家章の進行状況証明の朝の試練第一の試練：足跡藥水戦利品ポーション日本語已完成證明之晨的試煉';
+
 await Promise.all([
 	document.fonts.load('400 16px Spectral'),
 	document.fonts.load('500 16px Spectral'),
 	document.fonts.load('600 16px Spectral'),
-	document.fonts.load('500 16px "Zen Maru Gothic"'),
-	document.fonts.load('700 16px "Zen Maru Gothic"'),
-	document.fonts.load('900 16px "Zen Maru Gothic"')
+	document.fonts.load('500 16px "Zen Maru Gothic"', cjkSample),
+	document.fonts.load('700 16px "Zen Maru Gothic"', cjkSample),
+	document.fonts.load('900 16px "Zen Maru Gothic"', cjkSample)
 ]);
