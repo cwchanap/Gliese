@@ -408,9 +408,9 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 	);
 
 	it.each([
-		// Short-landscape column bands keep each slot ≥6.6rem (105.6px) wide:
-		// 2 columns ≤754px, 3 columns at 755–874px (see the boundary audit
-		// below for the full width sweep).
+		// Short-landscape column bands keep each slot ≥6.6rem (105.6px) wide
+		// even with a ~17px classic scrollbar: 2 columns ≤771px, 3 columns
+		// at 772–891px (see the boundary audit below for the full width sweep).
 		[640, 360, 2, '14', '1'],
 		[832, 560, 3, '9', '2']
 	] as const)(
@@ -474,12 +474,15 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 
 	// Boundary audit (review finding): the rendered column count must keep
 	// every slot ≥6.6rem (105.6px) wide across the whole short-landscape
-	// width range — not only at the two sizes the column tests pin — and the
-	// grid must never clip horizontally. Reproduces the reviewer's ~88px
-	// slots at 1000×360 and the sub-6.6rem cliff at 641px where the grid
-	// jumps from 2 to 3 columns.
-	it.each([640, 641, 700, 774, 775, 900, 901, 1000, 1014, 1015, 1128, 1280])(
-		'keeps every slot at least 6.6rem wide without horizontal clipping at %d×360',
+	// width range — including when a ~17px Windows WebView2 classic scrollbar
+	// occupies `.bag-grid-scroll` (headless Chromium hides overlay scrollbars
+	// unless styled via ::-webkit-scrollbar) — and the grid must never clip
+	// horizontally.
+	it.each([
+		640, 641, 700, 771, 772, 774, 775, 891, 892, 900, 901, 1000, 1011, 1012, 1014, 1015, 1128, 1131,
+		1132, 1280
+	])(
+		'keeps every slot at least 6.6rem wide without horizontal clipping at %d×360 (even with a 17px classic scrollbar)',
 		async (width) => {
 			await page.viewport(width, 360);
 			window.scrollTo(0, 0);
@@ -492,9 +495,14 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 			const gridEl = screen.querySelector<HTMLElement>('.bag-slot-grid')!;
 			const slot = gridEl.querySelector<HTMLElement>('.bag-slot')!;
 			const slotWidth = slot.getBoundingClientRect().width;
+			const columns = getComputedStyle(gridEl).gridTemplateColumns.split(' ').length;
+			// Headless Chromium launches with --hide-scrollbars (0px track),
+			// whereas Windows WebView2 reserves ~17px from .bag-grid-scroll.clientWidth.
+			const unreservedScrollbar = Math.max(0, 17 - (scroll.offsetWidth - scroll.clientWidth));
+			const webview2SlotWidth = slotWidth - unreservedScrollbar / columns;
 			expect(
-				slotWidth,
-				`slot width ${slotWidth}px at ${width}×360 — columns: ${getComputedStyle(gridEl).gridTemplateColumns}, grid inner ${scroll.clientWidth}px`
+				webview2SlotWidth,
+				`slot width ${webview2SlotWidth}px (raw ${slotWidth}px, ${columns} cols) at ${width}×360 — grid inner ${scroll.clientWidth}px`
 			).toBeGreaterThanOrEqual(105.6);
 			expect(
 				scroll.scrollWidth,
@@ -504,15 +512,17 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 	);
 
 	// Mid-height band audit (architecture review): the ≤559px block shrinks
-	// .bag-grid-scroll to 0.6rem padding, but the 560–719px landscape block
-	// left the desktop 1.25rem — at 640×560 (2 columns) and 755×560
-	// (3 columns) every slot dropped below the intended 6.6rem.
+	// .bag-grid-scroll to 0.6rem padding, and the 560–719px landscape block
+	// must keep the same padding and 17px-scrollbar headroom so every slot
+	// stays ≥6.6rem across the mid-height band too.
 	it.each([
 		[640, 560],
 		[640, 719],
 		[755, 560],
+		[772, 560],
 		[832, 560],
-		[874, 719],
+		[891, 719],
+		[892, 719],
 		[1000, 640]
 	])(
 		'keeps every slot at least 6.6rem wide without horizontal clipping at %d×%d',
@@ -529,9 +539,12 @@ describe('BagScreen compact short-landscape containment (HPA-840 task 3c)', () =
 			const slotWidth = gridEl
 				.querySelector<HTMLElement>('.bag-slot')!
 				.getBoundingClientRect().width;
+			const columns = getComputedStyle(gridEl).gridTemplateColumns.split(' ').length;
+			const unreservedScrollbar = Math.max(0, 17 - (scroll.offsetWidth - scroll.clientWidth));
+			const webview2SlotWidth = slotWidth - unreservedScrollbar / columns;
 			expect(
-				slotWidth,
-				`slot width ${slotWidth}px at ${width}×${height} — columns: ${getComputedStyle(gridEl).gridTemplateColumns}, grid inner ${scroll.clientWidth}px`
+				webview2SlotWidth,
+				`slot width ${webview2SlotWidth}px (raw ${slotWidth}px, ${columns} cols) at ${width}×${height} — grid inner ${scroll.clientWidth}px`
 			).toBeGreaterThanOrEqual(105.6);
 			expect(
 				scroll.scrollWidth,

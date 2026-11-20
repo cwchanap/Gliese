@@ -59,16 +59,17 @@
 	// bound to this value on the element so rendered columns and the focus
 	// lattice can never disagree (fractional-width band gaps, b666231 review).
 	// 4 columns at the ≤640px breakpoint; in short landscape the
-	// rail/main/side chrome leaves ~W−409px for the grid, so the column count
-	// steps down by width band to keep every slot ≥6.6rem (105.6px) wide.
+	// rail/main/side chrome plus a ~17px classic scrollbar (Windows WebView2)
+	// leaves ~W−414px for the grid, so the column count steps down by width
+	// band to keep every slot ≥6.6rem (105.6px) wide.
 	const compactBagGrid = new MediaQuery('(max-width: 640px)');
 	const landscapeGrid = new MediaQuery(
-		'(max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 640px)'
+		'(height < 720px) and (min-aspect-ratio: 1/1) and (min-width: 640px)'
 	);
-	const bagGrid2 = new MediaQuery('(max-width: 754px)');
-	const bagGrid3 = new MediaQuery('(max-width: 874px)');
-	const bagGrid4 = new MediaQuery('(max-width: 994px)');
-	const bagGrid5 = new MediaQuery('(max-width: 1114px)');
+	const bagGrid2 = new MediaQuery('(max-width: 771px)');
+	const bagGrid3 = new MediaQuery('(max-width: 891px)');
+	const bagGrid4 = new MediaQuery('(max-width: 1011px)');
+	const bagGrid5 = new MediaQuery('(max-width: 1131px)');
 	const bagGridColumns = $derived(
 		landscapeGrid.current
 			? bagGrid2.current
@@ -1012,7 +1013,7 @@
 	   desktop columns overflow — rail cards + Close run past the bottom edge
 	   and the WORN panel's fixed-size tiles (with remove buttons) clip under
 	   overflow:hidden. Same 560px boundary as the command-grid fallback. */
-	@media (max-height: 559px) {
+	@media (height < 560px) {
 		.bag-screen {
 			padding: 0.9rem 1.1rem 0.9rem 0.9rem;
 			gap: 1rem;
@@ -1173,11 +1174,11 @@
 	   panel. Portrait and narrow/tall sizes keep the stacked column, and so
 	   do narrow squares: below 640px wide the fixed rail+side columns leave
 	   the grid no room (390×390 fits ~4px of main column). */
-	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 640px) {
+	@media (height < 720px) and (min-aspect-ratio: 1/1) and (min-width: 640px) {
 		.bag-screen {
 			flex-direction: row;
-			gap: 0.9rem;
-			padding: 1rem;
+			gap: 0.75rem;
+			padding: 0.75rem;
 			overflow: hidden;
 		}
 
@@ -1240,7 +1241,7 @@
 	/* ≤900px short landscape only: tighten tracking — the 0.52rem
 	   ACCESSORY/EQUIPPED text keeps its default readable size inside the
 	   narrower slots (HPA-841). */
-	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 640px) and (max-width: 900px) {
+	@media (height < 720px) and (min-aspect-ratio: 1/1) and (min-width: 640px) and (max-width: 900px) {
 		.bag-slot-pos {
 			letter-spacing: 0.05em;
 		}

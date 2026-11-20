@@ -1659,7 +1659,7 @@
 	/* Compact HUD breakpoint matches FieldHud's: under 720px the side HUD
 	   drops the minimap and anchors below this chip, so the chip itself
 	   moves to the upper-right corner. */
-	@media (max-height: 719px) {
+	@media (height < 720px) {
 		.jrpg-menu-anchor {
 			top: 0.75rem;
 			right: 0.75rem;

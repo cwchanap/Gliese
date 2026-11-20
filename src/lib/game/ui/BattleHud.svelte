@@ -851,7 +851,7 @@
 	   the command tiles with internal scroll (the selected target is scrolled
 	   back into view); the feed drops lower with a cap. Taller viewports
 	   keep the desktop composition untouched. */
-	@media (max-height: 559px) {
+	@media (height < 560px) {
 		.battle-plates {
 			max-height: calc(100vh - 15.5rem);
 			overflow-y: auto;

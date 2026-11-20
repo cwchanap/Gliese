@@ -416,7 +416,6 @@
 		gap: clamp(1.1rem, 2.1vw, 1.9rem);
 		grid-template-columns: repeat(3, 1fr);
 		margin-top: 1.9rem;
-		overflow-y: auto;
 	}
 
 	.save-slot {
@@ -636,12 +635,17 @@
 
 		.save-slots {
 			grid-template-columns: 1fr;
+			overflow-y: auto;
 		}
 	}
 
 	@media (max-height: 600px) {
 		.save-screen {
 			padding: 1rem;
+		}
+
+		.save-slots {
+			overflow-y: auto;
 		}
 	}
 </style>

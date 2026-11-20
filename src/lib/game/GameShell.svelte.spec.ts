@@ -5073,10 +5073,15 @@ describe('GameShell pad layer', () => {
 		);
 		await expect.element(page.getByTestId('shop-buy-grid')).toBeVisible();
 
-		// At 640×360 the short-landscape shop renders 2 columns: item 2 sits
-		// directly below item 0 (4-column math would jump to the nonexistent
-		// shop-buy-4 / stall).
-		document.querySelector<HTMLElement>('[data-focus-id="shop-buy-0"]')?.focus();
+		// At 640×360 the short-landscape shop stacks Buy above Sell and renders
+		// 2 stock columns: Down from Buy visits Sell, then item 0, and item 2
+		// sits directly below item 0 (4-column math would jump to the
+		// nonexistent shop-buy-4 / stall).
+		document.querySelector<HTMLElement>('[data-focus-id="shop-tab-buy"]')?.focus();
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('shop-tab-sell');
+		await tiltAxis(0, 0.8);
+		expect(focusedFocusId()).toBe('shop-buy-0');
 		await tiltAxis(0, 0.8);
 		expect(focusedFocusId()).toBe('shop-buy-2');
 
@@ -6559,6 +6564,20 @@ describe('HPA-840 overlay containment on small viewports', () => {
 		await page.getByRole('button', { name: /menu/i }).click();
 		await page.getByRole('button', { name }).click();
 	}
+
+	it('keeps .save-slots overflow visible on desktop so the autosave halo and hover lift are unclipped', async () => {
+		await page.viewport(1920, 1080);
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await openFieldCommand('Save');
+		const saveDialog = page.getByRole('dialog', { name: /save/i });
+		await expect.element(saveDialog).toBeVisible();
+		const slots = (saveDialog.element() as HTMLElement).querySelector<HTMLElement>('.save-slots')!;
+		const style = getComputedStyle(slots);
+		expect(style.overflowX).toBe('visible');
+		expect(style.overflowY).toBe('visible');
+	});
 
 	it('keeps the Save header and footer pinned while the slot list scrolls at 640×360', async () => {
 		await page.viewport(640, 360);

@@ -312,10 +312,13 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 	);
 
 	it.each([
-		// Short-landscape column bands keep every tile a usable width:
-		// 2 columns ≤754px, 3 columns 755–874px, 4 columns above.
-		[640, 360, 2, '9', '1'],
-		[832, 560, 3, '6', '2']
+		// Short-landscape column bands keep every tile a usable width (even
+		// with a ~17px classic scrollbar): 2 columns ≤771px, 3 columns
+		// 772–891px, 4 columns above. In short landscape the Buy/Sell tabs are
+		// stacked vertically (rows 0 and 1, col 0), so the 18 stock tiles start
+		// at row 2 and end at 2 + floor(17 / columns).
+		[640, 360, 2, '10', '1'],
+		[832, 560, 3, '7', '2']
 	] as const)(
 		'renders %3$d stock columns synchronized with the focus lattice at %d×%d',
 		async (width, height, columns, lastRow, lastCol) => {
@@ -334,8 +337,17 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 				`horizontal overflow at ${width}×${height} (scrollWidth ${scroll.scrollWidth} > clientWidth ${scroll.clientWidth})`
 			).toBeLessThanOrEqual(scroll.clientWidth + 1);
 
+			// Stacked Buy/Sell tabs in short landscape sit at (0,0) and (1,0)
+			// so directional Down from Buy lands on Sell before entering stock.
+			const buyTab = document.getElementById('shop-buy-tab')!;
+			const sellTab = document.getElementById('shop-sell-tab')!;
+			expect(buyTab.getAttribute('data-focus-row')).toBe('0');
+			expect(buyTab.getAttribute('data-focus-column')).toBe('0');
+			expect(sellTab.getAttribute('data-focus-row')).toBe('1');
+			expect(sellTab.getAttribute('data-focus-column')).toBe('0');
+
 			// Focus geometry mirrors the rendered columns: 18 stocked potions
-			// end at 1 + floor(17 / columns), col 17 % columns.
+			// end at 2 + floor(17 / columns), col 17 % columns.
 			const tiles = Array.from(screen.querySelectorAll<HTMLElement>('.shop-tile'));
 			const lastTile = tiles[tiles.length - 1]!;
 			expect(lastTile.getAttribute('data-focus-row')).toBe(lastRow);

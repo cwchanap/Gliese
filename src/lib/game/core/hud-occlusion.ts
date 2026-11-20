@@ -12,12 +12,12 @@ export type HeroScreenCamera = {
 
 const DESKTOP_CARD_ZONE = { width: 412, height: 240 } as const;
 // Rendered compact hero card (portrait + HP only) plus its top/left margins;
-// FieldHud's @media (max-height: 719px) owns the same breakpoint.
+// FieldHud's @media (height < 720px) owns the same breakpoint.
 const SHORT_CARD_ZONE = { width: 264, height: 96 } as const;
 
 export function heroCardZone(viewWidth: number, viewHeight: number) {
-	if (viewHeight <= 719) {
-		// Below ~452px wide the compact card narrows (15rem → 100vw-13rem)
+	if (viewHeight < 720) {
+		// Below 448px wide the compact card narrows (15rem → 100vw-13rem)
 		// to stay clear of the side HUD; the zone tracks its rendered right
 		// edge plus the same ~10px margin (left inset 14.4 + card + margin).
 		return {
