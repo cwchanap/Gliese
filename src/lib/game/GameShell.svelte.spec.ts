@@ -5651,7 +5651,8 @@ describe('GameShell compact HUD layout (HPA-840)', () => {
 				{ width: 640, height: 719 },
 				{ width: 832, height: 719 },
 				{ width: 1280, height: 719 },
-				{ width: 390, height: 650 }
+				{ width: 390, height: 650 },
+				{ width: 320, height: 650 }
 			] as const
 		).flatMap((viewport) =>
 			(['en', 'ja', 'zh-Hant'] as const).map((locale) => ({ ...viewport, locale }))
@@ -5756,6 +5757,22 @@ describe('GameShell compact HUD layout (HPA-840)', () => {
 			);
 			expect(zone.width - cardBox.right, 'right-edge slack').toBeLessThanOrEqual(16);
 			expect(zone.height - cardBox.bottom, 'bottom-edge slack').toBeLessThanOrEqual(16);
+
+			// The HP row's label, track, and value stay inside the card
+			// bounds: below ~367px wide the 3.2rem portrait once starved
+			// .hero-copy to ~20px and the value spilled past the card edge.
+			const hpMeter = party.querySelector<HTMLElement>('.hero-meter:has(.hero-meter-label-hp)')!;
+			for (const part of Array.from(hpMeter.children) as HTMLElement[]) {
+				const partBox = rectOf(part);
+				expect(
+					partBox.left,
+					`HP row part left ${JSON.stringify(partBox)} vs card ${JSON.stringify(cardBox)}`
+				).toBeGreaterThanOrEqual(cardBox.left);
+				expect(
+					partBox.right,
+					`HP row part right ${JSON.stringify(partBox)} vs card ${JSON.stringify(cardBox)}`
+				).toBeLessThanOrEqual(cardBox.right);
+			}
 		}
 	);
 
