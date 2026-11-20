@@ -11789,9 +11789,13 @@ test('entry map boots with no game console errors', async ({ page }) => {
 	});
 
 	await startNewRunFromTitle(page);
-	// Let async asset loads and runtime frame registration settle: networkidle
-	// means no requests for 500ms, the bounded condition this assertion needs.
-	await page.waitForLoadState('networkidle');
+	// startNewRunFromTitle returns as soon as the canvas mounts, while BootScene
+	// is still preloading textures and audio. Wait for WorldScene's opening
+	// dialogue (emitted in WorldScene.create() only after BootScene's loader
+	// completes and runtime frames are registered), plus a bounded settle
+	// window for any late asset/decode 404.
+	await expect(page.getByRole('dialog')).toBeVisible({ timeout: 30_000 });
+	await page.waitForTimeout(1_000);
 
 	// Filter benign, game-unrelated noise (e.g. favicon / generic resource 404s and
 	// devtools chatter) so the assertion stays meaningful. We deliberately do NOT
@@ -12154,11 +12158,9 @@ test('trusted Enter activates the focused field Menu and command tiles without w
 	await page.keyboard.press('Escape');
 	await expect(command).toHaveCount(0);
 	await expect(page.locator('.game-stage')).toBeFocused();
-	// The probe proves no stray key/click fired; those dispatch inside a frame,
-	// so two settled frames are the bounded condition (not a fixed sleep).
-	await page.evaluate(
-		() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
-	);
+	// World interaction fetches story dialogue asynchronously; wait a bounded
+	// window before asserting no stray key, interaction, or dialog fired.
+	await page.waitForTimeout(250);
 
 	probe = await readActivationProbe(page);
 	expect(probe.menuClicks).toBe(1);
@@ -12196,11 +12198,9 @@ test('trusted Space activates the focused field Menu without world interaction',
 	await page.keyboard.press('Escape');
 	await expect(command).toHaveCount(0);
 	await expect(page.locator('.game-stage')).toBeFocused();
-	// Same as above: stray key events dispatch within a frame; two settled
-	// frames bound the negative assertion without a fixed sleep.
-	await page.evaluate(
-		() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
-	);
+	// Same as above: give any leaked interaction + async story fetch time to
+	// surface before asserting the negative.
+	await page.waitForTimeout(250);
 
 	probe = await readActivationProbe(page);
 	expect(probe.menuClicks).toBe(1);
@@ -12321,11 +12321,9 @@ test('E on genuinely empty ground opens no dialogue and publishes no status', as
 
 	const statusBefore = await fieldStatus(page).textContent();
 	await page.keyboard.press('e');
-	// 'e' interacts synchronously on keydown; a settled frame bounds the
-	// no-dialog assertion without a fixed sleep.
-	await page.evaluate(
-		() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
-	);
+	// Wait a bounded window so an unintended async dialogue fetch or status
+	// publish has time to surface before asserting absence.
+	await page.waitForTimeout(250);
 
 	await expect(page.getByRole('dialog')).toHaveCount(0);
 	await expect(fieldStatus(page)).toHaveText(statusBefore ?? '');
@@ -12345,14 +12343,10 @@ test('E facing the south-road sealed gate reports the way barred without a dialo
 	await continueFromTitle(page);
 
 	await page.keyboard.press('e');
-	// Interact dispatch is synchronous on keydown; a settled frame bounds the
-	// no-dialog assertion without a fixed sleep.
-	await page.evaluate(
-		() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
-	);
+	await expect(fieldStatus(page)).toContainText(/barred/i);
+	await page.waitForTimeout(250);
 
 	await expect(page.getByRole('dialog')).toHaveCount(0);
-	await expect(fieldStatus(page)).toContainText(/barred/i);
 });
 
 test('language preference shows Japanese chrome and keeps Japanese selected', async ({ page }) => {
@@ -14984,15 +14978,18 @@ test('a seeded near-end saved run finishes the prologue and Continue restores th
 		ridge,
 		{ timeout: 30_000 }
 	);
-	// The card may outlive the arrival publish; poll for it to dismiss rather
-	// than sleeping a fixed window.
-	await expect(endCard).toHaveCount(0, { timeout: 15_000 });
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 	await expect(page.getByTestId('hud-side-panel').getByText('Prologue complete')).toBeVisible();
 	await page.waitForFunction(() => {
 		const state = (window as GlieseProbeWindow).__glieseLastHudState;
 		return state?.quests?.main === null && state?.quests?.completed?.length === 7;
 	});
+	// Wait a fixed window after the resumed HUD settles before asserting the
+	// completion card stayed absent (toHaveCount(0) would otherwise pass on
+	// the first poll before a replayed card appears).
+	await page.waitForTimeout(500);
+	await expect(endCard).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 });
 
 // ======================= HPA-840 Task 4: live resize integration gates =======

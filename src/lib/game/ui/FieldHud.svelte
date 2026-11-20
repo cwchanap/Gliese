@@ -700,7 +700,7 @@
 	/* Narrow portrait: flow the card above the command-grid / side-HUD row so
 	   the gap is real no matter how tall the card renders — a fixed top anchor
 	   silently overlapped the card once its content grew past min-height. */
-	@media (max-width: 832px) and (min-height: 720px) {
+	@media (max-width: 832px) and (height >= 720px) {
 		.heroic-hud-top {
 			position: absolute;
 			top: 0.75rem;
@@ -755,12 +755,12 @@
 
 	/* Compact HUD: one breakpoint owns every viewport under 720px tall, so
 	   560–719px windows can never activate the narrow-portrait rules too. */
-	@media (max-height: 719px) {
+	@media (height < 720px) {
 		.hero-card {
 			top: 0.75rem;
 			left: 0.9rem;
 			min-height: 0;
-			/* Below ~452px wide the card narrows instead of overlapping the
+			/* Below 448px wide the card narrows instead of overlapping the
 			   side HUD (quest + wallet) anchored at the right edge. */
 			width: min(15rem, calc(100vw - 13rem));
 			gap: 0.7rem;

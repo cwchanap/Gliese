@@ -45,14 +45,15 @@
 	// Pad focus-grid geometry mirrors the stock grid — grid-template-columns is
 	// bound to this value on the element so rendered columns and the focus
 	// lattice can never disagree. 3 columns at the ≤640px narrow breakpoint;
-	// in short landscape the rail/main/detail chrome leaves ~W−368px for the
-	// grid, so the column count steps down by width band to keep tiles usable.
+	// in short landscape the rail/main/detail chrome plus a ~17px classic
+	// scrollbar (Windows WebView2) leaves ~W−385px for the grid, so the column
+	// count steps down by width band to keep tiles usable.
 	const compactShopGrid = new MediaQuery('(max-width: 640px)');
 	const landscapeShopGrid = new MediaQuery(
-		'(max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 640px)'
+		'(height < 720px) and (min-aspect-ratio: 1/1) and (min-width: 640px)'
 	);
-	const shopGrid2 = new MediaQuery('(max-width: 754px)');
-	const shopGrid3 = new MediaQuery('(max-width: 874px)');
+	const shopGrid2 = new MediaQuery('(max-width: 771px)');
+	const shopGrid3 = new MediaQuery('(max-width: 891px)');
 	const shopGridColumns = $derived(
 		landscapeShopGrid.current
 			? shopGrid2.current
@@ -64,6 +65,9 @@
 				? 3
 				: 4
 	);
+	// In short landscape `.shop-modes` stacks Buy above Sell in 1 column, so
+	// the tabs occupy 2 focus rows instead of 1.
+	const shopTabRows = $derived(landscapeShopGrid.current ? shopTabs.length : 1);
 
 	let activeShopTab = $state<ShopTab>('buy');
 	let selectedBuyStockId = $state<string | null>(null);
@@ -346,8 +350,8 @@
 							class="shop-mode font-display"
 							class:shop-mode-selected={activeShopTab === tab}
 							data-focus-id={`shop-tab-${tab}`}
-							data-focus-row={0}
-							data-focus-column={index}
+							data-focus-row={landscapeShopGrid.current ? index : 0}
+							data-focus-column={landscapeShopGrid.current ? 0 : index}
 							aria-selected={activeShopTab === tab}
 							aria-controls="shop-tab-panel"
 							tabindex={activeShopTab === tab ? 0 : -1}
@@ -419,7 +423,7 @@
 										class:shop-tile-selected={selected}
 										class:shop-tile-dimmed={!affordable}
 										data-focus-id={`shop-buy-${index}`}
-										data-focus-row={1 + Math.floor(index / shopGridColumns)}
+										data-focus-row={shopTabRows + Math.floor(index / shopGridColumns)}
 										data-focus-column={index % shopGridColumns}
 										aria-label={item.name}
 										onclick={() => selectShopBuyItem(item)}
@@ -469,7 +473,7 @@
 									class:shop-tile-selected={selected}
 									class:shop-tile-dimmed={!ready || battleLocked}
 									data-focus-id={`shop-sell-${index}`}
-									data-focus-row={1 + Math.floor(index / shopGridColumns)}
+									data-focus-row={shopTabRows + Math.floor(index / shopGridColumns)}
 									data-focus-column={index % shopGridColumns}
 									aria-label={item.name}
 									onclick={() => selectShopSellItem(item)}
@@ -574,7 +578,7 @@
 					type="button"
 					class="shop-detail-action font-display"
 					data-focus-id="shop-detail-action"
-					data-focus-row={2 + Math.floor(lastBuyIndex / shopGridColumns)}
+					data-focus-row={shopTabRows + 1 + Math.floor(lastBuyIndex / shopGridColumns)}
 					data-focus-column={lastBuyIndex % shopGridColumns}
 					disabled={!affordable}
 					onclick={activateSelected}
@@ -613,7 +617,7 @@
 					type="button"
 					class="shop-detail-action font-display"
 					data-focus-id="shop-detail-action"
-					data-focus-row={2 + Math.floor(lastSellIndex / shopGridColumns)}
+					data-focus-row={shopTabRows + 1 + Math.floor(lastSellIndex / shopGridColumns)}
 					data-focus-column={lastSellIndex % shopGridColumns}
 					disabled={!ready || battleLocked}
 					onclick={activateSelected}
@@ -1261,7 +1265,7 @@
 	   narrow/tall sizes keep the stacked column with the full portrait, and
 	   so do narrow squares: below 640px wide the fixed rail+detail columns
 	   leave the stock grid no room (390×390 fits ~22px). */
-	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 640px) {
+	@media (height < 720px) and (min-aspect-ratio: 1/1) and (min-width: 640px) {
 		.shop-screen {
 			flex-direction: row;
 			gap: 0.75rem;

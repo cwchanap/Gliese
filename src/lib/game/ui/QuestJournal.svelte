@@ -1127,7 +1127,7 @@
 	   detail stay side by side and each scrolls inside its own panel. Narrow
 	   squares keep the stack too: below 640px wide the 14rem rail leaves the
 	   detail column no room (390×390 fits ~123px). */
-	@media (max-height: 719px) and (min-aspect-ratio: 1/1) and (min-width: 640px) {
+	@media (height < 720px) and (min-aspect-ratio: 1/1) and (min-width: 640px) {
 		.quest-screen {
 			flex-direction: row;
 			gap: 0.9rem;
