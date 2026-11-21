@@ -149,6 +149,19 @@ function insideViewport(r: DOMRect, width: number, height: number): boolean {
 	return r.top >= 0 && r.left >= 0 && r.bottom <= height && r.right <= width;
 }
 
+function rectsIntersect(a: DOMRect, b: DOMRect): boolean {
+	return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+function insideRect(inner: DOMRect, outer: DOMRect): boolean {
+	return (
+		inner.top >= outer.top - 0.5 &&
+		inner.left >= outer.left - 0.5 &&
+		inner.bottom <= outer.bottom + 0.5 &&
+		inner.right <= outer.right + 0.5
+	);
+}
+
 // Element rect clipped by every ancestor that can clip (overflow
 // hidden/auto/scroll/clip): getBoundingClientRect alone misses content
 // scrolled past an overflow:hidden ancestor's fold.
@@ -461,6 +474,124 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 			await vi.waitFor(() => {
 				expect(document.querySelector('.shop-tooltip')).toBeNull();
 			});
+		}
+	);
+
+	// HPA-839 task 4: the tooltip re-anchored inside .shop-main must never
+	// reach the detail column's Buy/Sell action. The old screen-anchored
+	// bottom-right tooltip covered it outright.
+	it.each([
+		[640, 360],
+		[832, 560],
+		[1280, 720]
+	])(
+		'keeps the tooltip inside the stock column and clear of the detail action at %d×%d',
+		async (width, height) => {
+			await withCommands(async (commands) => {
+				await page.viewport(width, height);
+				window.scrollTo(0, 0);
+				render(GameShell);
+				await openShop();
+
+				const screen = shopScreen();
+				const main = screen.querySelector<HTMLElement>('.shop-main')!;
+
+				// Buy: focus raises the tooltip, click selects so the detail
+				// action is live at the same time.
+				const buyTile = screen.querySelector<HTMLElement>('[data-focus-id="shop-buy-0"]')!;
+				buyTile.focus();
+				buyTile.click();
+				const buyTooltip = await vi.waitFor(() => {
+					const el = main.querySelector<HTMLElement>('.shop-tooltip');
+					expect(el).not.toBeNull();
+					return el!;
+				});
+				const buyAction = await vi.waitFor(() => {
+					const el = screen.querySelector<HTMLElement>('.shop-detail-action');
+					expect(el).not.toBeNull();
+					return el!;
+				});
+				buyAction.scrollIntoView({ block: 'nearest' });
+
+				expect(
+					insideRect(buyTooltip.getBoundingClientRect(), main.getBoundingClientRect()),
+					`buy tooltip inside .shop-main at ${width}×${height}: ${JSON.stringify(buyTooltip.getBoundingClientRect().toJSON())}`
+				).toBe(true);
+				expect(
+					rectsIntersect(buyTooltip.getBoundingClientRect(), buyAction.getBoundingClientRect()),
+					`buy tooltip overlaps detail action at ${width}×${height}: ${JSON.stringify(buyTooltip.getBoundingClientRect().toJSON())} vs ${JSON.stringify(buyAction.getBoundingClientRect().toJSON())}`
+				).toBe(false);
+
+				// The action is a real click target: a pointer click on it lands
+				// on the button and emits the buy command.
+				await userEvent.click(page.elementLocator(buyAction));
+				expect(commands).toContainEqual({
+					type: 'buy-shop-item',
+					shopId: 'miras-item-shop',
+					stockId: 'potion-stock-0'
+				});
+
+				// Sell tab: same geometry on the second panel.
+				document.getElementById('shop-sell-tab')!.click();
+				await expect.element(page.getByTestId('shop-sell-grid')).toBeVisible();
+				const sellTile = screen.querySelector<HTMLElement>('[data-focus-id="shop-sell-0"]')!;
+				sellTile.focus();
+				sellTile.click();
+				const sellTooltip = await vi.waitFor(() => {
+					const el = main.querySelector<HTMLElement>('.shop-tooltip');
+					expect(el).not.toBeNull();
+					return el!;
+				});
+				const sellAction = await vi.waitFor(() => {
+					const el = screen.querySelector<HTMLElement>('.shop-detail-action');
+					expect(el).not.toBeNull();
+					return el!;
+				});
+				sellAction.scrollIntoView({ block: 'nearest' });
+
+				expect(
+					insideRect(sellTooltip.getBoundingClientRect(), main.getBoundingClientRect()),
+					`sell tooltip inside .shop-main at ${width}×${height}`
+				).toBe(true);
+				expect(
+					rectsIntersect(sellTooltip.getBoundingClientRect(), sellAction.getBoundingClientRect()),
+					`sell tooltip overlaps detail action at ${width}×${height}`
+				).toBe(false);
+
+				await userEvent.click(page.elementLocator(sellAction));
+				expect(commands).toContainEqual({
+					type: 'sell-inventory-item',
+					itemId: 'practice-sword'
+				});
+			});
+		}
+	);
+
+	// Localized meta text wraps differently; the clamp must hold in every
+	// shipped dictionary at the tightest layout.
+	it.each(['ja', 'zh-Hant'] as const)(
+		'keeps the localized tooltip inside the stock column at 640×360 (%s)',
+		async (locale) => {
+			updatePreferences({ locale });
+			await page.viewport(640, 360);
+			window.scrollTo(0, 0);
+			render(GameShell);
+			await openShop();
+
+			const screen = shopScreen();
+			const main = screen.querySelector<HTMLElement>('.shop-main')!;
+			const tile = screen.querySelector<HTMLElement>('[data-focus-id="shop-buy-0"]')!;
+			tile.focus();
+			const tooltip = await vi.waitFor(() => {
+				const el = main.querySelector<HTMLElement>('.shop-tooltip');
+				expect(el).not.toBeNull();
+				return el!;
+			});
+			expect(
+				insideRect(tooltip.getBoundingClientRect(), main.getBoundingClientRect()),
+				`localized tooltip inside .shop-main at 640×360 (${locale}): ${JSON.stringify(tooltip.getBoundingClientRect().toJSON())}`
+			).toBe(true);
+			expect(insideViewport(tooltip.getBoundingClientRect(), 640, 360)).toBe(true);
 		}
 	);
 });

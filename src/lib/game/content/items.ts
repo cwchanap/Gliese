@@ -102,7 +102,7 @@ const itemDefinitions = {
 		iconPath: '/game/assets/items/sunleaf-salve.png',
 		type: 'consumable',
 		stackable: true,
-		basePrice: 12,
+		basePrice: 6,
 		effect: { type: 'heal', amount: 6 }
 	},
 	'training-sword': {
