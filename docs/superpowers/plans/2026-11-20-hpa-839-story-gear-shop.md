@@ -82,7 +82,7 @@
 
 **B. Real Boar King reporting:** Start from a committed checkpoint if traversal is long, but interact with Borak in the **running game** to award the knife; close dialogue, verify visible equipped-name status, knife worn, spear owned/unworn, and Save/Continue preservation. No auto-equip on a manually unworn saved item.
 
-**C. One Mira shop/economy + tooltip run:** Open the real shop at **1280×720 and 640×360**, hover/focus stock items, measure tooltip/action rectangles, capture screenshots, and confirm the Buy/Sell action remains hit-testable. In the same E2E scenario buy the 6-coin salve, verify wallet/inventory, heal 6 when below max HP, and sell one salve for 3. Verify Field and Greater Potion labels 10/18; perform en/ja/zh-Hant checks without repeating an entire redundant matrix. Check screenshot appearance against the Linear failure screenshot and the existing Shop UI (no mockup supplied); reject clipping, offscreen action or tooltip obstruction.
+**C. One Mira shop/economy + tooltip run:** Open the real shop at **1280×720 and 640×360**, hover/focus stock items, measure tooltip/action rectangles, capture screenshots, and confirm the Buy/Sell action remains hit-testable. In the same E2E scenario buy **two** salves at 6 coins each (verify both deductions and inventory), heal 6 with one when below max HP, and sell the remaining salve for 3. Verify Field and Greater Potion labels 10/18; perform en/ja/zh-Hant checks without repeating an entire redundant matrix. Check screenshot appearance against the Linear failure screenshot and the existing Shop UI (no mockup supplied); reject clipping, offscreen action or tooltip obstruction.
 
 Use the **existing** Playwright + shared-Chromium CDP workflow described in the HPA-840 documents, with the MCP browser connected to the *same live target*. A separate CLI-only Playwright run is useful but **does not satisfy MCP E2E**. One browser platform is sufficient; no native-specific change is involved.
 
@@ -98,7 +98,7 @@ Use the **existing** Playwright + shared-Chromium CDP workflow described in the 
 - [ ] Mott and Oren rewards equip automatically, first wolves ATK 4 / DEF 1, no Gear action; **rendered FieldHud** shows the localized name after both NPC dialogues and after Oren Shop → close.
 - [ ] Reporting Boar King to Borak equips Hunter's Knife, Practice Spear remains in bag, and Save/Continue preserves state; post-dialogue visible status checked; intentionally unworn loaded gear stays unworn.
 - [ ] Equipment helper and synthetic battle drop prove empty slot, Pareto upgrade, tie/trade-off, duplicate, replacement and retained original; shop gear purchase remains manual.
-- [ ] Mira shows salve at 6 coins, buy subtracts 6, heals 6 HP, sell yields 3; Field/Greater remain 10/18; full wallet/inventory effects checked in-game.
+- [ ] Mira shows salve at 6 coins, each buy subtracts 6 (buy two), one heals 6 HP, the other sells for 3; Field/Greater remain 10/18; full wallet/inventory effects checked in-game.
 - [ ] MCP-driven Shop E2E and component DOM geometry: tooltip never overlaps visible Buy/Sell at 1280×720 or 640×360, actions work, and en/ja/zh-Hant strings do not clip.
 - [ ] MCP-run screenshots at both viewport sizes compared with Linear failure reference; actual page status visually readable after NPC dialogue, not only hidden HUD state.
 - [ ] Full unit, check, lint and build pass; MCP E2E evidence attached. Exactly one PR, no art/SFX, no unrelated battle or LFS change.
