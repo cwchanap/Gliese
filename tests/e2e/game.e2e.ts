@@ -200,6 +200,13 @@ type GlieseProbeWindow = Window & {
 	__glieseRouteBlurAt?: number;
 	__glieseRouteFocusAt?: number;
 	__glieseJourneyTrace?: { x: number; y: number; mapId?: string }[];
+	__glieseAxisHold?: {
+		axis: 'x' | 'y';
+		direction: 'gte' | 'lte';
+		value: number;
+		key: string;
+		keyCode: number;
+	} | null;
 	__glieseBattleFeed?: { id: number; kind: string; amount: number; subject: string }[];
 	__glieseRouteRunner?: {
 		start: (plan: BrowserRoutePlan) => BrowserRouteResult;
@@ -262,14 +269,19 @@ async function pressInteractUntilDialog(page: Page, name: string | RegExp) {
 }
 
 /**
- * Advances a conversation-mode story dialogue to its end by clicking the
- * panel's Next action — the same path pad-confirm uses — and returns the
- * rendered line text in order. Enter must not drive these dialogs: the
- * press that closes the last line also reaches Phaser as an interact key,
- * which re-opens the same NPC's dialogue and the loop would advance the
- * reopened session forever.
+ * Advances a conversation-mode story dialogue to its end and returns every
+ * rendered `.jrpg-dialogue-line` in order.
+ *
+ * The default 'pointer' driver clicks the panel's Next action — the same
+ * path pad-confirm uses — for callers that cannot guarantee DOM focus.
+ * 'enter' presses Enter on the focused panel instead, covering real
+ * keyboard advance including the terminal close. Enter is only safe while
+ * focus stays inside the panel: its keydown handler stopPropagations the
+ * press, so it never reaches Phaser's interact key handler. Pressed with
+ * focus elsewhere (e.g. after a canvas click), the closing Enter doubles as
+ * an interact key and can reopen the same NPC's dialogue.
  */
-async function advanceConversationToEnd(page: Page) {
+async function advanceConversationToEnd(page: Page, driver: 'pointer' | 'enter' = 'pointer') {
 	const panel = page.locator('dialog.jrpg-dialogue-panel');
 	const next = panel.getByRole('button', { name: 'Next' });
 	const seenLines: string[] = [];
@@ -284,7 +296,14 @@ async function advanceConversationToEnd(page: Page) {
 			seenLines.push(renderedLine);
 		}
 		const prevDialogue = JSON.stringify(hud.dialogue);
-		await next.click();
+		if (driver === 'enter') {
+			// Keep the press inside the panel — autofocus holds it, and a stray
+			// focus drop would leak the Enter to Phaser's interact handler.
+			await panel.evaluate((el) => el.focus({ preventScroll: true }));
+			await page.keyboard.press('Enter');
+		} else {
+			await next.click();
+		}
 		await page
 			.waitForFunction(
 				(prev) => {
@@ -570,7 +589,7 @@ function rewriteSceneStateProbeSource(servedBody: string): string {
 	const [, livingEnemiesVariable, transitionVariable, mapVariable] = transitionGateMatch;
 	return servedBody.replace(
 		transitionGateMatch[0],
-		`${livingEnemiesVariable}=this.hasLivingEnemies();globalThis.__glieseTransitionGateState={mapId:this.mapId,player:this.player?{x:this.player.x,y:this.player.y}:null,hasLivingEnemies:${livingEnemiesVariable},clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))};{const __glieseTrace=globalThis.__glieseJourneyTrace;if(__glieseTrace&&this.player){const __glieseLast=__glieseTrace[__glieseTrace.length-1];if(!__glieseLast||__glieseLast.x!==this.player.x||__glieseLast.y!==this.player.y||__glieseLast.mapId!==this.mapId)__glieseTrace.push({x:this.player.x,y:this.player.y,mapId:this.mapId});}}for(let ${transitionVariable} of ${mapVariable}.transitions)`
+		`${livingEnemiesVariable}=this.hasLivingEnemies();globalThis.__glieseTransitionGateState={mapId:this.mapId,player:this.player?{x:this.player.x,y:this.player.y}:null,hasLivingEnemies:${livingEnemiesVariable},clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))};{const __glieseTrace=globalThis.__glieseJourneyTrace;if(__glieseTrace&&this.player){const __glieseLast=__glieseTrace[__glieseTrace.length-1];if(!__glieseLast||__glieseLast.x!==this.player.x||__glieseLast.y!==this.player.y||__glieseLast.mapId!==this.mapId)__glieseTrace.push({x:this.player.x,y:this.player.y,mapId:this.mapId});}}{const __glieseHold=globalThis.__glieseAxisHold;if(__glieseHold&&this.player){const __glieseAxisValue=__glieseHold.axis==='x'?this.player.x:this.player.y;if((__glieseHold.direction==='gte'&&__glieseAxisValue>=__glieseHold.value)||(__glieseHold.direction==='lte'&&__glieseAxisValue<=__glieseHold.value)){globalThis.__glieseAxisHold=null;const __glieseKeyup=new KeyboardEvent('keyup',{bubbles:true,cancelable:true,key:__glieseHold.key});try{Object.defineProperty(__glieseKeyup,'keyCode',{configurable:true,value:__glieseHold.keyCode});Object.defineProperty(__glieseKeyup,'which',{configurable:true,value:__glieseHold.keyCode});}catch{}window.dispatchEvent(__glieseKeyup);}}}for(let ${transitionVariable} of ${mapVariable}.transitions)`
 	);
 }
 
@@ -13524,6 +13543,26 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 			| { kind: 'map'; value: string },
 		timeoutMs = 15_000
 	) => {
+		// Axis stops arm the scene-side release probe before the key goes down:
+		// the rewritten chunk checks the resolved position inside update() and
+		// dispatches the keyup on the same frame that crosses the threshold, so
+		// a stalled frame can overshoot by at most its own step — CDP release
+		// latency and the poll interval no longer add pixels on top. Status/map
+		// stops have no axis to arm and keep the in-predicate release.
+		if (stop.kind === 'axis') {
+			await page.evaluate(
+				(armed) => {
+					(window as GlieseProbeWindow).__glieseAxisHold = armed;
+				},
+				{
+					axis: stop.axis,
+					direction: stop.direction,
+					value: stop.value,
+					key,
+					keyCode: key.toUpperCase().charCodeAt(0)
+				}
+			);
+		}
 		await page.keyboard.down(key);
 		try {
 			await page.waitForFunction(
@@ -13566,16 +13605,45 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 				{ cause: error }
 			);
 		} finally {
+			if (stop.kind === 'axis') {
+				await page
+					.evaluate(() => {
+						(window as GlieseProbeWindow).__glieseAxisHold = null;
+					})
+					.catch(() => {});
+			}
 			await page.keyboard.up(key);
+		}
+	};
+	// Forward nudges for a hold that released short of the checkpoint band.
+	// Recovery can only move along the leg's progress axis — backing up would
+	// falsify the corridor trace (the violation check rejects >8px regression)
+	// — so a short landing is nudged forward with real presses, checked after
+	// each tap rather than re-held past the safe edge.
+	const tapAxisUntil = async (
+		key: 'w' | 'a' | 's' | 'd',
+		axis: 'x' | 'y',
+		direction: 'gte' | 'lte',
+		value: number,
+		maxTaps = 8
+	) => {
+		for (let tap = 0; tap < maxTaps; tap += 1) {
+			const position = await readPosition();
+			if (!position) return;
+			const current = position[axis];
+			if (direction === 'gte' ? current >= value : current <= value) return;
+			await page.keyboard.press(key, { delay: 45 });
 		}
 	};
 	// Relies on the instant text speed seeded above — a mid-reveal confirm only
 	// completes the typewriter and never republishes the dialogue payload.
 	// Each visible line is recorded as rendered so the HPA-839 Oren dialogue
-	// correction can be verified against the actual panel text.
+	// correction can be verified against the actual panel text. The keyboard
+	// journey drives Enter — the panel autofocuses on mount, so presses stay
+	// inside its keydown handler and never leak to Phaser's interact key.
 	const seenDialogueLines: string[] = [];
 	const advanceDialogue = async () => {
-		seenDialogueLines.push(...(await advanceConversationToEnd(page)));
+		seenDialogueLines.push(...(await advanceConversationToEnd(page, 'enter')));
 	};
 
 	await page.waitForFunction(
@@ -13700,38 +13768,54 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	expect(doorLane?.y).toBeGreaterThanOrEqual(7_264);
 	expect(doorLane?.y).toBeLessThanOrEqual(7_296);
 	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 4640 });
-	const connectorBase = await readPosition();
-	if (connectorBase && connectorBase.x > 4_680) {
-		await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 4664 });
-	}
 	const connectorTurn = await readPosition();
 	expect(connectorTurn?.x).toBeGreaterThanOrEqual(4_632);
 	expect(connectorTurn?.x).toBeLessThanOrEqual(4_704);
 	expect(connectorTurn?.y).toBeGreaterThanOrEqual(7_264);
 	expect(connectorTurn?.y).toBeLessThanOrEqual(7_296);
-	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7190 });
+	// Release at the corridor's safe edge, not the assert's: the connector is
+	// open below y=7152, so a stalled frame could carry the old 7190 stop past
+	// the walkable band outright. Every landing now stays inside [7154,7214].
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7214 });
 	const laneTop = await readPosition();
 	expect(laneTop?.x).toBeGreaterThanOrEqual(4_632);
 	expect(laneTop?.x).toBeLessThanOrEqual(4_704);
 	expect(laneTop?.y).toBeGreaterThanOrEqual(7_152);
 	expect(laneTop?.y).toBeLessThanOrEqual(7_216);
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5150 });
+	// Same idea on the top lane: releasing at 5150 could overshoot past x=5192,
+	// where the trace reads as "returned to top-lane" after south-turn opened.
+	// A landing short of 5136 is nudged forward — never backward.
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5132 });
 	const southBase = await readPosition();
-	if (southBase && southBase.x > 5_184) {
-		await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 5176 });
+	if (southBase && southBase.x < 5_136) {
+		await tapAxisUntil('d', 'x', 'gte', 5_136);
 	}
 	const southTurn = await readPosition();
 	expect(southTurn?.x).toBeGreaterThanOrEqual(5_136);
 	expect(southTurn?.x).toBeLessThanOrEqual(5_192);
 	expect(southTurn?.y).toBeGreaterThanOrEqual(7_152);
 	expect(southTurn?.y).toBeLessThanOrEqual(7_216);
-	await holdUntil('s', { kind: 'axis', axis: 'y', direction: 'gte', value: 7276 });
+	// The lower lane opens south past y=7300, so the old 7276 stop could be
+	// carried out of the corridor by one stalled frame. Landings now stay
+	// inside [7240,7300); a short one is nudged up into the assert band.
+	await holdUntil('s', { kind: 'axis', axis: 'y', direction: 'gte', value: 7240 });
+	const lowerBase = await readPosition();
+	if (lowerBase && lowerBase.y < 7_260) {
+		await tapAxisUntil('s', 'y', 'gte', 7_264);
+	}
 	const lowerLane = await readPosition();
 	expect(lowerLane?.x).toBeGreaterThanOrEqual(5_136);
 	expect(lowerLane?.x).toBeLessThanOrEqual(5_192);
 	expect(lowerLane?.y).toBeGreaterThanOrEqual(7_260);
 	expect(lowerLane?.y).toBeLessThanOrEqual(7_300);
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5440 });
+	// The lower lane's east edge is the corridor boundary itself (x 5468/5472,
+	// observed as a real assert failure at 5488), so the hold releases 28px
+	// early and nudges forward instead of trusting one stop to land in-band.
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5412 });
+	const underHutBase = await readPosition();
+	if (underHutBase && underHutBase.x < 5_440) {
+		await tapAxisUntil('d', 'x', 'gte', 5_440);
+	}
 	const underHut = await readPosition();
 	expect(underHut?.x).toBeGreaterThanOrEqual(5_440);
 	expect(underHut?.x).toBeLessThanOrEqual(5_472);
@@ -13740,24 +13824,31 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7260 });
 	// The shoulder band borders the jog-east corridor leg: a release that
 	// overshoots into y 7224–7231 still sits inside the authored corridor, so
-	// settling back to mid-band rescues the leg without weakening the assert.
+	// nudging back to mid-band rescues the leg without weakening the assert.
+	// A held 's' could itself be carried past y=7272 into jog-north-only
+	// territory the trace rejects, so the nudge advances in checked taps.
 	const jogShoulderProbe = await readPosition();
 	if (jogShoulderProbe && jogShoulderProbe.y < 7_232) {
-		await holdUntil('s', { kind: 'axis', axis: 'y', direction: 'gte', value: 7248 });
+		await tapAxisUntil('s', 'y', 'gte', 7_240);
 	}
 	const jogShoulder = await readPosition();
 	expect(jogShoulder?.x).toBeGreaterThanOrEqual(5_432);
 	expect(jogShoulder?.x).toBeLessThanOrEqual(5_472);
 	expect(jogShoulder?.y).toBeGreaterThanOrEqual(7_232);
 	expect(jogShoulder?.y).toBeLessThanOrEqual(7_272);
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5640 });
+	// The forge door only triggers within ~30px of (5648,7184) — walkable
+	// north ends at x≤5678 — so releasing at 5640 could overshoot past both
+	// the corridor edge (5688) and the door cone. Release inside the approach
+	// column instead and nudge up to the assert bound when short.
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5616 });
+	const forgeBase = await readPosition();
+	if (forgeBase && forgeBase.x < 5_640) {
+		await tapAxisUntil('d', 'x', 'gte', 5_640);
+	}
 	const forgeColumn = await readPosition();
 	expect(forgeColumn?.x).toBeGreaterThanOrEqual(5_640);
 	expect(forgeColumn?.y).toBeGreaterThanOrEqual(7_224);
 	expect(forgeColumn?.y).toBeLessThanOrEqual(7_272);
-	if (forgeColumn && forgeColumn.x > 5_670) {
-		await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 5650 });
-	}
 	const approachPoint = await readPosition();
 	expect(approachPoint?.x).toBeGreaterThanOrEqual(5_616);
 	expect(approachPoint?.x).toBeLessThanOrEqual(5_688);
