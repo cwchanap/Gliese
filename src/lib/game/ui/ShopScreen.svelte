@@ -511,6 +511,26 @@
 					{/if}
 				</div>
 			</div>
+
+			{#if hoveredShopBuyItem}
+				<div role="tooltip" class="shop-tooltip">
+					<p class="shop-tooltip-name font-display">{hoveredShopBuyItem.name}</p>
+					<p class="shop-tooltip-desc">{hoveredShopBuyItem.description}</p>
+					<p class="shop-tooltip-meta font-display">
+						{t($locale, 'ui.buyFor', { meta: getShopBuyMeta(hoveredShopBuyItem) })}
+					</p>
+				</div>
+			{/if}
+
+			{#if hoveredShopSellItem}
+				<div role="tooltip" class="shop-tooltip">
+					<p class="shop-tooltip-name font-display">{hoveredShopSellItem.name}</p>
+					<p class="shop-tooltip-desc">{hoveredShopSellItem.description}</p>
+					<p class="shop-tooltip-meta font-display">
+						{t($locale, 'ui.sellFor', { meta: getShopSellMeta(hoveredShopSellItem) })}
+					</p>
+				</div>
+			{/if}
 		</section>
 
 		<!-- Selected detail: stat deltas, purse after, action -->
@@ -629,26 +649,6 @@
 				<p class="shop-detail-hint font-display">{t($locale, 'ui.shopSelectHint')}</p>
 			{/if}
 		</aside>
-
-		{#if hoveredShopBuyItem}
-			<div role="tooltip" class="shop-tooltip">
-				<p class="shop-tooltip-name font-display">{hoveredShopBuyItem.name}</p>
-				<p class="shop-tooltip-desc">{hoveredShopBuyItem.description}</p>
-				<p class="shop-tooltip-meta font-display">
-					{t($locale, 'ui.buyFor', { meta: getShopBuyMeta(hoveredShopBuyItem) })}
-				</p>
-			</div>
-		{/if}
-
-		{#if hoveredShopSellItem}
-			<div role="tooltip" class="shop-tooltip">
-				<p class="shop-tooltip-name font-display">{hoveredShopSellItem.name}</p>
-				<p class="shop-tooltip-desc">{hoveredShopSellItem.description}</p>
-				<p class="shop-tooltip-meta font-display">
-					{t($locale, 'ui.sellFor', { meta: getShopSellMeta(hoveredShopSellItem) })}
-				</p>
-			</div>
-		{/if}
 	</div>
 {/if}
 
@@ -843,6 +843,9 @@
 
 	/* ---- Main column ------------------------------------------------------ */
 	.shop-main {
+		/* Tooltip containing block: anchored here it can never reach the
+		   detail column's action button (HPA-839). */
+		position: relative;
 		display: flex;
 		flex: 1;
 		min-width: 0;
@@ -1180,10 +1183,12 @@
 	/* ---- Tooltip ----------------------------------------------------------- */
 	.shop-tooltip {
 		position: absolute;
-		right: 1.9rem;
-		bottom: 1.4rem;
+		right: 0.75rem;
+		bottom: 0.75rem;
 		z-index: 20;
-		max-width: 18rem;
+		/* Clamp to the stock column: at 640×360 .shop-main is ~272px wide,
+		   narrower than the fixed 18rem cap. */
+		max-width: min(18rem, calc(100% - 1.5rem));
 		border: 1px solid var(--color-frame-strong);
 		border-radius: 0.8rem;
 		padding: 0.75rem 0.9rem;

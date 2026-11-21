@@ -61,7 +61,7 @@ describe('item content', () => {
 			'greater-field-potion': 18,
 			'ember-tonic': 8,
 			'ruin-draught': 14,
-			'sunleaf-salve': 12,
+			'sunleaf-salve': 6,
 			'training-sword': 40,
 			'ruin-blade': 80,
 			'iron-cap': 35,
@@ -92,6 +92,7 @@ describe('item content', () => {
 
 	it('returns sell values only for consumables and equipment', () => {
 		expect(getSellValue('field-potion')).toBe(5);
+		expect(getSellValue('sunleaf-salve')).toBe(3);
 		expect(getSellValue('traveler-vest')).toBe(22);
 		expect(getSellValue('warden-sigil')).toBeUndefined();
 		expect(getSellValue('not-real')).toBeUndefined();
