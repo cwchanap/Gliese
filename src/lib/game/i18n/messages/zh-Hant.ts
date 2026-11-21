@@ -214,7 +214,7 @@ export const zhHant = {
 		strikeLanded: '命中',
 		enemyDefeated: '敵人擊敗',
 		itemCannotBeEquipped: '物品無法裝備',
-		equippedItem: '已裝備物品',
+		equippedItem: '已裝備 {{itemName}}',
 		unequippedItem: '已卸下物品',
 		noShopNearby: '附近沒有商店',
 		shopOpened: '商店已開啟',

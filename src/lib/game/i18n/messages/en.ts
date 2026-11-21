@@ -212,7 +212,7 @@ export const en = {
 		strikeLanded: 'Strike landed',
 		enemyDefeated: 'Enemy defeated',
 		itemCannotBeEquipped: 'Item cannot be equipped',
-		equippedItem: 'Equipped item',
+		equippedItem: 'Equipped {{itemName}}',
 		unequippedItem: 'Unequipped item',
 		noShopNearby: 'No shop nearby',
 		shopOpened: 'Shop opened',

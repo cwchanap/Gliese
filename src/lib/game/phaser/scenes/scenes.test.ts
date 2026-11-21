@@ -39,6 +39,7 @@ import type {
 } from '$lib/game/content/backgrounds/map-background-package';
 import { MAP_BACKGROUND_DEFAULT_SELECTIONS } from '$lib/game/content/backgrounds/map-background-registry';
 import { HUD_COMMAND_EVENT, type HudCommand } from '$lib/game/ui-bridge/events';
+import type { WorldSceneStatus } from './WorldScene';
 import * as questRuntime from '$lib/game/core/quests';
 import { VILLAGE_INTERIOR_LAYOUTS } from '$lib/game/content/maps/layouts/village-interiors-v2';
 import { buildGridTileLayers } from '$lib/game/content/maps/grid/layers';
@@ -10653,6 +10654,303 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('equips Mott’s gifted amulet and names it only after the reward dialogue closes', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: { canClose: boolean } | null;
+		};
+
+		scene.create({ mapId: 'hero-house' });
+		Object.assign(phaserState.playerMarker, mottApproach);
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		// The amulet is granted the moment the talk counts, but FieldHud is
+		// unmounted behind the dialogue, so its named status must not publish.
+		expect(sceneState.dialogueSession?.canClose).toBe(false);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				dialogue: expect.objectContaining({ npcId: 'mott-hearth', speaker: 'Old Mott' }),
+				inventory: expect.objectContaining({
+					equipped: expect.objectContaining({ accessory: 'ancestral-amulet' })
+				})
+			})
+		);
+		expect(emitHudStateSpy).not.toHaveBeenCalledWith(
+			expect.objectContaining({ status: expect.stringContaining('Ancestral Amulet') })
+		);
+
+		// The protected talk ends only through terminal advance: the named
+		// status lands once, with the field visible again.
+		for (let advance = 0; advance < 10 && sceneState.dialogueSession; advance += 1) {
+			sceneState.handleHudCommand({ type: 'dialogue-advance' });
+		}
+
+		expect(sceneState.dialogueSession).toBeNull();
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Equipped Ancestral Amulet', dialogue: null })
+		);
+	});
+
+	it('equips Oren’s practice spear and names it after the linear reward dialogue', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: { canClose: boolean } | null;
+		};
+		const save = createNewSaveState();
+
+		scene.create({
+			saveState: {
+				...save,
+				mapId: 'blacksmith-interior',
+				player: { ...save.player, x: 448, y: 480, facing: 'up' },
+				quests: questStateAt('collect-practice-spear')
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 448, y: 480 });
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(sceneState.dialogueSession?.canClose).toBe(false);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				dialogue: expect.objectContaining({ npcId: 'oren', speaker: 'Oren' }),
+				inventory: expect.objectContaining({
+					equipped: expect.objectContaining({ weapon: 'practice-spear' })
+				})
+			})
+		);
+		expect(emitHudStateSpy).not.toHaveBeenCalledWith(
+			expect.objectContaining({ status: expect.stringContaining('Practice Spear') })
+		);
+
+		for (let advance = 0; advance < 10 && sceneState.dialogueSession; advance += 1) {
+			sceneState.handleHudCommand({ type: 'dialogue-advance' });
+		}
+
+		expect(sceneState.dialogueSession).toBeNull();
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Equipped Practice Spear', dialogue: null })
+		);
+	});
+
+	it('flushes a held equip status once on an explicit dialogue close', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { buildDialogueFallback } = await import('$lib/game/core/dialogue');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: ReturnType<typeof buildDialogueFallback> | null;
+			pendingFieldStatus: WorldSceneStatus | null;
+		};
+
+		scene.create({ saveState: createNewSaveState() });
+		emitHudStateSpy.mockClear();
+
+		sceneState.dialogueSession = buildDialogueFallback('Old Mott', 'Wear it well.');
+		sceneState.pendingFieldStatus = {
+			key: 'status.equippedItem',
+			params: { itemName: { itemId: 'iron-cap' } }
+		};
+		sceneState.handleHudCommand({ type: 'dialogue-close' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Equipped Iron Cap', dialogue: null })
+		);
+
+		// The status flushes exactly once: the next close publishes nothing held.
+		sceneState.dialogueSession = buildDialogueFallback('Old Mott', 'Go now.');
+		sceneState.handleHudCommand({ type: 'dialogue-close' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: '', dialogue: null })
+		);
+	});
+
+	it('flushes a held equip status when a dialogue choice closes the session', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: unknown;
+			pendingFieldStatus: WorldSceneStatus | null;
+		};
+
+		scene.create({ mapId: 'guild-hall' });
+		Object.assign(phaserState.playerMarker, lodgeKeeperApproach);
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				dialogue: expect.objectContaining({
+					speaker: 'Lodge Keeper',
+					choices: expect.arrayContaining([expect.objectContaining({ id: 'close' })])
+				})
+			})
+		);
+
+		sceneState.pendingFieldStatus = {
+			key: 'status.equippedItem',
+			params: { itemName: { itemId: 'iron-cap' } }
+		};
+		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'close' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Equipped Iron Cap', dialogue: null })
+		);
+	});
+
+	it('equips a gear pickup and names it immediately in the field status', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			buildSaveState: () => {
+				flags: { collectedPickups: string[] };
+			};
+		};
+
+		scene.create({ mapId: 'ruins-threshold' });
+		const marker = phaserState.imageMarkers.find(
+			(imageMarker) => imageMarker.x === 1_728 && imageMarker.y === 2_112
+		)!;
+		Object.assign(phaserState.playerMarker, { x: 1_728, y: 2_112 });
+
+		scene.update(0, 16);
+
+		expect(sceneState.buildSaveState().flags.collectedPickups).toContain('ruins-threshold-cap');
+		expect(marker.setVisible).toHaveBeenCalledWith(false);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				status: 'Equipped Iron Cap',
+				inventory: expect.objectContaining({
+					equipped: expect.objectContaining({ head: 'iron-cap' })
+				})
+			})
+		);
+	});
+
+	it('carries the flushed equip status through a story-gate restart', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: { canClose: boolean } | null;
+			storyRefreshPending: boolean;
+			storyGateKey: string;
+		};
+
+		scene.create({ mapId: 'hero-house' });
+		Object.assign(phaserState.playerMarker, mottApproach);
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+		for (let advance = 0; advance < 10 && sceneState.dialogueSession; advance += 1) {
+			sceneState.handleHudCommand({ type: 'dialogue-advance' });
+		}
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Equipped Ancestral Amulet' })
+		);
+
+		// A story-gate refresh right after the reward lands must not erase the
+		// just-published status: the restart carries the same descriptor.
+		sceneState.storyGateKey = 'stale';
+		scene.update(32, 16);
+
+		expect(scene.scene.restart).toHaveBeenCalledWith(
+			expect.objectContaining({
+				reason: 'story',
+				status: {
+					key: 'status.equippedItem',
+					params: { itemName: { itemId: 'ancestral-amulet' } }
+				}
+			})
+		);
+
+		const restartPayload = vi.mocked(scene.scene.restart).mock.calls.at(-1)?.[0] as
+			| Parameters<InstanceType<typeof WorldScene>['create']>[0]
+			| undefined;
+		expect(restartPayload).toBeDefined();
+		const recreated = new WorldScene();
+		recreated.create(restartPayload);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Equipped Ancestral Amulet', dialogue: null })
+		);
+	});
+
+	it('leaves the field status clear when a dialogue reward grants only consumables', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: { canClose: boolean } | null;
+		};
+		const save = createNewSaveState();
+
+		scene.create({
+			saveState: {
+				...save,
+				mapId: 'item-shop',
+				player: { ...save.player, x: 416, y: 320, facing: 'up' },
+				quests: questStateAt('collect-herb-pouch')
+			}
+		});
+		Object.assign(phaserState.playerMarker, { x: 416, y: 320 });
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+		await flushStoryDialogue();
+
+		expect(sceneState.dialogueSession?.canClose).toBe(false);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				dialogue: expect.objectContaining({ npcId: 'mira', speaker: 'Mira' }),
+				inventory: expect.objectContaining({
+					consumables: expect.arrayContaining([
+						expect.objectContaining({ itemId: 'field-potion', quantity: 3 })
+					])
+				})
+			})
+		);
+
+		for (let advance = 0; advance < 10 && sceneState.dialogueSession; advance += 1) {
+			sceneState.handleHudCommand({ type: 'dialogue-advance' });
+		}
+
+		expect(sceneState.dialogueSession).toBeNull();
+		expect(emitHudStateSpy).not.toHaveBeenCalledWith(
+			expect.objectContaining({ status: expect.stringContaining('Equipped') })
+		);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: '', dialogue: null })
+		);
+	});
+
 	it('publishes the initial HUD state with English runtime text by default', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
@@ -12564,6 +12862,7 @@ describe('WorldScene', () => {
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({
+				status: 'Equipped Stone Mail',
 				attack: 5,
 				defense: 1,
 				maxHp: 26,

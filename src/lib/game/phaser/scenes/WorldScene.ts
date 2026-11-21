@@ -99,7 +99,7 @@ import {
 	PLAYER_COLLISION_RADIUS,
 	STARTER_NPC_COLLISION_RADIUS
 } from '$lib/game/core/collision';
-import { equipItem, unequipSlot } from '$lib/game/core/equipment';
+import { equipItem, grantItems, unequipSlot } from '$lib/game/core/equipment';
 import { heroScreenPosition, isHeroInHeroCardZone } from '$lib/game/core/hud-occlusion';
 import { selectNearbyCandidate } from '$lib/game/core/interaction';
 import { resolveMovementVector } from '$lib/game/core/input';
@@ -483,6 +483,9 @@ export class WorldScene extends Phaser.Scene {
 	private mapExploration: MapExplorationState = createEmptyMapExploration();
 	private mapId = openingMapId;
 	private lastPublishedStatus: WorldSceneStatus | null = null;
+	/** A named reward status held while a dialogue hides FieldHud;
+	 *  {@link endDialogue} flushes it once, when the field is visible again. */
+	private pendingFieldStatus: WorldSceneStatus | null = null;
 	private currentNearbyNpcId: string | null = null;
 	private currentNearbyNpcStatus: WorldSceneStatus | null = null;
 	private npcMarkers = new Map<string, NpcMarker>();
@@ -662,6 +665,7 @@ export class WorldScene extends Phaser.Scene {
 		this.nearbyShopId = null;
 		this.openShopId = null;
 		this.dialogueSession = null;
+		this.pendingFieldStatus = null;
 		this.npcMarkers.clear();
 		this.pickupMarkers.clear();
 		this.discoveryMarkers.clear();
@@ -1172,7 +1176,7 @@ export class WorldScene extends Phaser.Scene {
 			...this.playerProgress,
 			hp: clampHpToMax(this.playerProgress.hp, this.getEffectiveStats())
 		};
-		this.publishHudState(this.statusMessage('status.equippedItem'));
+		this.publishHudState(this.statusMessage('status.equippedItem', { itemName: { itemId } }));
 	}
 
 	private unequipInventorySlot(slot: EquipmentSlot) {
@@ -1197,6 +1201,9 @@ export class WorldScene extends Phaser.Scene {
 		this.storyDialogueSeq++;
 		this.openShopId = shopId;
 		this.dialogueSession = null;
+		// A shop intent supersedes the session without a field-visible close:
+		// drop any held status with it (unreachable for Oren's linear award).
+		this.pendingFieldStatus = null;
 		this.publishHudState(this.statusMessage('status.shopOpened'));
 		return true;
 	}
@@ -1268,7 +1275,7 @@ export class WorldScene extends Phaser.Scene {
 		const result = applyQuestEvent({ state: this.quests, event });
 		const advanced = questEventAdvanced(result);
 		this.quests = result.state;
-		this.applyQuestRewards(result.rewards);
+		const equippedStatus = this.applyQuestRewards(result.rewards);
 		this.storyRefreshPending = true;
 		onEvaluated?.(advanced);
 
@@ -1278,6 +1285,11 @@ export class WorldScene extends Phaser.Scene {
 		if (completedGrant) {
 			playSfx(this, 'quest-complete');
 		}
+		if (equippedStatus && this.dialogueSession) {
+			// FieldHud is unmounted while the dialogue is up: hold the named
+			// status for endDialogue so the close publish cannot erase it unseen.
+			this.pendingFieldStatus = equippedStatus;
+		}
 		this.publishHudState(
 			completedGrant
 				? this.statusMessage('status.questComplete', {
@@ -1286,13 +1298,19 @@ export class WorldScene extends Phaser.Scene {
 							fallback: completedGrant.title
 						}
 					})
-				: fallbackStatus
+				: this.dialogueSession
+					? fallbackStatus
+					: (equippedStatus ?? fallbackStatus)
 		);
 
 		return advanced;
 	}
 
-	private applyQuestRewards(rewards: QuestRewardGrant[]) {
+	/** Grants reward items through the shared auto-equip policy and returns
+	 *  the named status for the last auto-equipped item, if any. */
+	private applyQuestRewards(rewards: QuestRewardGrant[]): WorldSceneStatus | null {
+		const items = rewards.flatMap((grant) => grant.reward.items ?? []);
+
 		for (const grant of rewards) {
 			if (grant.reward.xp) {
 				this.playerProgress = applyExperienceGain(this.playerProgress, grant.reward.xp);
@@ -1301,11 +1319,16 @@ export class WorldScene extends Phaser.Scene {
 			if (grant.reward.coins) {
 				this.wallet = { coins: this.wallet.coins + grant.reward.coins };
 			}
-
-			for (const item of grant.reward.items ?? []) {
-				this.inventory = addItem(this.inventory, item.itemId, item.quantity);
-			}
 		}
+
+		const granted = grantItems({ inventory: this.inventory, equipment: this.equipment }, items);
+		this.inventory = granted.inventory;
+		this.equipment = granted.equipment;
+		const equippedItemId = granted.equipped.at(-1);
+
+		return equippedItemId === undefined
+			? null
+			: this.statusMessage('status.equippedItem', { itemName: { itemId: equippedItemId } });
 	}
 
 	private formatBuyFailure(reason: ShopBuyFailureReason): WorldSceneStatus {
@@ -1423,9 +1446,7 @@ export class WorldScene extends Phaser.Scene {
 				if (this.dialogueSession && !this.dialogueSession.canClose) {
 					return;
 				}
-				this.storyDialogueSeq++;
-				this.dialogueSession = null;
-				this.publishHudState(null);
+				this.endDialogue();
 				return;
 			case 'dialogue-choose':
 				this.chooseDialogueCommand(command.choiceId);
@@ -1440,8 +1461,7 @@ export class WorldScene extends Phaser.Scene {
 		}
 
 		if (session.lineIndex + 1 >= session.lineCount && session.choices.length === 0) {
-			this.dialogueSession = null;
-			this.publishHudState(null);
+			this.endDialogue();
 			return;
 		}
 
@@ -1485,10 +1505,20 @@ export class WorldScene extends Phaser.Scene {
 				this.openNearbyShop(intent.shopId);
 				return;
 			case 'close':
-				this.dialogueSession = null;
-				this.publishHudState(null);
+				this.endDialogue();
 				return;
 		}
+	}
+
+	/** Ends the open dialogue and flushes any held reward status exactly
+	 *  once, so it lands where the player can see it — after the dialogue is
+	 *  gone and FieldHud is mounted again. */
+	private endDialogue() {
+		this.storyDialogueSeq++;
+		this.dialogueSession = null;
+		const pending = this.pendingFieldStatus;
+		this.pendingFieldStatus = null;
+		this.publishHudState(pending);
 	}
 
 	private updateHeroOcclusion(publish = true) {
@@ -3833,10 +3863,15 @@ export class WorldScene extends Phaser.Scene {
 				continue;
 			}
 
-			this.inventory = addItem(this.inventory, pickup.itemId, pickup.quantity);
+			const granted = grantItems({ inventory: this.inventory, equipment: this.equipment }, [
+				{ itemId: pickup.itemId, quantity: pickup.quantity }
+			]);
+			this.inventory = granted.inventory;
+			this.equipment = granted.equipment;
 			this.collectedPickupIds.add(pickup.id);
 			playSfx(this, 'pickup');
 			this.pickupMarkers.get(pickup.id)?.setVisible(false);
+			const equippedItemId = granted.equipped.at(-1);
 			this.applyQuestProgress(
 				{
 					type: 'collect-item',
@@ -3845,9 +3880,13 @@ export class WorldScene extends Phaser.Scene {
 					itemId: pickup.itemId,
 					quantity: pickup.quantity
 				},
-				this.statusMessage('status.foundItem', {
-					itemName: { itemId: pickup.itemId }
-				})
+				equippedItemId !== undefined && !this.dialogueSession
+					? this.statusMessage('status.equippedItem', {
+							itemName: { itemId: equippedItemId }
+						})
+					: this.statusMessage('status.foundItem', {
+							itemName: { itemId: pickup.itemId }
+						})
 			);
 			// Pickup is a durable point: persist after the collect-item quest event
 			// so quest progress and rewards land in the same autosave.
