@@ -63,7 +63,7 @@ A practice spear. Ash shaft, iron head, balanced for a short arm. No offence.
 
 [Grik] Some offence.
 
-Ha! Grow into it. Open your pack and equip it before you leave. A spear in a bag has never killed anything.
+Ha! Grow into it. Keep it ready when you leave. A spear in a bag has never killed anything.
 
 If you come home with coin, come back. I keep better steel for real hunters.
 
