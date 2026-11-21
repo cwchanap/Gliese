@@ -1,0 +1,30 @@
+targetId=BF79F132AF6E941C63794C41891CF665
+pageId=2
+timeOrigin=1795300938988.2
+ts=2026-11-21T22:42:41.769Z
+candidates=[{"pageId":1,"origin":1795296681036.9,"targetId":"9EDBCF9E4D5D87C2EFCE1B19CFECB5FD"},{"pageId":2,"origin":1795300938988.2,"targetId":"BF79F132AF6E941C63794C41891CF665"}]
+
+## Latest page snapshot
+uid=3_0 RootWebArea "Gliese" url="http://127.0.0.1:4173/"
+  uid=3_1 generic
+  uid=8_0 button "MENU" expandable keyshortcuts="Escape"
+  uid=8_1 region "Player status"
+    uid=8_2 "LV 1"
+    uid=8_3 "Grik"
+    uid=8_4 "HP"
+    uid=8_5 "20/22"
+    uid=8_6 "XP"
+    uid=8_7 "0/5"
+    uid=8_8 " ATK "
+    uid=8_9 "3"
+    uid=8_10 " DEF "
+    uid=8_11 "1"
+  uid=8_12 region "Area Map"
+    uid=8_13 "Grik's House"
+  uid=8_14 complementary "Quest tracker"
+    uid=8_15 "✦ MAIN QUEST"
+    uid=8_16 heading "The Proving Morning" level="2"
+    uid=8_17 "Collect the practice spear from Oren at the forge."
+  uid=8_18 "20G"
+  uid=8_19 status "Field status" atomic live="polite" relevant="additions text"
+    uid=8_20 "Equipped Ancestral Amulet"
