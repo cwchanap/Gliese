@@ -103,8 +103,7 @@ import { equipItem, grantItems, unequipSlot } from '$lib/game/core/equipment';
 import { heroScreenPosition, isHeroInHeroCardZone } from '$lib/game/core/hud-occlusion';
 import { selectNearbyCandidate } from '$lib/game/core/interaction';
 import { resolveMovementVector } from '$lib/game/core/input';
-import { addItem, consumeStackItem } from '$lib/game/core/inventory';
-import { resolveLootDrops } from '$lib/game/core/loot';
+import { consumeStackItem } from '$lib/game/core/inventory';
 import {
 	entersUnrelatedDoorZone,
 	isInTransitionZone,
@@ -3330,17 +3329,6 @@ export class WorldScene extends Phaser.Scene {
 		if (reason === 'transition' || reason === 'story-move')
 			return this.statusMessage('status.enteredArea');
 		return this.statusMessage('status.newRun');
-	}
-
-	private awardEncounterDrops(enemy: EnemyInstance) {
-		const encounterId = enemy.id;
-		const drops =
-			this.resolvedEncounterDrops[encounterId] ?? resolveLootDrops(enemy.definition.loot);
-		this.resolvedEncounterDrops = { ...this.resolvedEncounterDrops, [encounterId]: drops };
-
-		for (const drop of drops) {
-			this.inventory = addItem(this.inventory, drop.itemId, drop.quantity);
-		}
 	}
 
 	private tryTransition() {

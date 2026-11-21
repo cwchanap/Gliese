@@ -1,7 +1,7 @@
 import { enemies, type EnemyCombatDefinition } from '$lib/game/content/enemies';
 import { shrineOfAuroraInteriorMap } from '$lib/game/content/maps';
 import { resolveHit } from '$lib/game/core/combat';
-import { addItem } from '$lib/game/core/inventory';
+import { grantItems } from '$lib/game/core/equipment';
 import type { ItemDrop } from '$lib/game/core/loot';
 import { applyExperienceGain } from '$lib/game/core/progression';
 import {
@@ -176,11 +176,6 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 	const coinsGained = defeatedUnits.reduce((total, unit) => total + unit.coinReward, 0);
 	const drops = groupBattleDrops(defeatedUnits.flatMap((unit) => unit.drops));
 	const previousLevel = saveState.player.level;
-	let inventory = result.inventory;
-
-	for (const drop of drops) {
-		inventory = addItem(inventory, drop.itemId, drop.quantity);
-	}
 
 	let progression = applyExperienceGain(
 		{
@@ -217,11 +212,20 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 		if (grant.reward.xp) {
 			progression = applyExperienceGain(progression, grant.reward.xp);
 		}
-
-		for (const item of grant.reward.items ?? []) {
-			inventory = addItem(inventory, item.itemId, item.quantity);
-		}
 	}
+
+	const questRewardItems = questRewards.flatMap((grant) =>
+		(grant.reward.items ?? []).map((item) => ({
+			itemId: item.itemId,
+			quantity: item.quantity
+		}))
+	);
+	// Victory loot and quest reward items follow the same non-shop grant
+	// policy as field rewards: new gear may auto-equip, replaced gear stays owned.
+	const granted = grantItems({ inventory: result.inventory, equipment: saveState.equipment }, [
+		...drops,
+		...questRewardItems
+	]);
 
 	const nextSaveState: SaveState = {
 		...saveState,
@@ -249,7 +253,8 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 				[result.sourceEncounterId]: drops
 			}
 		},
-		inventory,
+		inventory: granted.inventory,
+		equipment: granted.equipment,
 		wallet: {
 			coins:
 				saveState.wallet.coins +
@@ -263,12 +268,6 @@ function applyBattleVictory(saveState: SaveState, result: BattleResult): BattleA
 	const questRewardCoins = questRewards.reduce(
 		(total, grant) => total + (grant.reward.coins ?? 0),
 		0
-	);
-	const questRewardItems = questRewards.flatMap((grant) =>
-		(grant.reward.items ?? []).map((item) => ({
-			itemId: item.itemId,
-			quantity: item.quantity
-		}))
 	);
 	const combinedDrops = groupBattleDrops([...drops, ...questRewardItems]);
 
@@ -339,10 +338,6 @@ function normalizeBattleEnemyCount(count: number): number {
  * scripted loss completes.
  */
 function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleApplication {
-	const fullHp = deriveEffectiveStats(
-		getHeroBaseStats(saveState.player),
-		saveState.equipment
-	).maxHp;
 	const shrine = shrineOfAuroraInteriorMap;
 	const questResult = applyQuestEvent({
 		state: saveState.quests,
@@ -357,10 +352,13 @@ function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleAp
 		...shrine.spawn,
 		facing: shrine.spawnDirection
 	};
-	let inventory = result.inventory;
-	for (const item of questResult.rewards.flatMap((grant) => grant.reward.items ?? [])) {
-		inventory = addItem(inventory, item.itemId, item.quantity);
-	}
+	// Scripted-loss reward items follow the same non-shop grant policy: new
+	// gear may auto-equip, so the wake-up restore reads the post-grant loadout.
+	const granted = grantItems(
+		{ inventory: result.inventory, equipment: saveState.equipment },
+		questResult.rewards.flatMap((grant) => grant.reward.items ?? [])
+	);
+	const fullHp = deriveEffectiveStats(getHeroBaseStats(saveState.player), granted.equipment).maxHp;
 
 	return {
 		saveState: {
@@ -373,7 +371,8 @@ function applyBattleDefeat(saveState: SaveState, result: BattleResult): BattleAp
 				y: wake.y,
 				facing: wake.facing
 			},
-			inventory,
+			inventory: granted.inventory,
+			equipment: granted.equipment,
 			quests: questResult.state
 		},
 		completedQuestIds: questResult.completedQuestIds,
