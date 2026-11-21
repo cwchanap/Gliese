@@ -2,7 +2,8 @@
 
 **Linear:** https://linear.app/cwchanap/issue/HPA-839/equip-story-gear-automatically-and-fix-the-herb-shops-prices-and  
 **Base inspected:** Gliese `main` at `ea5d5407a0b9bb777a0d1316537fd5cd3578d3b5` (2026-11-20 Pacific). Recheck before implementation.  
-**Delivery:** Exactly one PR for design, implementation, tests and MCP acceptance; this first commit adds documents only.  
+**Delivery:** Exactly one PR for design, implementation, tests and MCP acceptance; documentation-only until implementation is added to this same draft.  
+**Review reconciliation:** [PR #69 design review](https://github.com/cwchanap/Gliese/pull/69#pullrequestreview-6003780489) (2026-11-21). Accepted the dialogue-visibility fix, batched helper, existing i18n/test reuse, and reduced redundant checks. Retained the issue's explicit empty-slot rule; also cover Oren's *Shop* dialogue exit.
 **Visual source:** HPA-839 has UAT screenshots showing the *failure*, not an approved target mockup. Compare new 1280×720 and 640×360 screenshots against the working Shop layout and the reported failure; do not invent a new UI design.
 
 ## Problem and expected player experience
@@ -25,35 +26,32 @@ The visible reward status must identify the newly equipped item in en/ja/zh-Hant
 
 ## Design decision 1 — One small, pure non-shop grant path
 
-Add a pure, directly testable helper to the existing core equipment/inventory area, e.g. `grantNonShopItem({inventory,equipment,itemId,quantity})`. It reuses `addItem` and existing equipment/stat helpers; returns the updated inventory, updated equipment, and the auto-equipped item ID when something was actually equipped. Do not add a generic reward event bus, new persistence fields, equipment tiers, an item-acquisition service, or a new UI command.
+Add one pure `grantItems({ inventory, equipment }, items)` helper alongside the existing core equipment code. Input items use `{ itemId, quantity }`; output is `{ inventory, equipment, equipped: string[] }`, ordered by actual equips, so the field message may name the last equipped item. Compose `addItem`, `equipItem`, and `previewEquipmentSwap` with a constant zeroed base (only additive gear modifiers are compared). No event bus, new persistence fields, per-source helper copy, rewards service or HUD command.
 
-Auto-equip rules, in order:
+Rules (preserve the Linear ticket's explicit empty-slot behavior):
 
-1. An invalid item/quantity or unchanged equipment ownership results in no auto-equip action.
-2. Consumable and key item grants never modify worn slots.
-3. For a genuinely newly owned equipment ID: if its slot is empty, equip it.
-4. If its slot is occupied, preview replacing the old item using existing effective-stat calculation. Equip **only when** new ATK, DEF and max HP are each >= the old values, **and at least one is strictly greater**. Ties and mixed trade-offs are not upgrades. Do not compare base price or item rarity.
-5. Replaced gear stays in `inventory.equipment`; the save's worn slot points to the replacement. A returned `autoEquippedItemId` is a lightweight status cue, not a persisted event queue.
-6. Never auto-equip from `buyOpenShopItem` / `core/shop.buyShopItem`. Preserve the current equipment-swap preview and manual action for purchases. Manual `equipItem` remains user-controlled even when the replacement is a statistical sidegrade.
+1. Invalid item/quantity or equipment already owned: do not trigger an auto-equip. Non-equipment grants only change inventory.
+2. For a **newly owned** equipment ID, an **empty slot always equips**. The review proposed treating empty as zero modifiers in the strict-upgrade test; that would reject a legitimate zero-stat starter item and is not equivalent to the ticket. Do not change the requirement in anticipation of hypothetical negative-stat gear.
+3. For an occupied slot, preview the swap and equip only when the new loadout's ATK, DEF, and max HP are each >= their previous values and at least one is strictly greater. Ties and stat trade-offs do not auto-replace. Do not use price/rarity to rank.
+4. Replaced equipment stays owned in `inventory.equipment`; the returned worn slot changes. Ordinary shop purchases remain manual (`WorldScene.buyOpenShopItem` and `core/shop.buyShopItem` unchanged), and existing manual `equipItem` keeps its sidegrade-permitted policy.
 
-Use the helper in all **active** non-shop acquisition paths:
+Use this shared helper for **active non-shop** item grants in `WorldScene.applyQuestRewards` and `tryCollectPickup`, plus battle victory drops/quest rewards and scripted defeat rewards in `core/battle.ts`. The old `WorldScene.awardEncounterDrops` method is unused; remove it and its now-unused imports instead of mistakenly wiring the inactive path. Today no battle enemy drops gear and no battle objective awards it, but one pure `battle.test.ts` fixture with an equipment drop proves future grants share the rule. There is **no new battle-result equipped-status policy or test**; the existing battle summary displays drop items.
 
-- `WorldScene.applyQuestRewards`: quests awarded while talking, inspecting, or collecting.
-- `WorldScene.tryCollectPickup`: direct map/story pickups.
-- `core/battle.ts`: victorious drops and quest rewards, plus scripted-defeat quest rewards. Keep the helper pure so the save-state transformation can use it without importing Phaser.
-- Any existing active non-shop drop path discovered during implementation; avoid modifying unused methods as a workaround.
+Keep the save schema and autosave/checkpoint timing. Do **not** auto-equip all unworn items on Continue/load; intentional manual choices must survive. Dominant swaps do not lower max HP, so no additional HP-clamp step is needed. Verify that growing the max HP does **not** refill current HP.
 
-Keep the current save schema and autosave/checkpoint timing. New rewards are equipped when received; **do not** retroactively auto-equip every unworn item on Continue/load, which would override an intentional manual choice. Clamp HP if needed against updated max HP; an increased HP ceiling must not silently refill HP.
+### Visible status after dialogue (main review defect)
 
-### Status precedence
+The three story equipment grants are **talk-to-NPC objectives**. `startNearbyNpcStoryDialogue` sets `dialogueSession` *before* `applyQuestProgress`, and `GameShell` unmounts `FieldHud` while a dialogue is open. Simply putting `status.equippedItem` into `HudState.status` at reward time is invisible; dialogue advance and close overwrite/clear it. **Testing only the HUD state would be a false positive.**
 
-`WorldScene.applyQuestProgress` currently publishes the quest-complete/fallback status immediately after granting items. Return the auto-equipped ID from the grant step and publish one named `status.autoEquippedItem` when an auto-equip happens, rather than publishing a transient line that gets immediately overwritten by quest completion. The quest journal and scripted dialogue remain the source of quest-completion feedback. Use existing item-name parameter resolution, so names remain localized after locale changes.
+Reuse and parameterize the existing `status.equippedItem` key (`Equipped {{itemName}}`) and manual-equip publisher instead of creating `status.autoEquippedItem`. Keep item ID params so names are resolved in the active en/ja/zh-Hant locale.
 
-For battle-applied grants, surface the named result on return to the field / after the existing battle summary without replacing the summary or adding a second overlay. If the reward is granted alongside a higher-priority terminal story cue, preserve that story cue and expose equipped state through HUD/Gear; document this priority and test it.
+Store at most one `pendingFieldStatus: WorldSceneStatus | null` when an NPC dialogue grants an equipped item. Introduce one `endDialogue()` path for explicit dialogue close, last-line advance, and the choice `close` intent; after unmounting the dialogue, publish the pending named status and clear it. **Oren's NPC dialogue also has a `shop` choice** (`story/beats/prologue/village.md`): successful shop opening must preserve the pending message, then the shop close path publishes it once the field is visible. A direct pickup with no dialogue publishes immediately. Preserve existing error/quest-completion notices when no item was equipped. Do not turn this into a notification queue or add timers.
+
+Acceptance must assert the **rendered `.heroic-field-status` text in the live page once the dialogue (or Oren's shop) closes**, rather than inspecting a hidden `HudState.status`. Recheck story-gate restart behavior so the status is not immediately cleared before the rendered assertion.
 
 ## Design decision 2 — One price source, no shop balancing system
 
-- Change only `sunleaf-salve.basePrice` from 12 to 6 in `content/items.ts`; healing stays 6 HP. The shop already uses the default price; `getSellValue` continues deriving 3 coins.
+- Change only `sunleaf-salve.basePrice` from 12 to 6 in `content/items.ts`; healing stays 6 HP. The shop already uses the default price; `getSellValue` continues deriving 3 coins. Update the existing `expectedBasePrices` table in `content/items.test.ts` (12 → 6), rather than duplicating those checks in `shop.test.ts`.
 - Keep Field Potion 10 coins/8 HP and Greater Field Potion 18 coins/14 HP. No stock changes or per-shop overrides. The salve becomes the least expensive recovery and best HP/coin in Mira's three-item lineup (6/6=1.0, 8/10=0.8, 14/18≈0.78).
 
 ## Design decision 3 — Place tooltips in the stock column, away from Buy
@@ -61,6 +59,10 @@ For battle-applied grants, surface the named result on return to the field / aft
 Keep the existing tooltip text, triggers, focus behavior and `pointer-events:none`. Move the tooltip render placement into the existing stock/main column and position it relative to `.shop-main` (not `.shop-screen`), constrained to that column's bounds. It should open toward the stock/left side, **opposite the detail column's Buy button**. Clamp tooltip width and wrap text within the container; retain the current three-column short-landscape and stacked portrait layouts. Do not add a floating-position library, document-level portal, JS mouse tracking, or new breakpoints unless a measured regression proves necessary.
 
 Because `.shop-main` and `.shop-detail` are distinct layout regions, the tooltip's actual bounding rectangle must not overlap the Buy action. In compact layouts, allow the tooltip to sit over stock content while never blocking pointer activation (existing `pointer-events:none`). In stacked layouts, keep it inside the stock panel, above the detail action. Confirm with measured DOM rectangles, not merely `pointer-events:none`.
+
+## Primary risk and test evidence
+
+The primary risk is **invisible success**: a reward is equipped in the save/HUD but the player never sees its named status because the dialogue masks it. The new E2E must check **visible FieldHud after the actual dialogue or shop closes**. Missing Git LFS art is a separate infrastructure limitation: if it prevents running real-game MCP acceptance, leave that criterion unresolved rather than replacing it with mocked tests.
 
 ## Out of scope / linked tickets
 
@@ -71,14 +73,12 @@ Because `.shop-main` and `.shop-detail` are distinct layout regions, the tooltip
 
 ## Acceptance contract (automated, end to end)
 
-Implementation is done only when all of the following are evidenced in this *same PR*:
+All checks belong to **this same PR**. Implementation and test execution have **not** happened in this documentation-only revision.
 
-1. **New Run story path, via MCP-driven browser E2E:** Receive amulet from Old Mott and spear from Oren; without opening Gear, the first wolf encounter starts at **ATK 4 / DEF 1** (base ATK 3 / DEF 0). Check both worn IDs and localized named status at the award events.
-2. **Boar King reporting path, via MCP-driven browser E2E:** After reporting to Borak, Hunter's Knife is worn, Practice Spear remains owned but unworn, and both persist across Save/Continue. A checkpoint fixture is acceptable for the long journey only if the test actually performs the reward interaction in the running game.
-3. **Acquisition boundary:** unit tests cover empty slots, strict upgrades, ties, mixed stat trade-offs, invalid/duplicate items, pickups, drops, scripted battle rewards, save/return and manual shop purchases remaining unworn. No retroactive equip on Continue.
-4. **Shop pricing, via live-game E2E:** Mira displays Sunleaf Salve at **6 coins**; purchasing deducts 6 and adds a 6-HP consumable; selling yields **3**. Field and Greater potions remain 10/18 respectively.
-5. **Shop visual/interaction, via MCP-driven browser E2E:** At **1280×720 and 640×360** (English and localized spot checks), hovering/focusing each Buy/Sell stock item shows a tooltip inside the shop frame, no intersection with the visible Buy/Sell action, and action remains hit-testable, clickable and successful. Include **screenshots at both sizes**, review layout against the Linear failure screenshot / current Shop design, verify no clipped text, inaccessible Buy, or misplaced overlay. There is no approved target mockup.
-6. **Localized strings:** en, ja and zh-Hant resolve every newly added status; no raw template keys/parameters appear.
-7. **Quality gates:** `bun run test:unit -- --run`, `bun run check`, `bun run lint`, `bun run build`, and focused Playwright all pass. Run the saved, deterministic E2E scenarios **through MCP** and attach reproducible screenshots/logs to this PR. A CLI-only pass is useful but is **not** MCP acceptance; Chromium web acceptance suffices because no platform-specific code changes.
+1. **New Run / Mott–Oren, via MCP-driven real browser E2E:** Extend `tests/e2e/game.e2e.ts`'s existing Oren walk (around line 13440). Receive the amulet and spear, exit both real dialogues, and assert the **visible** `.heroic-field-status` reads the localized equipped name after close (for Oren, also exercise *Shop → close*). Without opening Gear, the first wolf fight has ATK **4** and DEF **1**; worn IDs are `ancestral-amulet` and `practice-spear`. New max HP must not refill current HP.
+2. **Borak reporting, via MCP-driven real browser E2E:** Finish the in-game reward interaction (a late checkpoint fixture may shorten travel), verify the **rendered** post-dialogue Hunter's Knife message, knife worn, spear still owned and unworn, and correct state after Save/Continue. No auto-equip on old save load.
+3. **Pure equipment/battle regressions:** Extend `core/equipment.test.ts` for empty slots, strict improvements, ties, mixed trade-offs, duplicate/invalid, consumable/key, amulet → spear → knife, and retention in bag. Extend `core/battle.test.ts` once with a synthetic equipment drop; do not add a battle UI-status test for content that does not exist. Confirm shop purchases remain manual.
+4. **Mira economy + tooltip, one combined MCP E2E scenario:** At **1280×720 and 640×360**, read Salve price **6**, buy for 6 and verify wallet/inventory, heal **6**, sell for **3**, and confirm Field/Greater prices **10/18**. Hover/focus Buy/Sell tiles, measure no rectangle intersection with `.shop-detail-action`, and verify the action can really be clicked/activated. Use `ShopScreen.svelte.spec.ts`'s existing parametrized viewport test (around line 424) for reusable tooltip geometry checks. Capture screenshots at both sizes, compare with the Linear failure screenshot (no approved mockup), and check en/ja/zh-Hant wrapping/strings.
+5. **Quality and independence:** `bun run test:unit -- --run`, `bun run check`, `bun run lint`, `bun run build` pass. Execute persisted browser E2E using **MCP** (shared CDP where applicable), attach logs and screenshots. CLI-only tests and mocked component snapshots do not replace real-game MCP acceptance. Web/Chromium platform is sufficient; no platform-specific code in scope.
 
-If missing LFS assets prevent a real game E2E run, record that as an **unmet acceptance criterion** rather than silently substituting mocked component tests. HPA-694 remains a separate follow-up.
+Keep art/SFX (HPA-704), battle pacing (HPA-837), and Git LFS/CI cleanup (HPA-694) separate. One ticket → one PR.
