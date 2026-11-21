@@ -215,7 +215,7 @@ export const ja = {
 		strikeLanded: '攻撃が命中',
 		enemyDefeated: '敵を倒した',
 		itemCannotBeEquipped: '装備できません',
-		equippedItem: '装備した',
+		equippedItem: '{{itemName}}を装備した',
 		unequippedItem: '外した',
 		noShopNearby: '近くに店がありません',
 		shopOpened: '店を開いた',
