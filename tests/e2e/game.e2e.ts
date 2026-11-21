@@ -1,4 +1,4 @@
-import { chromium, expect, test, type Locator, type Page } from '@playwright/test';
+import { chromium, expect, test, type JSHandle, type Locator, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
@@ -53,7 +53,12 @@ type HudStateSnapshot = {
 	defense?: number;
 	areaMap?: { player?: { x?: number; y?: number } };
 	dialogue?: { id?: string; lineIndex?: number } | null;
-	battle?: unknown;
+	battle?: {
+		phase?: string;
+		active?: {
+			feed?: Array<{ id: number; kind: string; amount: number; subject: string }>;
+		} | null;
+	};
 	nearbyShop?: { shopId?: string; merchantName?: string } | null;
 	wallet?: { coins?: number };
 	quests?: { main?: { objectiveId?: string | null } | null; completed?: unknown[]; total?: number };
@@ -195,6 +200,7 @@ type GlieseProbeWindow = Window & {
 	__glieseRouteBlurAt?: number;
 	__glieseRouteFocusAt?: number;
 	__glieseJourneyTrace?: { x: number; y: number; mapId?: string }[];
+	__glieseBattleFeed?: { id: number; kind: string; amount: number; subject: string }[];
 	__glieseRouteRunner?: {
 		start: (plan: BrowserRoutePlan) => BrowserRouteResult;
 		get: (token: string) => BrowserRouteResult | null;
@@ -294,27 +300,36 @@ async function advanceConversationToEnd(page: Page) {
 }
 
 /**
- * HPA-839 acceptance captures, following the HPA-840 evidence convention:
- * screenshots land in the gitignored reports dir by default, or in the
- * plan-local scratch dir when HPA839_EVIDENCE_ROOT is set. Existing names are
- * never overwritten on a rooted (isolated) run.
+ * Evidence screenshot capture shared by ticket evidence packs (HPA-839/840):
+ * screenshots land in the caller's gitignored reports dir by default, or in an
+ * isolated scratch dir when an override root is set. Existing names are never
+ * overwritten on a rooted (isolated) run — 'wx' flags stale evidence.
  */
-function hpa839Evidence(override?: string) {
-	const root = resolve(override ?? 'docs/superpowers/reports/img/hpa-839-story-gear-shop');
-	let initialized = false;
-	return {
-		root,
-		async shot(page: Pick<Page, 'screenshot'>, name: string) {
-			if (!initialized) {
-				mkdirSync(root, { recursive: true });
-				initialized = true;
+function evidenceShots(defaultRoot: string) {
+	return (override?: string) => {
+		const root = resolve(override ?? defaultRoot);
+		let initialized = false;
+		return {
+			root,
+			async shot(page: Pick<Page, 'screenshot'>, name: string) {
+				if (!initialized) {
+					// recursive: a restarted Playwright worker gets a fresh helper
+					// over the same isolated root; the root may already exist.
+					// Overwrite safety lives at the file level ('wx' below), so
+					// new names always write while existing names refuse.
+					mkdirSync(root, { recursive: true });
+					initialized = true;
+				}
+				const path = resolve(root, name);
+				if (override !== undefined) writeFileSync(path, '', { flag: 'wx' });
+				await page.screenshot({ path });
 			}
-			const path = resolve(root, name);
-			if (override !== undefined) writeFileSync(path, '', { flag: 'wx' });
-			await page.screenshot({ path });
-		}
+		};
 	};
 }
+
+const hpa839Evidence = evidenceShots('docs/superpowers/reports/img/hpa-839-story-gear-shop');
+const hpa840Evidence = evidenceShots('docs/superpowers/reports/img/hpa-840-responsive');
 
 const hpa839Capture = hpa839Evidence(process.env.HPA839_EVIDENCE_ROOT);
 
@@ -12810,8 +12825,10 @@ test('HPA-839 Mira salve economy, potion prices, and tooltip clearance', async (
 		throw new Error('Mira dialogue never offered the Shop choice');
 	};
 
-	// Measures the rendered tooltip, the selected item's Buy/Sell action and
-	// the stock column, then hit-tests the action at its center point.
+	// Measures the rendered tooltip, the selected item's Buy/Sell action, the
+	// stock column and the dialog frame, then hit-tests the action's center.
+	// Text clipping is measured too: a control can sit fully on-screen while a
+	// localized label still overflows its box.
 	const measureShopLayout = () =>
 		page.evaluate(() => {
 			const rect = (selector: string) => {
@@ -12819,6 +12836,11 @@ test('HPA-839 Mira salve economy, potion prices, and tooltip clearance', async (
 				if (!el) return null;
 				const r = el.getBoundingClientRect();
 				return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+			};
+			const textOverflows = (selector: string) => {
+				const el = document.querySelector<HTMLElement>(selector);
+				if (!el) return null;
+				return el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
 			};
 			const actionEl = document.querySelector<HTMLElement>('.shop-detail-action');
 			let actionHit = false;
@@ -12831,7 +12853,11 @@ test('HPA-839 Mira salve economy, potion prices, and tooltip clearance', async (
 				tooltip: rect('.shop-tooltip'),
 				action: rect('.shop-detail-action'),
 				main: rect('.shop-main'),
+				dialog: rect('.shop-screen'),
 				actionHit,
+				actionTextOverflows: textOverflows('.shop-detail-action'),
+				detailNameOverflows: textOverflows('.shop-detail-name'),
+				tooltipNameOverflows: textOverflows('.shop-tooltip-name'),
 				viewport: { width: window.innerWidth, height: window.innerHeight }
 			};
 		});
@@ -12842,9 +12868,11 @@ test('HPA-839 Mira salve economy, potion prices, and tooltip clearance', async (
 		expect(m.tooltip, 'tooltip rendered').not.toBeNull();
 		expect(m.action, 'selected detail action rendered').not.toBeNull();
 		expect(m.main).not.toBeNull();
+		expect(m.dialog, 'shop dialog rendered').not.toBeNull();
 		const tooltip = m.tooltip!;
 		const action = m.action!;
 		const main = m.main!;
+		const dialog = m.dialog!;
 		// The tooltip is clamped inside the stock column and on-screen.
 		expect(tooltip.left).toBeGreaterThanOrEqual(main.left - 1);
 		expect(tooltip.right).toBeLessThanOrEqual(main.right + 1);
@@ -12862,6 +12890,77 @@ test('HPA-839 Mira salve economy, potion prices, and tooltip clearance', async (
 		);
 		expect(overlaps, 'tooltip must not cover the Buy/Sell action').toBe(false);
 		expect(m.actionHit, 'Buy/Sell action hit-testable').toBe(true);
+		// The action's complete bounds must sit inside the dialog and on-screen —
+		// a partially clipped/offscreen action passes a center-only hit test.
+		expect(action.left, 'action left edge inside dialog').toBeGreaterThanOrEqual(dialog.left - 1);
+		expect(action.right, 'action right edge inside dialog').toBeLessThanOrEqual(dialog.right + 1);
+		expect(action.top, 'action top edge inside dialog').toBeGreaterThanOrEqual(dialog.top - 1);
+		expect(action.bottom, 'action bottom edge inside dialog').toBeLessThanOrEqual(
+			dialog.bottom + 1
+		);
+		expect(action.left).toBeGreaterThanOrEqual(0);
+		expect(action.right).toBeLessThanOrEqual(m.viewport.width);
+		expect(action.top).toBeGreaterThanOrEqual(0);
+		expect(action.bottom).toBeLessThanOrEqual(m.viewport.height);
+		// Localized labels must not silently clip inside their boxes.
+		expect(m.actionTextOverflows, 'action label text clipped').toBe(false);
+		expect(m.detailNameOverflows, 'detail item name clipped').toBe(false);
+		expect(m.tooltipNameOverflows, 'tooltip item name clipped').toBe(false);
+	};
+
+	// Moves DOM focus through the shop dialog the way a real keyboard does:
+	// arrows rove the data-focus lattice (the pad path), while the Buy/Sell
+	// tab rail roves arrows between its tabs by design — Tab is the genuine
+	// keyboard exit off the rail into the stock panel. Bounded: a small
+	// dialog resolves in a dozen presses.
+	const focusedElement = () => page.evaluateHandle(() => document.activeElement);
+	const waitForFocusChange = (previous: JSHandle) =>
+		page
+			.waitForFunction((prev) => document.activeElement !== prev, previous, { timeout: 400 })
+			.catch(() => undefined);
+	const keyboardFocusTo = async (focusId: string) => {
+		for (let step = 0; step < 16; step += 1) {
+			const state = await page.evaluate((id) => {
+				const active = document.activeElement;
+				if (active?.getAttribute('data-focus-id') === id) return { done: true as const };
+				const axis = (el: Element | null, attr: string) =>
+					Number(el?.getAttribute(attr) ?? Number.NaN);
+				const target = document.querySelector(`[data-focus-id="${id}"]`);
+				return {
+					done: false as const,
+					activeId: active?.getAttribute('data-focus-id') ?? null,
+					activeInDialog: active?.closest('[role="dialog"]') !== null,
+					activeIsTab: active?.getAttribute('role') === 'tab',
+					targetIsTab: target?.getAttribute('role') === 'tab',
+					targetExists: target !== null,
+					dRow: axis(target, 'data-focus-row') - axis(active, 'data-focus-row'),
+					dCol: axis(target, 'data-focus-column') - axis(active, 'data-focus-column')
+				};
+			}, focusId);
+			if (state.done) return;
+			expect(state.targetExists, `focus target ${focusId} rendered`).toBe(true);
+			const previous = await focusedElement();
+			// Inside the dialog but off-lattice (rail Close) or on a tab whose
+			// target sits off the rail: Tab walks DOM order into the panel —
+			// an arrow would rove the rail or snap to the first lattice node.
+			const key =
+				(state.activeId === null && state.activeInDialog) ||
+				(state.activeIsTab && !state.targetIsTab)
+					? 'Tab'
+					: state.dRow !== 0
+						? state.dRow > 0
+							? 'ArrowDown'
+							: 'ArrowUp'
+						: state.dCol !== 0
+							? state.dCol > 0
+								? 'ArrowRight'
+								: 'ArrowLeft'
+							: 'ArrowDown';
+			await page.keyboard.press(key);
+			await waitForFocusChange(previous);
+			await previous.dispose();
+		}
+		throw new Error(`keyboard focus did not reach ${focusId}`);
 	};
 
 	// ---- Pass 1: full economy + geometry at 1280×720 (en) ----
@@ -12890,11 +12989,13 @@ test('HPA-839 Mira salve economy, potion prices, and tooltip clearance', async (
 	await expect(shop.locator('.shop-tooltip')).toBeVisible();
 	let layout = await measureShopLayout();
 	expectTooltipClear(layout);
+	await expectUnclipped(shop.locator('.shop-detail-action'));
 	await hpa839Shot(page, 'mira-shop-1280x720-en-tooltip.png');
 	await buyGrid.getByLabel(en.fieldPotionName, { exact: true }).focus();
 	await expect(shop.locator('.shop-tooltip')).toContainText(en.fieldPotionName);
 	layout = await measureShopLayout();
 	expectTooltipClear(layout);
+	await expectUnclipped(shop.locator('.shop-detail-action'));
 	// Clicking the action twice proves it is hit-testable both times; each
 	// salve costs exactly 6 coins.
 	await shop.locator('.shop-detail-action').click();
@@ -12935,6 +13036,7 @@ test('HPA-839 Mira salve economy, potion prices, and tooltip clearance', async (
 	await sellGrid.getByLabel(en.fieldPotionName, { exact: true }).hover();
 	layout = await measureShopLayout();
 	expectTooltipClear(layout);
+	await expectUnclipped(shop.locator('.shop-detail-action'));
 	await shop.locator('.shop-detail-action').click();
 	await expect(shop.getByLabel('Coins: 21')).toBeVisible();
 	expect(
@@ -12992,10 +13094,61 @@ test('HPA-839 Mira salve economy, potion prices, and tooltip clearance', async (
 		await expect(passShop.locator('.shop-tooltip')).toBeVisible();
 		layout = await measureShopLayout();
 		expectTooltipClear(layout);
+		await expectUnclipped(passShop.locator('.shop-detail-action'));
 		await hpa839Shot(page, `mira-shop-640x360-${locale}-tooltip.png`);
 		await passBuyGrid.getByLabel(copy.fieldPotionName, { exact: true }).focus();
 		layout = await measureShopLayout();
 		expectTooltipClear(layout);
+		await expectUnclipped(passShop.locator('.shop-detail-action'));
+		if (locale === 'en') {
+			// Compact keyboard economy: buy and sell at 640×360 entirely through
+			// the dialog's arrow/Enter lattice — never .focus()/.click() — with
+			// wallet + inventory assertions proving each activation landed.
+			const salveFocusId = await salveTile.getAttribute('data-focus-id');
+			expect(salveFocusId, 'salve tile carries a focus id').toBeTruthy();
+			await keyboardFocusTo(salveFocusId!);
+			await page.keyboard.press('Enter');
+			await expect(passShop.locator('.shop-detail-action')).toBeVisible();
+			await keyboardFocusTo('shop-detail-action');
+			await page.keyboard.press('Enter');
+			await expect(passShop.getByLabel('Coins: 24')).toBeVisible();
+			expect(
+				(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
+					?.quantity
+			).toBe(1);
+
+			// Compact Sell tab: arrow to the tab, Enter opens it, arrow to the
+			// salve sell tile and select it, then measure the sell layout with
+			// the tooltip shown by focusing a different sell tile.
+			await keyboardFocusTo('shop-tab-sell');
+			await page.keyboard.press('Enter');
+			const passSellGrid = passShop.getByTestId('shop-sell-grid');
+			await expect(passSellGrid).toBeVisible();
+			const salveSellTile = passSellGrid.getByLabel(copy.salveName, { exact: true });
+			const salveSellFocusId = await salveSellTile.getAttribute('data-focus-id');
+			expect(salveSellFocusId, 'salve sell tile carries a focus id').toBeTruthy();
+			await keyboardFocusTo(salveSellFocusId!);
+			await page.keyboard.press('Enter');
+			await expect(passShop.locator('.shop-detail-action')).toBeVisible();
+			const potionSellFocusId = await passSellGrid
+				.getByLabel(copy.fieldPotionName, { exact: true })
+				.getAttribute('data-focus-id');
+			expect(potionSellFocusId, 'potion sell tile carries a focus id').toBeTruthy();
+			await keyboardFocusTo(potionSellFocusId!);
+			await expect(passShop.locator('.shop-tooltip')).toBeVisible();
+			layout = await measureShopLayout();
+			expectTooltipClear(layout);
+			await expectUnclipped(passShop.locator('.shop-detail-action'));
+			await hpa839Shot(page, 'mira-shop-640x360-en-sell.png');
+			// Keyboard-activate the Sell action: +3 coins, salve count back to 0.
+			await keyboardFocusTo('shop-detail-action');
+			await page.keyboard.press('Enter');
+			await expect(passShop.getByLabel('Coins: 27')).toBeVisible();
+			expect(
+				(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
+					?.quantity ?? 0
+			).toBe(0);
+		}
 		await passShop.getByRole('button', { name: copy.closeName }).click();
 	}
 	await page.setViewportSize({ width: 1280, height: 720 });
@@ -13397,7 +13550,11 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 					return reached;
 				},
 				{ requested: stop, key, keyCode: key.toUpperCase().charCodeAt(0) },
-				{ timeout: timeoutMs }
+				// rAF polling starves under headless occlusion while the Phaser
+				// loop keeps stepping — interval polling keeps the key release
+				// inside the lane bands instead of overshooting into the walls
+				// the collision sim maps a few cells past each target.
+				{ timeout: timeoutMs, polling: 50 }
 			);
 		} catch (error) {
 			const hud = await readHud();
@@ -13581,6 +13738,13 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	expect(underHut?.y).toBeGreaterThanOrEqual(7_260);
 	expect(underHut?.y).toBeLessThanOrEqual(7_300);
 	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7260 });
+	// The shoulder band borders the jog-east corridor leg: a release that
+	// overshoots into y 7224–7231 still sits inside the authored corridor, so
+	// settling back to mid-band rescues the leg without weakening the assert.
+	const jogShoulderProbe = await readPosition();
+	if (jogShoulderProbe && jogShoulderProbe.y < 7_232) {
+		await holdUntil('s', { kind: 'axis', axis: 'y', direction: 'gte', value: 7248 });
+	}
 	const jogShoulder = await readPosition();
 	expect(jogShoulder?.x).toBeGreaterThanOrEqual(5_432);
 	expect(jogShoulder?.x).toBeLessThanOrEqual(5_472);
@@ -13896,9 +14060,9 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 		.evaluate((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim());
 	expect(heroStats).toContain('ATK 4');
 	expect(heroStats).toContain('DEF 1');
-	await expect(
-		page.getByTestId('hud-party-panel').locator('.hero-meter-value').first()
-	).toHaveText('20/22');
+	await expect(page.getByTestId('hud-party-panel').locator('.hero-meter-value').first()).toHaveText(
+		'20/22'
+	);
 });
 
 test('HPA-839 Oren reward equips the practice spear and shows it on the field HUD', async ({
@@ -13959,9 +14123,7 @@ test('HPA-839 Oren reward equips the practice spear and shows it on the field HU
 		seenLines.some((line) => /open your pack/i.test(line)),
 		'no line still asks the player to equip manually'
 	).toBe(false);
-	await expect
-		.poll(async () => (await readHud())?.dialogue ?? null)
-		.toBeNull();
+	await expect.poll(async () => (await readHud())?.dialogue ?? null).toBeNull();
 	// The spear auto-equips when the reward dialogue closes; the rendered
 	// FieldHud status shows the equipped name.
 	await expect(fieldStatus(page)).toHaveText('Equipped Practice Spear');
@@ -13982,9 +14144,81 @@ test('HPA-839 Oren reward equips the practice spear and shows it on the field HU
 		.evaluate((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim());
 	expect(heroStats).toContain('ATK 4');
 	expect(heroStats).toContain('DEF 1');
-	await expect(
-		page.getByTestId('hud-party-panel').locator('.hero-meter-value').first()
-	).toHaveText('20/22');
+	await expect(page.getByTestId('hud-party-panel').locator('.hero-meter-value').first()).toHaveText(
+		'20/22'
+	);
+});
+
+test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async ({ page }) => {
+	test.setTimeout(120_000);
+	// The wildwood mouth pack is the proving day's first wolf fight: seeded at
+	// report-to-borak with the spear and amulet already worn exactly as Oren's
+	// and Mott's auto-equip left them, three potions in the bag.
+	const pack = anchorPoint('wildwood-wolves-mouth');
+	const save = createSaveFixture({
+		mapId: 'overworld',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: pack.x, y: pack.y + 48, facing: 'up' },
+		inventory: {
+			stacks: [{ itemId: 'field-potion', quantity: 3 }],
+			equipment: ['ancestral-amulet', 'practice-spear']
+		},
+		equipment: {
+			weapon: 'practice-spear',
+			head: null,
+			body: null,
+			hands: null,
+			accessory: 'ancestral-amulet'
+		},
+		wallet: { coins: 0 },
+		quests: questStateAt('report-to-borak')
+	});
+	await seedSaveSlots(page, [{ state: save }]);
+	await installHudStateListener(page);
+	await page.addInitScript(() => {
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		);
+		// The HUD feed keeps only the last four entries; accumulate every
+		// battle event so a short fight still proves each hit/hurt amount.
+		const probeWindow = window as GlieseProbeWindow;
+		probeWindow.__glieseBattleFeed = [];
+		window.addEventListener('gliese:hud-state', (event) => {
+			const feed = (event as CustomEvent<HudStateSnapshot>).detail?.battle?.active?.feed ?? [];
+			for (const entry of feed) {
+				if (!probeWindow.__glieseBattleFeed?.some((seen) => seen.id === entry.id)) {
+					probeWindow.__glieseBattleFeed?.push(entry);
+				}
+			}
+		});
+	});
+	await continueFromTitle(page);
+	const readHud = () => readHudState(page);
+	// Spawning inside the pack's aggro radius opens the real battle scene.
+	const battle = page.getByRole('region', { name: 'Battle' });
+	await expect(battle).toBeVisible({ timeout: 15_000 });
+	await expect.poll(async () => (await readHud())?.battle?.phase).toBe('active');
+	// Equipped stats must be live inside the fight, not only on the field
+	// hero card: spear ATK 4 and amulet DEF 1 drive the numbers below.
+	expect((await readHud())?.attack).toBe(4);
+	expect((await readHud())?.defense).toBe(1);
+	// resolveHit has no variance: hero ATK 4 vs wolf DEF 0 lands 4 per hit;
+	// wolf ATK 3 vs hero DEF 1 bites for exactly 2.
+	const seenFeed = async () =>
+		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseBattleFeed ?? [])) ?? [];
+	await expect
+		.poll(
+			async () => (await seenFeed()).some((entry) => entry.kind === 'hit' && entry.amount === 4),
+			{ timeout: 20_000 }
+		)
+		.toBe(true);
+	await expect
+		.poll(
+			async () => (await seenFeed()).some((entry) => entry.kind === 'hurt' && entry.amount === 2),
+			{ timeout: 20_000 }
+		)
+		.toBe(true);
+	await hpa839Shot(page, 'first-wolves-battle.png');
 });
 
 test('HPA-839 reporting the Boar King equips the hunter knife and persists it', async ({
@@ -14033,9 +14267,7 @@ test('HPA-839 reporting the Boar King equips the hunter knife and persists it', 
 		seenLines.some((line) => /first I ever carried/i.test(line)),
 		'Borak knife handoff line rendered'
 	).toBe(true);
-	await expect
-		.poll(async () => (await readHud())?.dialogue ?? null)
-		.toBeNull();
+	await expect.poll(async () => (await readHud())?.dialogue ?? null).toBeNull();
 	// The +4 knife replaces the +1 spear automatically and the status pill
 	// shows the equipped name once the dialogue closes.
 	await expect(fieldStatus(page)).toHaveText("Equipped Hunter's Knife");
@@ -14086,9 +14318,7 @@ test('HPA-839 reporting the Boar King equips the hunter knife and persists it', 
 	const bagDialog = page.getByRole('dialog', { name: 'Inventory' });
 	await expect(bagDialog).toBeVisible();
 	await bagDialog.getByRole('button', { name: "Remove Hunter's Knife" }).click();
-	await expect
-		.poll(async () => (await readHud())?.inventory?.equipped?.weapon)
-		.toBeNull();
+	await expect.poll(async () => (await readHud())?.inventory?.equipped?.weapon).toBeNull();
 	await bagDialog.getByRole('button', { name: 'Close' }).click();
 	await page.keyboard.press('Escape');
 	await saveThroughSaveScreen(page, 1);
@@ -14098,9 +14328,7 @@ test('HPA-839 reporting the Boar King equips the hunter knife and persists it', 
 		expect.arrayContaining(['hunters-knife', 'practice-spear'])
 	);
 	await loadManualSlot();
-	await expect
-		.poll(async () => (await readHud())?.inventory?.equipped?.weapon)
-		.toBeNull();
+	await expect.poll(async () => (await readHud())?.inventory?.equipped?.weapon).toBeNull();
 	hud = await readHud();
 	expect(hud?.inventory?.equipment?.map((item) => item.itemId)).toEqual(
 		expect.arrayContaining(['hunters-knife', 'practice-spear'])
@@ -15648,28 +15876,8 @@ test('a seeded near-end saved run finishes the prologue and Continue restores th
 // ======================= HPA-840 Task 4: live resize integration gates =======
 // One checked-in gate per named scenario: real `?startMap=` interior boots (opening scene
 // dismissed), live setViewportSize resizes, camera bounds axes, movement, and
-// viewport screenshots for the evidence pack.
-
-function hpa840Evidence(override?: string) {
-	const root = resolve(override ?? 'docs/superpowers/reports/img/hpa-840-responsive');
-	let initialized = false;
-	return {
-		root,
-		async shot(page: Pick<Page, 'screenshot'>, name: string) {
-			if (!initialized) {
-				// recursive: a restarted Playwright worker gets a fresh helper over
-				// the same isolated root; the root may already exist. Overwrite
-				// safety lives at the file level ('wx' below), so new names always
-				// write while any previously written name still refuses.
-				mkdirSync(root, { recursive: true });
-				initialized = true;
-			}
-			const path = resolve(root, name);
-			if (override !== undefined) writeFileSync(path, '', { flag: 'wx' });
-			await page.screenshot({ path });
-		}
-	};
-}
+// viewport screenshots for the evidence pack. The capture factory is the
+// shared `evidenceShots` helper declared near the top of this file.
 
 test('evidence output defaults safely and rejects reused isolated paths', async ({
 	browserName
@@ -15684,6 +15892,10 @@ test('evidence output defaults safely and rejects reused isolated paths', async 
 	};
 	const defaults = hpa840Evidence();
 	expect(defaults.root).toBe(resolve('docs/superpowers/reports/img/hpa-840-responsive'));
+	// The shared factory supplies each task's own default root.
+	expect(hpa839Evidence().root).toBe(
+		resolve('docs/superpowers/reports/img/hpa-839-story-gear-shop')
+	);
 	await defaults.shot(page, 'unused-default.png');
 	mkdirSync(testInfo.outputDir, { recursive: true });
 	const root = testInfo.outputPath('isolated-evidence');
