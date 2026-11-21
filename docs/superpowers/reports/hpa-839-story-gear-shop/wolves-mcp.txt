@@ -1,0 +1,27 @@
+targetId=542DCC16513DDD7AB54372FC35489EDF
+pageId=3
+timeOrigin=1795298626380.1
+ts=2026-11-21T22:03:56.068Z
+candidates=[{"pageId":1,"origin":1795296681036.9,"targetId":"9EDBCF9E4D5D87C2EFCE1B19CFECB5FD"},{"pageId":3,"origin":1795298626380.1,"targetId":"542DCC16513DDD7AB54372FC35489EDF"}]
+
+## Latest page snapshot
+uid=17_0 RootWebArea "Gliese" url="http://127.0.0.1:4173/"
+  uid=17_1 generic
+  uid=17_2 region "Battle"
+    uid=17_3 "TURN"
+    uid=17_4 "AUTO"
+    uid=17_5 button "Forest Wolf 2/10" pressed
+    uid=17_6 button "Forest Wolf 10/10"
+    uid=17_7 log "Battle feed" live="polite" relevant="additions text"
+      uid=18_0 "−2 Grik hurt"
+      uid=18_1 "−4 Forest Wolf hit"
+      uid=18_2 "−4 Forest Wolf hit"
+    uid=17_8 "Grik"
+    uid=17_9 "4"
+    uid=17_10 "1"
+    uid=17_11 button "Heal"
+    uid=17_12 "3 charges"
+    uid=17_13 button "Item"
+    uid=17_14 "3 in bag"
+    uid=17_15 button "Flee"
+    uid=17_16 "2.4s"
