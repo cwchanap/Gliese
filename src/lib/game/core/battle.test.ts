@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { enemies } from '$lib/game/content/enemies';
 import { shrineOfAuroraInteriorMap } from '$lib/game/content/maps';
 import { anchorPoint } from '$lib/game/content/maps/overworld/world';
+import type { QuestReward } from '$lib/game/content/quests';
 import { applyExperienceGain } from '$lib/game/core/progression';
 import { createEmptyEquipment } from '$lib/game/core/equipment';
 import { deriveEffectiveStats, getHeroBaseStats } from '$lib/game/core/stats';
@@ -22,6 +23,31 @@ import {
 	rollBattleEnemyCount,
 	type BattleResult
 } from './battle';
+
+// No shipped lose-battle objective grants items yet, so one regression injects
+// a synthetic scripted reward into the real applyQuestEvent result through
+// this flag; every other test sees the unmodified delegate.
+const scriptedLoseBattleReward = vi.hoisted(() => ({
+	current: null as QuestReward | null
+}));
+
+vi.mock('$lib/game/core/quests', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('$lib/game/core/quests')>();
+	return {
+		...actual,
+		applyQuestEvent: (input: Parameters<typeof actual.applyQuestEvent>[0]) => {
+			const result = actual.applyQuestEvent(input);
+			if (scriptedLoseBattleReward.current && input.event.type === 'lose-battle') {
+				result.rewards.push({
+					questId: 'prologue-raid',
+					title: 'Synthetic scripted reward',
+					reward: scriptedLoseBattleReward.current
+				});
+			}
+			return result;
+		}
+	};
+});
 
 describe('battle contracts', () => {
 	it('rolls an inclusive 1 to 10 enemy count', () => {
@@ -234,6 +260,29 @@ describe('battle contracts', () => {
 
 		expect(again.saveState.quests.entries['prologue-raid']?.progress).toBe(2);
 		expect(again.summary?.questProgress).toEqual([]);
+	});
+
+	it('auto-equips a synthetic gear drop and keeps the replaced weapon owned in the returned save', () => {
+		const base = raidSaveState();
+		const saveState: SaveState = {
+			...base,
+			inventory: { stacks: [], equipment: ['practice-spear'] },
+			equipment: { ...createEmptyEquipment(), weapon: 'practice-spear' }
+		};
+		// A synthetic drop: no enemy loot table grants hunters-knife, but battle
+		// drops must follow the same non-shop auto-equip policy as field rewards.
+		const result: BattleResult = {
+			...soldierVictory(saveState, 1),
+			defeatedUnits: soldierUnits(1, [{ itemId: 'hunters-knife', quantity: 1 }])
+		};
+
+		const application = applyBattleResultToSaveState(saveState, result);
+
+		// ATK 4 strictly outranks the equipped spear's ATK 1, so the knife lands
+		// worn in the returned save while the spear stays owned in the pack.
+		expect(application.saveState.equipment.weapon).toBe('hunters-knife');
+		expect(application.saveState.inventory.equipment).toEqual(['practice-spear', 'hunters-knife']);
+		expect(application.summary?.drops).toEqual([{ itemId: 'hunters-knife', quantity: 1 }]);
 	});
 
 	it('completes a scripted loss and queues its scene when the hero falls to the captain', () => {
@@ -526,6 +575,41 @@ describe('battle contracts', () => {
 			deriveEffectiveStats(getHeroBaseStats(saveState.player), saveState.equipment).maxHp
 		);
 		expect(application.completedQuestIds).toEqual([]);
+	});
+
+	it('derives scripted-defeat wake HP from equipment granted by the loss itself', () => {
+		scriptedLoseBattleReward.current = { items: [{ itemId: 'stone-mail', quantity: 1 }] };
+		try {
+			const saveState = {
+				...createNewSaveState(),
+				quests: questStateAt('charge-the-captain')
+			};
+
+			const application = applyBattleResultToSaveState(saveState, {
+				outcome: 'defeat',
+				sourceMapId: 'overworld',
+				sourceEncounterId: 'sun-crest-captain',
+				sourceEnemyId: 'sun-crest-captain',
+				finalHeroHp: 0,
+				inventory: saveState.inventory,
+				defeatedUnits: []
+			});
+
+			// The scripted reward mails +6 maxHp into an empty body slot and
+			// auto-equips, so the wake-up restore must read the post-grant
+			// loadout rather than the pre-reward save equipment.
+			expect(application.saveState.equipment.body).toBe('stone-mail');
+			expect(application.saveState.inventory.equipment).toContain('stone-mail');
+			expect(application.saveState.player.hp).toBe(
+				deriveEffectiveStats(getHeroBaseStats(saveState.player), {
+					...createEmptyEquipment(),
+					body: 'stone-mail'
+				}).maxHp
+			);
+			expect(application.summary).toBeNull();
+		} finally {
+			scriptedLoseBattleReward.current = null;
+		}
 	});
 
 	it('surfaces completedQuestIds directly on BattleApplication for a scripted loss without summary', () => {
