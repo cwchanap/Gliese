@@ -1213,7 +1213,7 @@ pub fn story_catalog() -> StoryCatalog {
                             },
                             StoryLine {
                                 speaker: "Oren".to_string(),
-                                text: "Ha! Grow into it. Open your pack and equip it before you leave. A spear in a bag has never killed anything.".to_string(),
+                                text: "Ha! Grow into it. Keep it ready when you leave. A spear in a bag has never killed anything.".to_string(),
                             },
                             StoryLine {
                                 speaker: "Oren".to_string(),
