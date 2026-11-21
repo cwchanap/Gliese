@@ -48,6 +48,9 @@ type HudStateSnapshot = {
 	status?: string;
 	heroOccluded?: boolean;
 	hp?: number;
+	maxHp?: number;
+	attack?: number;
+	defense?: number;
 	areaMap?: { player?: { x?: number; y?: number } };
 	dialogue?: { id?: string; lineIndex?: number } | null;
 	battle?: unknown;
@@ -217,6 +220,110 @@ function commandBox(page: Page, name: string | RegExp = 'Command') {
 
 function fieldStatus(page: Page) {
 	return page.getByRole('status', { name: 'Field status' });
+}
+
+/** Registers the shared hud-state probe so readHud()-style evaluates work on
+ * any page (fresh or in a pass-local browser context). */
+function installHudStateListener(page: Page) {
+	return page.addInitScript(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		probeWindow.__glieseLastHudState = undefined;
+		window.addEventListener('gliese:hud-state', (event) => {
+			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
+		});
+	});
+}
+
+function readHudState(page: Page): Promise<HudStateSnapshot | null> {
+	return page.evaluate(() => (window as GlieseProbeWindow).__glieseLastHudState ?? null);
+}
+
+/**
+ * Presses the interact key until the NPC story dialog mounts. A lone 'e' can
+ * be eaten when it lands on the same frame as a post-boot story-gate restart
+ * (interact presses drain every frame, before the interact handler runs).
+ * Repeats are safe: once the panel is open 'e' is inert — it only listens for
+ * Enter/Space/Escape — and interactWithNearbyNpc refuses to reopen a session.
+ */
+async function pressInteractUntilDialog(page: Page, name: string | RegExp) {
+	const dialog = page.getByRole('dialog', { name });
+	await page.locator('canvas').click();
+	await expect(async () => {
+		await page.keyboard.press('e', { delay: 50 });
+		await expect(dialog).toBeVisible({ timeout: 1_000 });
+	}).toPass({ timeout: 15_000, intervals: [800, 1_200] });
+	return dialog;
+}
+
+/**
+ * Advances a conversation-mode story dialogue to its end by clicking the
+ * panel's Next action — the same path pad-confirm uses — and returns the
+ * rendered line text in order. Enter must not drive these dialogs: the
+ * press that closes the last line also reaches Phaser as an interact key,
+ * which re-opens the same NPC's dialogue and the loop would advance the
+ * reopened session forever.
+ */
+async function advanceConversationToEnd(page: Page) {
+	const panel = page.locator('dialog.jrpg-dialogue-panel');
+	const next = panel.getByRole('button', { name: 'Next' });
+	const seenLines: string[] = [];
+	for (let press = 0; press < 40; press += 1) {
+		const hud = await readHudState(page);
+		if (!hud?.dialogue) return seenLines;
+		const renderedLine = await panel
+			.locator('.jrpg-dialogue-line')
+			.textContent()
+			.catch(() => null);
+		if (renderedLine !== null && seenLines.at(-1) !== renderedLine) {
+			seenLines.push(renderedLine);
+		}
+		const prevDialogue = JSON.stringify(hud.dialogue);
+		await next.click();
+		await page
+			.waitForFunction(
+				(prev) => {
+					const state = (window as GlieseProbeWindow).__glieseLastHudState;
+					return !state?.dialogue || JSON.stringify(state.dialogue) !== prev;
+				},
+				prevDialogue,
+				{ timeout: 5_000 }
+			)
+			.catch(() => {});
+	}
+	throw new Error('dialogue did not close after 40 advances');
+}
+
+/**
+ * HPA-839 acceptance captures, following the HPA-840 evidence convention:
+ * screenshots land in the gitignored reports dir by default, or in the
+ * plan-local scratch dir when HPA839_EVIDENCE_ROOT is set. Existing names are
+ * never overwritten on a rooted (isolated) run.
+ */
+function hpa839Evidence(override?: string) {
+	const root = resolve(override ?? 'docs/superpowers/reports/img/hpa-839-story-gear-shop');
+	let initialized = false;
+	return {
+		root,
+		async shot(page: Pick<Page, 'screenshot'>, name: string) {
+			if (!initialized) {
+				mkdirSync(root, { recursive: true });
+				initialized = true;
+			}
+			const path = resolve(root, name);
+			if (override !== undefined) writeFileSync(path, '', { flag: 'wx' });
+			await page.screenshot({ path });
+		}
+	};
+}
+
+const hpa839Capture = hpa839Evidence(process.env.HPA839_EVIDENCE_ROOT);
+
+async function hpa839Shot(page: Page, name: string) {
+	// A retried attempt re-takes the same screenshots; stamp the retry index so
+	// the no-overwrite guard still flags stale evidence instead of the retry.
+	const retry = test.info().retry;
+	const stamped = retry > 0 ? name.replace(/\.png$/, `-retry${retry}.png`) : name;
+	await hpa839Capture.shot(page, stamped);
 }
 
 /**
@@ -12588,6 +12695,312 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 	await expect(fieldPotionSlot.getByText('x2')).toBeVisible();
 });
 
+test('HPA-839 Mira salve economy, potion prices, and tooltip clearance', async ({ page }) => {
+	test.setTimeout(300_000);
+
+	type PassLocale = 'en' | 'ja' | 'zh-Hant';
+	type PassCopy = {
+		// The dialogue panel's accessible name is the story speaker string —
+		// 'Mira' in every locale — while the shop dialog takes the localized
+		// shop name.
+		miraName: string;
+		shopName: string;
+		shopChoice: string;
+		nextChoice: string;
+		closeName: string;
+		salveName: string;
+		fieldPotionName: string;
+		greaterPotionName: string;
+		coins: (n: number) => string;
+	};
+	const passCopy: Record<PassLocale, PassCopy> = {
+		en: {
+			miraName: 'Mira',
+			shopName: "Mira's Herb Hut",
+			shopChoice: 'Shop',
+			nextChoice: 'Next',
+			closeName: 'Close',
+			salveName: 'Sunleaf Salve',
+			fieldPotionName: 'Field Potion',
+			greaterPotionName: 'Greater Field Potion',
+			coins: (n) => `Coins: ${n}`
+		},
+		ja: {
+			miraName: 'Mira',
+			shopName: 'ミラの薬草小屋',
+			shopChoice: '店',
+			nextChoice: '次へ',
+			closeName: '閉じる',
+			salveName: '陽葉軟膏',
+			fieldPotionName: 'フィールドポーション',
+			greaterPotionName: '上級フィールドポーション',
+			coins: (n) => `コイン: ${n}`
+		},
+		'zh-Hant': {
+			miraName: 'Mira',
+			shopName: '米拉的採藥小屋',
+			shopChoice: '商店',
+			nextChoice: '下一步',
+			closeName: '關閉',
+			salveName: '日葉藥膏',
+			fieldPotionName: '野外藥水',
+			greaterPotionName: '強效野外藥水',
+			coins: (n) => `金幣：${n}`
+		}
+	};
+
+	// hp 10 < max 20 so the drink-a-salve step has headroom to heal 6.
+	const miraSeed = () =>
+		createSaveFixture({
+			mapId: 'item-shop',
+			player: { level: 1, xp: 0, hp: 10, attack: 3, x: 416, y: 360, facing: 'up' },
+			wallet: { coins: 30 }
+		});
+	const miraEnvelope = () =>
+		JSON.stringify({
+			version: 1,
+			slots: [
+				{
+					kind: 'autosave',
+					savedAt: '2026-09-04T12:00:00.000Z',
+					playtimeSeconds: 0,
+					state: miraSeed()
+				},
+				null,
+				null
+			]
+		});
+
+	await seedSaveSlots(page, [{ state: miraSeed() }]);
+	await installHudStateListener(page);
+	// Seeded preferences must not clobber a locale chosen later: later passes
+	// rewrite the preference before reload, and only the first write wins.
+	await page.addInitScript(() => {
+		if (!window.localStorage.getItem('gliese.preferences.v1')) {
+			window.localStorage.setItem(
+				'gliese.preferences.v1',
+				JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+			);
+		}
+	});
+	await continueFromTitle(page);
+	const readHud = () => readHudState(page);
+	const waitAtMira = () =>
+		page.waitForFunction(
+			() =>
+				(window as GlieseProbeWindow).__glieseLastHudState?.nearbyShop?.shopId ===
+				'miras-item-shop',
+			undefined,
+			{ timeout: 15_000 }
+		);
+	await waitAtMira();
+
+	const openMiraShop = async (copy: PassCopy) => {
+		const miraDialog = await pressInteractUntilDialog(page, copy.miraName);
+		// Mira's greeting lines end on the shop/close choice row; advance Next
+		// lines until the Shop choice is actually rendered.
+		for (let press = 0; press < 6; press += 1) {
+			const shopChoice = miraDialog.getByRole('button', { name: copy.shopChoice, exact: true });
+			if (await shopChoice.isVisible().catch(() => false)) {
+				await shopChoice.click();
+				return;
+			}
+			await miraDialog.getByRole('button', { name: copy.nextChoice }).click();
+		}
+		throw new Error('Mira dialogue never offered the Shop choice');
+	};
+
+	// Measures the rendered tooltip, the selected item's Buy/Sell action and
+	// the stock column, then hit-tests the action at its center point.
+	const measureShopLayout = () =>
+		page.evaluate(() => {
+			const rect = (selector: string) => {
+				const el = document.querySelector<HTMLElement>(selector);
+				if (!el) return null;
+				const r = el.getBoundingClientRect();
+				return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+			};
+			const actionEl = document.querySelector<HTMLElement>('.shop-detail-action');
+			let actionHit = false;
+			if (actionEl) {
+				const r = actionEl.getBoundingClientRect();
+				const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+				actionHit = hit === actionEl || actionEl.contains(hit);
+			}
+			return {
+				tooltip: rect('.shop-tooltip'),
+				action: rect('.shop-detail-action'),
+				main: rect('.shop-main'),
+				actionHit,
+				viewport: { width: window.innerWidth, height: window.innerHeight }
+			};
+		});
+
+	type ShopLayout = Awaited<ReturnType<typeof measureShopLayout>>;
+
+	const expectTooltipClear = (m: ShopLayout) => {
+		expect(m.tooltip, 'tooltip rendered').not.toBeNull();
+		expect(m.action, 'selected detail action rendered').not.toBeNull();
+		expect(m.main).not.toBeNull();
+		const tooltip = m.tooltip!;
+		const action = m.action!;
+		const main = m.main!;
+		// The tooltip is clamped inside the stock column and on-screen.
+		expect(tooltip.left).toBeGreaterThanOrEqual(main.left - 1);
+		expect(tooltip.right).toBeLessThanOrEqual(main.right + 1);
+		expect(tooltip.top).toBeGreaterThanOrEqual(main.top - 1);
+		expect(tooltip.bottom).toBeLessThanOrEqual(main.bottom + 1);
+		expect(tooltip.left).toBeGreaterThanOrEqual(0);
+		expect(tooltip.right).toBeLessThanOrEqual(m.viewport.width);
+		expect(tooltip.bottom).toBeLessThanOrEqual(m.viewport.height);
+		// HPA-839 regression: the tooltip must not cover the Buy/Sell action.
+		const overlaps = !(
+			tooltip.right <= action.left ||
+			tooltip.left >= action.right ||
+			tooltip.bottom <= action.top ||
+			tooltip.top >= action.bottom
+		);
+		expect(overlaps, 'tooltip must not cover the Buy/Sell action').toBe(false);
+		expect(m.actionHit, 'Buy/Sell action hit-testable').toBe(true);
+	};
+
+	// ---- Pass 1: full economy + geometry at 1280×720 (en) ----
+	const en = passCopy.en;
+	await openMiraShop(en);
+	const shop = page.getByRole('dialog', { name: en.shopName });
+	await expect(shop).toBeVisible();
+	await expect(shop.getByLabel('Coins: 30')).toBeVisible();
+	const buyGrid = shop.getByTestId('shop-buy-grid');
+	// The herb shop's own prices: salve 6, Field Potion 10, Greater 18.
+	await expect(
+		buyGrid.getByLabel(en.salveName, { exact: true }).locator('.shop-tile-price')
+	).toHaveText('6');
+	await expect(
+		buyGrid.getByLabel(en.fieldPotionName, { exact: true }).locator('.shop-tile-price')
+	).toHaveText('10');
+	await expect(
+		buyGrid.getByLabel(en.greaterPotionName, { exact: true }).locator('.shop-tile-price')
+	).toHaveText('18');
+
+	// Select the salve so the detail action exists, then hover/focus other
+	// tiles: the tooltip must stay inside the stock column and clear of it.
+	await buyGrid.getByLabel(en.salveName, { exact: true }).click();
+	await expect(shop.locator('.shop-detail-action')).toBeVisible();
+	await buyGrid.getByLabel(en.greaterPotionName, { exact: true }).hover();
+	await expect(shop.locator('.shop-tooltip')).toBeVisible();
+	let layout = await measureShopLayout();
+	expectTooltipClear(layout);
+	await hpa839Shot(page, 'mira-shop-1280x720-en-tooltip.png');
+	await buyGrid.getByLabel(en.fieldPotionName, { exact: true }).focus();
+	await expect(shop.locator('.shop-tooltip')).toContainText(en.fieldPotionName);
+	layout = await measureShopLayout();
+	expectTooltipClear(layout);
+	// Clicking the action twice proves it is hit-testable both times; each
+	// salve costs exactly 6 coins.
+	await shop.locator('.shop-detail-action').click();
+	await expect(shop.getByLabel('Coins: 24')).toBeVisible();
+	await shop.locator('.shop-detail-action').click();
+	await expect(shop.getByLabel('Coins: 18')).toBeVisible();
+	expect(
+		(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
+			?.quantity
+	).toBe(2);
+	await shop.getByRole('button', { name: 'Close' }).click();
+
+	// Drink one salve below max HP: exactly +6 (10 → 16).
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
+	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
+	const salveSlot = inventoryDialog.getByLabel(en.salveName, { exact: true });
+	await salveSlot.click();
+	await expect(inventoryDialog.getByTestId('inventory-detail')).toBeVisible();
+	await inventoryDialog.getByRole('button', { name: 'Drink' }).click();
+	await expect.poll(async () => (await readHud())?.hp).toBe(16);
+	expect(
+		(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
+			?.quantity
+	).toBe(1);
+	await inventoryDialog.getByRole('button', { name: 'Close' }).click();
+	await page.keyboard.press('Escape');
+
+	// Back into the shop: sell the remaining salve for exactly 3 coins.
+	await openMiraShop(en);
+	await expect(shop).toBeVisible();
+	await shop.getByRole('tab', { name: 'Sell' }).click();
+	const sellGrid = shop.getByTestId('shop-sell-grid');
+	const salveSellTile = sellGrid.getByLabel(en.salveName, { exact: true });
+	await expect(salveSellTile.locator('.shop-tile-price')).toHaveText('3');
+	await salveSellTile.click();
+	await expect(shop.locator('.shop-detail-action')).toBeVisible();
+	await sellGrid.getByLabel(en.fieldPotionName, { exact: true }).hover();
+	layout = await measureShopLayout();
+	expectTooltipClear(layout);
+	await shop.locator('.shop-detail-action').click();
+	await expect(shop.getByLabel('Coins: 21')).toBeVisible();
+	expect(
+		(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
+			?.quantity ?? 0
+	).toBe(0);
+	await shop.getByRole('button', { name: 'Close' }).click();
+
+	// ---- Passes 2-4: geometry + localization at 640×360 (en/ja/zh-Hant) ----
+	// Same page and same browser target as pass 1: resize the viewport,
+	// rewrite locale + a fresh seeded save, reload, and reopen the real shop.
+	await page.setViewportSize({ width: 640, height: 360 });
+	for (const locale of ['en', 'ja', 'zh-Hant'] as const) {
+		const copy = passCopy[locale];
+		await page.evaluate(
+			({ loc, envelope, prefsKey, savesKey }) => {
+				window.localStorage.setItem(
+					prefsKey,
+					JSON.stringify({
+						locale: loc,
+						textSpeed: 'instant',
+						motion: 'on',
+						promptMode: 'auto'
+					})
+				);
+				window.localStorage.setItem(savesKey, envelope);
+			},
+			{
+				loc: locale,
+				envelope: miraEnvelope(),
+				prefsKey: 'gliese.preferences.v1',
+				savesKey: SAVES_STORAGE_KEY
+			}
+		);
+		// Locale-agnostic continue: the Title/Load labels are localized, but the
+		// focus ids and save-slot testids are stable. waitAtMira doubles as the
+		// post-boot barrier — the seeded spot is already inside her shop.
+		await page.goto('/');
+		await page.locator('[data-focus-id="title-continue"]').click();
+		await page
+			.locator('[role="dialog"] [data-testid^="save-slot-"]:not([disabled])')
+			.first()
+			.click();
+		await waitAtMira();
+		await openMiraShop(copy);
+		const passShop = page.getByRole('dialog', { name: copy.shopName });
+		await expect(passShop).toBeVisible();
+		await expect(passShop.getByLabel(copy.coins(30))).toBeVisible();
+		const passBuyGrid = passShop.getByTestId('shop-buy-grid');
+		const salveTile = passBuyGrid.getByLabel(copy.salveName, { exact: true });
+		await expect(salveTile).toBeVisible();
+		await salveTile.click();
+		await expect(passShop.locator('.shop-detail-action')).toBeVisible();
+		await passBuyGrid.getByLabel(copy.greaterPotionName, { exact: true }).hover();
+		await expect(passShop.locator('.shop-tooltip')).toBeVisible();
+		layout = await measureShopLayout();
+		expectTooltipClear(layout);
+		await hpa839Shot(page, `mira-shop-640x360-${locale}-tooltip.png`);
+		await passBuyGrid.getByLabel(copy.fieldPotionName, { exact: true }).focus();
+		layout = await measureShopLayout();
+		expectTooltipClear(layout);
+		await passShop.getByRole('button', { name: copy.closeName }).click();
+	}
+	await page.setViewportSize({ width: 1280, height: 720 });
+});
+
 test('all eight painted village interiors', async ({ page }) => {
 	test.setTimeout(3_600_000);
 	const firstInterior = ALL_EIGHT_PAINTED_INTERIOR_CASES[0];
@@ -12999,28 +13412,13 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 			await page.keyboard.up(key);
 		}
 	};
-	// Relies on the instant text speed seeded above — a mid-reveal Enter only
+	// Relies on the instant text speed seeded above — a mid-reveal confirm only
 	// completes the typewriter and never republishes the dialogue payload.
+	// Each visible line is recorded as rendered so the HPA-839 Oren dialogue
+	// correction can be verified against the actual panel text.
+	const seenDialogueLines: string[] = [];
 	const advanceDialogue = async () => {
-		for (let press = 0; press < 40; press += 1) {
-			const hud = await readHud();
-			if (!hud?.dialogue) return;
-			const prevDialogue = JSON.stringify(hud.dialogue);
-			await page.keyboard.press('Enter');
-			// Wait for the advance to publish a new dialogue (or close the
-			// dialogue) instead of a fixed poll sleep.
-			await page
-				.waitForFunction(
-					(prev) => {
-						const state = (window as GlieseProbeWindow).__glieseLastHudState;
-						return !state?.dialogue || JSON.stringify(state.dialogue) !== prev;
-					},
-					prevDialogue,
-					{ timeout: 5_000 }
-				)
-				.catch(() => {});
-		}
-		throw new Error('dialogue did not close after 40 advances');
+		seenDialogueLines.push(...(await advanceConversationToEnd(page)));
 	};
 
 	await page.waitForFunction(
@@ -13052,10 +13450,20 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	await expect
 		.poll(async () => (await readHud())?.status, { timeout: 10_000 })
 		.toBe('Old Mott nearby');
-	await page.keyboard.press('e', { delay: 50 });
-	const mottDialogue = page.getByRole('dialog', { name: 'Old Mott' });
-	await expect(mottDialogue).toBeVisible();
+	await pressInteractUntilDialog(page, 'Old Mott');
 	await advanceDialogue();
+	// HPA-839: the amulet auto-equips when Mott's actual reward dialogue
+	// closes. The named status must render on the remounted FieldHud — the
+	// hidden HUD payload alone is not the acceptance signal.
+	await expect(fieldStatus(page)).toHaveText('Equipped Ancestral Amulet');
+	await hpa839Shot(page, 'mott-amulet-status.png');
+	const afterMott = await readHud();
+	expect(afterMott?.inventory?.equipped?.accessory).toBe('ancestral-amulet');
+	// The amulet's +2 max HP must not refill current HP; its +1 DEF is
+	// already live without opening Gear.
+	expect(afterMott?.maxHp).toBe(22);
+	expect(afterMott?.hp).toBe(20);
+	expect(afterMott?.defense).toBe(1);
 	await expect
 		.poll(async () => (await readHud())?.quests?.main?.objectiveId)
 		.toBe('collect-practice-spear');
@@ -13437,10 +13845,28 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 200 });
 	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 404 });
 	await holdUntil('d', { kind: 'status', value: 'Oren nearby' }, 15_000);
-	await page.keyboard.press('e', { delay: 50 });
-	const orenDialogue = page.getByRole('dialog', { name: 'Oren' });
-	await expect(orenDialogue).toBeVisible();
+	await pressInteractUntilDialog(page, 'Oren');
 	await advanceDialogue();
+	// HPA-839: the corrected line must actually render — the old wording told
+	// Grik to equip the spear himself, which the auto-equip now does.
+	expect(
+		seenDialogueLines.some((line) => /spear in a bag has never killed anything/i.test(line)),
+		'Oren corrected line rendered'
+	).toBe(true);
+	expect(
+		seenDialogueLines.some((line) =>
+			/come home with coin, come back\. i keep better steel for real hunters/i.test(line)
+		),
+		'Oren better-steel hook rendered'
+	).toBe(true);
+	expect(
+		seenDialogueLines.some((line) => /open your pack/i.test(line)),
+		'no line still asks the player to equip manually'
+	).toBe(false);
+	// The spear auto-equips when the reward dialogue closes; the FieldHud
+	// status renders the equipped name, not just a hidden payload field.
+	await expect(fieldStatus(page)).toHaveText('Equipped Practice Spear');
+	await hpa839Shot(page, 'oren-spear-status.png');
 	await expect
 		.poll(async () => (await readHud())?.quests?.main?.objectiveId)
 		.toBe('collect-herb-pouch');
@@ -13452,6 +13878,233 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 				) === true
 		)
 		.toBe(true);
+	const afterOren = await readHud();
+	expect(afterOren?.inventory?.equipped?.weapon).toBe('practice-spear');
+	expect(afterOren?.inventory?.equipped?.accessory).toBe('ancestral-amulet');
+	// The stats the hero brings to the first wolves are live now: spear +1
+	// ATK (3→4), amulet +1 DEF, +2 max HP applied without refilling HP.
+	expect(afterOren?.attack).toBe(4);
+	expect(afterOren?.defense).toBe(1);
+	expect(afterOren?.maxHp).toBe(22);
+	expect(afterOren?.hp).toBe(20);
+	// The rendered hero card shows the same first-wolves numbers, so the
+	// visible HUD — not only the probe — reflects the equips.
+	const heroStats = await page
+		.getByTestId('hud-party-panel')
+		.locator('.hero-stats')
+		.first()
+		.evaluate((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim());
+	expect(heroStats).toContain('ATK 4');
+	expect(heroStats).toContain('DEF 1');
+	await expect(
+		page.getByTestId('hud-party-panel').locator('.hero-meter-value').first()
+	).toHaveText('20/22');
+});
+
+test('HPA-839 Oren reward equips the practice spear and shows it on the field HUD', async ({
+	page
+}) => {
+	test.setTimeout(120_000);
+	// Real-game checkpoint one step from Oren — the same seeded-continue
+	// pattern the quest-log and shop tests use. The amulet is already worn
+	// (maxHp 22, DEF 1) exactly as Mott's reward left it; the long proving
+	// walk to the forge is covered by the journey test above.
+	const save = createSaveFixture({
+		mapId: 'blacksmith-interior',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 448, y: 480, facing: 'up' },
+		inventory: {
+			stacks: [{ itemId: 'field-potion', quantity: 1 }],
+			equipment: ['ancestral-amulet']
+		},
+		equipment: {
+			weapon: null,
+			head: null,
+			body: null,
+			hands: null,
+			accessory: 'ancestral-amulet'
+		},
+		wallet: { coins: 0 },
+		quests: questStateAt('collect-practice-spear')
+	});
+	await seedSaveSlots(page, [{ state: save }]);
+	await installHudStateListener(page);
+	await page.addInitScript(() => {
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		);
+	});
+	await continueFromTitle(page);
+	const readHud = () => readHudState(page);
+	await page.waitForFunction(
+		() => (window as GlieseProbeWindow).__glieseLastHudState?.status === 'Oren nearby',
+		undefined,
+		{ timeout: 15_000 }
+	);
+	await pressInteractUntilDialog(page, 'Oren');
+	// Advance the real reward dialogue, recording each rendered line: the
+	// corrected copy must appear and no line may still ask Grik to equip it.
+	const seenLines = await advanceConversationToEnd(page);
+	expect(
+		seenLines.some((line) => /spear in a bag has never killed anything/i.test(line)),
+		'Oren corrected line rendered'
+	).toBe(true);
+	expect(
+		seenLines.some((line) =>
+			/come home with coin, come back\. i keep better steel for real hunters/i.test(line)
+		),
+		'Oren better-steel hook rendered'
+	).toBe(true);
+	expect(
+		seenLines.some((line) => /open your pack/i.test(line)),
+		'no line still asks the player to equip manually'
+	).toBe(false);
+	await expect
+		.poll(async () => (await readHud())?.dialogue ?? null)
+		.toBeNull();
+	// The spear auto-equips when the reward dialogue closes; the rendered
+	// FieldHud status shows the equipped name.
+	await expect(fieldStatus(page)).toHaveText('Equipped Practice Spear');
+	await hpa839Shot(page, 'checkpoint-oren-spear-status.png');
+	const afterOren = await readHud();
+	expect(afterOren?.inventory?.equipped?.weapon).toBe('practice-spear');
+	expect(afterOren?.inventory?.equipped?.accessory).toBe('ancestral-amulet');
+	// First-wolves numbers, live without opening Gear: spear +1 ATK (3→4),
+	// amulet +1 DEF, +2 max HP applied without refilling HP.
+	expect(afterOren?.attack).toBe(4);
+	expect(afterOren?.defense).toBe(1);
+	expect(afterOren?.maxHp).toBe(22);
+	expect(afterOren?.hp).toBe(20);
+	const heroStats = await page
+		.getByTestId('hud-party-panel')
+		.locator('.hero-stats')
+		.first()
+		.evaluate((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim());
+	expect(heroStats).toContain('ATK 4');
+	expect(heroStats).toContain('DEF 1');
+	await expect(
+		page.getByTestId('hud-party-panel').locator('.hero-meter-value').first()
+	).toHaveText('20/22');
+});
+
+test('HPA-839 reporting the Boar King equips the hunter knife and persists it', async ({
+	page
+}) => {
+	test.setTimeout(240_000);
+	// Same real-game checkpoint the quest-log test uses: inside the guild hall,
+	// one step from Borak, with the Boar King trial already cleared so the
+	// report-boar-king branch awards the knife.
+	const save = createSaveFixture({
+		mapId: 'guild-hall',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 800, y: 184, facing: 'up' },
+		inventory: {
+			stacks: [{ itemId: 'field-potion', quantity: 3 }],
+			equipment: ['ancestral-amulet', 'practice-spear']
+		},
+		equipment: {
+			weapon: 'practice-spear',
+			head: null,
+			body: null,
+			hands: null,
+			accessory: 'ancestral-amulet'
+		},
+		wallet: { coins: 30 },
+		quests: questStateAt('report-boar-king')
+	});
+	await seedSaveSlots(page, [{ state: save }]);
+	await installHudStateListener(page);
+	await page.addInitScript(() => {
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		);
+	});
+	await continueFromTitle(page);
+	const readHud = () => readHudState(page);
+	await page.waitForFunction(
+		() => (window as GlieseProbeWindow).__glieseLastHudState?.status === 'Borak nearby',
+		undefined,
+		{ timeout: 15_000 }
+	);
+	await pressInteractUntilDialog(page, 'Borak');
+	// Advance the full naming ceremony; the knife handoff line must render.
+	const seenLines = await advanceConversationToEnd(page);
+	expect(
+		seenLines.some((line) => /first I ever carried/i.test(line)),
+		'Borak knife handoff line rendered'
+	).toBe(true);
+	await expect
+		.poll(async () => (await readHud())?.dialogue ?? null)
+		.toBeNull();
+	// The +4 knife replaces the +1 spear automatically and the status pill
+	// shows the equipped name once the dialogue closes.
+	await expect(fieldStatus(page)).toHaveText("Equipped Hunter's Knife");
+	await hpa839Shot(page, 'borak-knife-status.png');
+	const awarded = await readHud();
+	expect(awarded?.inventory?.equipped?.weapon).toBe('hunters-knife');
+	expect(awarded?.inventory?.equipment?.map((item) => item.itemId)).toEqual(
+		expect.arrayContaining(['hunters-knife', 'practice-spear', 'ancestral-amulet'])
+	);
+	expect(awarded?.wallet?.coins).toBe(90); // 30 seeded + 60 report reward
+	expect(awarded?.attack).toBe(7); // 3 base + 4 knife
+
+	// Save through the real Save screen; the persisted slot keeps the knife
+	// worn and the spear merely owned.
+	await saveThroughSaveScreen(page, 1);
+	const savedEquipped = await readManualSlotState(page);
+	expect((savedEquipped.equipment as Record<string, string | null> | undefined)?.weapon).toBe(
+		'hunters-knife'
+	);
+	expect(savedEquipped.inventory.equipment).toEqual(
+		expect.arrayContaining(['hunters-knife', 'practice-spear'])
+	);
+
+	// Continue from that manual slot through the real load flow.
+	const loadManualSlot = async () => {
+		await page.goto('/');
+		await page.getByRole('button', { name: /Continue/i }).click();
+		const loadDialog = page.getByRole('dialog', { name: /load/i });
+		await expect(loadDialog).toBeVisible();
+		await loadDialog.getByTestId('save-slot-1').click();
+		await expect(page.locator('canvas')).toBeVisible();
+		await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
+		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible({ timeout: 15_000 });
+	};
+	await loadManualSlot();
+	await expect
+		.poll(async () => (await readHud())?.inventory?.equipped?.weapon)
+		.toBe('hunters-knife');
+	let hud = await readHud();
+	expect(hud?.inventory?.equipment?.map((item) => item.itemId)).toEqual(
+		expect.arrayContaining(['hunters-knife', 'practice-spear'])
+	);
+
+	// Manually unworn gear must stay unworn: unequip the knife, save, load,
+	// and the weapon slot must still be empty — loading never re-equips it.
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
+	const bagDialog = page.getByRole('dialog', { name: 'Inventory' });
+	await expect(bagDialog).toBeVisible();
+	await bagDialog.getByRole('button', { name: "Remove Hunter's Knife" }).click();
+	await expect
+		.poll(async () => (await readHud())?.inventory?.equipped?.weapon)
+		.toBeNull();
+	await bagDialog.getByRole('button', { name: 'Close' }).click();
+	await page.keyboard.press('Escape');
+	await saveThroughSaveScreen(page, 1);
+	const savedUnworn = await readManualSlotState(page);
+	expect((savedUnworn.equipment as Record<string, string | null> | undefined)?.weapon).toBeNull();
+	expect(savedUnworn.inventory.equipment).toEqual(
+		expect.arrayContaining(['hunters-knife', 'practice-spear'])
+	);
+	await loadManualSlot();
+	await expect
+		.poll(async () => (await readHud())?.inventory?.equipped?.weapon)
+		.toBeNull();
+	hud = await readHud();
+	expect(hud?.inventory?.equipment?.map((item) => item.itemId)).toEqual(
+		expect.arrayContaining(['hunters-knife', 'practice-spear'])
+	);
 });
 
 test('Blacksmith painted interior preserves baked composition and collision', async ({ page }) => {
