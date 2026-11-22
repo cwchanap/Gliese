@@ -13855,6 +13855,16 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	expect(approachPoint?.x).toBeLessThanOrEqual(5_688);
 	await holdUntil('w', { kind: 'map', value: 'blacksmith-interior' }, 20_000);
 	await expect.poll(async () => (await readHud())?.mapId).toBe('blacksmith-interior');
+	// The overworld route is complete on arrival — capture and attach it before
+	// any later check can fail, so a failed reward assertion still leaves the
+	// route evidence in the report.
+	const journeyTrace =
+		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseJourneyTrace ?? [])) ?? [];
+	const overworldTrace = journeyTrace.filter((point) => point.mapId === 'overworld');
+	await test.info().attach('overworld-journey-trace-raw', {
+		body: JSON.stringify(overworldTrace),
+		contentType: 'application/json'
+	});
 	const forgePoint = await readPosition();
 	expect(forgePoint?.x).toBeGreaterThanOrEqual(440);
 	expect(forgePoint?.x).toBeLessThanOrEqual(456);
@@ -13922,9 +13932,6 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 
 	// The corridor trace is verified at the end of the test — after the Oren
 	// reward checks — so a route-flake failure cannot mask the reward result.
-	const journeyTrace =
-		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseJourneyTrace ?? [])) ?? [];
-	const overworldTrace = journeyTrace.filter((point) => point.mapId === 'overworld');
 	expect(overworldTrace.length).toBeGreaterThan(0);
 	const corridorLegs: {
 		name: string;
@@ -14476,6 +14483,9 @@ test('HPA-839 portrait forge tooltip stays on screen at 390x844', async ({ page 
 		const m = await measureTooltip();
 		expect(m.tooltip, 'tooltip rendered').not.toBeNull();
 		expect(m.main, 'stock column rendered').not.toBeNull();
+		// visibility:hidden keeps the layout box — assert the strip is painted
+		// before trusting the geometry.
+		await expect(shop.locator('.shop-tooltip')).toBeVisible();
 		const tooltip = m.tooltip!;
 		const main = m.main!;
 		// Regression: the strip pins inside the scrolling shop's viewport —
@@ -14484,6 +14494,9 @@ test('HPA-839 portrait forge tooltip stays on screen at 390x844', async ({ page 
 		expect(tooltip.right).toBeLessThanOrEqual(main.right + 1);
 		expect(tooltip.top).toBeGreaterThanOrEqual(0);
 		expect(tooltip.bottom).toBeLessThanOrEqual(m.viewport.height);
+		// Same measurement as the bounds: a hover that scrolled the shop would
+		// pass the checks above in the scrolled layout instead.
+		expect(m.screenScrollTop).toBe(0);
 		if (m.action) {
 			const overlaps = !(
 				tooltip.right <= m.action.left ||
@@ -14516,7 +14529,6 @@ test('HPA-839 portrait forge tooltip stays on screen at 390x844', async ({ page 
 	await hover('Iron Cap');
 	await expect(shop.locator('.shop-tooltip')).toContainText('Iron Cap');
 	await expectTooltipInView();
-	expect((await measureTooltip()).screenScrollTop).toBe(0);
 	await hover('Grip Wraps');
 	await expect(shop.locator('.shop-tooltip')).toContainText('Grip Wraps');
 	await expectTooltipInView();
