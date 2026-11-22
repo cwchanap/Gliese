@@ -320,8 +320,9 @@ async function advanceConversationToEnd(page: Page, driver: 'pointer' | 'enter' 
 
 /**
  * Evidence screenshot capture shared by ticket evidence packs (HPA-839/840):
- * screenshots land in the caller's gitignored reports dir by default, or in an
- * isolated scratch dir when an override root is set. Existing names are never
+ * screenshots land in the pack's reports dir by default and deliberately
+ * refresh whatever evidence is already committed there, or in an isolated
+ * scratch dir when an override root is set. Existing names are never
  * overwritten on a rooted (isolated) run — 'wx' flags stale evidence.
  */
 function evidenceShots(defaultRoot: string) {
@@ -13854,6 +13855,73 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	expect(approachPoint?.x).toBeLessThanOrEqual(5_688);
 	await holdUntil('w', { kind: 'map', value: 'blacksmith-interior' }, 20_000);
 	await expect.poll(async () => (await readHud())?.mapId).toBe('blacksmith-interior');
+	const forgePoint = await readPosition();
+	expect(forgePoint?.x).toBeGreaterThanOrEqual(440);
+	expect(forgePoint?.x).toBeLessThanOrEqual(456);
+	expect(forgePoint?.y).toBeGreaterThanOrEqual(560);
+	expect(forgePoint?.y).toBeLessThanOrEqual(580);
+
+	await page.locator('canvas').click();
+	await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 200 });
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 404 });
+	await holdUntil('d', { kind: 'status', value: 'Oren nearby' }, 15_000);
+	await pressInteractUntilDialog(page, 'Oren');
+	await advanceDialogue();
+	// HPA-839: the corrected line must actually render — the old wording told
+	// Grik to equip the spear himself, which the auto-equip now does.
+	expect(
+		seenDialogueLines.some((line) => /spear in a bag has never killed anything/i.test(line)),
+		'Oren corrected line rendered'
+	).toBe(true);
+	expect(
+		seenDialogueLines.some((line) =>
+			/come home with coin, come back\. i keep better steel for real hunters/i.test(line)
+		),
+		'Oren better-steel hook rendered'
+	).toBe(true);
+	expect(
+		seenDialogueLines.some((line) => /open your pack/i.test(line)),
+		'no line still asks the player to equip manually'
+	).toBe(false);
+	// The spear auto-equips when the reward dialogue closes; the FieldHud
+	// status renders the equipped name, not just a hidden payload field.
+	await expect(fieldStatus(page)).toHaveText('Equipped Practice Spear');
+	await hpa839Shot(page, 'oren-spear-status.png');
+	await expect
+		.poll(async () => (await readHud())?.quests?.main?.objectiveId)
+		.toBe('collect-herb-pouch');
+	await expect
+		.poll(
+			async () =>
+				(await readHud())?.inventory?.equipment?.some(
+					(item) => item.itemId === 'practice-spear'
+				) === true
+		)
+		.toBe(true);
+	const afterOren = await readHud();
+	expect(afterOren?.inventory?.equipped?.weapon).toBe('practice-spear');
+	expect(afterOren?.inventory?.equipped?.accessory).toBe('ancestral-amulet');
+	// The stats the hero brings to the first wolves are live now: spear +1
+	// ATK (3→4), amulet +1 DEF, +2 max HP applied without refilling HP.
+	expect(afterOren?.attack).toBe(4);
+	expect(afterOren?.defense).toBe(1);
+	expect(afterOren?.maxHp).toBe(22);
+	expect(afterOren?.hp).toBe(20);
+	// The rendered hero card shows the same first-wolves numbers, so the
+	// visible HUD — not only the probe — reflects the equips.
+	const heroStats = await page
+		.getByTestId('hud-party-panel')
+		.locator('.hero-stats')
+		.first()
+		.evaluate((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim());
+	expect(heroStats).toContain('ATK 4');
+	expect(heroStats).toContain('DEF 1');
+	await expect(page.getByTestId('hud-party-panel').locator('.hero-meter-value').first()).toHaveText(
+		'20/22'
+	);
+
+	// The corridor trace is verified at the end of the test — after the Oren
+	// reward checks — so a route-flake failure cannot mask the reward result.
 	const journeyTrace =
 		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseJourneyTrace ?? [])) ?? [];
 	const overworldTrace = journeyTrace.filter((point) => point.mapId === 'overworld');
@@ -14082,70 +14150,6 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 		body: JSON.stringify(traceEvidence),
 		contentType: 'application/json'
 	});
-	const forgePoint = await readPosition();
-	expect(forgePoint?.x).toBeGreaterThanOrEqual(440);
-	expect(forgePoint?.x).toBeLessThanOrEqual(456);
-	expect(forgePoint?.y).toBeGreaterThanOrEqual(560);
-	expect(forgePoint?.y).toBeLessThanOrEqual(580);
-
-	await page.locator('canvas').click();
-	await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 200 });
-	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 404 });
-	await holdUntil('d', { kind: 'status', value: 'Oren nearby' }, 15_000);
-	await pressInteractUntilDialog(page, 'Oren');
-	await advanceDialogue();
-	// HPA-839: the corrected line must actually render — the old wording told
-	// Grik to equip the spear himself, which the auto-equip now does.
-	expect(
-		seenDialogueLines.some((line) => /spear in a bag has never killed anything/i.test(line)),
-		'Oren corrected line rendered'
-	).toBe(true);
-	expect(
-		seenDialogueLines.some((line) =>
-			/come home with coin, come back\. i keep better steel for real hunters/i.test(line)
-		),
-		'Oren better-steel hook rendered'
-	).toBe(true);
-	expect(
-		seenDialogueLines.some((line) => /open your pack/i.test(line)),
-		'no line still asks the player to equip manually'
-	).toBe(false);
-	// The spear auto-equips when the reward dialogue closes; the FieldHud
-	// status renders the equipped name, not just a hidden payload field.
-	await expect(fieldStatus(page)).toHaveText('Equipped Practice Spear');
-	await hpa839Shot(page, 'oren-spear-status.png');
-	await expect
-		.poll(async () => (await readHud())?.quests?.main?.objectiveId)
-		.toBe('collect-herb-pouch');
-	await expect
-		.poll(
-			async () =>
-				(await readHud())?.inventory?.equipment?.some(
-					(item) => item.itemId === 'practice-spear'
-				) === true
-		)
-		.toBe(true);
-	const afterOren = await readHud();
-	expect(afterOren?.inventory?.equipped?.weapon).toBe('practice-spear');
-	expect(afterOren?.inventory?.equipped?.accessory).toBe('ancestral-amulet');
-	// The stats the hero brings to the first wolves are live now: spear +1
-	// ATK (3→4), amulet +1 DEF, +2 max HP applied without refilling HP.
-	expect(afterOren?.attack).toBe(4);
-	expect(afterOren?.defense).toBe(1);
-	expect(afterOren?.maxHp).toBe(22);
-	expect(afterOren?.hp).toBe(20);
-	// The rendered hero card shows the same first-wolves numbers, so the
-	// visible HUD — not only the probe — reflects the equips.
-	const heroStats = await page
-		.getByTestId('hud-party-panel')
-		.locator('.hero-stats')
-		.first()
-		.evaluate((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim());
-	expect(heroStats).toContain('ATK 4');
-	expect(heroStats).toContain('DEF 1');
-	await expect(page.getByTestId('hud-party-panel').locator('.hero-meter-value').first()).toHaveText(
-		'20/22'
-	);
 });
 
 test('HPA-839 Oren reward equips the practice spear and shows it on the field HUD', async ({
@@ -14416,6 +14420,106 @@ test('HPA-839 reporting the Boar King equips the hunter knife and persists it', 
 	expect(hud?.inventory?.equipment?.map((item) => item.itemId)).toEqual(
 		expect.arrayContaining(['hunters-knife', 'practice-spear'])
 	);
+});
+
+test('HPA-839 portrait forge tooltip stays on screen at 390x844', async ({ page }) => {
+	test.setTimeout(120_000);
+	// Post-spear checkpoint at the forge counter: Oren's always-branch offers
+	// the Shop choice. All four stock pieces are finite and wrap to a
+	// 3-tile first row plus one at 390px — exactly the case whose tooltip
+	// anchored below the stacked screen's fold.
+	const save = createSaveFixture({
+		mapId: 'blacksmith-interior',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 448, y: 480, facing: 'up' },
+		wallet: { coins: 100 },
+		quests: questStateAt('collect-herb-pouch')
+	});
+	await seedSaveSlots(page, [{ state: save }]);
+	await installHudStateListener(page);
+	await page.addInitScript(() => {
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		);
+	});
+	await continueFromTitle(page);
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.waitForFunction(
+		() => (window as GlieseProbeWindow).__glieseLastHudState?.status === 'Oren nearby',
+		undefined,
+		{ timeout: 15_000 }
+	);
+	const dialogue = await pressInteractUntilDialog(page, 'Oren');
+	await dialogue.getByRole('button', { name: 'Shop', exact: true }).click();
+	const shop = page.getByRole('dialog', { name: 'Sundrop Forge' });
+	await expect(shop).toBeVisible();
+	const buyGrid = shop.getByTestId('shop-buy-grid');
+	await expect(buyGrid.getByRole('button')).toHaveCount(4);
+
+	const measureTooltip = () =>
+		page.evaluate(() => {
+			const rect = (selector: string) => {
+				const el = document.querySelector<HTMLElement>(selector);
+				if (!el) return null;
+				const r = el.getBoundingClientRect();
+				return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+			};
+			return {
+				tooltip: rect('.shop-tooltip'),
+				action: rect('.shop-detail-action'),
+				main: rect('.shop-main'),
+				screenScrollTop: document.querySelector<HTMLElement>('.shop-screen')?.scrollTop,
+				viewport: { width: window.innerWidth, height: window.innerHeight }
+			};
+		});
+	const expectTooltipInView = async () => {
+		const m = await measureTooltip();
+		expect(m.tooltip, 'tooltip rendered').not.toBeNull();
+		expect(m.main, 'stock column rendered').not.toBeNull();
+		const tooltip = m.tooltip!;
+		const main = m.main!;
+		// Regression: the strip pins inside the scrolling shop's viewport —
+		// never anchored at the bottom of a stock column that runs below it.
+		expect(tooltip.left).toBeGreaterThanOrEqual(main.left - 1);
+		expect(tooltip.right).toBeLessThanOrEqual(main.right + 1);
+		expect(tooltip.top).toBeGreaterThanOrEqual(0);
+		expect(tooltip.bottom).toBeLessThanOrEqual(m.viewport.height);
+		if (m.action) {
+			const overlaps = !(
+				tooltip.right <= m.action.left ||
+				tooltip.left >= m.action.right ||
+				tooltip.bottom <= m.action.top ||
+				tooltip.top >= m.action.bottom
+			);
+			expect(overlaps, 'tooltip must not cover the Buy action').toBe(false);
+		}
+	};
+
+	// The bug only shows at scrollTop 0: a real pointer hover on a tile's
+	// visible portion never scrolls, so the strip anchored at the stock
+	// column's bottom stays below the fold. (Clicking/focusing a tile would
+	// scroll it into view and mask the bug, so the detail action is armed
+	// with a synthetic click that leaves scroll position alone.)
+	const screenMetrics = await measureTooltip();
+	expect(screenMetrics.main!.bottom).toBeGreaterThan(screenMetrics.viewport.height);
+	expect(screenMetrics.screenScrollTop).toBe(0);
+	await buyGrid.getByLabel('Training Sword', { exact: true }).dispatchEvent('click');
+	await expect(shop.locator('.shop-detail-action')).toBeVisible();
+	const hover = async (name: string) => {
+		const tile = buyGrid.getByLabel(name, { exact: true });
+		const box = (await tile.boundingBox())!;
+		expect(box.y).toBeLessThan(844);
+		// Midpoint of the tile's visible slice — a real pointer rest there
+		// without scrolling.
+		await page.mouse.move(box.x + box.width / 2, (box.y + Math.min(box.y + box.height, 844)) / 2);
+	};
+	await hover('Iron Cap');
+	await expect(shop.locator('.shop-tooltip')).toContainText('Iron Cap');
+	await expectTooltipInView();
+	expect((await measureTooltip()).screenScrollTop).toBe(0);
+	await hover('Grip Wraps');
+	await expect(shop.locator('.shop-tooltip')).toContainText('Grip Wraps');
+	await expectTooltipInView();
 });
 
 test('Blacksmith painted interior preserves baked composition and collision', async ({ page }) => {
