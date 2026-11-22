@@ -510,27 +510,27 @@
 						<div class="shop-empty">{t($locale, 'ui.noSellableItems')}</div>
 					{/if}
 				</div>
+
+				{#if hoveredShopBuyItem}
+					<div role="tooltip" class="shop-tooltip">
+						<p class="shop-tooltip-name font-display">{hoveredShopBuyItem.name}</p>
+						<p class="shop-tooltip-desc">{hoveredShopBuyItem.description}</p>
+						<p class="shop-tooltip-meta font-display">
+							{t($locale, 'ui.buyFor', { meta: getShopBuyMeta(hoveredShopBuyItem) })}
+						</p>
+					</div>
+				{/if}
+
+				{#if hoveredShopSellItem}
+					<div role="tooltip" class="shop-tooltip">
+						<p class="shop-tooltip-name font-display">{hoveredShopSellItem.name}</p>
+						<p class="shop-tooltip-desc">{hoveredShopSellItem.description}</p>
+						<p class="shop-tooltip-meta font-display">
+							{t($locale, 'ui.sellFor', { meta: getShopSellMeta(hoveredShopSellItem) })}
+						</p>
+					</div>
+				{/if}
 			</div>
-
-			{#if hoveredShopBuyItem}
-				<div role="tooltip" class="shop-tooltip">
-					<p class="shop-tooltip-name font-display">{hoveredShopBuyItem.name}</p>
-					<p class="shop-tooltip-desc">{hoveredShopBuyItem.description}</p>
-					<p class="shop-tooltip-meta font-display">
-						{t($locale, 'ui.buyFor', { meta: getShopBuyMeta(hoveredShopBuyItem) })}
-					</p>
-				</div>
-			{/if}
-
-			{#if hoveredShopSellItem}
-				<div role="tooltip" class="shop-tooltip">
-					<p class="shop-tooltip-name font-display">{hoveredShopSellItem.name}</p>
-					<p class="shop-tooltip-desc">{hoveredShopSellItem.description}</p>
-					<p class="shop-tooltip-meta font-display">
-						{t($locale, 'ui.sellFor', { meta: getShopSellMeta(hoveredShopSellItem) })}
-					</p>
-				</div>
-			{/if}
 		</section>
 
 		<!-- Selected detail: stat deltas, purse after, action -->
@@ -1186,6 +1186,9 @@
 		right: 0.75rem;
 		bottom: 0.75rem;
 		z-index: 20;
+		/* The tooltip is a heroic-stagger child now, but it appears on
+		   hover — an entrance delay there would read as lag. */
+		animation: none;
 		/* Clamp to the stock column: at 640×360 .shop-main is ~272px wide,
 		   narrower than the fixed 18rem cap. */
 		max-width: min(18rem, calc(100% - 1.5rem));
@@ -1253,15 +1256,25 @@
 
 		/* The stacked screen scrolls and .shop-main runs taller than the
 		   viewport: a corner-anchored tooltip would sit below the fold on
-		   first-row tiles. Sticky pins it inside the scrollport while the
-		   panel's bottom is off-screen, then parks it under the grid. */
+		   first-row tiles. Overlaying the grid panel's 1/1 cell keeps it
+		   out of the flow — appearing/disappearing on hover must not push
+		   the detail panel — while sticky still pins it inside the
+		   scrollport until the panel's own bottom arrives. Both children
+		   need the explicit area: a definite tooltip placement would
+		   otherwise bump the auto-placed scroll pane into row 2. */
+		.shop-grid-scroll {
+			grid-area: 1 / 1;
+		}
+
 		.shop-tooltip {
 			position: sticky;
 			right: auto;
-			bottom: 0.75rem;
-			align-self: flex-end;
+			bottom: 0;
+			grid-area: 1 / 1;
+			align-self: end;
+			justify-self: end;
 			width: fit-content;
-			margin-right: 0.75rem;
+			margin: 0 0.75rem 0.75rem 0;
 		}
 	}
 
@@ -1394,7 +1407,7 @@
 			right: 0.75rem;
 			bottom: 0.75rem;
 			width: auto;
-			margin-right: 0;
+			margin: 0;
 		}
 	}
 </style>
