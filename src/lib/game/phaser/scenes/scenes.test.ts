@@ -11006,19 +11006,19 @@ describe('WorldScene', () => {
 			params: { itemName: { itemId: 'iron-cap' } }
 		});
 
-		// The claiming toast keeps its window: clear ticks release nothing early.
-		sceneState.updateStory(250);
-		sceneState.updateStory(250);
+		// The claiming toast keeps its window: clear ticks release nothing
+		// early — the line is still held on the last tick inside the window.
+		for (let tick = 0; tick < 7; tick += 1) {
+			sceneState.updateStory(250);
+		}
 		expect(emitHudStateSpy).not.toHaveBeenCalledWith(
 			expect.objectContaining({ status: 'Equipped Iron Cap' })
 		);
 		expect(sceneState.pendingFieldStatus).not.toBeNull();
 
-		// The story settle itself releases the held line once the toast window
-		// elapses — no dialogue close or gate restart required.
-		for (let tick = 0; tick < 9; tick += 1) {
-			sceneState.updateStory(250);
-		}
+		// The story settle itself releases the held line exactly as the toast
+		// window elapses — no dialogue close or gate restart required.
+		sceneState.updateStory(250);
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({ status: 'Equipped Iron Cap' })
 		);
