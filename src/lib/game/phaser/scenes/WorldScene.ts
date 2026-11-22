@@ -3860,6 +3860,15 @@ export class WorldScene extends Phaser.Scene {
 			playSfx(this, 'pickup');
 			this.pickupMarkers.get(pickup.id)?.setVisible(false);
 			const equippedItemId = granted.equipped.at(-1);
+			if (equippedItemId !== undefined && this.dialogueSession) {
+				// Same hold applyQuestProgress uses for quest rewards: FieldHud is
+				// unmounted during dialogue, so the pickup's equip notice waits in
+				// pendingFieldStatus for endDialogue's flush — otherwise the close
+				// publishes nothing.
+				this.pendingFieldStatus = this.statusMessage('status.equippedItem', {
+					itemName: { itemId: equippedItemId }
+				});
+			}
 			this.applyQuestProgress(
 				{
 					type: 'collect-item',

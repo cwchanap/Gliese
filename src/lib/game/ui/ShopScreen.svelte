@@ -1250,6 +1250,19 @@
 		.shop-detail {
 			width: 100%;
 		}
+
+		/* The stacked screen scrolls and .shop-main runs taller than the
+		   viewport: a corner-anchored tooltip would sit below the fold on
+		   first-row tiles. Sticky pins it inside the scrollport while the
+		   panel's bottom is off-screen, then parks it under the grid. */
+		.shop-tooltip {
+			position: sticky;
+			right: auto;
+			bottom: 0.75rem;
+			align-self: flex-end;
+			width: fit-content;
+			margin-right: 0.75rem;
+		}
 	}
 
 	@media (max-width: 640px) {
@@ -1372,6 +1385,16 @@
 
 		.shop-detail-desc {
 			max-width: none;
+		}
+
+		/* Columns are side by side again and nothing scrolls: back to the
+		   stock column's bottom corner. */
+		.shop-tooltip {
+			position: absolute;
+			right: 0.75rem;
+			bottom: 0.75rem;
+			width: auto;
+			margin-right: 0;
 		}
 	}
 </style>

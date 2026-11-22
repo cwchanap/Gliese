@@ -10850,6 +10850,41 @@ describe('WorldScene', () => {
 		);
 	});
 
+	it('holds a gear pickup equip notice collected during dialogue for the close flush', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { buildDialogueFallback } = await import('$lib/game/core/dialogue');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: ReturnType<typeof buildDialogueFallback> | null;
+			buildSaveState: () => {
+				flags: { collectedPickups: string[] };
+			};
+		};
+
+		// Proximity collection stays live while a dialogue freezes movement:
+		// an interact press on the same frame the hero enters the pickup
+		// radius collects it with the session already open.
+		scene.create({ mapId: 'ruins-threshold' });
+		Object.assign(phaserState.playerMarker, { x: 1_728, y: 2_112 });
+		sceneState.dialogueSession = buildDialogueFallback('Old Mott', 'Easy now.');
+
+		scene.update(0, 16);
+
+		expect(sceneState.buildSaveState().flags.collectedPickups).toContain('ruins-threshold-cap');
+		expect(emitHudStateSpy).not.toHaveBeenCalledWith(
+			expect.objectContaining({ status: 'Equipped Iron Cap' })
+		);
+
+		sceneState.handleHudCommand({ type: 'dialogue-close' });
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Equipped Iron Cap', dialogue: null })
+		);
+	});
+
 	it('carries the flushed equip status through a story-gate restart', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
