@@ -13,7 +13,10 @@ selling, localized text, keyboard activation, and tooltip/action geometry.
 
 The focused shared-browser run passed five tests: Mira, Oren checkpoint, first
 wolves checkpoint, Borak persistence, and evidence-file safety. The separately
-run New Run journey passed. The MCP observations include:
+run New Run journey passed twice; a later rerun failed the `jog-north` corridor
+trace assertion, so the route is still flaky. Attempts to continue from Oren to
+the first wolves also failed before reaching the fight. The MCP observations
+include:
 
 - [Mott reward](hpa-839-story-gear-shop/mott-mcp.txt) and
   [Oren reward](hpa-839-story-gear-shop/oren-mcp.txt), target
@@ -49,5 +52,9 @@ in this checkout. They do not establish asset-complete visual acceptance.
   LFS assets. Chromium was supplied through an isolated browser-path override.
 
 Asset-complete visual acceptance and a fully green unit run remain open until
-the Git LFS assets are hydrated. The long keyboard route can still be sensitive
-to unusually long headless-browser frame stalls.
+the Git LFS assets are hydrated. The uninterrupted New Run-to-first-wolves
+check and reliable execution of the long keyboard route also remain open.
+
+An earlier run overwrote an ignored trace file in another task's evidence
+directory; its previous contents could not be recovered. The journey now retains
+the trace as a Playwright attachment instead of writing to that shared file.
