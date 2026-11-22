@@ -1551,11 +1551,16 @@ export class WorldScene extends Phaser.Scene {
 
 	/** Publishes the held reward status once the field is visible, or keeps
 	 *  it held while a queued/running story effect would overwrite it on the
-	 *  next frame — the effect's own session close flushes it then. */
+	 *  next frame — the effect's own session close flushes it then. A held
+	 *  scene load never releases it: the failure notice stays the field
+	 *  status, so the flush republishes it instead of the held line. */
 	private flushFieldStatus(fallback: WorldSceneStatus | null) {
+		if (this.storySceneHold) {
+			this.publishHudState(this.statusMessage('status.storySceneFailed'));
+			return;
+		}
 		if (
 			this.pendingFieldStatus !== null &&
-			!this.storySceneHold &&
 			(this.quests.pendingEffects.length > 0 ||
 				this.storyEffectRunning ||
 				this.storySceneInFlight !== null)
@@ -3615,7 +3620,11 @@ export class WorldScene extends Phaser.Scene {
 					reason: 'story',
 					// A held reward status is unshown field copy: carry it as the
 					// arrival status so the re-created scene still publishes it.
-					status: this.pendingFieldStatus ?? this.lastPublishedStatus,
+					// A held scene load carries its failure notice instead — the
+					// unshown equip line must not mask it.
+					status: this.storySceneHold
+						? this.statusMessage('status.storySceneFailed')
+						: (this.pendingFieldStatus ?? this.lastPublishedStatus),
 					storySceneHold: this.storySceneHold
 				});
 				return true;
@@ -3624,8 +3633,9 @@ export class WorldScene extends Phaser.Scene {
 
 		// This tick is clear of dialogues, shops, effects, and gate restarts:
 		// the claiming toast's window runs down, then the held line lands so a
-		// no-dialogue completion never strands it waiting for a close.
-		if (this.pendingFieldStatus !== null) {
+		// no-dialogue completion never strands it waiting for a close. A held
+		// scene load freezes the release — its failure notice stays the status.
+		if (this.pendingFieldStatus !== null && !this.storySceneHold) {
 			this.heldFieldStatusReleaseMs -= Math.min(Math.max(delta, 0), WorldScene.maxMovementDeltaMs);
 			if (this.heldFieldStatusReleaseMs <= 0) {
 				this.flushFieldStatus(null);

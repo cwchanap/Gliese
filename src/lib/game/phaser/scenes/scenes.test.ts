@@ -8411,12 +8411,19 @@ describe('WorldScene', () => {
 		const typedState = sceneState as unknown as {
 			storyRefreshPending: boolean;
 			storyGateKey: string;
+			pendingFieldStatus: WorldSceneStatus | null;
 		};
 		try {
 			scene.update(0, 16);
 			await vi.waitFor(() => expect(sceneState.storyEffectRunning).toBe(false));
 			expect(sceneState.storySceneHold).toBe(true);
 
+			// A held equip notice must not ride the restart over the failure
+			// status the player needs to see.
+			typedState.pendingFieldStatus = {
+				key: 'status.equippedItem',
+				params: { itemName: { itemId: 'iron-cap' } }
+			};
 			typedState.storyRefreshPending = true;
 			typedState.storyGateKey = 'stale';
 			scene.update(16, 16);
@@ -11095,6 +11102,66 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({ status: 'Equipped Iron Cap', dialogue: null })
 		);
+	});
+
+	it('keeps the story-load failure ahead of a held equip notice while the scene stays held', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { buildDialogueFallback } = await import('$lib/game/core/dialogue');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: ReturnType<typeof buildDialogueFallback> | null;
+			updateStory: (delta: number) => boolean;
+			pendingFieldStatus: WorldSceneStatus | null;
+			heldFieldStatusReleaseMs: number;
+			lastPublishedStatus: WorldSceneStatus | null;
+			storySceneHold: boolean;
+			quests: questRuntime.QuestState;
+		};
+
+		scene.create({ saveState: createNewSaveState() });
+		emitHudStateSpy.mockClear();
+
+		// A queued scene failed to load: the requeued cue holds the queue, the
+		// failure notice owns the field status, and an equip line waits held
+		// with its release window armed.
+		sceneState.storySceneHold = true;
+		sceneState.quests.pendingEffects.push({
+			type: 'play-scene',
+			sceneId: 'prologue.chapter-one'
+		});
+		sceneState.lastPublishedStatus = { key: 'status.storySceneFailed', params: {} };
+		sceneState.pendingFieldStatus = {
+			key: 'status.equippedItem',
+			params: { itemName: { itemId: 'iron-cap' } }
+		};
+		sceneState.heldFieldStatusReleaseMs = 2_000;
+
+		// Clear ticks run well past the toast window: the held line must not
+		// release over the failure notice while the scene stays held.
+		for (let tick = 0; tick < 12; tick += 1) {
+			sceneState.updateStory(250);
+		}
+		expect(emitHudStateSpy).not.toHaveBeenCalledWith(
+			expect.objectContaining({ status: 'Equipped Iron Cap' })
+		);
+		expect(sceneState.pendingFieldStatus).not.toBeNull();
+		expect(sceneState.lastPublishedStatus).toEqual({
+			key: 'status.storySceneFailed',
+			params: {}
+		});
+
+		// A dialogue claiming then releasing the field republishes the failure
+		// notice rather than flushing the held line over it.
+		sceneState.dialogueSession = buildDialogueFallback('Guide', 'On you go.');
+		sceneState.handleHudCommand({ type: 'dialogue-close' });
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Story could not load', dialogue: null })
+		);
+		expect(sceneState.pendingFieldStatus).not.toBeNull();
 	});
 
 	it('keeps a held equip notice until the queued play-scene ends, not its dialogue close', async () => {
