@@ -51,10 +51,20 @@ in this checkout. They do not establish asset-complete visual acceptance.
   The failures are the baseline interior image-hash checks against missing Git
   LFS assets. Chromium was supplied through an isolated browser-path override.
 
-Asset-complete visual acceptance and a fully green unit run remain open until
-the Git LFS assets are hydrated. The uninterrupted New Run-to-first-wolves
-check and reliable execution of the long keyboard route also remain open.
+At the time of this initial run, asset-complete visual acceptance and a fully
+green unit run were blocked by missing Git LFS assets. The uninterrupted
+New Run-to-first-wolves check and reliable execution of the long keyboard route
+also remained open.
 
 An earlier run overwrote an ignored trace file in another task's evidence
 directory; its previous contents could not be recovered. The journey now retains
 the trace as a Playwright attachment instead of writing to that shared file.
+
+## Follow-up
+
+The [asset-complete visual review](2026-11-22-hpa-839-visual-acceptance.md)
+used separately staged, hash-verified production assets and passed the shop
+and reward-screen checks. The four LFS-dependent asset tests also passed
+against those staged files. The worktree itself still contains LFS pointers,
+the full unit suite was not rerun with staged assets, and the uninterrupted
+New Run-to-first-wolves journey remains unverified.

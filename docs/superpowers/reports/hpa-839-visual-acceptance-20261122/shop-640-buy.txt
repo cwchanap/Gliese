@@ -1,0 +1,44 @@
+targetId=E82A35EC9ED205657E5A811A9846904E
+pageId=1
+timeOrigin=1795309681796.6
+ts=2026-11-22T01:08:11.895Z
+candidates=[{"pageId":1,"origin":1795309681796.6,"targetId":"E82A35EC9ED205657E5A811A9846904E"}]
+
+## Latest page snapshot
+uid=15_0 RootWebArea "Gliese" url="http://127.0.0.1:4173/"
+  uid=16_0 generic
+  uid=18_0 button "MENU" expandable keyshortcuts="Escape"
+  uid=18_1 region "Player status"
+    uid=18_2 "LV 1"
+    uid=18_3 "Grik"
+    uid=18_4 "HP"
+    uid=18_5 "10/20"
+  uid=18_6 complementary "Quest tracker"
+    uid=18_7 "Gather moonmoss in the Mistfen. "
+    uid=18_8 "(0/4)"
+  uid=18_9 "30G"
+  uid=18_10 status "Field status" atomic live="polite" relevant="additions text"
+  uid=18_11 dialog "Mira's Herb Hut" modal
+    uid=18_12 complementary
+      uid=18_13 "MERCHANT"
+      uid=18_14 "Mira"
+      uid=18_15 "PURSE"
+      uid=18_16 "30"
+      uid=18_17 tab "BUY" selectable selected
+      uid=18_18 tab "SELL" selectable
+      uid=18_19 button "Esc Close"
+    uid=18_20 "BUY"
+    uid=18_21 heading "Mira's Herb Hut" level="2"
+    uid=18_22 "Dimmed = can't afford"
+    uid=18_23 button "Field Potion" focusable focused
+    uid=18_24 button "Sunleaf Salve"
+    uid=18_25 button "Greater Field Potion"
+    uid=19_0 "FIELD POTION"
+    uid=19_1 "Restores 8 HP."
+    uid=19_2 "BUY FOR 10 COINS / UNLIMITED"
+    uid=18_26 complementary "Mira's Herb Hut"
+      uid=19_3 "Sunleaf Salve"
+      uid=19_4 "Restores 6 HP."
+      uid=19_5 "PURSE AFTER"
+      uid=19_6 "30 → 24"
+      uid=19_7 button "Buy ↵"

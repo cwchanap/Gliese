@@ -1,0 +1,56 @@
+targetId=E82A35EC9ED205657E5A811A9846904E
+pageId=1
+timeOrigin=1795309645640.3
+ts=2026-11-22T01:07:36.963Z
+candidates=[{"pageId":1,"origin":1795309645640.3,"targetId":"E82A35EC9ED205657E5A811A9846904E"}]
+
+## Latest page snapshot
+uid=1_0 RootWebArea "Gliese" url="http://127.0.0.1:4173/"
+  uid=2_0 generic
+  uid=5_0 button "MENU" expandable keyshortcuts="Escape"
+  uid=5_1 region "Player status"
+    uid=5_2 "LV 1"
+    uid=5_3 "Grik"
+    uid=5_4 "HP"
+    uid=5_5 "10/20"
+    uid=5_6 "XP"
+    uid=5_7 "0/5"
+    uid=5_8 " ATK "
+    uid=5_9 "4"
+    uid=5_10 " DEF "
+    uid=5_11 "0"
+  uid=5_12 region "Area Map"
+    uid=5_13 "Herb Hut"
+  uid=5_14 complementary "Quest tracker"
+    uid=5_15 "✦ MAIN QUEST"
+    uid=5_16 heading "Second Trial: Mistfen" level="2"
+    uid=5_17 "Gather moonmoss in the Mistfen. "
+    uid=5_18 "(0/4)"
+  uid=5_19 "30G"
+  uid=5_20 status "Field status" atomic live="polite" relevant="additions text"
+  uid=5_21 dialog "Mira's Herb Hut" modal
+    uid=5_22 complementary
+      uid=5_23 image "Mira, merchant portrait" url="http://127.0.0.1:4173/game/assets/heroic-ui/busts/shopkeeper.png"
+      uid=5_24 "MERCHANT"
+      uid=5_25 "Mira"
+      uid=5_26 "Herbs and remedies for the hunt."
+      uid=5_27 "PURSE"
+      uid=5_28 "30"
+      uid=5_29 tab "BUY" selectable selected
+      uid=5_30 tab "SELL" selectable
+      uid=5_31 button "Esc Close"
+    uid=5_32 "BUY"
+    uid=5_33 heading "Mira's Herb Hut" level="2"
+    uid=5_34 "Dimmed = can't afford"
+    uid=5_35 button "Field Potion"
+    uid=5_36 button "Sunleaf Salve" focusable focused
+    uid=5_37 button "Greater Field Potion"
+    uid=5_38 "SUNLEAF SALVE"
+    uid=5_39 "Restores 6 HP."
+    uid=5_40 "BUY FOR 6 COINS / UNLIMITED"
+    uid=5_41 complementary "Mira's Herb Hut"
+      uid=5_42 "Sunleaf Salve"
+      uid=5_43 "Restores 6 HP."
+      uid=5_44 "PURSE AFTER"
+      uid=5_45 "30 → 24"
+      uid=5_46 button "Buy ↵"
