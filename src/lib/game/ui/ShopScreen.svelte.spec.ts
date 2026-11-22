@@ -521,16 +521,22 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 					expect(el).not.toBeNull();
 					return el!;
 				});
-				buyAction.scrollIntoView({ block: 'nearest' });
-
+				// The scrollport must not clip the tooltip while a stock tile
+				// holds focus — measure before the scroll below, while
+				// .shop-screen still sits at scrollTop 0. getBoundingClientRect
+				// alone misses clipping, so clip against every overflow
+				// ancestor like the chrome checks.
+				const buyTipRect = buyTooltip.getBoundingClientRect();
+				const buyTipClip = visibleRect(buyTooltip);
 				expect(
-					insideRect(buyTooltip.getBoundingClientRect(), main.getBoundingClientRect()),
-					`buy tooltip inside .shop-main at ${width}×${height}: ${JSON.stringify(buyTooltip.getBoundingClientRect().toJSON())}`
+					buyTipClip.height >= buyTipRect.height - 0.5 &&
+						buyTipClip.width >= buyTipRect.width - 0.5,
+					`buy tooltip clipped by an ancestor at ${width}×${height}: el ${JSON.stringify(buyTipRect.toJSON())} visible ${JSON.stringify(buyTipClip.toJSON())}`
 				).toBe(true);
 				expect(
-					rectsIntersect(buyTooltip.getBoundingClientRect(), buyAction.getBoundingClientRect()),
-					`buy tooltip overlaps detail action at ${width}×${height}: ${JSON.stringify(buyTooltip.getBoundingClientRect().toJSON())} vs ${JSON.stringify(buyAction.getBoundingClientRect().toJSON())}`
-				).toBe(false);
+					insideViewport(buyTipRect, width, height),
+					`buy tooltip inside viewport at ${width}×${height}`
+				).toBe(true);
 
 				// The tooltip must not take layout space: the detail panel does
 				// not move when it appears or hides. offsetTop is measured
@@ -539,10 +545,12 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 					detail.offsetTop,
 					`tooltip appearing moved .shop-detail at ${width}×${height}: ${detailTopBeforeBuy} → ${detail.offsetTop}`
 				).toBe(detailTopBeforeBuy);
-				// scrollIntoView can slide the parked header away in the
-				// stacked layout — re-park so no tile sits under the pointer
-				// when blur clears the tooltip.
-				await userEvent.hover(screen.querySelector('.shop-header')!);
+
+				// Blur hides the focus tooltip. Asserted before any scrolling:
+				// Chrome re-hit-tests the parked pointer on scroll, and a tile
+				// sliding under it raises a hover tooltip whose mouseleave
+				// clears state without touching blur — an absence check after
+				// scroll proves nothing.
 				buyTile.blur();
 				await vi.waitFor(() => {
 					expect(main.querySelector('.shop-tooltip')).toBeNull();
@@ -552,9 +560,32 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 					`tooltip hiding moved .shop-detail at ${width}×${height}: ${detailTopBeforeBuy} → ${detail.offsetTop}`
 				).toBe(detailTopBeforeBuy);
 
+				// Re-raise the tooltip and scroll the detail action into view:
+				// it must stay inside the stock column and clear of the action
+				// while both are reachable. The blurred node was removed, so
+				// measure a fresh element.
+				buyTile.focus();
+				const buyTooltipScrolled = await vi.waitFor(() => {
+					const el = main.querySelector<HTMLElement>('.shop-tooltip');
+					expect(el).not.toBeNull();
+					return el!;
+				});
+				buyAction.scrollIntoView({ block: 'nearest' });
+
+				expect(
+					insideRect(buyTooltipScrolled.getBoundingClientRect(), main.getBoundingClientRect()),
+					`buy tooltip inside .shop-main at ${width}×${height}: ${JSON.stringify(buyTooltipScrolled.getBoundingClientRect().toJSON())}`
+				).toBe(true);
+				expect(
+					rectsIntersect(
+						buyTooltipScrolled.getBoundingClientRect(),
+						buyAction.getBoundingClientRect()
+					),
+					`buy tooltip overlaps detail action at ${width}×${height}: ${JSON.stringify(buyTooltipScrolled.getBoundingClientRect().toJSON())} vs ${JSON.stringify(buyAction.getBoundingClientRect().toJSON())}`
+				).toBe(false);
+
 				// The action is a real click target: a pointer click on it lands
 				// on the button and emits the buy command.
-				buyTile.focus();
 				await userEvent.click(page.elementLocator(buyAction));
 				expect(commands).toContainEqual({
 					type: 'buy-shop-item',
@@ -579,6 +610,21 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 					expect(el).not.toBeNull();
 					return el!;
 				});
+
+				// Same scrollport-clipping check as the buy side, measured
+				// while the tile holds focus and before the scroll.
+				const sellTipRect = sellTooltip.getBoundingClientRect();
+				const sellTipClip = visibleRect(sellTooltip);
+				expect(
+					sellTipClip.height >= sellTipRect.height - 0.5 &&
+						sellTipClip.width >= sellTipRect.width - 0.5,
+					`sell tooltip clipped by an ancestor at ${width}×${height}: el ${JSON.stringify(sellTipRect.toJSON())} visible ${JSON.stringify(sellTipClip.toJSON())}`
+				).toBe(true);
+				expect(
+					insideViewport(sellTipRect, width, height),
+					`sell tooltip inside viewport at ${width}×${height}`
+				).toBe(true);
+
 				sellAction.scrollIntoView({ block: 'nearest' });
 
 				expect(
