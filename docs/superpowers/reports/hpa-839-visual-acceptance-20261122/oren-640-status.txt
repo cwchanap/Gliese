@@ -1,0 +1,20 @@
+targetId=6E775C9677895595E27C1CD7C7E2CC7D
+pageId=1
+timeOrigin=1795310045397.5
+ts=2026-11-22T01:14:12.704Z
+candidates=[{"pageId":1,"origin":1795310045397.5,"targetId":"6E775C9677895595E27C1CD7C7E2CC7D"}]
+
+## Latest page snapshot
+uid=1_0 RootWebArea "Gliese" url="http://127.0.0.1:4173/"
+  uid=2_0 generic
+  uid=4_0 button "MENU" expandable keyshortcuts="Escape"
+  uid=4_1 region "Player status"
+    uid=4_2 "LV 1"
+    uid=4_3 "Grik"
+    uid=4_4 "HP"
+    uid=4_5 "20/22"
+  uid=4_6 complementary "Quest tracker"
+    uid=4_7 "Collect the herb pouch from Mira at the Herb Hut."
+  uid=4_8 "0G"
+  uid=4_9 status "Field status" atomic live="polite" relevant="additions text"
+    uid=4_10 "Equipped Practice Spear"

@@ -1,0 +1,50 @@
+{
+  "revision": "ff4e4cbee3e20edf74a7bbb278608e8af6a79738",
+  "assets": [
+    {
+      "path": "public/game/assets/interiors/blacksmith-interior/base.png",
+      "sha256": "604efdd3c9c6fe9c5c4186edbc35ee871bd1d1372cac1c8ecaa9a14dd3d76e4d",
+      "size": 1499860
+    },
+    {
+      "path": "public/game/assets/interiors/guild-hall/base.png",
+      "sha256": "320a18c6e6ebd59ec25fce93d89b10ed3e469812befe316e62b068b4c690163d",
+      "size": 1962474
+    },
+    {
+      "path": "public/game/assets/interiors/guild-hall/foreground.png",
+      "sha256": "4ff46a839dc19bcce9a514cc2da5ec195892971a761574b0754d39ffef92e1f9",
+      "size": 18117
+    },
+    {
+      "path": "public/game/assets/interiors/hero-house/base.png",
+      "sha256": "ceba64bb3c132969c17dd3021c1d198c50bb4998e21f754ee5d68acf1656f2c0",
+      "size": 979168
+    },
+    {
+      "path": "public/game/assets/interiors/item-shop/base.png",
+      "sha256": "e13e434d56c15278fe4b3b66b668572ee9a153cc4eacc2dfdd1057f9d7afc962",
+      "size": 1171924
+    },
+    {
+      "path": "public/game/assets/interiors/shrine-of-aurora-interior/base.png",
+      "sha256": "ebc043e542718acbeea980e01ff2c8b9c4a172365e8afbb98cda3e09325ce50b",
+      "size": 2498011
+    },
+    {
+      "path": "public/game/assets/interiors/villager-house-1/base.png",
+      "sha256": "e3041189516d424cb35e3e4153712231dcfc9b3c3a6fd321cd53bc7ec1d4118a",
+      "size": 2447840
+    },
+    {
+      "path": "public/game/assets/interiors/villager-house-2/base.png",
+      "sha256": "b8cc306bbb57645d93f8358b435a870ebe88f765d4a04e9a581a09b18b710ccf",
+      "size": 2100862
+    },
+    {
+      "path": "public/game/assets/interiors/villager-house-3/base.png",
+      "sha256": "9b021c433565b0fe68c7699a2b7bd646de3273511b144efb34d9e10aba93567f",
+      "size": 1831929
+    }
+  ]
+}

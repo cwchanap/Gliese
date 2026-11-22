@@ -1,0 +1,31 @@
+targetId=C475A8B118AE7079F74380F366C5F257
+pageId=4
+timeOrigin=1795309774367.9
+ts=2026-11-22T01:09:58.900Z
+candidates=[{"pageId":4,"origin":1795309774367.9,"targetId":"C475A8B118AE7079F74380F366C5F257"}]
+
+## Latest page snapshot
+uid=51_0 RootWebArea "Gliese" url="http://127.0.0.1:4173/"
+  uid=52_0 generic
+  uid=59_0 button "MENU" expandable keyshortcuts="Escape"
+  uid=59_1 region "Player status"
+    uid=59_2 "LV 1"
+    uid=59_3 "Grik"
+    uid=59_4 "HP"
+    uid=59_5 "20/22"
+    uid=59_6 "XP"
+    uid=59_7 "0/5"
+    uid=59_8 " ATK "
+    uid=59_9 "7"
+    uid=59_10 " DEF "
+    uid=59_11 "1"
+  uid=59_12 region "Area Map"
+    uid=59_13 "Hunters' Lodge"
+  uid=59_14 complementary "Quest tracker"
+    uid=59_15 "✦ MAIN QUEST"
+    uid=59_16 heading "A Hunter's Name" level="2"
+    uid=59_17 "Join the family at the dinner table. "
+    uid=59_18 "(0/3)"
+  uid=59_19 "90G"
+  uid=59_20 status "Field status" atomic live="polite" relevant="additions text"
+    uid=59_21 "Equipped Hunter's Knife"

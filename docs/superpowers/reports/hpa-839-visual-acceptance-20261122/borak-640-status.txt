@@ -1,0 +1,21 @@
+targetId=F7473DD224FB238F3F27A3748784B2CA
+pageId=2
+timeOrigin=1795310054588.9
+ts=2026-11-22T01:14:24.779Z
+candidates=[{"pageId":2,"origin":1795310054588.9,"targetId":"F7473DD224FB238F3F27A3748784B2CA"}]
+
+## Latest page snapshot
+uid=5_0 RootWebArea "Gliese" url="http://127.0.0.1:4173/"
+  uid=6_0 generic
+  uid=10_0 button "MENU" expandable keyshortcuts="Escape"
+  uid=10_1 region "Player status"
+    uid=10_2 "LV 1"
+    uid=10_3 "Grik"
+    uid=10_4 "HP"
+    uid=10_5 "20/22"
+  uid=10_6 complementary "Quest tracker"
+    uid=10_7 "Join the family at the dinner table. "
+    uid=10_8 "(0/3)"
+  uid=10_9 "90G"
+  uid=10_10 status "Field status" atomic live="polite" relevant="additions text"
+    uid=10_11 "Equipped Hunter's Knife"

@@ -1,0 +1,30 @@
+targetId=D03F19907C8728F7BA39FB43BD930D32
+pageId=2
+timeOrigin=1795309724547.8
+ts=2026-11-22T01:09:01.826Z
+candidates=[{"pageId":2,"origin":1795309724547.8,"targetId":"D03F19907C8728F7BA39FB43BD930D32"}]
+
+## Latest page snapshot
+uid=35_0 RootWebArea "Gliese" url="http://127.0.0.1:4173/"
+  uid=36_0 generic
+  uid=41_0 button "MENU" expandable keyshortcuts="Escape"
+  uid=41_1 region "Player status"
+    uid=41_2 "LV 1"
+    uid=41_3 "Grik"
+    uid=41_4 "HP"
+    uid=41_5 "20/22"
+    uid=41_6 "XP"
+    uid=41_7 "0/5"
+    uid=41_8 " ATK "
+    uid=41_9 "4"
+    uid=41_10 " DEF "
+    uid=41_11 "1"
+  uid=41_12 region "Area Map"
+    uid=41_13 "Sundrop Forge"
+  uid=41_14 complementary "Quest tracker"
+    uid=41_15 "✦ MAIN QUEST"
+    uid=41_16 heading "The Proving Morning" level="2"
+    uid=41_17 "Collect the herb pouch from Mira at the Herb Hut."
+  uid=41_18 "0G"
+  uid=41_19 status "Field status" atomic live="polite" relevant="additions text"
+    uid=41_20 "Equipped Practice Spear"
