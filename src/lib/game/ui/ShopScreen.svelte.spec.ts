@@ -565,12 +565,19 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 				// while both are reachable. The blurred node was removed, so
 				// measure a fresh element.
 				buyTile.focus();
+				await vi.waitFor(() => {
+					expect(main.querySelector('.shop-tooltip')).not.toBeNull();
+				});
+				buyAction.scrollIntoView({ block: 'nearest' });
+				// Scroll re-hit-tests the parked pointer: a tile sliding under
+				// it swaps or clears the tooltip, leaving a pre-scroll capture
+				// detached. Re-resolve after the scroll so the geometry checks
+				// and the click below run with a tooltip actually open.
 				const buyTooltipScrolled = await vi.waitFor(() => {
 					const el = main.querySelector<HTMLElement>('.shop-tooltip');
 					expect(el).not.toBeNull();
 					return el!;
 				});
-				buyAction.scrollIntoView({ block: 'nearest' });
 
 				expect(
 					insideRect(buyTooltipScrolled.getBoundingClientRect(), main.getBoundingClientRect()),
@@ -626,13 +633,23 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 				).toBe(true);
 
 				sellAction.scrollIntoView({ block: 'nearest' });
+				// Same re-hit-test hazard as the buy side: resolve the live
+				// tooltip post-scroll so the checks and click run with one open.
+				const sellTooltipScrolled = await vi.waitFor(() => {
+					const el = main.querySelector<HTMLElement>('.shop-tooltip');
+					expect(el).not.toBeNull();
+					return el!;
+				});
 
 				expect(
-					insideRect(sellTooltip.getBoundingClientRect(), main.getBoundingClientRect()),
+					insideRect(sellTooltipScrolled.getBoundingClientRect(), main.getBoundingClientRect()),
 					`sell tooltip inside .shop-main at ${width}×${height}`
 				).toBe(true);
 				expect(
-					rectsIntersect(sellTooltip.getBoundingClientRect(), sellAction.getBoundingClientRect()),
+					rectsIntersect(
+						sellTooltipScrolled.getBoundingClientRect(),
+						sellAction.getBoundingClientRect()
+					),
 					`sell tooltip overlaps detail action at ${width}×${height}`
 				).toBe(false);
 				expect(
