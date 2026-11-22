@@ -210,6 +210,10 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 		emitHudState(baseHudState({ shop: stockedShop }));
 		await expect.element(page.getByTestId('shop-buy-grid')).toBeVisible();
 		await settleEntrance();
+		// Park the real pointer off the tiles: it keeps its position across
+		// cases, and Chrome re-hit-tests it on scroll/DOM changes — a stray
+		// tile mouseenter re-shows the tooltip after focus/blur clears it.
+		await userEvent.hover(document.querySelector<HTMLElement>('.shop-header')!);
 	}
 
 	it.each([
@@ -535,6 +539,10 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 					detail.offsetTop,
 					`tooltip appearing moved .shop-detail at ${width}×${height}: ${detailTopBeforeBuy} → ${detail.offsetTop}`
 				).toBe(detailTopBeforeBuy);
+				// scrollIntoView can slide the parked header away in the
+				// stacked layout — re-park so no tile sits under the pointer
+				// when blur clears the tooltip.
+				await userEvent.hover(screen.querySelector('.shop-header')!);
 				buyTile.blur();
 				await vi.waitFor(() => {
 					expect(main.querySelector('.shop-tooltip')).toBeNull();
