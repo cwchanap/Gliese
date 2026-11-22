@@ -21,38 +21,26 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-# Playwright
-test-results
+# Generated Playwright output (including screenshots and traces)
+test-results/
+playwright-report/
 
 # Local brainstorming companion artifacts
 .superpowers/
 
-# Local generated previews and validation output
+# Local generated previews and validation output. Put future recordings,
+# screenshots, and debug dumps here; curated evidence belongs in docs.
 .artifacts/
+/verification-output/
 
 # Local playtest screenshots
 docs/superpowers/reports/entry-map-playtest/
 
-# Local generated reports and evidence images. Re-include the parent
-# directories so the retained verification pairs can be added normally.
-docs/superpowers/reports/**
-!docs/superpowers/reports/img/
-!docs/superpowers/reports/img/hpa-586-interiors/
-!docs/superpowers/reports/img/hpa-586-interiors/final/
-!docs/superpowers/reports/img/hpa-586-interiors/final/item-shop/
-!docs/superpowers/reports/img/hpa-586-interiors/final/item-shop/fallback-camera-640x360.png
-!docs/superpowers/reports/img/hpa-586-interiors/final/item-shop/painted-camera-640x360.png
-!docs/superpowers/reports/img/hpa-760-round2/
-!docs/superpowers/reports/img/hpa-760-round2/task6a-hud-occluded-desktop-1280x800.png
-!docs/superpowers/reports/img/hpa-760-round2/task6a-hud-occluded-narrow-640x480.png
-
-# Local visual-reference captures (screenshots, compare pages)
-# docs/visual-references/heroic-ui/runtime/ stays tracked: the Heroic UI art
-# validator requires those captures on a fresh CI checkout.
-docs/visual-references/*
-!docs/visual-references/heroic-ui/
-docs/visual-references/heroic-ui/*
-!docs/visual-references/heroic-ui/runtime/
+# Legacy generated capture batches. Keep reviewed evidence and reports addable.
+/docs/superpowers/reports/img/hpa-586-interiors/final/*/*-camera-*.png
+!/docs/superpowers/reports/img/hpa-586-interiors/final/item-shop/fallback-camera-640x360.png
+!/docs/superpowers/reports/img/hpa-586-interiors/final/item-shop/painted-camera-640x360.png
+/docs/superpowers/reports/img/hpa-760-round2/*-route-map-preview.png
 
 # Playwright CLI debug logs
 .playwright-cli/
