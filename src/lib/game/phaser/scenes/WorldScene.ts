@@ -482,8 +482,10 @@ export class WorldScene extends Phaser.Scene {
 	private mapExploration: MapExplorationState = createEmptyMapExploration();
 	private mapId = openingMapId;
 	private lastPublishedStatus: WorldSceneStatus | null = null;
-	/** A named reward status held while a dialogue hides FieldHud;
-	 *  {@link endDialogue} flushes it once, when the field is visible again. */
+	/** A named reward status held while something else claims the footer —
+	 *  an open dialogue, the same beat's quest-complete toast, or a queued
+	 *  story effect about to publish. {@link flushFieldStatus} releases it
+	 *  once the field is visibly back. */
 	private pendingFieldStatus: WorldSceneStatus | null = null;
 	private currentNearbyNpcId: string | null = null;
 	private currentNearbyNpcStatus: WorldSceneStatus | null = null;
@@ -878,6 +880,19 @@ export class WorldScene extends Phaser.Scene {
 				? data.status
 				: this.resolveInitialStatus(reason, Boolean(fledBounds))
 		);
+
+		// A carried status must outlive the first update(): mark an in-range
+		// NPC's proximity prompt as already published so updateNpcDialogue's
+		// 'Y nearby' cannot overwrite the carried line.
+		if (data.status) {
+			const nearbyNpc = this.findNearbyNpc();
+			if (nearbyNpc) {
+				this.currentNearbyNpcId = nearbyNpc.id;
+				this.currentNearbyNpcStatus = this.statusMessage('status.npcNearby', {
+					npcName: { npcId: nearbyNpc.id, fallback: nearbyNpc.name }
+				});
+			}
+		}
 	}
 
 	private getCenteredCameraBounds(width: number, height: number) {
@@ -1201,15 +1216,14 @@ export class WorldScene extends Phaser.Scene {
 		this.openShopId = shopId;
 		this.dialogueSession = null;
 		// A shop intent supersedes the session without a field-visible close:
-		// drop any held status with it (unreachable for Oren's linear award).
-		this.pendingFieldStatus = null;
+		// a held reward status stays held and flushes when the shop closes.
 		this.publishHudState(this.statusMessage('status.shopOpened'));
 		return true;
 	}
 
 	private closeOpenShop() {
 		this.openShopId = null;
-		this.publishHudState(this.statusMessage('status.shopClosed'));
+		this.flushFieldStatus(this.statusMessage('status.shopClosed'));
 	}
 
 	private buyOpenShopItem(shopId: string, stockId: string) {
@@ -1269,7 +1283,8 @@ export class WorldScene extends Phaser.Scene {
 	private applyQuestProgress(
 		event: QuestEvent,
 		fallbackStatus: WorldSceneStatus | null,
-		onEvaluated?: (advanced: boolean) => void
+		onEvaluated?: (advanced: boolean) => void,
+		heldStatus?: WorldSceneStatus | null
 	): boolean {
 		const result = applyQuestEvent({ state: this.quests, event });
 		const advanced = questEventAdvanced(result);
@@ -1284,10 +1299,12 @@ export class WorldScene extends Phaser.Scene {
 		if (completedGrant) {
 			playSfx(this, 'quest-complete');
 		}
-		if (equippedStatus && this.dialogueSession) {
-			// FieldHud is unmounted while the dialogue is up: hold the named
-			// status for endDialogue so the close publish cannot erase it unseen.
-			this.pendingFieldStatus = equippedStatus;
+		const namedStatus = equippedStatus ?? heldStatus ?? null;
+		if (namedStatus && (this.dialogueSession || completedGrant)) {
+			// FieldHud is unmounted while the dialogue is up — or the completed
+			// quest's own toast claims the footer: hold the named status for a
+			// later close so neither publish erases it unseen.
+			this.pendingFieldStatus = namedStatus;
 		}
 		this.publishHudState(
 			completedGrant
@@ -1513,11 +1530,33 @@ export class WorldScene extends Phaser.Scene {
 	 *  once, so it lands where the player can see it — after the dialogue is
 	 *  gone and FieldHud is mounted again. */
 	private endDialogue() {
-		this.storyDialogueSeq++;
+		// Only a real conversation supersedes an in-flight dialogue request:
+		// dismissing a transient fallback line while an NPC request is still
+		// loading must not cancel that conversation.
+		if (this.dialogueSession && !this.isTransientFallbackDialogueSession(this.dialogueSession)) {
+			this.storyDialogueSeq++;
+		}
 		this.dialogueSession = null;
+		this.flushFieldStatus(null);
+	}
+
+	/** Publishes the held reward status once the field is visible, or keeps
+	 *  it held while a queued/running story effect would overwrite it on the
+	 *  next frame — the effect's own session close flushes it then. */
+	private flushFieldStatus(fallback: WorldSceneStatus | null) {
+		if (
+			this.pendingFieldStatus !== null &&
+			!this.storySceneHold &&
+			(this.quests.pendingEffects.length > 0 ||
+				this.storyEffectRunning ||
+				this.storySceneInFlight !== null)
+		) {
+			this.publishHudState(fallback);
+			return;
+		}
 		const pending = this.pendingFieldStatus;
 		this.pendingFieldStatus = null;
-		this.publishHudState(pending);
+		this.publishHudState(pending ?? fallback);
 	}
 
 	private updateHeroOcclusion(publish = true) {
@@ -3565,7 +3604,9 @@ export class WorldScene extends Phaser.Scene {
 				this.scene.restart({
 					saveState: this.buildSaveState(),
 					reason: 'story',
-					status: this.lastPublishedStatus,
+					// A held reward status is unshown field copy: carry it as the
+					// arrival status so the re-created scene still publishes it.
+					status: this.pendingFieldStatus ?? this.lastPublishedStatus,
 					storySceneHold: this.storySceneHold
 				});
 				return true;
@@ -3652,7 +3693,10 @@ export class WorldScene extends Phaser.Scene {
 						facing: effect.facing
 					}
 				},
-				reason: 'story-move'
+				reason: 'story-move',
+				// A held reward status rides the fade so the move cannot drop it;
+				// an omitted status keeps the default arrival line otherwise.
+				status: this.pendingFieldStatus ?? undefined
 			});
 		const camera = this.cameras.main;
 		if (!camera.fadeOut) {
@@ -3860,15 +3904,12 @@ export class WorldScene extends Phaser.Scene {
 			playSfx(this, 'pickup');
 			this.pickupMarkers.get(pickup.id)?.setVisible(false);
 			const equippedItemId = granted.equipped.at(-1);
-			if (equippedItemId !== undefined && this.dialogueSession) {
-				// Same hold applyQuestProgress uses for quest rewards: FieldHud is
-				// unmounted during dialogue, so the pickup's equip notice waits in
-				// pendingFieldStatus for endDialogue's flush — otherwise the close
-				// publishes nothing.
-				this.pendingFieldStatus = this.statusMessage('status.equippedItem', {
-					itemName: { itemId: equippedItemId }
-				});
-			}
+			const pickupEquipStatus =
+				equippedItemId !== undefined
+					? this.statusMessage('status.equippedItem', {
+							itemName: { itemId: equippedItemId }
+						})
+					: null;
 			this.applyQuestProgress(
 				{
 					type: 'collect-item',
@@ -3877,13 +3918,16 @@ export class WorldScene extends Phaser.Scene {
 					itemId: pickup.itemId,
 					quantity: pickup.quantity
 				},
-				equippedItemId !== undefined && !this.dialogueSession
-					? this.statusMessage('status.equippedItem', {
-							itemName: { itemId: equippedItemId }
-						})
-					: this.statusMessage('status.foundItem', {
+				this.dialogueSession
+					? this.statusMessage('status.foundItem', {
 							itemName: { itemId: pickup.itemId }
 						})
+					: (pickupEquipStatus ??
+							this.statusMessage('status.foundItem', {
+								itemName: { itemId: pickup.itemId }
+							})),
+				undefined,
+				pickupEquipStatus
 			);
 			// Pickup is a durable point: persist after the collect-item quest event
 			// so quest progress and rewards land in the same autosave.

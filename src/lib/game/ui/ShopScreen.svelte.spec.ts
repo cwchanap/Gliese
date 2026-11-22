@@ -479,10 +479,14 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 
 	// HPA-839 task 4: the tooltip re-anchored inside .shop-main must never
 	// reach the detail column's Buy/Sell action. The old screen-anchored
-	// bottom-right tooltip covered it outright.
+	// bottom-right tooltip covered it outright. 1024×768 is the stacked
+	// layout (width ≤ 1200) where an in-flow tooltip pushes the detail
+	// panel down on hover — caught only by measuring .shop-detail while the
+	// tooltip appears and hides.
 	it.each([
 		[640, 360],
 		[832, 560],
+		[1024, 768],
 		[1280, 720]
 	])(
 		'keeps the tooltip inside the stock column and clear of the detail action at %d×%d',
@@ -495,10 +499,12 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 
 				const screen = shopScreen();
 				const main = screen.querySelector<HTMLElement>('.shop-main')!;
+				const detail = screen.querySelector<HTMLElement>('.shop-detail')!;
 
 				// Buy: focus raises the tooltip, click selects so the detail
 				// action is live at the same time.
 				const buyTile = screen.querySelector<HTMLElement>('[data-focus-id="shop-buy-0"]')!;
+				const detailTopBeforeBuy = detail.offsetTop;
 				buyTile.focus();
 				buyTile.click();
 				const buyTooltip = await vi.waitFor(() => {
@@ -522,8 +528,25 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 					`buy tooltip overlaps detail action at ${width}×${height}: ${JSON.stringify(buyTooltip.getBoundingClientRect().toJSON())} vs ${JSON.stringify(buyAction.getBoundingClientRect().toJSON())}`
 				).toBe(false);
 
+				// The tooltip must not take layout space: the detail panel does
+				// not move when it appears or hides. offsetTop is measured
+				// against .shop-main, so it is stable across scroll position.
+				expect(
+					detail.offsetTop,
+					`tooltip appearing moved .shop-detail at ${width}×${height}: ${detailTopBeforeBuy} → ${detail.offsetTop}`
+				).toBe(detailTopBeforeBuy);
+				buyTile.blur();
+				await vi.waitFor(() => {
+					expect(main.querySelector('.shop-tooltip')).toBeNull();
+				});
+				expect(
+					detail.offsetTop,
+					`tooltip hiding moved .shop-detail at ${width}×${height}: ${detailTopBeforeBuy} → ${detail.offsetTop}`
+				).toBe(detailTopBeforeBuy);
+
 				// The action is a real click target: a pointer click on it lands
 				// on the button and emits the buy command.
+				buyTile.focus();
 				await userEvent.click(page.elementLocator(buyAction));
 				expect(commands).toContainEqual({
 					type: 'buy-shop-item',
@@ -535,6 +558,7 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 				document.getElementById('shop-sell-tab')!.click();
 				await expect.element(page.getByTestId('shop-sell-grid')).toBeVisible();
 				const sellTile = screen.querySelector<HTMLElement>('[data-focus-id="shop-sell-0"]')!;
+				const detailTopBeforeSell = detail.offsetTop;
 				sellTile.focus();
 				sellTile.click();
 				const sellTooltip = await vi.waitFor(() => {
@@ -557,6 +581,10 @@ describe('ShopScreen compact short-landscape containment (HPA-840 task 3d)', () 
 					rectsIntersect(sellTooltip.getBoundingClientRect(), sellAction.getBoundingClientRect()),
 					`sell tooltip overlaps detail action at ${width}×${height}`
 				).toBe(false);
+				expect(
+					detail.offsetTop,
+					`sell tooltip moved .shop-detail at ${width}×${height}: ${detailTopBeforeSell} → ${detail.offsetTop}`
+				).toBe(detailTopBeforeSell);
 
 				await userEvent.click(page.elementLocator(sellAction));
 				expect(commands).toContainEqual({

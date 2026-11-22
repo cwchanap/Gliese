@@ -10933,6 +10933,201 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({ status: 'Equipped Ancestral Amulet', dialogue: null })
 		);
+
+		// The hero still stands beside Mott: the first update's proximity
+		// refresh must not overwrite the carried status with 'Old Mott nearby'.
+		recreated.update(48, 16);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Equipped Ancestral Amulet' })
+		);
+	});
+
+	it('holds the equip notice when one event both completes the quest and auto-equips gear', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { buildDialogueFallback } = await import('$lib/game/core/dialogue');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			applyQuestProgress: (
+				event: { type: 'talk-to-npc'; npcId: string },
+				fallback: null
+			) => boolean;
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: ReturnType<typeof buildDialogueFallback> | null;
+			pendingFieldStatus: WorldSceneStatus | null;
+			quests: questRuntime.QuestState;
+		};
+
+		scene.create({ saveState: createNewSaveState() });
+		emitHudStateSpy.mockClear();
+
+		// One event whose result completes the quest AND grants equippable
+		// gear: the quest toast claims the footer, so the equip notice holds
+		// for the next field-visible close instead of being dropped.
+		vi.spyOn(questRuntime, 'applyQuestEvent').mockReturnValueOnce({
+			state: sceneState.quests,
+			rewards: [
+				{
+					questId: 'prologue-proving-morning',
+					title: 'Proving Morning',
+					reward: { items: [{ itemId: 'iron-cap', quantity: 1 }] }
+				},
+				{ questId: 'prologue-proving-morning', title: 'Proving Morning', reward: {} }
+			],
+			completedQuestIds: ['prologue-proving-morning'],
+			progressUpdates: []
+		});
+		sceneState.applyQuestProgress({ type: 'talk-to-npc', npcId: 'borak' }, null);
+
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: expect.stringContaining('Quest complete') })
+		);
+		expect(sceneState.pendingFieldStatus).toEqual({
+			key: 'status.equippedItem',
+			params: { itemName: { itemId: 'iron-cap' } }
+		});
+
+		sceneState.dialogueSession = buildDialogueFallback('Guide', 'On you go.');
+		sceneState.handleHudCommand({ type: 'dialogue-close' });
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Equipped Iron Cap', dialogue: null })
+		);
+	});
+
+	it('keeps a held equip notice until the queued play-scene ends, not its dialogue close', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { buildDialogueFallback } = await import('$lib/game/core/dialogue');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: ReturnType<typeof buildDialogueFallback> | null;
+			pendingFieldStatus: WorldSceneStatus | null;
+			quests: questRuntime.QuestState;
+		};
+
+		scene.create({ saveState: createNewSaveState() });
+		emitHudStateSpy.mockClear();
+
+		sceneState.quests.pendingEffects.push({
+			type: 'play-scene',
+			sceneId: 'prologue.chapter-one'
+		});
+		sceneState.dialogueSession = buildDialogueFallback('Old Mott', 'Wear it well.');
+		sceneState.pendingFieldStatus = {
+			key: 'status.equippedItem',
+			params: { itemName: { itemId: 'iron-cap' } }
+		};
+		sceneState.handleHudCommand({ type: 'dialogue-close' });
+
+		// The notice must not surface yet: the queued scene would overwrite it
+		// on the next frame before the player ever saw it.
+		expect(emitHudStateSpy).not.toHaveBeenCalledWith(
+			expect.objectContaining({ status: 'Equipped Iron Cap' })
+		);
+		expect(sceneState.pendingFieldStatus).not.toBeNull();
+
+		scene.update(0, 16);
+		await flushStoryDialogue();
+		expect(sceneState.dialogueSession).not.toBeNull();
+
+		for (let advance = 0; advance < 10 && sceneState.dialogueSession; advance += 1) {
+			sceneState.handleHudCommand({ type: 'dialogue-advance' });
+		}
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Equipped Iron Cap', dialogue: null })
+		);
+	});
+
+	it('does not cancel an in-flight NPC dialogue when a transient fallback closes', async () => {
+		const { createDialogueSession } = await import('$lib/game/core/dialogue');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: { npcId: string | null } | null;
+		};
+
+		scene.create({ mapId: 'hero-house' });
+		Object.assign(phaserState.playerMarker, mottApproach);
+
+		let resolveRequest: (session: unknown) => void = () => {};
+		storyClientMock.getNpcStoryDialogue.mockImplementationOnce(
+			() => new Promise((resolve) => (resolveRequest = resolve))
+		);
+		phaserState.interactKeys.e.justDown = true;
+		scene.update(16, 16);
+
+		// While the request is still loading, a stray choose/advance with no
+		// open session creates and dismisses a transient fallback line — that
+		// must not cancel the real conversation behind it.
+		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'ghost' });
+		expect(sceneState.dialogueSession).not.toBeNull();
+		sceneState.handleHudCommand({ type: 'dialogue-advance' });
+		expect(sceneState.dialogueSession).toBeNull();
+
+		resolveRequest(
+			createDialogueSession({
+				id: 'mott-deferred',
+				npcId: 'mott-hearth',
+				lines: [{ speaker: 'Old Mott', text: 'Late, but here.' }]
+			})
+		);
+		await flushStoryDialogue();
+		expect(sceneState.dialogueSession?.npcId).toBe('mott-hearth');
+	});
+
+	it('holds the equip notice through a dialogue that ends by opening a shop', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { createDialogueSession } = await import('$lib/game/core/dialogue');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: unknown;
+			nearbyShopId: string | null;
+			openShopId: string | null;
+			pendingFieldStatus: WorldSceneStatus | null;
+		};
+
+		const save = createNewSaveState();
+		scene.create({
+			saveState: { ...save, mapId: 'item-shop', player: { ...save.player, x: 416, y: 320 } }
+		});
+		emitHudStateSpy.mockClear();
+
+		sceneState.nearbyShopId = 'miras-item-shop';
+		sceneState.dialogueSession = createDialogueSession({
+			id: 'mira-greeting',
+			npcId: 'mira',
+			lines: [{ speaker: 'Mira', text: 'Welcome in.' }],
+			choices: [
+				{
+					id: 'shop',
+					label: 'Shop',
+					intent: { type: 'openShop', shopId: 'miras-item-shop' }
+				}
+			]
+		});
+		sceneState.pendingFieldStatus = {
+			key: 'status.equippedItem',
+			params: { itemName: { itemId: 'iron-cap' } }
+		};
+
+		sceneState.handleHudCommand({ type: 'dialogue-choose', choiceId: 'shop' });
+		expect(sceneState.openShopId).toBe('miras-item-shop');
+		expect(sceneState.pendingFieldStatus).not.toBeNull();
+
+		sceneState.handleHudCommand({ type: 'close-shop' });
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Equipped Iron Cap', shop: null })
+		);
 	});
 
 	it('leaves the field status clear when a dialogue reward grants only consumables', async () => {

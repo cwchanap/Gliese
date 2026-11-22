@@ -1,4 +1,12 @@
-import { chromium, expect, test, type JSHandle, type Locator, type Page } from '@playwright/test';
+import {
+	chromium,
+	expect,
+	test,
+	type JSHandle,
+	type Locator,
+	type Page,
+	type TestInfo
+} from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
@@ -348,17 +356,33 @@ function evidenceShots(defaultRoot: string) {
 	};
 }
 
-const hpa839Evidence = evidenceShots('docs/superpowers/reports/img/hpa-839-story-gear-shop');
+const HPA839_EVIDENCE_DOCS_DIR = 'docs/superpowers/reports/img/hpa-839-story-gear-shop';
+const hpa839Evidence = evidenceShots(HPA839_EVIDENCE_DOCS_DIR);
 const hpa840Evidence = evidenceShots('docs/superpowers/reports/img/hpa-840-responsive');
 
-const hpa839Capture = hpa839Evidence(process.env.HPA839_EVIDENCE_ROOT);
+/**
+ * HPA-839 evidence capture: isolated per-test output by default so a plain
+ * `bun run test:e2e` can never overwrite — or leave `-retryN` litter in —
+ * the committed docs pack. `HPA839_EVIDENCE_DOCS=1` opts back into the
+ * committed dir for a deliberate refresh; `HPA839_EVIDENCE_ROOT` captures
+ * into a custom (still 'wx'-guarded) root.
+ */
+function hpa839Capture(info: TestInfo) {
+	if (process.env.HPA839_EVIDENCE_ROOT) {
+		return hpa839Evidence(process.env.HPA839_EVIDENCE_ROOT);
+	}
+	if (process.env.HPA839_EVIDENCE_DOCS === '1') {
+		return hpa839Evidence();
+	}
+	return hpa839Evidence(info.outputPath('hpa-839-evidence'));
+}
 
 async function hpa839Shot(page: Page, name: string) {
 	// A retried attempt re-takes the same screenshots; stamp the retry index so
 	// the no-overwrite guard still flags stale evidence instead of the retry.
 	const retry = test.info().retry;
 	const stamped = retry > 0 ? name.replace(/\.png$/, `-retry${retry}.png`) : name;
-	await hpa839Capture.shot(page, stamped);
+	await hpa839Capture(test.info()).shot(page, stamped);
 }
 
 /**
@@ -16095,6 +16119,22 @@ test('evidence output defaults safely and rejects reused isolated paths', async 
 	expect(hpa839Evidence().root).toBe(
 		resolve('docs/superpowers/reports/img/hpa-839-story-gear-shop')
 	);
+	// HPA-839 shots resolve per test: isolated output dir by default, the
+	// committed docs pack only under an explicit env opt-in.
+	const previousDocsEnv = process.env.HPA839_EVIDENCE_DOCS;
+	const previousRootEnv = process.env.HPA839_EVIDENCE_ROOT;
+	try {
+		delete process.env.HPA839_EVIDENCE_DOCS;
+		delete process.env.HPA839_EVIDENCE_ROOT;
+		expect(hpa839Capture(testInfo).root).toBe(resolve(testInfo.outputPath('hpa-839-evidence')));
+		process.env.HPA839_EVIDENCE_DOCS = '1';
+		expect(hpa839Capture(testInfo).root).toBe(resolve(HPA839_EVIDENCE_DOCS_DIR));
+	} finally {
+		if (previousDocsEnv === undefined) delete process.env.HPA839_EVIDENCE_DOCS;
+		else process.env.HPA839_EVIDENCE_DOCS = previousDocsEnv;
+		if (previousRootEnv === undefined) delete process.env.HPA839_EVIDENCE_ROOT;
+		else process.env.HPA839_EVIDENCE_ROOT = previousRootEnv;
+	}
 	await defaults.shot(page, 'unused-default.png');
 	mkdirSync(testInfo.outputDir, { recursive: true });
 	const root = testInfo.outputPath('isolated-evidence');
