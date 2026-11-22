@@ -10942,30 +10942,38 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('holds the equip notice when one event both completes the quest and auto-equips gear', async () => {
+	it('releases a held equip notice once the field stays visible past the quest toast', async () => {
 		const events = await import('$lib/game/ui-bridge/events');
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { buildDialogueFallback } = await import('$lib/game/core/dialogue');
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
 			applyQuestProgress: (
-				event: { type: 'talk-to-npc'; npcId: string },
+				event: {
+					type: 'collect-item';
+					mapId: string;
+					pickupId: string;
+					itemId: string;
+					quantity: number;
+				},
 				fallback: null
 			) => boolean;
-			handleHudCommand: (command: HudCommand) => void;
-			dialogueSession: ReturnType<typeof buildDialogueFallback> | null;
+			updateStory: (delta: number) => boolean;
 			pendingFieldStatus: WorldSceneStatus | null;
 			quests: questRuntime.QuestState;
 		};
 
 		scene.create({ saveState: createNewSaveState() });
 		emitHudStateSpy.mockClear();
+		// The completed objective queues no beat and its progress leaves the
+		// gate signature unchanged: nothing will close or restart the field
+		// for the held line to ride.
+		sceneState.quests.pendingEffects.length = 0;
 
 		// One event whose result completes the quest AND grants equippable
 		// gear: the quest toast claims the footer, so the equip notice holds
-		// for the next field-visible close instead of being dropped.
+		// rather than being erased unseen.
 		vi.spyOn(questRuntime, 'applyQuestEvent').mockReturnValueOnce({
 			state: sceneState.quests,
 			rewards: [
@@ -10979,7 +10987,16 @@ describe('WorldScene', () => {
 			completedQuestIds: ['prologue-proving-morning'],
 			progressUpdates: []
 		});
-		sceneState.applyQuestProgress({ type: 'talk-to-npc', npcId: 'borak' }, null);
+		sceneState.applyQuestProgress(
+			{
+				type: 'collect-item',
+				mapId: 'overworld',
+				pickupId: 'mistfen-moonmoss-4',
+				itemId: 'moonmoss',
+				quantity: 1
+			},
+			null
+		);
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({ status: expect.stringContaining('Quest complete') })
@@ -10989,7 +11006,91 @@ describe('WorldScene', () => {
 			params: { itemName: { itemId: 'iron-cap' } }
 		});
 
+		// The claiming toast keeps its window: clear ticks release nothing early.
+		sceneState.updateStory(250);
+		sceneState.updateStory(250);
+		expect(emitHudStateSpy).not.toHaveBeenCalledWith(
+			expect.objectContaining({ status: 'Equipped Iron Cap' })
+		);
+		expect(sceneState.pendingFieldStatus).not.toBeNull();
+
+		// The story settle itself releases the held line once the toast window
+		// elapses — no dialogue close or gate restart required.
+		for (let tick = 0; tick < 9; tick += 1) {
+			sceneState.updateStory(250);
+		}
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: 'Equipped Iron Cap' })
+		);
+		expect(sceneState.pendingFieldStatus).toBeNull();
+		expect(scene.scene.restart).not.toHaveBeenCalled();
+	});
+
+	it('keeps a held equip notice while a dialogue claims the field, releasing on close', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { buildDialogueFallback } = await import('$lib/game/core/dialogue');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const sceneState = scene as unknown as {
+			applyQuestProgress: (
+				event: {
+					type: 'collect-item';
+					mapId: string;
+					pickupId: string;
+					itemId: string;
+					quantity: number;
+				},
+				fallback: null
+			) => boolean;
+			handleHudCommand: (command: HudCommand) => void;
+			dialogueSession: ReturnType<typeof buildDialogueFallback> | null;
+			pendingFieldStatus: WorldSceneStatus | null;
+			updateStory: (delta: number) => boolean;
+			quests: questRuntime.QuestState;
+		};
+
+		scene.create({ saveState: createNewSaveState() });
+		emitHudStateSpy.mockClear();
+		sceneState.quests.pendingEffects.length = 0;
+
+		vi.spyOn(questRuntime, 'applyQuestEvent').mockReturnValueOnce({
+			state: sceneState.quests,
+			rewards: [
+				{
+					questId: 'prologue-proving-morning',
+					title: 'Proving Morning',
+					reward: { items: [{ itemId: 'iron-cap', quantity: 1 }] }
+				},
+				{ questId: 'prologue-proving-morning', title: 'Proving Morning', reward: {} }
+			],
+			completedQuestIds: ['prologue-proving-morning'],
+			progressUpdates: []
+		});
+		sceneState.applyQuestProgress(
+			{
+				type: 'collect-item',
+				mapId: 'overworld',
+				pickupId: 'mistfen-moonmoss-4',
+				itemId: 'moonmoss',
+				quantity: 1
+			},
+			null
+		);
+
+		// A dialogue opens inside the toast window: the window freezes while
+		// the field is claimed — releasing here would publish into an
+		// unmounted HUD and lose the line — and the close still owns the flush.
 		sceneState.dialogueSession = buildDialogueFallback('Guide', 'On you go.');
+		for (let tick = 0; tick < 12; tick += 1) {
+			sceneState.updateStory(250);
+		}
+		expect(emitHudStateSpy).not.toHaveBeenCalledWith(
+			expect.objectContaining({ status: 'Equipped Iron Cap' })
+		);
+		expect(sceneState.pendingFieldStatus).not.toBeNull();
+
 		sceneState.handleHudCommand({ type: 'dialogue-close' });
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({ status: 'Equipped Iron Cap', dialogue: null })

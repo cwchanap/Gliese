@@ -452,6 +452,9 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly gridObjectDepth = -5;
 	/** Window after a fled battle during which that encounter cannot re-trigger. */
 	private static readonly recentlyFledGraceMs = 4_000;
+	/** Game-ms a held reward status waits once the field stays visible: the
+	 *  claiming toast keeps a readable window before the held line lands. */
+	private static readonly heldFieldStatusReleaseDelayMs = 2_000;
 	private static readonly storyFadeMs = 600;
 
 	private clearedEncounterIds = new Set<string>();
@@ -485,8 +488,12 @@ export class WorldScene extends Phaser.Scene {
 	/** A named reward status held while something else claims the footer —
 	 *  an open dialogue, the same beat's quest-complete toast, or a queued
 	 *  story effect about to publish. {@link flushFieldStatus} releases it
-	 *  once the field is visibly back. */
+	 *  once the field is visibly back; {@link updateStory} releases it after
+	 *  the toast's window when no claim ever arrives. */
 	private pendingFieldStatus: WorldSceneStatus | null = null;
+	/** Remaining delay before a held status may publish while the field
+	 *  stays visible; {@link updateStory} ticks it only on clear ticks. */
+	private heldFieldStatusReleaseMs = 0;
 	private currentNearbyNpcId: string | null = null;
 	private currentNearbyNpcStatus: WorldSceneStatus | null = null;
 	private npcMarkers = new Map<string, NpcMarker>();
@@ -667,6 +674,7 @@ export class WorldScene extends Phaser.Scene {
 		this.openShopId = null;
 		this.dialogueSession = null;
 		this.pendingFieldStatus = null;
+		this.heldFieldStatusReleaseMs = 0;
 		this.npcMarkers.clear();
 		this.pickupMarkers.clear();
 		this.discoveryMarkers.clear();
@@ -929,7 +937,7 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 
-		if (this.updateStory()) {
+		if (this.updateStory(delta)) {
 			return;
 		}
 
@@ -1305,6 +1313,7 @@ export class WorldScene extends Phaser.Scene {
 			// quest's own toast claims the footer: hold the named status for a
 			// later close so neither publish erases it unseen.
 			this.pendingFieldStatus = namedStatus;
+			this.heldFieldStatusReleaseMs = WorldScene.heldFieldStatusReleaseDelayMs;
 		}
 		this.publishHudState(
 			completedGrant
@@ -3580,7 +3589,7 @@ export class WorldScene extends Phaser.Scene {
 	 * Plays one queued quest effect at a time, between interactions, then re-renders
 	 * the map once the story has moved on. Returns true while the world is held.
 	 */
-	private updateStory(): boolean {
+	private updateStory(delta: number): boolean {
 		if (this.storyEffectRunning || this.dialogueSession || this.openShopId) {
 			return this.storyEffectRunning;
 		}
@@ -3610,6 +3619,16 @@ export class WorldScene extends Phaser.Scene {
 					storySceneHold: this.storySceneHold
 				});
 				return true;
+			}
+		}
+
+		// This tick is clear of dialogues, shops, effects, and gate restarts:
+		// the claiming toast's window runs down, then the held line lands so a
+		// no-dialogue completion never strands it waiting for a close.
+		if (this.pendingFieldStatus !== null) {
+			this.heldFieldStatusReleaseMs -= Math.min(Math.max(delta, 0), WorldScene.maxMovementDeltaMs);
+			if (this.heldFieldStatusReleaseMs <= 0) {
+				this.flushFieldStatus(null);
 			}
 		}
 
