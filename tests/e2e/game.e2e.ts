@@ -14082,14 +14082,6 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 		body: JSON.stringify(traceEvidence),
 		contentType: 'application/json'
 	});
-	const evidenceDir = resolve(
-		'.superpowers/sdd/2026-11-05-hpa-760-round-2-playtest-reliability/evidence'
-	);
-	mkdirSync(evidenceDir, { recursive: true });
-	writeFileSync(
-		resolve(evidenceDir, 'task-7-journey-trace.json'),
-		JSON.stringify(traceEvidence, null, 2)
-	);
 	const forgePoint = await readPosition();
 	expect(forgePoint?.x).toBeGreaterThanOrEqual(440);
 	expect(forgePoint?.x).toBeLessThanOrEqual(456);
