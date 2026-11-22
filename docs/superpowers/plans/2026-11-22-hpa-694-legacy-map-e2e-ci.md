@@ -1,119 +1,89 @@
-# HPA-694 — Single-PR implementation plan: legacy map cleanup + E2E CI
+# HPA-694 — One-PR execution plan (review revision)
 
 **Issue:** https://linear.app/cwchanap/issue/HPA-694/remove-old-painted-map-leftovers-and-run-e2e-tests-in-ci  
-**Design:** docs/superpowers/specs/2026-11-22-hpa-694-legacy-map-e2e-ci-design.md  
-**Execution model:** One PR for this whole ticket. This document and the design are its first commits; implementation must continue on this branch, not in follow-up PRs.  
-**Scope:** Code and test cleanup; existing art-byte migration only; no new art or SFX.
+**Design:** `docs/superpowers/specs/2026-11-22-hpa-694-legacy-map-e2e-ci-design.md`  
+**PR:** https://github.com/cwchanap/Gliese/pull/71  
+**Policy:** All code, tests, docs and existing-image storage changes land in **this PR**. No new art/SFX, WorldScene split or compatibility adapter.
 
-## Preconditions and repository baseline
+## Why the order changed
 
-1. Rebase the feature branch onto latest **main** before coding. Read the existing **CLAUDE.md**, relevant map/grid tests, and the HPA-694 Linear description. Check whether a recent main change already removed any candidate path.
-2. Inventory active references using **git grep** or **rg** across **src**, **tests**, **tools**, and **.github**, separating *real runtime usage* from tests of retired APIs.
-3. Record the current single-platform web visual baseline via automated screenshots at **1280×720** (overworld near Sundrop, painted Guild Hall or Blacksmith interior, tunnel/ruins) and save states/fixtures for repeatable comparison. Use a browser MCP interaction path when gathering acceptance evidence.
-4. **Hard blocker:** verify a trusted working checkout contains the **nine complete interior PNG files** with correct dimensions and non-pointer signatures. Preserve a source checksum manifest for validation; do not rely on the depleted Git LFS service. Do **not** remove .gitattributes or push substituted art until bytes are available.
-5. Capture the current E2E inventory before pruning: run **bunx playwright test --list** (or inspect the full test list if local assets prevent execution). Classify each test as live gameplay, retired V1 proof, stale route, or dead review harness, with a reason for deletion.
+The original plan deleted rendering/navigation code **before** restoring CI. PR review found a measured 8m20s–9m40s gate step, a 28-minute exhaustive lane, a 25-minute flaky lane, two retry-only Blacksmith failures, and minified-bundle rewriting inside E2E tests. The reviewer also verified all nine real PNGs in a working checkout and located the existing manifest validator.
 
-Useful preflight commands:
+**New critical path:** **PNG blobs → prune/stabilize one E2E suite → blocking CI baseline → dead-code deletion → screenshot parity / docs**. This establishes the safety net *before* risky deletions. Capture measured CI timings rather than assuming the target is already met.
+
+## Task 0 — Recheck main and preflight
+
+1. Rebase PR #71 onto latest `main`, read `CLAUDE.md` and this ticket, then list current affected files and current Playwright tests (`bunx playwright test --list`). Confirm there is no merged work that supersedes the cleanup.
+2. Confirm the implementation machine has **real bytes** for all nine `public/game/assets/interiors/**` PNGs; the PR reviewer reported all nine present in their checkout, but do not trust a different pointer-only checkout.
+3. Read existing `src/lib/game/content/backgrounds/manifests/*.json`, `tools/validate-village-interior-art.ts` and `src/lib/game/content/village-interior-assets.asset.test.ts`. They already validate SHA-256, dimensions and decoded pixels. Do **not** create a second checksum manifest or pointer parser.
+4. Record the original screenshot states to be compared later (same save seed and 1280×720 viewport): Sundrop overworld, Blacksmith painted interior and tunnel/ruins.
+5. Confirm implementation touch points with search, including `core/area-map.ts`, `core/story-gates.ts`, `core/navigation.ts`, `save/save-state.ts`, `WorldScene.ts`, `content/assets.ts` and current grid code.
 
 ~~~sh
 git fetch origin main
 git grep -n -E 'landmarks|fences|mapDecor|MapLandmark|MapFenceSegment'
-git grep -n -E 'coastDressingAsset|crossroadsDressingAsset|forestDressingAsset|fenceDressingAsset|marshDressingAsset|shrineDressingAsset|villageDressingAsset|villageBuildingAsset|villageHedgeAsset'
+git grep -n -E 'town-hedge|garden-hedge|city-wall|ocean|getBlockerRuntimeRenderMode'
+git grep -n -E 'coastDressingAsset|forestDressingAsset|villageHedgeAsset|villageBuildingAsset'
 git lfs ls-files
 bunx playwright test --list
 ~~~
 
-**Exit gate:** An auditable inventory identifies what is dead and what interiors/grid/tunnel require. Real interior PNGs are available before the storage conversion proceeds.
+**Exit:** Current main is reflected in the plan's deletions; real LFS image bytes and existing validators are identified. If bytes are missing only on this runner, obtain them from the working checkout **without** generating replacement art.
 
-## Task 1 — Remove dead outdoor authoring/collision/rendering
+## Task 1 — Convert interior art to normal Git and unskip asset-byte tests
 
-Files to examine and update:
+**Change:** `.gitattributes`, nine **existing** `public/game/assets/interiors/**` PNGs, `vite.config.ts`, `.github/workflows/ci.yml`. The image content and paths must not change.
 
-- **src/lib/game/content/maps/types.ts** — delete unused MapLandmark, MapFenceSegment, MapDecor union/depth and unreferenced authoring fields/types; simplify NavigationGridOwnedSource only for unused source values. Retain MapRect, the active blockers, interior props and backgrounds.
-- **src/lib/game/content/maps.ts** and **content/maps/text.ts** — remove stale exports and landmark text translation without changing active map/NPC/transition content.
-- **src/lib/game/content/maps/navigation.ts** — remove fence/decor/landmark obstacle handling; retain blockers, interior props, NPCs and authoritative grid navigation.
-- **src/lib/game/save/save-state.ts** and core navigation helpers — prune dead landmark-doorway and fence/decor collision helpers where only obsolete maps reference them. Do not add backward-compatibility transformations for unused map shapes.
-- **src/lib/game/phaser/scenes/WorldScene.ts** — remove renderLandmarks, renderMapDecor, renderFences and dead fence/landmark collision/debug/diagnostic logic. Simplify blocker switch cases only where genuinely unreferenced. Keep grid rendering, interior painted backgrounds, ruin wall/future gate, ground-patch and interior-prop paths.
-- **src/lib/game/content/maps/background-ownership.ts**, diagnostic types and map/navigation/renderer tests — narrow only where removal makes a field unreachable; preserve the working interior-package contract.
-
-Test-first where practical: update focused map navigation, collision, scene and save-state tests to assert the **remaining** semantics, then remove implementation and redundant assertions. Do not retain tests that instantiate removed fields as a compatibility shim.
-
-Verify:
+Once real source objects are present:
 
 ~~~sh
-bun run check
-bun run test:unit -- --run src/lib/game/content/maps/navigation.test.ts
-bun run test:unit -- --run
-~~~
-
-**Exit gate:** No dead outdoor fields or rendering branches remain, and existing live maps (including interior and tunnel) keep their collision, story gates, transition IDs, and save semantics.
-
-## Task 2 — Delete verified-unused sprite sheets
-
-1. Cross-check candidate nine sheet definitions against **BootScene.ts**, **WorldScene.ts**, **content/assets.ts**, current grid objects/tileset generation, and any UI imports.
-2. Remove each confirmed-unused PNG, its asset descriptor/type/frame helper, its preload, and asset metadata tests; never delete **environment-dressing** merely because the old exterior sheets are gone.
-3. Check source-art inputs under **art/** before removing them: keep inputs needed to regenerate the current text-grid atlas; delete only clearly dead painted-map inputs in scope.
-4. Run asset/frame tests and boot smoke tests to rule out Phaser missing-texture placeholders.
-
-Verify:
-
-~~~sh
-bun run check
-bun run test:unit -- --run src/lib/game/content/assets.test.ts
-bun run build
-~~~
-
-**Exit gate:** No unused dressing sheet is preloaded; no new missing-texture errors; the current grid object sheet and ruin/tunnel dressing still render.
-
-## Task 3 — Convert nine existing interior PNGs from LFS
-
-1. Copy **real bytes** from the verified working machine into the existing **public/game/assets/interiors/** paths. Confirm PNG signature and original dimensions; compare each checksum with the trusted source. A Git LFS pointer beginning with **version https://git-lfs.github.com/spec/v1** is an immediate failure.
-2. Remove the interior PNG rule from **.gitattributes** (delete the file if otherwise empty). Remove remaining LFS setup/config only where now unnecessary. Stage the existing PNGs as ordinary Git content, avoiding any history rewrite and avoiding renamed paths.
-3. Check staged Git blobs, not merely working-tree files: ensure **git show :path** begins with PNG bytes and not the LFS pointer header. Check all nine staged images.
-4. On a separate clean checkout of the feature branch with **GIT_LFS_SKIP_SMUDGE=1**, run the interior byte tests and build. Confirm that the repo is not attempting LFS network requests.
-
-Example validation:
-
-~~~sh
-git lfs ls-files
-git diff --cached -- .gitattributes
-git show :public/game/assets/interiors/hero-house-base.png | head -c 8 | od -An -tx1
+git lfs untrack 'public/game/assets/interiors/**/*.png'
+git rm .gitattributes             # only if now empty; it currently contains one LFS rule
+git add --renormalize public/game/assets/interiors
 bun run test:unit -- --run src/lib/game/content/village-interior-assets.asset.test.ts
-bun run build
 ~~~
 
-The sample path above is illustrative: use the **actual** nine committed names from the asset manifest. Do not assume a name until the inventory confirms it.
+- Remove `CI_SKIP_LFS_ASSET_TESTS` from the unit job and delete the associated `vite.config.ts` conditional exclude.
+- Do not create a separate byte-signature script or extra manifest: the **existing asset test** rejects a pointer or altered PNG by SHA-256 and image-decoding requirements.
+- Confirm with `git diff --stat` and staged blob/file type inspection that **all nine** images changed from LFS pointers to regular PNGs and that `git lfs ls-files` no longer lists them.
+- On the first normal non-LFS CI checkout, the now-unskipped asset unit test is the clean-clone proof. There is no need to script another fresh clone.
 
-**Exit gate:** Nine existing art images are normal Git blobs; a clean clone succeeds without LFS bandwidth and produces the same interior visuals.
+**Exit:** Ordinary CI installs/builds with no LFS downloads and validates the nine unchanged interior images against existing manifests. Keep the current CI job's measured asset-test duration; historical runs varied from ~23 seconds to ~6m13s.
 
-## Task 4 — Simplify Playwright and remove stale tests
+## Task 2 — Make the Playwright suite small, meaningful and robust
 
-1. In **tests/e2e/game.e2e.ts**, identify and remove only retired V1 painted-regional proofs, old meadow-era route walks that no longer represent valid player paths, and obsolete test-only diagnostics/fixtures.
-2. Keep a deterministic minimum prologue path: fresh start; walking/door transition to an interior; interaction with a nearby NPC; a shop or quest action; battle and return; save/continue; collision assertions. Reuse existing valid flows, including current HPA-839/HPA-840 regressions, instead of building a duplicate test framework.
-3. Repair tests flaking because of stale route coordinates, timing, or pointer state when they still cover meaningful current behavior. Remove those with no current behavior worth testing; **no quarantined or continue-on-error lane**.
-4. Delete **tests/review/** and **playwright.review.config.ts** in full. Remove stale regional diagnostic test listeners if nothing live consumes them.
-5. Reduce **playwright.config.ts** to **one suite**: no retired-proof grepInvert, no **gate/exhaustive/flaky** partitions, no old filtered projects. Keep Chromium, failure screenshots/traces and explicit preview lifecycle. Set **reuseExistingServer** false in CI; retain local convenience if needed.
-6. Execute **bunx playwright test --list** and confirm the retained suite is nonempty and every listed test covers a supported, current user flow.
+**Change:** `playwright.config.ts`, `tests/e2e/game.e2e.ts` and supporting probes/helpers only as necessary. Delete `playwright.review.config.ts` and `tests/review/`.
 
-Verify:
+1. List the current test partition. Review reports **53 tests** (45 gate, 7 exhaustive, 1 flaky); do not assume these exact numbers if main has changed. Delete the seven expensive `exhaustive` painted-interior browser cases and the one stale `Hero House painted interior preserves runtime…` flaky case. Unit tests (`village-interior-package.test.ts`, manifest validator, navigation) cover the complete interior matrix.
+2. Remove the eight Node-only harness self-tests from the Playwright E2E file (historically at lines 10381, 10405, 10424, 11608, 11624, 13345, 13382 and 16105). They do not exercise browser behavior; if a surviving helper genuinely needs an invariant, use the existing unit-test layer rather than retaining them as E2E.
+3. **Remove the `page.route('**/assets/WorldScene-*.js')` production-bundle rewrite.** Current code injects minifier-sensitive scene globals; do not make this a blocking CI dependency. Rewire indispensable kept tests to existing `gliese:player-movement-diagnostic` and `HudState.mapId`/`battle`. If encounter/transition/facing cannot be observed from those, add one small typed runtime emit in `WorldScene` and a narrow listener — **no generalized diagnostics platform**.
+4. **Resolve the two known retry-only cases before setting `retries: 0`**:
+   - Keep **“Blacksmith Oren equipment shop”** for shop behavior; make its starting state, route and interaction deterministic using existing `seedSaveSlots` and condition-based waits instead of brittle timing.
+   - Keep **“Blacksmith painted interior preserves baked composition and collision”** as the one browser painted-interior proof; stabilize its positioning, asset/boot waits and movement assertions. Never merely delete this sole visual/collision browser coverage.
+   - Recheck other retained slow or flaky tests in the **first measured CI run**; fix a meaningful test or remove obsolete duplication. Do not keep a silent flaky lane.
+5. Existing journey coverage to retain, **not duplicate**: “proving morning keyboard journey reaches Oren” (new game/overworld/interior/NPC), “Blacksmith Oren equipment shop”, “encounter opens battle scene and returns through battle summary”, and “a seeded near-end saved run … Continue restores”. Reuse `tests/e2e/helpers/game.ts`' `seedSaveSlots`, `seedAutosaveSlot` and `continueFromTitle`.
+6. Simplify `playwright.config.ts` to no named projects and no `grep`/`grepInvert` exclusions, `retries: 0`, `workers: process.env.CI ? 2 : 1`, `reuseExistingServer: !process.env.CI`, Chromium, screenshots/trace on failure. Assert that relevant game boots contain no Phaser load-error/missing-texture console messages.
+7. List and run the suite, confirm it has only current browser tests (rough target **~37**, not a hard fixture count). No intercept of minified `WorldScene-*.js` remains.
 
 ~~~sh
-bun run build
 bunx playwright test --list
-bunx playwright test --workers=2 --reporter=list
+bun run test:e2e
 ~~~
 
-**Exit gate:** One Playwright command runs every retained test; no stale route or retired art fixture silently survives; no ignored flaky failures.
+**Exit:** One non-quarantined suite, stable at zero retries, real current journeys, no bundle rewrite and no deleted painted-regional/review content.
 
-## Task 5 — Merge asset checks and blocking E2E into ordinary CI
+## Task 3 — Turn CI back into the safety net **before** cleanup
 
-1. Remove **CI_SKIP_LFS_ASSET_TESTS** from **.github/workflows/ci.yml** and the associated skip/exclude logic in **vite.config.ts**. The existing unit-test job now executes PNG-byte tests as part of normal unit coverage.
-2. Add one **e2e** job to **.github/workflows/ci.yml** with checkout (normal Git blobs), Bun setup, frozen install, Playwright Chromium + Linux dependencies, one production build, Playwright run, and failure artifact upload. No LFS checkout, manual dispatch, sharding, or extra caching/orchestrator.
-3. Make that job run on **every PR push including drafts** and **main** pushes, independently of the existing non-draft guards for other jobs. Keep the current build/lint/type, JS unit, Rust lint/build/unit, strict story, and coverage behavior.
-4. Remove the old **.github/workflows/asset-integrity.yml** after migrating any still useful asset test assertion into ordinary CI. Avoid redundant builds inside the same E2E job.
-5. Read the actual GitHub Actions duration for the E2E job. Aim for **≤10 min** end-to-end with modest workers and one browser. Trim redundant or invalid tests before considering advanced CI architecture. Preserve a strict failure status and upload failure screenshots/traces.
+**Change:** `.github/workflows/ci.yml` and delete `.github/workflows/asset-integrity.yml`; reuse package scripts. The unit job already owns byte tests after Task 1.
 
-Suggested job outline:
+1. Remove the three `if` guards that skip **build-and-lint**, **unit-test** and **rust-build-lint** for draft PRs. Their dependent Rust unit job then runs as well. All checks have the same draft/ready PR policy.
+2. Add exactly **one blocking `e2e` job** to the existing workflow on PR and main push: normal checkout with no LFS; Bun + frozen install; Playwright Chromium system dependencies; **`bun run test:e2e`** (already builds once); upload screenshot/trace/report artifacts on failure or noncancellation.
+3. Do not use `continue-on-error`, a separate flaky lane, a manual workflow, another browser matrix, caching/sharding architecture, or duplicated `bun run build` step.
+4. Delete the obsolete Asset Integrity workflow after its existing asset tests are running in ordinary CI.
+5. Push **before Task 4**. Use GitHub MCP to read the PR CI checks, `e2e` duration, retained JS/Rust results and asset unit-test duration. The review's old gate timing approaches/exceeds the 10-minute job target once checkout/install/build are included; adjust the retained suite if necessary without dropping meaningful coverage.
+6. Do not begin dead-code deletion until the new CI job **passes on this draft PR**, including all unskipped checks. Treat ~10 minutes as a measured target, not a promise.
+
+Recommended job shape (illustrative; keep current workflow conventions):
 
 ~~~yaml
 e2e:
@@ -129,9 +99,8 @@ e2e:
         bun-version: latest
     - run: bun install --frozen-lockfile --ignore-scripts
     - run: bunx playwright install --with-deps chromium
-    - run: bun run build
-    - run: bunx playwright test --workers=2 --reporter=list
-    - if: ${{ !cancelled() }}
+    - run: bun run test:e2e
+    - if: always()
       uses: actions/upload-artifact@v4
       with:
         name: playwright-e2e-report
@@ -140,44 +109,63 @@ e2e:
           test-results/
 ~~~
 
-The outline is illustrative. Reuse the existing project conventions; do not create a second build command in **package.json** just for CI. Use CI timing to confirm the performance contract rather than assuming it.
+**Exit:** Full JS/Rust/unit/asset/E2E checks run on drafts and pass; E2E is blocking; run timing recorded via MCP.
 
-**Exit gate:** E2E and image-byte unit tests are mandatory checks on PRs, including draft PR pushes for the E2E job. No LFS/manual workflow and no CI-only asset skip remains.
+## Task 4 — Delete obsolete map types and all consumers under the CI gate
 
-## Task 6 — Refresh operational documentation
+**Change paths:** `src/lib/game/content/maps/types.ts`, `content/maps.ts`, `content/maps/text.ts`, `content/maps/navigation.ts`, `content/maps/blocker-rendering.ts` (delete), `src/lib/game/core/navigation.ts`, `core/area-map.ts`, `core/story-gates.ts`, `save/save-state.ts`, `phaser/scenes/WorldScene.ts`, tests.
 
-- **docs/stories/prologue.md**: correct the current implementation/status and follow-up descriptions for the actual audio, visual pipeline and real-time battle; keep story beats unchanged.
-- **CLAUDE.md** and only other directly relevant live instructions: describe the text-grid overworld, preserved painted interiors, ordinary-Git art, single Playwright config, and CI E2E.
-- Keep historical completed plans as archives rather than rewriting history.
+1. Delete `landmarks`/`fences`/`mapDecor` fields and their old types/exports, visual ownership and navigation source entries. Replace any old landmark map marker references with **nothing** (current maps do not author landmarks); preserve discovery and transition markers.
+2. Narrow `MapBlockerKind` to `'ruin-wall' | 'future-gate'`. Delete town hedge, garden hedge, city wall and ocean cases and obsolete `blocker-rendering.ts`. Simplify blocker rendering, frame selection and related tests; keep `environmentDressingAsset`'s ruin wall/future gate (and other used) frames.
+3. Delete fence/decor/landmark collision from `content/maps/navigation.ts`, `save/save-state.ts` and `core/navigation.ts`, including the landmark obstacle shape and doorway-cutout helpers. Keep grid navigation, strict blockers, interior-prop collision, NPCs, and actual transition/trigger geometry.
+4. Delete `core/story-gates.ts`' dead `mapDecor` gated field, `content/maps/text.ts` landmark translator, and `core/area-map.ts`' dead landmark marker builder; simplify related test fixtures and regional diagnostic fields only where no live consumer remains.
+5. Remove `WorldScene`'s landmark/fence/decor renderer, asset-frame registration, diagnostics, collision-debug overlays and old helper constants; **do not** split WorldScene or touch unrelated encounter/quest/battle paths.
+6. Run focused navigation/area-map/save/story tests plus full unit/check/build and the new blocking CI E2E job. Push and confirm green before Task 5.
 
-**Exit gate:** No current operational instruction tells contributors to use removed map fields, obsolete art sheets, LFS-dependent Asset Integrity, or the deleted review harness.
+~~~sh
+bun run check
+bun run test:unit -- --run src/lib/game/content/maps/navigation.test.ts
+bun run test:unit -- --run
+bun run build
+~~~
 
-## Task 7 — E2E and visual acceptance before ready-for-review
+**Exit:** No dead map fields or blocker kinds remain; doors, grid movement, interior props and tunnel ruin/future-gate collision still work.
 
-Automate acceptance; do not use a human verification checkbox.
+## Task 5 — Remove exactly the unused painted outdoor sheets
 
-1. Through **MCP browser/test tooling**, run the current web build from a known fixture: begin a new run; leave the house; navigate Sundrop; enter and exit a painted interior; interact/shop; start and finish an encounter; save/continue; and verify return positions and no console asset-load errors. Attach traces/results and relevant browser screenshots to the PR.
-2. Compare **same-viewport, same-state screenshots** against main for an overworld sample, a painted interior and the tunnel/ruins. Where animated sprites would cause false diffs, use deterministic state or mask just those regions; do not ignore structural/collision/texture differences. There is no ticket UI mockup, so this is the visual-parity check.
-3. Use **GitHub MCP** to inspect PR Actions/check results: validate the blocking E2E job and asset unit tests, a successful run on a draft PR push, the elapsed E2E duration, and the preserved JS/Rust jobs. If CI fails, fix in **this same PR**.
-4. Verify negative-path behavior with a deliberately broken E2E assertion in a temporary local/nonfinal run: the command exits nonzero and CI's configuration would fail the job, with trace/screenshot uploaded. Remove the deliberate failure before final commit.
-5. Confirm the diff has no runtime feature addition, no art/SFX generation, no old LFS pointers and no untracked generated screenshots or reports. Screenshots belong in CI artifacts or an ignored **.artifacts/** directory, not committed to the repo.
+**Change:** `src/lib/game/content/assets.ts`, `phaser/scenes/BootScene.ts`, `phaser/scenes/WorldScene.ts`, `public/game/assets/` candidate images and asset metadata/tests.
 
-Acceptance matrix:
+- Confirm no live grid builder or renderer uses these nine: **coast-dressing, crossroads-dressing, forest-dressing, fence-dressing, marsh-dressing, shrine-dressing, village-dressing, village-building, village-hedge**. After Task 4's explicit blocker/landmark removal they should be dead.
+- Remove their preloads, frame registration, asset/type definitions, files and obsolete metadata tests. Keep `environment-dressing`, grid `tiles.png`/`objects.png`, actor/NPC sheets, interior art and live ground patches.
+- Run check/unit/build and the blocking CI suite on the new push. Assert there is no Phaser missing-texture placeholder or `loaderror` for remaining routes.
 
-| Category | Automated assertion | Evidence |
-| --- | --- | --- |
-| Code cleanup | Zero live references to retired map fields/sheets | Git search + unit/build results |
-| Existing assets | Nine real PNG blobs, clean checkout with LFS disabled | Byte/header/dimension test + clean-clone build |
-| Gameplay | Full minimal prologue journey and live transition/collision/save | MCP-driven browser E2E trace |
-| Visual parity | Overworld, painted interior and tunnel screenshots match main's composition | Automated screenshot comparison via MCP |
-| CI | Every PR, including draft, runs one blocking E2E lane; no manual/LFS lane | GitHub MCP Actions run and check conclusion |
-| Runtime | E2E job approximately 10 min or less; full existing CI green | GitHub Actions job duration and check statuses |
-| Scope | No code unrelated to dead-map, art-byte migration, test/CI and doc cleanup | PR diff review via GitHub MCP |
+**Exit:** Nine dead sheets no longer load; surviving art and gameplay visually match the baseline.
 
-## Implementation and PR policy
+## Task 6 — Narrow docs and one-off automated screenshot parity
 
-- **Exactly one PR for HPA-694**: continue from this planning branch; do not open sequential task PRs.
-- Rebase onto main before implementation and re-check the unused-code inventory.
-- Do not start art or SFX generation in this ticket. HPA-704 and other art tasks remain separate.
-- Do not mark the task implemented, ready to merge or E2E-accepted while the real interior PNGs are unavailable or the CI/screenshot evidence is missing.
-- On completion, update HPA-694 in Linear with the PR link and verification summary; do not close the issue solely because planning documents exist.
+1. Edit `CLAUDE.md` and only active contributor docs that describe removed fields, outdated LFS/Asset Integrity workflow, obsolete Playwright review harness or old map pipeline.
+2. As HPA-694 specifically requests, correct the **few stale status/follow-up sentences** in `docs/stories/prologue.md` (old temporary-art/no-audio assumptions) but **do not** rewrite prose, combat mechanics, future story scope or unrelated historical plans.
+3. One-off **MCP-driven browser comparison** at **1280×720**: in the same environment launch `main` and the PR branch with equivalent `seedAutosaveSlot` states, capture `page.screenshot` for (a) Sundrop overworld, (b) Blacksmith painted interior, (c) tunnel/ruins. Produce a temporary pixel/structure diff, accounting only for bounded animation-frame changes. Report comparison results and evidence in the PR body; **do not commit** golden screenshots or add `toHaveScreenshot` to the blocking lane.
+4. Verify console logs for missing/misregistered textures in each sampled state.
+
+**Exit:** Screenshots demonstrate unchanged layout/texture/collision context, and operational docs match the implemented paths without a new visual-golden CI burden.
+
+## Task 7 — Automated acceptance and PR handoff
+
+**No human acceptance gate; no second E2E suite.** Use MCP to verify the existing canonical E2E run and screenshot evidence, rather than re-running a duplicate custom journey or deliberately breaking Playwright assertions.
+
+| Requirement | Automated acceptance / evidence |
+| --- | --- |
+| Asset bytes | **9** valid regular Git PNG blobs; existing SHA-256/RGBA/dimension tests run green on regular CI checkout without LFS |
+| Code reduction | No retired landmark/fence/decor fields/renderers/collision; only still-used blocker kinds and art sheets; unit/type/build green |
+| E2E gameplay | Existing suite covers new run/overworld/interior/NPC, shop, battle/return, save/continue; retained Blacksmith painted/collision browser proof passes with **0 retries** |
+| Test integrity | No minified `WorldScene-*.js` intercept; no 3-project filters, retired V1/exhaustive/flaky/review harness or ignored failures |
+| CI | GitHub MCP confirms **all** draft PR checks (JS lint/check/build/unit/byte tests, Rust, blocking E2E) green and the E2E job measured near **≤10 min** |
+| Visual parity | Browser MCP one-off fixed-state captures for the overworld, Blacksmith and tunnel, automated diff results recorded on PR; no UI mockup exists |
+| Scope | Single HPA-694 PR only, no art/SFX creation, no unrelated refactor or native acceptance |
+
+Any failed automated requirement is an implementation issue to address **within PR #71**. When all are green, update PR body with CI timing and comparison evidence, and update the linked Linear issue. Keep the PR draft and issue open until implementation passes; planning document changes alone do not meet acceptance.
+
+## Explicitly not planned
+
+No new gameplay feature, battle rebalance, artist task, generic telemetry/runner platform, test sharding, commit-history rewrite, compatibility preservation for removed map fields, arbitrary manual test, or mandatory native-platform acceptance.
