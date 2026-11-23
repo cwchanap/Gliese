@@ -3732,12 +3732,13 @@ describe('WorldScene', () => {
 
 	function selectedSceneSupportPackage(
 		id: string,
-		backgrounds: readonly MapBackgroundImage[]
+		backgrounds: readonly MapBackgroundImage[],
+		coverage: MapBackgroundPackageDefinition['coverage'] = 'full-map'
 	): MapBackgroundPackageSelection {
 		const definition: MapBackgroundPackageDefinition = {
 			id,
 			mapId: 'scene-support-test',
-			coverage: 'full-map',
+			coverage,
 			assets: backgrounds.map(({ textureKey }) => ({
 				key: textureKey,
 				path: `/game/assets/${textureKey}.png`
@@ -5535,7 +5536,7 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('uses package draw order and suppresses owned blockers and interior props', async () => {
+	it('uses package draw order and suppresses every static overlay under a full-map package', async () => {
 		registerTwoPlaneBackgroundTestMap();
 		const target = installPlaneDiagnosticListener();
 		const { WorldScene } = await import('./WorldScene');
@@ -5558,6 +5559,64 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('applies per-source ownership for a successful historical-partial package', async () => {
+		registerTwoPlaneBackgroundTestMap();
+		const target = installPlaneDiagnosticListener();
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+
+		try {
+			scene.create({
+				mapId: 'scene-support-test',
+				mapBackgroundPackageSelection: selectedSceneSupportPackage(
+					'scene-support-partial-review',
+					twoPlaneBackgrounds,
+					'historical-partial'
+				)
+			});
+
+			// Unlike a full-map package, partial coverage leaves the ground layer
+			// rendering underneath the painted planes.
+			expect(twoPlaneBackgroundMarkers()).toHaveLength(2);
+			expect(scene.make.tilemap).toHaveBeenCalledOnce();
+
+			// Ownership is consulted per source: visuals the successful
+			// backgrounds own are suppressed, while unowned 'always' sources keep
+			// their own rendering.
+			for (const x of [96, 128]) {
+				expect(scene.add.tileSprite).not.toHaveBeenCalledWith(
+					x,
+					160,
+					32,
+					64,
+					'environment-dressing',
+					'ruinWall'
+				);
+			}
+			for (const x of [160, 192]) {
+				expect(scene.add.tileSprite).toHaveBeenCalledWith(
+					x,
+					160,
+					32,
+					64,
+					'environment-dressing',
+					'ruinWall'
+				);
+			}
+			expect(scene.add.image).not.toHaveBeenCalledWith(224, 160, 'interior-props', 'table');
+			expect(scene.add.image).not.toHaveBeenCalledWith(256, 160, 'interior-props', 'table');
+
+			expect(target.diagnostics[0]).toMatchObject({
+				packageId: 'scene-support-partial-review',
+				presentationMode: 'painted',
+				selectedBackgroundIds: ['two-plane-base-image', 'two-plane-foreground-image'],
+				selectedFallbackBlockerIds: []
+			});
+		} finally {
+			target.restore();
+		}
+	});
+
 	it('disabling regional backgrounds restores every owned visual', async () => {
 		registerTwoPlaneBackgroundTestMap();
 		const target = installPlaneDiagnosticListener();
@@ -5569,8 +5628,8 @@ describe('WorldScene', () => {
 			createSelectedTwoPlaneScene(scene);
 
 			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
-			expect(twoPlaneOwnedPropMarkers()).toHaveLength(2);
+			expect(twoPlaneBlockerMarkers().map(({ x }) => x)).toEqual([96, 128, 160, 192]);
+			expect(twoPlaneOwnedPropMarkers().map(({ x }) => x)).toEqual([224, 256]);
 			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
 				'disabled',
 				'disabled'
@@ -5645,8 +5704,8 @@ describe('WorldScene', () => {
 				createSelectedTwoPlaneScene(scene);
 
 				expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
-				expect(twoPlaneBlockerMarkers()).toHaveLength(4);
-				expect(twoPlaneOwnedPropMarkers()).toHaveLength(2);
+				expect(twoPlaneBlockerMarkers().map(({ x }) => x)).toEqual([96, 128, 160, 192]);
+				expect(twoPlaneOwnedPropMarkers().map(({ x }) => x)).toEqual([224, 256]);
 				expect(scene.make.tilemap).toHaveBeenCalledOnce();
 				expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
 					'rendered',
@@ -5682,8 +5741,8 @@ describe('WorldScene', () => {
 			createSelectedTwoPlaneScene(scene);
 
 			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
-			expect(twoPlaneOwnedPropMarkers()).toHaveLength(2);
+			expect(twoPlaneBlockerMarkers().map(({ x }) => x)).toEqual([96, 128, 160, 192]);
+			expect(twoPlaneOwnedPropMarkers().map(({ x }) => x)).toEqual([224, 256]);
 			expect(scene.make.tilemap).toHaveBeenCalledOnce();
 			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
 				'rendered',
@@ -5711,8 +5770,8 @@ describe('WorldScene', () => {
 			createSelectedTwoPlaneScene(scene);
 
 			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
-			expect(twoPlaneOwnedPropMarkers()).toHaveLength(2);
+			expect(twoPlaneBlockerMarkers().map(({ x }) => x)).toEqual([96, 128, 160, 192]);
+			expect(twoPlaneOwnedPropMarkers().map(({ x }) => x)).toEqual([224, 256]);
 			expect(scene.make.tilemap).toHaveBeenCalledOnce();
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
 			expect(target.diagnostics[0]).toMatchObject({
@@ -5744,8 +5803,8 @@ describe('WorldScene', () => {
 			expect(
 				alternativeBackgroundMarkers().filter((marker) => marker.destroy.mock.calls.length === 0)
 			).toHaveLength(0);
-			expect(alternativeOwnedBlockerMarkers()).toHaveLength(1);
-			expect(alternativeOwnedPropMarkers()).toHaveLength(1);
+			expect(alternativeOwnedBlockerMarkers().map(({ x }) => x)).toEqual([96]);
+			expect(alternativeOwnedPropMarkers().map(({ x }) => x)).toEqual([160]);
 			expect(scene.make.tilemap).toHaveBeenCalledOnce();
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
 			expect(target.diagnostics[0]).toMatchObject({
@@ -5772,8 +5831,8 @@ describe('WorldScene', () => {
 			expect(
 				alternativeBackgroundMarkers().filter((marker) => marker.destroy.mock.calls.length === 0)
 			).toHaveLength(0);
-			expect(alternativeOwnedBlockerMarkers()).toHaveLength(1);
-			expect(alternativeOwnedPropMarkers()).toHaveLength(1);
+			expect(alternativeOwnedBlockerMarkers().map(({ x }) => x)).toEqual([96]);
+			expect(alternativeOwnedPropMarkers().map(({ x }) => x)).toEqual([160]);
 			expect(scene.make.tilemap).toHaveBeenCalledOnce();
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
 			expect(target.diagnostics[0]).toMatchObject({
@@ -5800,8 +5859,8 @@ describe('WorldScene', () => {
 			expect(
 				alternativeBackgroundMarkers().filter((marker) => marker.destroy.mock.calls.length === 0)
 			).toHaveLength(0);
-			expect(alternativeOwnedBlockerMarkers()).toHaveLength(1);
-			expect(alternativeOwnedPropMarkers()).toHaveLength(1);
+			expect(alternativeOwnedBlockerMarkers().map(({ x }) => x)).toEqual([96]);
+			expect(alternativeOwnedPropMarkers().map(({ x }) => x)).toEqual([160]);
 			expect(scene.make.tilemap).toHaveBeenCalledOnce();
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
 			expect(target.diagnostics[0]).toMatchObject({
@@ -5829,8 +5888,8 @@ describe('WorldScene', () => {
 			createSelectedTwoPlaneScene(scene);
 
 			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
-			expect(twoPlaneOwnedPropMarkers()).toHaveLength(2);
+			expect(twoPlaneBlockerMarkers().map(({ x }) => x)).toEqual([96, 128, 160, 192]);
+			expect(twoPlaneOwnedPropMarkers().map(({ x }) => x)).toEqual([224, 256]);
 		} finally {
 			restoreLocation();
 		}
@@ -5848,8 +5907,8 @@ describe('WorldScene', () => {
 			createSelectedTwoPlaneScene(scene);
 
 			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
-			expect(twoPlaneOwnedPropMarkers()).toHaveLength(2);
+			expect(twoPlaneBlockerMarkers().map(({ x }) => x)).toEqual([96, 128, 160, 192]);
+			expect(twoPlaneOwnedPropMarkers().map(({ x }) => x)).toEqual([224, 256]);
 		} finally {
 			restoreLocation();
 		}
