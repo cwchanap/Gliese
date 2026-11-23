@@ -1229,20 +1229,11 @@ describe('BootScene', () => {
 		const {
 			animationPackAsset,
 			battleBackgroundAssets,
-			coastDressingAsset,
-			crossroadsDressingAsset,
 			environmentDressingAsset,
-			fenceDressingAsset,
-			forestDressingAsset,
 			interiorPropAsset,
-			marshDressingAsset,
 			npcPackAsset,
-			shrineDressingAsset,
 			starterPackAsset,
-			terrainTilesAsset,
-			villageBuildingAsset,
-			villageDressingAsset,
-			villageHedgeAsset
+			terrainTilesAsset
 		} = await import('$lib/game/content/assets');
 		const { BootScene } = await import('./BootScene');
 		const scene = new BootScene();
@@ -1253,15 +1244,6 @@ describe('BootScene', () => {
 		expect(scene.load.image).toHaveBeenCalledWith(starterPackAsset.key, starterPackAsset.path);
 		expect(scene.load.image).toHaveBeenCalledWith(animationPackAsset.key, animationPackAsset.path);
 		expect(scene.load.image).toHaveBeenCalledWith(npcPackAsset.key, npcPackAsset.path);
-		expect(scene.load.image).toHaveBeenCalledWith(
-			villageBuildingAsset.key,
-			villageBuildingAsset.path
-		);
-		expect(scene.load.image).toHaveBeenCalledWith(
-			forestDressingAsset.key,
-			forestDressingAsset.path
-		);
-		expect(scene.load.image).toHaveBeenCalledWith(fenceDressingAsset.key, fenceDressingAsset.path);
 		expect(scene.load.image).toHaveBeenCalledWith(interiorPropAsset.key, interiorPropAsset.path);
 		expect(scene.load.image).toHaveBeenCalledWith(
 			environmentDressingAsset.key,
@@ -1269,21 +1251,6 @@ describe('BootScene', () => {
 		);
 		expect(scene.load.image).toHaveBeenCalledWith(terrainTilesAsset.key, terrainTilesAsset.path);
 		expect(scene.load.image).toHaveBeenCalledWith(GRID_TILESET.key, GRID_TILESET.path);
-		expect(scene.load.image).toHaveBeenCalledWith(coastDressingAsset.key, coastDressingAsset.path);
-		expect(scene.load.image).toHaveBeenCalledWith(
-			shrineDressingAsset.key,
-			shrineDressingAsset.path
-		);
-		expect(scene.load.image).toHaveBeenCalledWith(marshDressingAsset.key, marshDressingAsset.path);
-		expect(scene.load.image).toHaveBeenCalledWith(
-			crossroadsDressingAsset.key,
-			crossroadsDressingAsset.path
-		);
-		expect(scene.load.image).toHaveBeenCalledWith(
-			villageDressingAsset.key,
-			villageDressingAsset.path
-		);
-		expect(scene.load.image).toHaveBeenCalledWith(villageHedgeAsset.key, villageHedgeAsset.path);
 		for (const asset of Object.values(battleBackgroundAssets)) {
 			expect(scene.load.image).toHaveBeenCalledWith(asset.key, asset.path);
 		}
