@@ -11,6 +11,7 @@ export default defineConfig({
 	retries: 0,
 	use: {
 		baseURL: 'http://127.0.0.1:4173',
+		browserName: 'chromium',
 		screenshot: 'only-on-failure',
 		trace: 'retain-on-failure'
 	},
@@ -20,11 +21,5 @@ export default defineConfig({
 		reuseExistingServer: !process.env.CI
 	},
 	testDir: 'tests/e2e',
-	testMatch: '**/*.e2e.{ts,js}',
-	projects: [
-		{
-			name: 'chromium',
-			use: { browserName: 'chromium' }
-		}
-	]
+	testMatch: '**/*.e2e.{ts,js}'
 });

@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   build-and-lint:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Build & Lint
     runs-on: ubuntu-24.04
     steps:
@@ -48,7 +47,6 @@ jobs:
           bun run story:assert-no-frontend-prose
 
   unit-test:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Unit Tests
     runs-on: ubuntu-24.04
     steps:
@@ -81,7 +79,6 @@ jobs:
           flags: frontend
 
   rust-build-lint:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Rust Build & Lint
     runs-on: ubuntu-24.04
     defaults:
@@ -162,6 +159,37 @@ jobs:
           files: lcov.info
           flags: rust
 
-  # E2E tests live in the Asset Integrity workflow (.github/workflows/asset-integrity.yml).
-  # The e2e suite renders real LFS-tracked background/interior PNGs as Phaser textures,
-  # so it cannot run in core CI, which checks out without Git LFS.
+  # Single blocking e2e job: `bun run test:e2e` builds once, so there is no
+  # separate build step. Timeout is 15 minutes for the first diagnostic run
+  # while the retained suite is measured toward the <=10-minute target.
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run e2e tests
+        run: bun run test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-e2e-report
+          path: |
+            playwright-report/
+            test-results/
