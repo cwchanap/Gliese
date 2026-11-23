@@ -4,25 +4,40 @@ export const SAVES_STORAGE_KEY = 'gliese.saves.v1';
 
 async function waitForPlaying(page: Page) {
 	await expect(page.locator('canvas')).toBeVisible();
-	// A save seeded inside an encounter's aggro radius can open the battle
-	// scene — and on a contended runner even resolve it — before the field
-	// HUD's Menu button ever mounts (hosted run 45286324261: Victory at the
-	// 5s mark). The battle HUD or its summary are equally "playing" states,
-	// matched by locale-stable testid.
-	const battleUi = page.locator('[data-testid="battle-hud"], [data-testid="battle-summary"]');
-	await expect(page.getByRole('button', { name: 'Menu' }).or(battleUi)).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 	// Menu/canvas exist before Phaser boots; the field HUD's "Loading game"
 	// placeholder is only replaced by WorldScene's first publish, when interact
 	// keys are live. Waiting for it keeps keyboard interactions deterministic.
 	// A cold boot also pays for the Phaser import and BootScene's image preload,
 	// which exceeds the 5s default expect timeout on contended CI runners — the
-	// 30s bound matches the suite's other post-boot barriers. An immediate
-	// battle can skip the field publish entirely, so the battle UI satisfies
-	// the same readiness guarantee here.
+	// 30s bound matches the suite's other post-boot barriers.
+	await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
+}
+
+/**
+ * Battle-aware variant of the playing barrier, used ONLY by tests that seed
+ * a save inside an encounter's aggro radius: there the fight can open while
+ * the field HUD is still publishing — and on a contended runner reach its
+ * summary before the "Loading game" placeholder clears, so field-only
+ * readiness is a guaranteed flake (hosted run 45286324261). Every other
+ * caller keeps the strict field barrier: a caller that sends field input
+ * must never proceed while battle is up.
+ */
+async function waitForPlayingOrBattle(page: Page) {
+	await expect(page.locator('canvas')).toBeVisible();
+	const battleUi = page.locator('[data-testid="battle-hud"], [data-testid="battle-summary"]');
+	await expect(page.getByRole('button', { name: 'Menu' }).or(battleUi)).toBeVisible();
+	// Same publish barrier as waitForPlaying, satisfied by either a live field
+	// publish (placeholder gone) or a battle UI element that is actually
+	// visible — :visible tests each match, so a hidden hud can't mask a
+	// visible summary the way .first() on the DOM-ordered union could.
+	const battleVisible = page.locator(
+		'[data-testid="battle-hud"]:visible, [data-testid="battle-summary"]:visible'
+	);
 	await expect
 		.poll(
 			async () =>
-				(await page.getByText('Loading game').count()) === 0 || (await battleUi.count()) > 0,
+				(await page.getByText('Loading game').count()) === 0 || (await battleVisible.count()) > 0,
 			{ timeout: 30_000 }
 		)
 		.toBe(true);
@@ -90,10 +105,18 @@ export async function startNewRunThroughOpening(page: Page) {
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 }
 
+/** Readiness after the load resolves: strict field boot, or the seeded
+ * save may legitimately open straight into battle before the field HUD
+ * mounts. */
+export type ContinueReadiness = 'field' | 'field-or-battle';
+
 /** Boots through the Title screen: Continue opens the Load picker, then resumes the first occupied slot. */
-export async function continueFromTitle(page: Page) {
+export async function continueFromTitle(
+	page: Page,
+	options: { readiness?: ContinueReadiness } = {}
+) {
 	await page.goto('/');
-	await continueFromTitlePicker(page);
+	await continueFromTitlePicker(page, options);
 }
 
 /**
@@ -101,11 +124,18 @@ export async function continueFromTitle(page: Page) {
  * same-page returns (e.g. dismissing the completion card) must not reload
  * the document, which would clear the state the test is there to exercise.
  */
-export async function continueFromTitlePicker(page: Page) {
+export async function continueFromTitlePicker(
+	page: Page,
+	options: { readiness?: ContinueReadiness } = {}
+) {
 	await page.getByRole('button', { name: /Continue/i }).click();
 	const loadDialog = page.getByRole('dialog', { name: /load/i });
 	await expect(loadDialog).toBeVisible();
 	await loadDialog.locator('[data-testid^="save-slot-"]:not([disabled])').first().click();
+	if (options.readiness === 'field-or-battle') {
+		await waitForPlayingOrBattle(page);
+		return;
+	}
 	await waitForPlaying(page);
 }
 
