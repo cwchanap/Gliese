@@ -9,6 +9,9 @@ export default defineConfig({
 	fullyParallel: true,
 	workers: process.env.CI ? 2 : 1,
 	retries: 0,
+	// CI keeps the terse dot output but also emits playwright-report/ for the
+	// workflow's artifact upload; locally stays on the default list reporter.
+	reporter: process.env.CI ? [['dot'], ['html', { open: 'never' }]] : 'list',
 	use: {
 		baseURL: 'http://127.0.0.1:4173',
 		browserName: 'chromium',
