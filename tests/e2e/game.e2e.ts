@@ -158,6 +158,7 @@ type GlieseProbeWindow = Window & {
 		y: number;
 	}[];
 	__glieseBattleFeed?: { id: number; kind: string; amount: number; subject: string }[];
+	__glieseWolvesHudPlates?: string[];
 	__glieseWolvesActive?: {
 		attack?: number;
 		defense?: number;
@@ -4977,13 +4978,51 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 		);
 		// The HUD feed keeps only the last four entries; accumulate every
 		// battle event so a short fight still proves each hit/hurt amount.
-		// The first active-phase publish carrying both mouth-pack units is
-		// recorded whole: the live fight can resolve to its summary before a
-		// poll observes it, but the snapshot still proves the active HUD
-		// actually rendered — and which stats it showed in combat.
+		// Two separate proofs, because the self-playing fight can resolve to
+		// its summary before any test-side poll observes the active phase:
+		//  1. `__glieseWolvesActive` records the first active-phase hud-state
+		//     publish carrying both mouth-pack units — the state/stats the
+		//     fight ran with. It says nothing about the DOM.
+		//  2. `__glieseWolvesHudPlates` is recorded by the MutationObserver
+		//     below only when it actually sees a visible battle-hud element
+		//     containing both wolf plates visible in the same check — proof
+		//     the Svelte BattleHud really rendered the active fight.
 		const probeWindow = window as GlieseProbeWindow;
 		probeWindow.__glieseBattleFeed = [];
 		probeWindow.__glieseWolvesActive = null;
+		probeWindow.__glieseWolvesHudPlates = undefined;
+		const wolfIds = ['wildwood-wolves-mouth:unit:0', 'wildwood-wolves-mouth:unit:1'];
+		const rendered = (el: Element | null): el is HTMLElement =>
+			el instanceof HTMLElement && el.checkVisibility() && el.getClientRects().length > 0;
+		const checkHud = (observer: MutationObserver) => {
+			const hud = document.querySelector('[data-testid="battle-hud"]');
+			if (rendered(hud)) {
+				const plates = wolfIds
+					.map((unitId) =>
+						hud.querySelector(`[data-testid="battle-plate"][data-unit-id="${unitId}"]`)
+					)
+					.filter(rendered)
+					.map((plate) => plate.dataset.unitId ?? '');
+				if (plates.length === wolfIds.length) {
+					probeWindow.__glieseWolvesHudPlates = plates;
+					observer.disconnect();
+					return;
+				}
+			}
+			// Once the summary is up the active HUD cannot appear — stop
+			// observing so nothing outlives the observation window.
+			const summary = document.querySelector('[data-testid="battle-summary"]');
+			if (rendered(summary)) observer.disconnect();
+		};
+		// `document` exists when init scripts run; document.body may not.
+		const hudObserver = new MutationObserver((mutations, observer) => checkHud(observer));
+		hudObserver.observe(document, {
+			childList: true,
+			subtree: true,
+			attributes: true,
+			attributeFilter: ['style', 'class', 'hidden']
+		});
+		checkHud(hudObserver);
 		window.addEventListener('gliese:hud-state', (event) => {
 			const detail = (event as CustomEvent<HudStateSnapshot>).detail;
 			const feed = detail?.battle?.active?.feed ?? [];
@@ -5018,10 +5057,19 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 	const battle = page.getByRole('region', { name: 'Battle' });
 	const summary = page.getByTestId('battle-summary');
 	await expect(battle.or(summary)).toBeVisible({ timeout: 15_000 });
+	// Proof the Svelte BattleHud really rendered the active fight: the
+	// page-side MutationObserver only records once it sees a visible
+	// battle-hud containing both wolf plates visible in the same check —
+	// a hud-state publish alone could pass while the DOM never showed it.
+	await expect
+		.poll(async () =>
+			page.evaluate(() => ((window as GlieseProbeWindow).__glieseWolvesHudPlates ?? []).join(','))
+		)
+		.toBe('wildwood-wolves-mouth:unit:0,wildwood-wolves-mouth:unit:1');
 	// The summary recomputes its stats from the applied save, so it cannot
-	// prove what the fight showed. The recorded active snapshot must carry
-	// the two mouth units — and the equipped spear+amulet stats live in
-	// combat (ATK 4, DEF 1), not just on the field hero card.
+	// prove what the fight showed. The recorded active state snapshot must
+	// carry the two mouth units — and the equipped spear+amulet stats live
+	// in combat (ATK 4, DEF 1), not just on the field hero card.
 	await expect
 		.poll(async () =>
 			page.evaluate(() => (window as GlieseProbeWindow).__glieseWolvesActive?.enemies.length ?? 0)
