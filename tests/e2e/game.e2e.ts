@@ -2240,6 +2240,495 @@ async function saveInteriorCanvas(page: Page, evidenceRoot: string, styleId: str
 	}
 }
 
+// Registered first on purpose: at ~3 minutes this sweep is the longest tail
+// in the suite, so a worker takes it at t=0 and the rest overlap it.
+test('HPA-840 overlay evidence sweep across the required viewport matrix', async ({ page }) => {
+	test.setTimeout(540_000);
+	// Every overlay also runs a real journey once at 640×360 (the most
+	// clip-prone viewport): scroll the inner panel to the last control, then
+	// activate a real action with a locator click or keyboard Enter and observe
+	// the runtime effect — not just "dialog opened". The other viewport legs
+	// prove the heading + Close/Back control render unclipped and the document
+	// itself never scrolls, then capture the evidence shot.
+	const usePotionFromBag = async (dialog: Locator) => {
+		const potion = dialog.getByRole('button', { name: /^field potion$/i }).last();
+		await potion.scrollIntoViewIfNeeded({ timeout: 5_000 });
+		await expectCenterVisible(potion);
+		await potion.click();
+		const detail = dialog.getByTestId('inventory-detail');
+		await expect(detail).toContainText('Field Potion');
+		const action = detail.locator('.bag-detail-action');
+		await action.scrollIntoViewIfNeeded({ timeout: 5_000 });
+		await expectUnclipped(action);
+		await action.press('Enter');
+		// Using the potion heals the seeded hp:10 (or consumes a stack if the
+		// runtime rejects the heal) — either way a real state change published.
+		await expect
+			.poll(async () =>
+				page.evaluate(() => {
+					const s = (window as GlieseProbeWindow).__glieseLastHudState;
+					const qty =
+						s?.inventory?.consumables?.find((c) => c.itemId === 'field-potion')?.quantity ?? 0;
+					return (s?.hp ?? 0) > 10 || qty < 3;
+				})
+			)
+			.toBe(true);
+	};
+
+	const equipFromGear = async (dialog: Locator) => {
+		const knife = dialog.getByRole('button', { name: /^hunter'?s knife$/i }).last();
+		await knife.scrollIntoViewIfNeeded({ timeout: 5_000 });
+		await expectCenterVisible(knife);
+		await knife.click();
+		const detail = dialog.getByTestId('inventory-detail');
+		await expect(detail).toContainText("Hunter's Knife");
+		const action = detail.locator('.bag-detail-action');
+		await action.scrollIntoViewIfNeeded({ timeout: 5_000 });
+		await expectUnclipped(action);
+		await action.press('Enter');
+		await expect
+			.poll(async () =>
+				page.evaluate(
+					() =>
+						(window as GlieseProbeWindow).__glieseLastHudState?.inventory?.equipped?.weapon ?? ''
+				)
+			)
+			.toBe('hunters-knife');
+	};
+
+	const openQuestDetail = async (dialog: Locator) => {
+		// The seeded save has a main quest plus completed chapters. The main row
+		// is preselected on open — clicking it again would prove nothing, so the
+		// journey activates a previously UNSELECTED completed row and requires
+		// both the selection flag and the detail content to change.
+		const main = dialog.getByTestId('quest-entry-main');
+		const completed = dialog.getByTestId('quest-entry-completed').first();
+		await expect(main).toHaveAttribute('aria-pressed', 'true');
+		await expect(completed).toHaveAttribute('aria-pressed', 'false');
+		const detail = dialog.getByTestId('quest-detail');
+		await expect(detail).toBeVisible();
+		const beforeText = (await detail.textContent()) ?? '';
+		const completedTitle = (await completed.locator('.quest-entry-name').textContent()) ?? '';
+		expect(completedTitle.trim()).not.toBe('');
+		await completed.scrollIntoViewIfNeeded({ timeout: 5_000 });
+		// A quest row can be taller than the 640×360 scroll window — require the
+		// actionable centre to be hit-testable rather than a 95% area reveal.
+		await expectCenterVisible(completed);
+		await completed.click();
+		await expect(completed).toHaveAttribute('aria-pressed', 'true');
+		await expect(main).toHaveAttribute('aria-pressed', 'false');
+		await expect(detail).toContainText(completedTitle.trim());
+		expect(((await detail.textContent()) ?? '').trim()).not.toBe(beforeText.trim());
+	};
+
+	const closeWithKeyboard = (name: RegExp) => async (dialog: Locator) => {
+		const close = dialog.getByRole('button', { name }).first();
+		await expectUnclipped(close);
+		await close.press('Enter');
+		await expect(dialog).toBeHidden();
+	};
+
+	const saveIntoManualSlot = async (dialog: Locator) => {
+		const slot = dialog.getByTestId('save-slot-1');
+		await slot.scrollIntoViewIfNeeded({ timeout: 5_000 });
+		await expectCenterVisible(slot);
+		await slot.press('Enter');
+		await expect(dialog.getByText(/saved/i)).toBeVisible();
+	};
+
+	const systemJourney = async (dialog: Locator) => {
+		const langRow = dialog.getByTestId('system-language-row');
+		await langRow.scrollIntoViewIfNeeded({ timeout: 5_000 });
+		await expectCenterVisible(langRow);
+		// Keyboard-activate the ja segment — a real locale switch that must
+		// re-render the overlay chrome (heading) in the new locale.
+		await dialog.locator('[data-focus-id="system-locale-ja"]').press('Enter');
+		await expect(dialog.locator('#system-heading')).toHaveText('表示とテキスト');
+		await hpa840Shot(page, 'system-ja-640x360.png');
+		await dialog.locator('[data-focus-id="system-locale-zh-Hant"]').press('Enter');
+		await expect(dialog.locator('#system-heading')).toHaveText('顯示與文字');
+		await hpa840Shot(page, 'system-zh-hant-640x360.png');
+		// Restore English so the remaining legs keep en labels.
+		await dialog.locator('[data-focus-id="system-locale-en"]').press('Enter');
+		await expect(dialog.locator('#system-heading')).toHaveText('Display & Text');
+	};
+
+	const overlayPlan: {
+		tile: string;
+		dialogName: RegExp | string;
+		/** Locale-agnostic dialog locator when the accessible name localizes. */
+		dialogLocator?: () => Locator;
+		/** English name of the pinned Close/Back control. */
+		close: RegExp;
+		viewports: [number, number][];
+		journey?: (dialog: Locator) => Promise<void>;
+	}[] = [
+		{
+			tile: 'Bag',
+			dialogName: /inventory/i,
+			close: /close/i,
+			viewports: [
+				[640, 360],
+				[1280, 640],
+				[1280, 719],
+				[1280, 720],
+				[1920, 1080],
+				[390, 844],
+				[832, 560]
+			],
+			journey: usePotionFromBag
+		},
+		{
+			tile: 'Gear',
+			dialogName: /inventory/i,
+			close: /close/i,
+			viewports: [
+				[640, 360],
+				[1280, 640]
+			],
+			journey: equipFromGear
+		},
+		{
+			tile: 'Quest',
+			dialogName: /quest log/i,
+			close: /close/i,
+			viewports: [
+				[640, 360],
+				[1280, 640],
+				[1280, 719],
+				[1280, 720],
+				[1920, 1080],
+				[390, 844],
+				[832, 560]
+			],
+			journey: openQuestDetail
+		},
+		{
+			tile: 'Map',
+			dialogName: /map$/i,
+			close: /close/i,
+			viewports: [
+				[640, 360],
+				[1280, 640],
+				[390, 844]
+			],
+			journey: closeWithKeyboard(/close/i)
+		},
+		{
+			tile: 'Skill',
+			dialogName: 'Skill',
+			close: /back/i,
+			viewports: [
+				[640, 360],
+				[1280, 640]
+			],
+			journey: closeWithKeyboard(/back/i)
+		},
+		{
+			tile: 'Save',
+			dialogName: /^save$/i,
+			close: /back/i,
+			viewports: [
+				[640, 360],
+				[1280, 640]
+			],
+			journey: saveIntoManualSlot
+		},
+		{
+			tile: 'System',
+			dialogName: /display & text/i,
+			// The heading IS the accessible name and localizes on switch, so this
+			// dialog is located by its stable heading id instead.
+			dialogLocator: () => page.locator('[role="dialog"]:has(#system-heading)'),
+			close: /close/i,
+			viewports: [
+				[640, 360],
+				[1280, 640],
+				[832, 560]
+			],
+			journey: systemJourney
+		}
+	];
+
+	await installRuntimeProbes(page);
+	// Deeper inventory so the Bag/Gear panels genuinely overflow at 640×360;
+	// hp:10 makes the potion's heal observable in the published hud state.
+	// questStateAt('gather-moonmoss') seeds a main quest PLUS completed earlier
+	// chapters so the Quest journey can select a previously unselected row.
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 10, attack: 3, x: 256, y: 144, facing: 'down' },
+			quests: questStateAt('gather-moonmoss'),
+			inventory: {
+				stacks: [
+					{ itemId: 'field-potion', quantity: 3 },
+					{ itemId: 'greater-field-potion', quantity: 2 },
+					{ itemId: 'ember-tonic', quantity: 2 },
+					{ itemId: 'ruin-draught', quantity: 1 },
+					{ itemId: 'sunleaf-salve', quantity: 1 },
+					{ itemId: 'moonmoss', quantity: 4 }
+				],
+				equipment: [
+					'training-sword',
+					'hunters-knife',
+					'ruin-blade',
+					'iron-cap',
+					'traveler-vest',
+					'stone-mail',
+					'grip-wraps',
+					'meadow-charm',
+					'practice-spear',
+					'ancestral-amulet'
+				]
+			}
+		})
+	);
+	await continueFromTitle(page);
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+
+	for (const overlay of overlayPlan) {
+		for (const [width, height] of overlay.viewports) {
+			await page.setViewportSize({ width, height });
+			const commandGrid = commandBox(page);
+			if (!(await commandGrid.isVisible())) {
+				await page.getByRole('button', { name: 'Menu' }).click();
+				await expect(commandGrid).toBeVisible();
+			}
+			await commandGrid.getByRole('button', { name: overlay.tile, exact: true }).click();
+			const dialog = overlay.dialogLocator
+				? overlay.dialogLocator()
+				: page.getByRole('dialog', { name: overlay.dialogName });
+			await expect(dialog).toBeVisible();
+			// Entrance animation settled = rect stable across two frames.
+			await settleMotion(dialog);
+			// Opening a dialog lands focus inside it (real focus, not just an
+			// activation that could target anything).
+			await expectFocusInside(dialog);
+			// Pinned chrome must be inside the viewport, not clipped by a
+			// scrollable ancestor.
+			await expectUnclipped(dialog.getByRole('heading').first());
+			await expectUnclipped(dialog.getByRole('button', { name: overlay.close }).first());
+
+			if (width === 640 && height === 360) {
+				// Inner-panel scrolling: where the overlay grows a scroller it must
+				// move (and the page document must not). Runs BEFORE the Tab pass
+				// because focus-into-view already scrolls the panel.
+				const scroller = await findInnerScroller(dialog);
+				if (scroller) {
+					const { before, after } = await scrollInnerPanelToEnd(scroller);
+					expect(after).toBeGreaterThan(before);
+					// The pinned Close control stays visible after the inner scroll.
+					await expectUnclipped(dialog.getByRole('button', { name: overlay.close }).first());
+				}
+				// Focus containment: Tab cycles through every stop and stays
+				// inside the dialog — never falls through to the field HUD.
+				await expectTabContained(page, dialog);
+				await hpa840Shot(page, `${overlay.tile.toLowerCase()}-${width}x${height}.png`);
+				await overlay.journey?.(dialog);
+			} else {
+				if (width === 1280 && height === 640) {
+					// Same containment contract at the second required size.
+					await expectTabContained(page, dialog);
+				}
+				await hpa840Shot(page, `${overlay.tile.toLowerCase()}-${width}x${height}.png`);
+			}
+			expect(await documentScrollTop(page)).toBe(0);
+			if (await dialog.isVisible()) {
+				await page.keyboard.press('Escape');
+				await expect(dialog).toBeHidden();
+			}
+			// leaveOverlay reopens the grid and returns focus to the SAME
+			// command tile that opened the overlay (field-cmd-<command>).
+			await expect(
+				page.locator(`[data-focus-id="field-cmd-${overlay.tile.toLowerCase()}"]`)
+			).toBeFocused();
+		}
+	}
+	// Leave the command grid before the locale/load legs.
+	await page.keyboard.press('Escape');
+
+	// Shop is not a command tile: park the resume save at Mira's approach and
+	// open her dialog. injectSave only seeds once per page session, so the
+	// second fixture goes through localStorage before the reload.
+	const shopSave = createSaveFixture({
+		mapId: 'item-shop',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 416, y: 360, facing: 'up' }
+	});
+	const shopEnvelope = {
+		version: 1,
+		slots: [
+			{
+				kind: 'autosave',
+				savedAt: new Date().toISOString(),
+				playtimeSeconds: 0,
+				state: shopSave
+			},
+			null,
+			null
+		]
+	};
+	await page.evaluate(({ key, encoded }) => window.localStorage.setItem(key, encoded), {
+		key: SAVES_STORAGE_KEY,
+		encoded: JSON.stringify(shopEnvelope)
+	});
+	await continueFromTitle(page);
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+		return (
+			state?.nearbyShop?.shopId === 'miras-item-shop' ||
+			state?.status?.includes('Mira nearby') === true
+		);
+	});
+	for (const [width, height] of [
+		[640, 360],
+		[1280, 640]
+	] as const) {
+		await page.setViewportSize({ width, height });
+		await page.locator('canvas').click();
+		await page.keyboard.press('e', { delay: 50 });
+		const miraDialog = page.getByRole('dialog', { name: 'Mira' });
+		await expect(miraDialog).toBeVisible();
+		await miraDialog.getByRole('button', { name: 'Shop' }).click();
+		const shopDialog = page.getByRole('dialog', { name: /herb hut/i });
+		await expect(shopDialog).toBeVisible();
+		await expect(page.getByTestId('shop-buy-grid')).toBeVisible();
+		await settleMotion(shopDialog);
+		await expectFocusInside(shopDialog);
+		if (width === 640) {
+			// Real buy journey: scroll the buy grid, reach the last stock row,
+			// open it, and complete a purchase with the detail action. The scroller
+			// check runs before the Tab pass (focus-into-view scrolls the grid).
+			const scroller = await findInnerScroller(shopDialog);
+			if (scroller) {
+				const { before, after } = await scrollInnerPanelToEnd(scroller);
+				expect(after).toBeGreaterThan(before);
+			}
+			await expectTabContained(page, shopDialog);
+			const lastRow = page.getByTestId('shop-buy-grid').getByRole('button').last();
+			await lastRow.scrollIntoViewIfNeeded({ timeout: 5_000 });
+			await expectCenterVisible(lastRow);
+			await lastRow.click();
+			const buyAction = shopDialog.locator('[data-focus-id="shop-detail-action"]');
+			await buyAction.scrollIntoViewIfNeeded({ timeout: 5_000 });
+			await expectUnclipped(buyAction);
+			const purse = shopDialog.getByTestId('shop-purse');
+			const purseBefore = (await purse.textContent()) ?? '';
+			await buyAction.press('Enter');
+			await expect(purse).not.toHaveText(purseBefore);
+		}
+		await hpa840Shot(page, `shop-${width}x${height}.png`);
+		expect(await documentScrollTop(page)).toBe(0);
+		await page.keyboard.press('Escape');
+		await expect(shopDialog).toBeHidden();
+		// The dialogue's Shop button is destroyed when the shop opens, so
+		// restoreOverlayFocus falls through to focusFieldStage(): the
+		// .game-stage mount — not just "any button" — must hold focus.
+		await expect(page.locator('.game-stage')).toBeFocused();
+	}
+
+	// Locale legs: switch the language inside the real System overlay, then
+	// open Bag in that locale — overlay chrome must re-render localized.
+	await page.setViewportSize({ width: 640, height: 360 });
+	const menuChip = () => page.getByRole('button', { name: /^(menu|メニュー|選單)$/i });
+	const sysDialog = page.locator('[role="dialog"]:has(#system-heading)');
+	// The command region's own aria-label follows the live locale.
+	const localeGrid = () => commandBox(page, /^(command|コマンド|指令)$/i);
+	for (const loc of [
+		{ localeId: 'ja', bagTile: 'バッグ', heading: '表示とテキスト' },
+		{ localeId: 'zh-Hant', bagTile: '背包', heading: '顯示與文字' }
+	] as const) {
+		const grid = localeGrid();
+		if (!(await grid.isVisible())) {
+			await menuChip().click();
+			await expect(grid).toBeVisible();
+		}
+		// The System tile label follows the CURRENT locale.
+		await grid.getByRole('button', { name: /^(system|システム|系統)$/i }).click();
+		await expect(sysDialog).toBeVisible();
+		await settleMotion(sysDialog);
+		await sysDialog.locator(`[data-focus-id="system-locale-${loc.localeId}"]`).press('Enter');
+		await expect(sysDialog.locator('#system-heading')).toHaveText(loc.heading);
+		await page.keyboard.press('Escape');
+		await expect(sysDialog).toBeHidden();
+		// Focus restore is locale-agnostic: the System tile (field-cmd-system).
+		await expect(page.locator('[data-focus-id="field-cmd-system"]')).toBeFocused();
+		// Reopen Bag via its localized tile and capture the localized overlay.
+		if (!(await grid.isVisible())) {
+			await menuChip().click();
+			await expect(grid).toBeVisible();
+		}
+		await grid.getByRole('button', { name: loc.bagTile, exact: true }).click();
+		const bagDialog = page.locator('[role="dialog"]:has([data-testid="inventory-detail"])');
+		await expect(bagDialog).toBeVisible();
+		await settleMotion(bagDialog);
+		await hpa840Shot(page, `bag-${loc.localeId.toLowerCase()}-640x360.png`);
+		await page.keyboard.press('Escape');
+		await expect(bagDialog).toBeHidden();
+		await expect(page.locator('[data-focus-id="field-cmd-bag"]')).toBeFocused();
+	}
+	// Restore English for the remaining legs (tile labels are localized now).
+	const restoreGrid = localeGrid();
+	if (!(await restoreGrid.isVisible())) {
+		await menuChip().click();
+		await expect(restoreGrid).toBeVisible();
+	}
+	await restoreGrid.getByRole('button', { name: '系統', exact: true }).click();
+	await expect(sysDialog).toBeVisible();
+	await sysDialog.locator('[data-focus-id="system-locale-en"]').press('Enter');
+	await expect(sysDialog.locator('#system-heading')).toHaveText('Display & Text');
+	await page.keyboard.press('Escape');
+	await expect(sysDialog).toBeHidden();
+	await expect(page.locator('[data-focus-id="field-cmd-system"]')).toBeFocused();
+	await page.keyboard.press('Escape');
+
+	// Load leg: the real Title → Continue → Load picker → resume journey at each
+	// required small size. The picker lists the autosave the shop leg wrote;
+	// the last size clicks the enabled slot and resumes play.
+	for (const [width, height] of [
+		[640, 360],
+		[1280, 640],
+		[1280, 720]
+	] as const) {
+		await page.setViewportSize({ width, height });
+		await page.goto('/');
+		await page.getByRole('button', { name: /Continue/i }).click();
+		const loadDialog = page.getByRole('dialog', { name: /load/i });
+		await expect(loadDialog).toBeVisible();
+		await settleMotion(loadDialog);
+		await expectFocusInside(loadDialog);
+		await expectUnclipped(loadDialog.getByRole('heading').first());
+		const loadBack = loadDialog.getByRole('button', { name: /back/i }).first();
+		await expectUnclipped(loadBack);
+		const scroller = await findInnerScroller(loadDialog);
+		if (scroller) {
+			const { before, after } = await scrollInnerPanelToEnd(scroller);
+			expect(after).toBeGreaterThan(before);
+			// Pinned Back control stays visible after the inner scroll.
+			await expectUnclipped(loadBack);
+		}
+		const enabledSlots = loadDialog.locator('[data-testid^="save-slot-"]:not([disabled])');
+		expect(await enabledSlots.count()).toBeGreaterThanOrEqual(1);
+		// Same containment contract at every required size (scroller check ran
+		// first — focus-into-view scrolls the slot list).
+		await expectTabContained(page, loadDialog);
+		await hpa840Shot(page, `load-${width}x${height}.png`);
+		expect(await documentScrollTop(page)).toBe(0);
+		if (width === 1280 && height === 720) {
+			await enabledSlots.first().click();
+			await expect(page.locator('canvas')).toBeVisible();
+			await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+			await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
+		} else {
+			// Real click on the pinned Back control returns to Title — and
+			// closeLoadPicker restores focus onto Continue specifically.
+			await loadBack.click();
+			await expect(page.getByRole('button', { name: /Continue/i })).toBeVisible();
+			await expect(page.locator('[data-focus-id="title-continue"]')).toBeFocused();
+		}
+	}
+});
+
 test('entry map boots with no game console errors', async ({ page }) => {
 	// Collect console errors emitted during boot. Phaser logs missing-texture and
 	// asset-load failures to console.error, so this catches a broken/missing asset
@@ -5686,491 +6175,4 @@ test('HPA-840 compact field HUD at 640×360 hides the minimap, keeps M, and stay
 	await hpa840Shot(page, 'area-map-640x360.png');
 	await page.keyboard.press('m');
 	await expect(mapDialog).toBeHidden();
-});
-
-test('HPA-840 overlay evidence sweep across the required viewport matrix', async ({ page }) => {
-	test.setTimeout(540_000);
-	// Every overlay also runs a real journey once at 640×360 (the most
-	// clip-prone viewport): scroll the inner panel to the last control, then
-	// activate a real action with a locator click or keyboard Enter and observe
-	// the runtime effect — not just "dialog opened". The other viewport legs
-	// prove the heading + Close/Back control render unclipped and the document
-	// itself never scrolls, then capture the evidence shot.
-	const usePotionFromBag = async (dialog: Locator) => {
-		const potion = dialog.getByRole('button', { name: /^field potion$/i }).last();
-		await potion.scrollIntoViewIfNeeded({ timeout: 5_000 });
-		await expectCenterVisible(potion);
-		await potion.click();
-		const detail = dialog.getByTestId('inventory-detail');
-		await expect(detail).toContainText('Field Potion');
-		const action = detail.locator('.bag-detail-action');
-		await action.scrollIntoViewIfNeeded({ timeout: 5_000 });
-		await expectUnclipped(action);
-		await action.press('Enter');
-		// Using the potion heals the seeded hp:10 (or consumes a stack if the
-		// runtime rejects the heal) — either way a real state change published.
-		await expect
-			.poll(async () =>
-				page.evaluate(() => {
-					const s = (window as GlieseProbeWindow).__glieseLastHudState;
-					const qty =
-						s?.inventory?.consumables?.find((c) => c.itemId === 'field-potion')?.quantity ?? 0;
-					return (s?.hp ?? 0) > 10 || qty < 3;
-				})
-			)
-			.toBe(true);
-	};
-
-	const equipFromGear = async (dialog: Locator) => {
-		const knife = dialog.getByRole('button', { name: /^hunter'?s knife$/i }).last();
-		await knife.scrollIntoViewIfNeeded({ timeout: 5_000 });
-		await expectCenterVisible(knife);
-		await knife.click();
-		const detail = dialog.getByTestId('inventory-detail');
-		await expect(detail).toContainText("Hunter's Knife");
-		const action = detail.locator('.bag-detail-action');
-		await action.scrollIntoViewIfNeeded({ timeout: 5_000 });
-		await expectUnclipped(action);
-		await action.press('Enter');
-		await expect
-			.poll(async () =>
-				page.evaluate(
-					() =>
-						(window as GlieseProbeWindow).__glieseLastHudState?.inventory?.equipped?.weapon ?? ''
-				)
-			)
-			.toBe('hunters-knife');
-	};
-
-	const openQuestDetail = async (dialog: Locator) => {
-		// The seeded save has a main quest plus completed chapters. The main row
-		// is preselected on open — clicking it again would prove nothing, so the
-		// journey activates a previously UNSELECTED completed row and requires
-		// both the selection flag and the detail content to change.
-		const main = dialog.getByTestId('quest-entry-main');
-		const completed = dialog.getByTestId('quest-entry-completed').first();
-		await expect(main).toHaveAttribute('aria-pressed', 'true');
-		await expect(completed).toHaveAttribute('aria-pressed', 'false');
-		const detail = dialog.getByTestId('quest-detail');
-		await expect(detail).toBeVisible();
-		const beforeText = (await detail.textContent()) ?? '';
-		const completedTitle = (await completed.locator('.quest-entry-name').textContent()) ?? '';
-		expect(completedTitle.trim()).not.toBe('');
-		await completed.scrollIntoViewIfNeeded({ timeout: 5_000 });
-		// A quest row can be taller than the 640×360 scroll window — require the
-		// actionable centre to be hit-testable rather than a 95% area reveal.
-		await expectCenterVisible(completed);
-		await completed.click();
-		await expect(completed).toHaveAttribute('aria-pressed', 'true');
-		await expect(main).toHaveAttribute('aria-pressed', 'false');
-		await expect(detail).toContainText(completedTitle.trim());
-		expect(((await detail.textContent()) ?? '').trim()).not.toBe(beforeText.trim());
-	};
-
-	const closeWithKeyboard = (name: RegExp) => async (dialog: Locator) => {
-		const close = dialog.getByRole('button', { name }).first();
-		await expectUnclipped(close);
-		await close.press('Enter');
-		await expect(dialog).toBeHidden();
-	};
-
-	const saveIntoManualSlot = async (dialog: Locator) => {
-		const slot = dialog.getByTestId('save-slot-1');
-		await slot.scrollIntoViewIfNeeded({ timeout: 5_000 });
-		await expectCenterVisible(slot);
-		await slot.press('Enter');
-		await expect(dialog.getByText(/saved/i)).toBeVisible();
-	};
-
-	const systemJourney = async (dialog: Locator) => {
-		const langRow = dialog.getByTestId('system-language-row');
-		await langRow.scrollIntoViewIfNeeded({ timeout: 5_000 });
-		await expectCenterVisible(langRow);
-		// Keyboard-activate the ja segment — a real locale switch that must
-		// re-render the overlay chrome (heading) in the new locale.
-		await dialog.locator('[data-focus-id="system-locale-ja"]').press('Enter');
-		await expect(dialog.locator('#system-heading')).toHaveText('表示とテキスト');
-		await hpa840Shot(page, 'system-ja-640x360.png');
-		await dialog.locator('[data-focus-id="system-locale-zh-Hant"]').press('Enter');
-		await expect(dialog.locator('#system-heading')).toHaveText('顯示與文字');
-		await hpa840Shot(page, 'system-zh-hant-640x360.png');
-		// Restore English so the remaining legs keep en labels.
-		await dialog.locator('[data-focus-id="system-locale-en"]').press('Enter');
-		await expect(dialog.locator('#system-heading')).toHaveText('Display & Text');
-	};
-
-	const overlayPlan: {
-		tile: string;
-		dialogName: RegExp | string;
-		/** Locale-agnostic dialog locator when the accessible name localizes. */
-		dialogLocator?: () => Locator;
-		/** English name of the pinned Close/Back control. */
-		close: RegExp;
-		viewports: [number, number][];
-		journey?: (dialog: Locator) => Promise<void>;
-	}[] = [
-		{
-			tile: 'Bag',
-			dialogName: /inventory/i,
-			close: /close/i,
-			viewports: [
-				[640, 360],
-				[1280, 640],
-				[1280, 719],
-				[1280, 720],
-				[1920, 1080],
-				[390, 844],
-				[832, 560]
-			],
-			journey: usePotionFromBag
-		},
-		{
-			tile: 'Gear',
-			dialogName: /inventory/i,
-			close: /close/i,
-			viewports: [
-				[640, 360],
-				[1280, 640]
-			],
-			journey: equipFromGear
-		},
-		{
-			tile: 'Quest',
-			dialogName: /quest log/i,
-			close: /close/i,
-			viewports: [
-				[640, 360],
-				[1280, 640],
-				[1280, 719],
-				[1280, 720],
-				[1920, 1080],
-				[390, 844],
-				[832, 560]
-			],
-			journey: openQuestDetail
-		},
-		{
-			tile: 'Map',
-			dialogName: /map$/i,
-			close: /close/i,
-			viewports: [
-				[640, 360],
-				[1280, 640],
-				[390, 844]
-			],
-			journey: closeWithKeyboard(/close/i)
-		},
-		{
-			tile: 'Skill',
-			dialogName: 'Skill',
-			close: /back/i,
-			viewports: [
-				[640, 360],
-				[1280, 640]
-			],
-			journey: closeWithKeyboard(/back/i)
-		},
-		{
-			tile: 'Save',
-			dialogName: /^save$/i,
-			close: /back/i,
-			viewports: [
-				[640, 360],
-				[1280, 640]
-			],
-			journey: saveIntoManualSlot
-		},
-		{
-			tile: 'System',
-			dialogName: /display & text/i,
-			// The heading IS the accessible name and localizes on switch, so this
-			// dialog is located by its stable heading id instead.
-			dialogLocator: () => page.locator('[role="dialog"]:has(#system-heading)'),
-			close: /close/i,
-			viewports: [
-				[640, 360],
-				[1280, 640],
-				[832, 560]
-			],
-			journey: systemJourney
-		}
-	];
-
-	await installRuntimeProbes(page);
-	// Deeper inventory so the Bag/Gear panels genuinely overflow at 640×360;
-	// hp:10 makes the potion's heal observable in the published hud state.
-	// questStateAt('gather-moonmoss') seeds a main quest PLUS completed earlier
-	// chapters so the Quest journey can select a previously unselected row.
-	await injectSave(
-		page,
-		createSaveFixture({
-			player: { level: 1, xp: 0, hp: 10, attack: 3, x: 256, y: 144, facing: 'down' },
-			quests: questStateAt('gather-moonmoss'),
-			inventory: {
-				stacks: [
-					{ itemId: 'field-potion', quantity: 3 },
-					{ itemId: 'greater-field-potion', quantity: 2 },
-					{ itemId: 'ember-tonic', quantity: 2 },
-					{ itemId: 'ruin-draught', quantity: 1 },
-					{ itemId: 'sunleaf-salve', quantity: 1 },
-					{ itemId: 'moonmoss', quantity: 4 }
-				],
-				equipment: [
-					'training-sword',
-					'hunters-knife',
-					'ruin-blade',
-					'iron-cap',
-					'traveler-vest',
-					'stone-mail',
-					'grip-wraps',
-					'meadow-charm',
-					'practice-spear',
-					'ancestral-amulet'
-				]
-			}
-		})
-	);
-	await continueFromTitle(page);
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-
-	for (const overlay of overlayPlan) {
-		for (const [width, height] of overlay.viewports) {
-			await page.setViewportSize({ width, height });
-			const commandGrid = commandBox(page);
-			if (!(await commandGrid.isVisible())) {
-				await page.getByRole('button', { name: 'Menu' }).click();
-				await expect(commandGrid).toBeVisible();
-			}
-			await commandGrid.getByRole('button', { name: overlay.tile, exact: true }).click();
-			const dialog = overlay.dialogLocator
-				? overlay.dialogLocator()
-				: page.getByRole('dialog', { name: overlay.dialogName });
-			await expect(dialog).toBeVisible();
-			// Entrance animation settled = rect stable across two frames.
-			await settleMotion(dialog);
-			// Opening a dialog lands focus inside it (real focus, not just an
-			// activation that could target anything).
-			await expectFocusInside(dialog);
-			// Pinned chrome must be inside the viewport, not clipped by a
-			// scrollable ancestor.
-			await expectUnclipped(dialog.getByRole('heading').first());
-			await expectUnclipped(dialog.getByRole('button', { name: overlay.close }).first());
-
-			if (width === 640 && height === 360) {
-				// Inner-panel scrolling: where the overlay grows a scroller it must
-				// move (and the page document must not). Runs BEFORE the Tab pass
-				// because focus-into-view already scrolls the panel.
-				const scroller = await findInnerScroller(dialog);
-				if (scroller) {
-					const { before, after } = await scrollInnerPanelToEnd(scroller);
-					expect(after).toBeGreaterThan(before);
-					// The pinned Close control stays visible after the inner scroll.
-					await expectUnclipped(dialog.getByRole('button', { name: overlay.close }).first());
-				}
-				// Focus containment: Tab cycles through every stop and stays
-				// inside the dialog — never falls through to the field HUD.
-				await expectTabContained(page, dialog);
-				await hpa840Shot(page, `${overlay.tile.toLowerCase()}-${width}x${height}.png`);
-				await overlay.journey?.(dialog);
-			} else {
-				if (width === 1280 && height === 640) {
-					// Same containment contract at the second required size.
-					await expectTabContained(page, dialog);
-				}
-				await hpa840Shot(page, `${overlay.tile.toLowerCase()}-${width}x${height}.png`);
-			}
-			expect(await documentScrollTop(page)).toBe(0);
-			if (await dialog.isVisible()) {
-				await page.keyboard.press('Escape');
-				await expect(dialog).toBeHidden();
-			}
-			// leaveOverlay reopens the grid and returns focus to the SAME
-			// command tile that opened the overlay (field-cmd-<command>).
-			await expect(
-				page.locator(`[data-focus-id="field-cmd-${overlay.tile.toLowerCase()}"]`)
-			).toBeFocused();
-		}
-	}
-	// Leave the command grid before the locale/load legs.
-	await page.keyboard.press('Escape');
-
-	// Shop is not a command tile: park the resume save at Mira's approach and
-	// open her dialog. injectSave only seeds once per page session, so the
-	// second fixture goes through localStorage before the reload.
-	const shopSave = createSaveFixture({
-		mapId: 'item-shop',
-		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 416, y: 360, facing: 'up' }
-	});
-	const shopEnvelope = {
-		version: 1,
-		slots: [
-			{
-				kind: 'autosave',
-				savedAt: new Date().toISOString(),
-				playtimeSeconds: 0,
-				state: shopSave
-			},
-			null,
-			null
-		]
-	};
-	await page.evaluate(({ key, encoded }) => window.localStorage.setItem(key, encoded), {
-		key: SAVES_STORAGE_KEY,
-		encoded: JSON.stringify(shopEnvelope)
-	});
-	await continueFromTitle(page);
-	await page.waitForFunction(() => {
-		const state = (window as GlieseProbeWindow).__glieseLastHudState;
-		return (
-			state?.nearbyShop?.shopId === 'miras-item-shop' ||
-			state?.status?.includes('Mira nearby') === true
-		);
-	});
-	for (const [width, height] of [
-		[640, 360],
-		[1280, 640]
-	] as const) {
-		await page.setViewportSize({ width, height });
-		await page.locator('canvas').click();
-		await page.keyboard.press('e', { delay: 50 });
-		const miraDialog = page.getByRole('dialog', { name: 'Mira' });
-		await expect(miraDialog).toBeVisible();
-		await miraDialog.getByRole('button', { name: 'Shop' }).click();
-		const shopDialog = page.getByRole('dialog', { name: /herb hut/i });
-		await expect(shopDialog).toBeVisible();
-		await expect(page.getByTestId('shop-buy-grid')).toBeVisible();
-		await settleMotion(shopDialog);
-		await expectFocusInside(shopDialog);
-		if (width === 640) {
-			// Real buy journey: scroll the buy grid, reach the last stock row,
-			// open it, and complete a purchase with the detail action. The scroller
-			// check runs before the Tab pass (focus-into-view scrolls the grid).
-			const scroller = await findInnerScroller(shopDialog);
-			if (scroller) {
-				const { before, after } = await scrollInnerPanelToEnd(scroller);
-				expect(after).toBeGreaterThan(before);
-			}
-			await expectTabContained(page, shopDialog);
-			const lastRow = page.getByTestId('shop-buy-grid').getByRole('button').last();
-			await lastRow.scrollIntoViewIfNeeded({ timeout: 5_000 });
-			await expectCenterVisible(lastRow);
-			await lastRow.click();
-			const buyAction = shopDialog.locator('[data-focus-id="shop-detail-action"]');
-			await buyAction.scrollIntoViewIfNeeded({ timeout: 5_000 });
-			await expectUnclipped(buyAction);
-			const purse = shopDialog.getByTestId('shop-purse');
-			const purseBefore = (await purse.textContent()) ?? '';
-			await buyAction.press('Enter');
-			await expect(purse).not.toHaveText(purseBefore);
-		}
-		await hpa840Shot(page, `shop-${width}x${height}.png`);
-		expect(await documentScrollTop(page)).toBe(0);
-		await page.keyboard.press('Escape');
-		await expect(shopDialog).toBeHidden();
-		// The dialogue's Shop button is destroyed when the shop opens, so
-		// restoreOverlayFocus falls through to focusFieldStage(): the
-		// .game-stage mount — not just "any button" — must hold focus.
-		await expect(page.locator('.game-stage')).toBeFocused();
-	}
-
-	// Locale legs: switch the language inside the real System overlay, then
-	// open Bag in that locale — overlay chrome must re-render localized.
-	await page.setViewportSize({ width: 640, height: 360 });
-	const menuChip = () => page.getByRole('button', { name: /^(menu|メニュー|選單)$/i });
-	const sysDialog = page.locator('[role="dialog"]:has(#system-heading)');
-	// The command region's own aria-label follows the live locale.
-	const localeGrid = () => commandBox(page, /^(command|コマンド|指令)$/i);
-	for (const loc of [
-		{ localeId: 'ja', bagTile: 'バッグ', heading: '表示とテキスト' },
-		{ localeId: 'zh-Hant', bagTile: '背包', heading: '顯示與文字' }
-	] as const) {
-		const grid = localeGrid();
-		if (!(await grid.isVisible())) {
-			await menuChip().click();
-			await expect(grid).toBeVisible();
-		}
-		// The System tile label follows the CURRENT locale.
-		await grid.getByRole('button', { name: /^(system|システム|系統)$/i }).click();
-		await expect(sysDialog).toBeVisible();
-		await settleMotion(sysDialog);
-		await sysDialog.locator(`[data-focus-id="system-locale-${loc.localeId}"]`).press('Enter');
-		await expect(sysDialog.locator('#system-heading')).toHaveText(loc.heading);
-		await page.keyboard.press('Escape');
-		await expect(sysDialog).toBeHidden();
-		// Focus restore is locale-agnostic: the System tile (field-cmd-system).
-		await expect(page.locator('[data-focus-id="field-cmd-system"]')).toBeFocused();
-		// Reopen Bag via its localized tile and capture the localized overlay.
-		if (!(await grid.isVisible())) {
-			await menuChip().click();
-			await expect(grid).toBeVisible();
-		}
-		await grid.getByRole('button', { name: loc.bagTile, exact: true }).click();
-		const bagDialog = page.locator('[role="dialog"]:has([data-testid="inventory-detail"])');
-		await expect(bagDialog).toBeVisible();
-		await settleMotion(bagDialog);
-		await hpa840Shot(page, `bag-${loc.localeId.toLowerCase()}-640x360.png`);
-		await page.keyboard.press('Escape');
-		await expect(bagDialog).toBeHidden();
-		await expect(page.locator('[data-focus-id="field-cmd-bag"]')).toBeFocused();
-	}
-	// Restore English for the remaining legs (tile labels are localized now).
-	const restoreGrid = localeGrid();
-	if (!(await restoreGrid.isVisible())) {
-		await menuChip().click();
-		await expect(restoreGrid).toBeVisible();
-	}
-	await restoreGrid.getByRole('button', { name: '系統', exact: true }).click();
-	await expect(sysDialog).toBeVisible();
-	await sysDialog.locator('[data-focus-id="system-locale-en"]').press('Enter');
-	await expect(sysDialog.locator('#system-heading')).toHaveText('Display & Text');
-	await page.keyboard.press('Escape');
-	await expect(sysDialog).toBeHidden();
-	await expect(page.locator('[data-focus-id="field-cmd-system"]')).toBeFocused();
-	await page.keyboard.press('Escape');
-
-	// Load leg: the real Title → Continue → Load picker → resume journey at each
-	// required small size. The picker lists the autosave the shop leg wrote;
-	// the last size clicks the enabled slot and resumes play.
-	for (const [width, height] of [
-		[640, 360],
-		[1280, 640],
-		[1280, 720]
-	] as const) {
-		await page.setViewportSize({ width, height });
-		await page.goto('/');
-		await page.getByRole('button', { name: /Continue/i }).click();
-		const loadDialog = page.getByRole('dialog', { name: /load/i });
-		await expect(loadDialog).toBeVisible();
-		await settleMotion(loadDialog);
-		await expectFocusInside(loadDialog);
-		await expectUnclipped(loadDialog.getByRole('heading').first());
-		const loadBack = loadDialog.getByRole('button', { name: /back/i }).first();
-		await expectUnclipped(loadBack);
-		const scroller = await findInnerScroller(loadDialog);
-		if (scroller) {
-			const { before, after } = await scrollInnerPanelToEnd(scroller);
-			expect(after).toBeGreaterThan(before);
-			// Pinned Back control stays visible after the inner scroll.
-			await expectUnclipped(loadBack);
-		}
-		const enabledSlots = loadDialog.locator('[data-testid^="save-slot-"]:not([disabled])');
-		expect(await enabledSlots.count()).toBeGreaterThanOrEqual(1);
-		// Same containment contract at every required size (scroller check ran
-		// first — focus-into-view scrolls the slot list).
-		await expectTabContained(page, loadDialog);
-		await hpa840Shot(page, `load-${width}x${height}.png`);
-		expect(await documentScrollTop(page)).toBe(0);
-		if (width === 1280 && height === 720) {
-			await enabledSlots.first().click();
-			await expect(page.locator('canvas')).toBeVisible();
-			await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-			await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
-		} else {
-			// Real click on the pinned Back control returns to Title — and
-			// closeLoadPicker restores focus onto Continue specifically.
-			await loadBack.click();
-			await expect(page.getByRole('button', { name: /Continue/i })).toBeVisible();
-			await expect(page.locator('[data-focus-id="title-continue"]')).toBeFocused();
-		}
-	}
 });
