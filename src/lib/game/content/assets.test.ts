@@ -6,11 +6,6 @@ import {
 	actorAnimationIds,
 	animationPackAsset,
 	battleBackgroundAssets,
-	coastDressingAsset,
-	crossroadsDressingAsset,
-	villageDressingAsset,
-	fenceDressingAsset,
-	forestDressingAsset,
 	getActorAnimationAsset,
 	getBattleBackgroundAsset,
 	getBattleEnvironmentId,
@@ -18,29 +13,18 @@ import {
 	getEnemyPlateArtPath,
 	interiorPropAsset,
 	isNpcPackFrameName,
-	marshDressingAsset,
 	npcPackAsset,
 	regionalBackgroundAssets,
-	shrineDressingAsset,
 	starterPackAsset,
 	terrainFrameOrder,
 	terrainTilesAsset,
-	villageBuildingAsset,
-	villageHedgeAsset,
 	type ActorAnimationId,
 	type ActorAnimationKey,
-	type FenceDressingFrameName,
 	type InteriorPropFrameName
 } from '$lib/game/content/assets';
 
 const requiredActors: ActorAnimationId[] = [...actorAnimationIds];
 const requiredClips: ActorAnimationKey[] = ['idle', 'walk', 'attack', 'dead'];
-const requiredFenceFrames: FenceDressingFrameName[] = [
-	'horizontalFence',
-	'verticalFence',
-	'fencePost',
-	'gateMarker'
-];
 const requiredInteriorPropFrames: InteriorPropFrameName[] = [
 	'bed',
 	'table',
@@ -117,80 +101,6 @@ describe('battle background asset metadata', () => {
 describe('regional background asset metadata', () => {
 	it('keeps the generic regional preload seam empty', () => {
 		expect(regionalBackgroundAssets).toEqual([]);
-	});
-});
-
-describe('village building asset metadata', () => {
-	it('loads village building art from a fixed 4x2 sheet', () => {
-		expect(villageBuildingAsset).toMatchObject({
-			key: 'village-buildings',
-			path: '/game/assets/village-buildings.png',
-			cellWidth: 627,
-			cellHeight: 627,
-			columns: 4,
-			rows: 2
-		});
-		expect(villageBuildingAsset.frames).toEqual({
-			heroHouse: { x: 118, y: 116, w: 407, h: 437 },
-			guildHall: { x: 627, y: 96, w: 563, h: 499 },
-			itemShop: { x: 114, y: 668, w: 430, h: 445 },
-			villagerHouse: { x: 688, y: 675, w: 403, h: 449 },
-			blacksmith: { x: 1_254, y: 0, w: 627, h: 627 },
-			shrineOfAurora: { x: 1_881, y: 0, w: 627, h: 627 },
-			whisperingCave: { x: 1_254, y: 627, w: 627, h: 627 },
-			sundropWell: { x: 1_881, y: 627, w: 627, h: 627 }
-		});
-	});
-
-	it('keeps every frame inside the sheet bounds', () => {
-		assertFramesInsideSheetBounds(villageBuildingAsset);
-	});
-});
-
-describe('forest dressing asset metadata', () => {
-	it('loads compact forest art from a fixed 2x2 sheet', () => {
-		expect(forestDressingAsset).toMatchObject({
-			key: 'forest-dressing',
-			path: '/game/assets/forest-dressing.png',
-			cellWidth: 256,
-			cellHeight: 256,
-			columns: 2,
-			rows: 2
-		});
-		expect(forestDressingAsset.frames).toEqual({
-			treeCluster: { x: 0, y: 0, w: 256, h: 256 },
-			brush: { x: 256, y: 0, w: 256, h: 256 },
-			forestFloor: { x: 0, y: 256, w: 256, h: 256 },
-			forestEntrance: { x: 256, y: 256, w: 256, h: 256 }
-		});
-	});
-
-	it('keeps every frame inside the sheet bounds', () => {
-		assertFramesInsideSheetBounds(forestDressingAsset);
-	});
-});
-
-describe('fence dressing asset metadata', () => {
-	it('loads generated fence art from a fixed 2x2 sheet', () => {
-		expect(fenceDressingAsset).toMatchObject({
-			key: 'fence-dressing',
-			path: '/game/assets/fence-dressing.png',
-			cellWidth: 256,
-			cellHeight: 256,
-			columns: 2,
-			rows: 2
-		});
-		expect(fenceDressingAsset.frames).toEqual({
-			horizontalFence: { x: 0, y: 0, w: 256, h: 256 },
-			verticalFence: { x: 256, y: 0, w: 256, h: 256 },
-			fencePost: { x: 0, y: 256, w: 256, h: 256 },
-			gateMarker: { x: 256, y: 256, w: 256, h: 256 }
-		});
-		expect(Object.keys(fenceDressingAsset.frames)).toEqual(requiredFenceFrames);
-	});
-
-	it('keeps every frame inside the sheet bounds', () => {
-		assertFramesInsideSheetBounds(fenceDressingAsset);
 	});
 });
 
@@ -391,120 +301,5 @@ describe('terrainTilesAsset', () => {
 		for (const name of terrainFrameOrder) {
 			expect(terrainTilesAsset.frames[name]).toBeDefined();
 		}
-	});
-});
-
-describe('coastDressingAsset', () => {
-	it('declares the coastal props', () => {
-		for (const name of [
-			'torii',
-			'ferryShrine',
-			'fishingBoat',
-			'fishingNet',
-			'tidePool',
-			'driftwood',
-			'jetty',
-			'shorelineFoam'
-		]) {
-			expect(coastDressingAsset.frames).toHaveProperty(name);
-		}
-	});
-
-	it('keeps every frame inside the sheet bounds', () => {
-		assertFramesInsideSheetBounds(coastDressingAsset);
-	});
-});
-
-describe('shrineDressingAsset', () => {
-	it('declares the shrine props', () => {
-		for (const name of [
-			'silverShrineGate',
-			'stoneLantern',
-			'offeringStand',
-			'amuletRack',
-			'silverpine',
-			'autumnMaple'
-		]) {
-			expect(shrineDressingAsset.frames).toHaveProperty(name);
-		}
-	});
-
-	it('keeps every frame inside the sheet bounds', () => {
-		assertFramesInsideSheetBounds(shrineDressingAsset);
-	});
-});
-
-describe('marshDressingAsset', () => {
-	it('declares the marsh props', () => {
-		for (const name of ['witchwoodGate', 'deadTree', 'toxicBloom', 'reeds', 'marshRock', 'fog']) {
-			expect(marshDressingAsset.frames).toHaveProperty(name);
-		}
-	});
-
-	it('keeps every frame inside the sheet bounds', () => {
-		assertFramesInsideSheetBounds(marshDressingAsset);
-	});
-});
-
-describe('crossroadsDressingAsset', () => {
-	it('declares the crossroads props', () => {
-		for (const name of [
-			'castleGate',
-			'waystone',
-			'hangingLantern',
-			'poleLantern',
-			'festivalBanner',
-			'marketStall',
-			'flowerBed'
-		]) {
-			expect(crossroadsDressingAsset.frames).toHaveProperty(name);
-		}
-	});
-
-	it('keeps every frame inside the sheet bounds', () => {
-		assertFramesInsideSheetBounds(crossroadsDressingAsset);
-	});
-});
-
-describe('villageDressingAsset', () => {
-	it('loads village dressing art from a fixed 4x3 sheet with the 12 village frames', () => {
-		expect(villageDressingAsset).toMatchObject({
-			key: 'village-dressing',
-			path: '/game/assets/village-dressing.png',
-			cellWidth: 256,
-			cellHeight: 256,
-			columns: 4,
-			rows: 3
-		});
-		for (const name of [
-			// borrowed-name variants (must match crossroads/shrine frame names)
-			'marketStall',
-			'festivalBanner',
-			'flowerBed',
-			'poleLantern',
-			'hangingLantern',
-			'stoneLantern',
-			'offeringStand',
-			'autumnMaple',
-			// village-exclusive props
-			'gateArch',
-			'fountain',
-			'scarecrow',
-			'hedgeTopiary'
-		]) {
-			expect(villageDressingAsset.frames).toHaveProperty(name);
-		}
-	});
-
-	it('keeps every frame inside the sheet bounds', () => {
-		assertFramesInsideSheetBounds(villageDressingAsset);
-	});
-});
-
-describe('villageHedgeAsset', () => {
-	it('exposes a hedgeSegment frame on the village hedge sheet', () => {
-		expect(villageHedgeAsset.key).toBe('village-hedge');
-		expect(villageHedgeAsset.path).toBe('/game/assets/village-hedge.png');
-		expect(villageHedgeAsset.frames.hedgeSegment).toEqual({ x: 0, y: 0, w: 256, h: 256 });
 	});
 });

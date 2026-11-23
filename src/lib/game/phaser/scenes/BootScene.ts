@@ -3,20 +3,11 @@ import type { GameStartRequest } from '$lib/game/phaser/createGame';
 import {
 	animationPackAsset,
 	battleBackgroundAssets,
-	coastDressingAsset,
-	crossroadsDressingAsset,
 	environmentDressingAsset,
-	fenceDressingAsset,
-	forestDressingAsset,
 	interiorPropAsset,
-	marshDressingAsset,
 	npcPackAsset,
-	shrineDressingAsset,
 	starterPackAsset,
-	terrainTilesAsset,
-	villageBuildingAsset,
-	villageDressingAsset,
-	villageHedgeAsset
+	terrainTilesAsset
 } from '$lib/game/content/assets';
 import { findMap, maps } from '$lib/game/content/maps';
 import { GRID_OBJECT_SHEET } from '$lib/game/content/maps/grid/objects';
@@ -156,17 +147,8 @@ export class BootScene extends Phaser.Scene {
 		this.load.image(GRID_OBJECT_SHEET.key, GRID_OBJECT_SHEET.path);
 		this.load.image(animationPackAsset.key, animationPackAsset.path);
 		this.load.image(npcPackAsset.key, npcPackAsset.path);
-		this.load.image(villageBuildingAsset.key, villageBuildingAsset.path);
-		this.load.image(forestDressingAsset.key, forestDressingAsset.path);
-		this.load.image(fenceDressingAsset.key, fenceDressingAsset.path);
 		this.load.image(interiorPropAsset.key, interiorPropAsset.path);
 		this.load.image(environmentDressingAsset.key, environmentDressingAsset.path);
-		this.load.image(coastDressingAsset.key, coastDressingAsset.path);
-		this.load.image(shrineDressingAsset.key, shrineDressingAsset.path);
-		this.load.image(marshDressingAsset.key, marshDressingAsset.path);
-		this.load.image(crossroadsDressingAsset.key, crossroadsDressingAsset.path);
-		this.load.image(villageDressingAsset.key, villageDressingAsset.path);
-		this.load.image(villageHedgeAsset.key, villageHedgeAsset.path);
 		preloadAudio(this.load);
 		for (const asset of Object.values(battleBackgroundAssets)) {
 			this.load.image(asset.key, asset.path);
