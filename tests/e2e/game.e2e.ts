@@ -4011,33 +4011,32 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 	expect(jogShoulder?.x).toBeLessThanOrEqual(5_508);
 	expect(jogShoulder?.y).toBeGreaterThanOrEqual(7_216);
 	expect(jogShoulder?.y).toBeLessThanOrEqual(7_272);
-	// The forge door only triggers within ~30px of (5648,7184). Releasing at
-	// the column's entry edge lands ≥5640 and the east wall (~5679) clamps
-	// the far side — inside the assert band and inside jog-east/
-	// forge-approach corridor coverage.
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5640 });
+	// The forge door only triggers inside the ~30px cone at (5648,7184) —
+	// x∈[5618,5678]. The release target bounds the whole one-step envelope:
+	// the lane's east wall is 5743 at y≤7259 (not 5679), so gte 5628 lands in
+	// [5628,5688) — inside the forge-approach corridor leg and mostly inside
+	// the cone already.
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5628 });
 	const forgeColumn = await readPosition();
-	expect(forgeColumn?.x).toBeGreaterThanOrEqual(5_640);
+	expect(forgeColumn?.x).toBeGreaterThanOrEqual(5_628);
 	expect(forgeColumn?.x).toBeLessThanOrEqual(5_688);
 	expect(forgeColumn?.y).toBeGreaterThanOrEqual(7_216);
 	expect(forgeColumn?.y).toBeLessThanOrEqual(7_272);
-	// A landing past x≈5678 leaves the door trigger cone even though it still
-	// satisfies the corridor asserts — observed as a real timeout at
-	// (5678.7,7184). Points east of 5664 are attributed to the forge-approach
-	// leg, whose progress axis is y, so checked 'a'/'d' taps back into the
-	// cone do not falsify the trace. The 'a' taps fire only while x>5670
-	// (start ≤5679 → land ≥5619) and the 'd' recovery only while x<5618
-	// (start ≤5617 → land ≤5677), so the two-stage rescue converges.
-	if (forgeColumn && forgeColumn.x > 5_670) {
-		await tapAxisUntil('a', 'x', 'lte', 5_660);
-		const westProbe = await readPosition();
-		if (westProbe && westProbe.x < 5_618) {
-			await tapAxisUntil('d', 'x', 'gte', 5_640);
-		}
+	// A landing past the cone's east edge still satisfies the corridor asserts
+	// but walks north past the trigger — observed as a real timeout at
+	// (5678.7,7184), and a timed nudge can start just below its target and
+	// overshoot the same edge it was meant to avoid (5617→5639→5687). The
+	// correction is event-gated like every other stop: 'a' releasing at the
+	// cone's own east edge puts the landing envelope at (5618,5678] — strictly
+	// inside the cone on the west and inclusive on the east — and westward
+	// points there attribute to the y-axis forge-approach leg, so the trace
+	// contract is preserved.
+	if (forgeColumn && forgeColumn.x > 5_678) {
+		await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 5678 });
 	}
 	const approachPoint = await readPosition();
-	expect(approachPoint?.x).toBeGreaterThanOrEqual(5_616);
-	expect(approachPoint?.x).toBeLessThanOrEqual(5_688);
+	expect(approachPoint?.x).toBeGreaterThanOrEqual(5_618);
+	expect(approachPoint?.x).toBeLessThanOrEqual(5_678);
 	await holdUntil('w', { kind: 'map', value: 'blacksmith-interior' }, 20_000);
 	await expect.poll(async () => (await readHud())?.mapId).toBe('blacksmith-interior');
 	// The overworld route is complete on arrival — capture and attach it before
