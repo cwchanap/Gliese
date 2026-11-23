@@ -70,15 +70,7 @@ jobs:
         run: bunx playwright install --with-deps chromium
 
       - name: Run unit tests with coverage
-        # Core CI checks out without Git LFS, so skip the asset-byte tests that
-        # hash/decode real LFS-tracked PNGs. They run in the Asset Integrity
-        # workflow, which fetches LFS (nightly + on asset-path changes).
-        # CI_SKIP_LFS_ASSET_TESTS is read by vite.config.ts to exclude those
-        # files from the server project (CLI --exclude doesn't override
-        # per-project config in vitest 4.x).
         run: bun run test:unit -- --run --coverage
-        env:
-          CI_SKIP_LFS_ASSET_TESTS: '1'
 
       - name: Upload coverage to Codecov
         if: ${{ !cancelled() }}
