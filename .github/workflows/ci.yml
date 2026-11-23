@@ -160,12 +160,13 @@ jobs:
           flags: rust
 
   # Single blocking e2e job: `bun run test:e2e` builds once, so there is no
-  # separate build step. Timeout is 15 minutes for the first diagnostic run
-  # while the retained suite is measured toward the <=10-minute target.
+  # separate build step. The 20-minute timeout is headroom for variable setup
+  # (browser install and the test step); the <=10-minute suite target still
+  # applies.
   e2e:
     name: Playwright E2E
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
