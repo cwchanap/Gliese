@@ -2808,18 +2808,14 @@ test('encounter opens battle scene and returns through battle summary', async ({
 test('fleeing the boar king requires leaving and returning before re-engagement', async ({
 	page
 }) => {
-	test.setTimeout(60_000);
+	test.setTimeout(90_000);
 	const home = anchorPoint('silverpine-boar-king');
 	const save = {
 		...createSaveFixture({
 			player: {
 				level: 1,
 				xp: 0,
-				// The fled hero keeps the channel's chip damage; on a contended
-				// runner the re-engagement battle can kill a low-HP hero before its
-				// HUD button ever mounts. Extra HP only extends survival — attack
-				// stays low so the fight cannot be won inside the observe window.
-				hp: 120,
+				hp: 20,
 				attack: 3,
 				x: home.x,
 				y: home.y + 60,
@@ -2876,7 +2872,7 @@ test('fleeing the boar king requires leaving and returning before re-engagement'
 				undefined &&
 			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic!.resolvedPosition.y <= y + 16,
 		home.y,
-		{ timeout: 5_000 }
+		{ timeout: 15_000 }
 	);
 	await page.keyboard.up('ArrowUp');
 	await page.keyboard.down('ArrowLeft');
@@ -2886,15 +2882,44 @@ test('fleeing the boar king requires leaving and returning before re-engagement'
 				undefined &&
 			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic!.resolvedPosition.x <= x - 220,
 		home.x,
-		{ timeout: 5_000 }
+		{ timeout: 15_000 }
 	);
 	await page.keyboard.up('ArrowLeft');
 	await expect(battle).toHaveCount(0);
+	// Stop inside the acquisition zone: flee protection drains in sim time, so
+	// under contention it can outlast the return walk — a held ArrowRight then
+	// carries the hero through the 200px aggro radius and out of the pocket
+	// before the boar may re-engage. A stationary hero stays a legal target.
+	await page.evaluate((stopX) => {
+		function stopInAcquisitionZone(event: Event) {
+			const movement = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
+			if (movement.resolvedPosition.x < stopX) return;
+			window.removeEventListener('gliese:player-movement-diagnostic', stopInAcquisitionZone);
+			window.dispatchEvent(
+				new KeyboardEvent('keyup', {
+					key: 'ArrowRight',
+					code: 'ArrowRight',
+					keyCode: 39,
+					which: 39,
+					bubbles: true
+				})
+			);
+		}
+		window.addEventListener('gliese:player-movement-diagnostic', stopInAcquisitionZone);
+	}, home.x - 160);
 	await page.keyboard.down('ArrowRight');
-	// Re-engagement needs the return walk plus the boar's chase-to-contact; both
-	// dilate with frame time on contended runners before the battle HUD mounts.
-	await expect(battle.getByRole('button', { name: /Boar King/i })).toBeVisible({ timeout: 20_000 });
+	await page.waitForFunction(
+		(x) =>
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic?.resolvedPosition.x !==
+				undefined &&
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic!.resolvedPosition.x >= x - 160,
+		home.x,
+		{ timeout: 15_000 }
+	);
 	await page.keyboard.up('ArrowRight');
+	// The hero now waits in-zone for the re-engagement chase; any grace left in
+	// the fled pack's sim-time protection must still drain before it may start.
+	await expect(battle.getByRole('button', { name: /Boar King/i })).toBeVisible({ timeout: 30_000 });
 });
 
 test('mobile HUD stacks without overlapping controls', async ({ page }) => {
