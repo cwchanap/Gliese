@@ -16,7 +16,6 @@ import {
 	getBattleEnvironmentId,
 	getEnemyActorId,
 	getEnemyPlateArtPath,
-	getVillageBuildingFrameName,
 	interiorPropAsset,
 	isNpcPackFrameName,
 	marshDressingAsset,
@@ -141,20 +140,6 @@ describe('village building asset metadata', () => {
 			whisperingCave: { x: 1_254, y: 627, w: 627, h: 627 },
 			sundropWell: { x: 1_881, y: 627, w: 627, h: 627 }
 		});
-	});
-
-	it('maps every authored village building landmark to a building frame', () => {
-		expect(getVillageBuildingFrameName('hero-house-exterior')).toBe('heroHouse');
-		expect(getVillageBuildingFrameName('guild-hall-exterior')).toBe('guildHall');
-		expect(getVillageBuildingFrameName('item-shop-exterior')).toBe('itemShop');
-		expect(getVillageBuildingFrameName('villager-house-1-exterior')).toBe('villagerHouse');
-		expect(getVillageBuildingFrameName('villager-house-2-exterior')).toBe('villagerHouse');
-		expect(getVillageBuildingFrameName('villager-house-3-exterior')).toBe('villagerHouse');
-		expect(getVillageBuildingFrameName('blacksmith')).toBe('blacksmith');
-		expect(getVillageBuildingFrameName('shrine-of-aurora')).toBe('shrineOfAurora');
-		expect(getVillageBuildingFrameName('whispering-cave')).toBe('whisperingCave');
-		expect(getVillageBuildingFrameName('sundrop-well')).toBe('sundropWell');
-		expect(getVillageBuildingFrameName('unknown-landmark')).toBeUndefined();
 	});
 
 	it('keeps every frame inside the sheet bounds', () => {
@@ -517,7 +502,7 @@ describe('villageDressingAsset', () => {
 });
 
 describe('villageHedgeAsset', () => {
-	it('exposes a hedgeSegment frame for the garden-hedge blocker renderer', () => {
+	it('exposes a hedgeSegment frame on the village hedge sheet', () => {
 		expect(villageHedgeAsset.key).toBe('village-hedge');
 		expect(villageHedgeAsset.path).toBe('/game/assets/village-hedge.png');
 		expect(villageHedgeAsset.frames.hedgeSegment).toEqual({ x: 0, y: 0, w: 256, h: 256 });

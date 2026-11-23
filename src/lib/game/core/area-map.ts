@@ -82,7 +82,6 @@ export function buildAreaMapState({
 
 	const knownEntrances = knownQuestEntranceIds(map, objective, progress, counted);
 	const markerCandidates = [
-		...buildLandmarkMarkers(map, locale),
 		...buildTransitionMarkers(map, locale, knownEntrances),
 		...buildMainQuestMarkers(map, objective, progress.questId, counted, locale),
 		...buildDiscoveryMarkers(map, seenDiscoveries, locale)
@@ -112,16 +111,6 @@ export function buildInitialAreaMapState(locale: Locale): HudAreaMapState {
 		quests: createInitialQuestState(),
 		locale
 	});
-}
-
-function buildLandmarkMarkers(map: WorldMapDefinition, locale: Locale): HudAreaMapMarker[] {
-	return (map.landmarks ?? []).map((landmark) => ({
-		id: landmark.id,
-		kind: 'building',
-		x: landmark.x,
-		y: landmark.y,
-		label: t(locale, landmark.labelKey)
-	}));
 }
 
 function buildDiscoveryMarkers(

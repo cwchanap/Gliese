@@ -36,11 +36,8 @@ describe('regional background plane render diagnostics', () => {
 			],
 			successfulBackgroundIds: ['foreground-image', 'base-image'],
 			selectedFallbackBlockerIds: ['blocker-a'],
-			selectedFallbackBlockerSegmentCount: 2,
 			collisionIds: ['collision-b', 'collision-a'],
-			statefulObjectIds: ['stateful-b', 'stateful-a'],
-			selectedFallbackDecorIds: ['decor-b', 'decor-a'],
-			selectedFallbackFenceIds: ['fence-a']
+			statefulObjectIds: ['stateful-b', 'stateful-a']
 		};
 		let received: RegionalBackgroundPlaneRenderDiagnostic | undefined;
 
@@ -57,10 +54,7 @@ describe('regional background plane render diagnostics', () => {
 		expect(received?.selectedBackgroundIds).toEqual(['foreground-image', 'base-image']);
 		expect(received?.presentationMode).toBe('painted');
 		expect(received?.selectedFallbackBlockerIds).toEqual(['blocker-a']);
-		expect(received?.selectedFallbackBlockerSegmentCount).toBe(2);
 		expect(received?.collisionIds).toEqual(['collision-a', 'collision-b']);
 		expect(received?.statefulObjectIds).toEqual(['stateful-a', 'stateful-b']);
-		expect(received?.selectedFallbackDecorIds).toEqual(['decor-b', 'decor-a']);
-		expect(received?.selectedFallbackFenceIds).toEqual(['fence-a']);
 	});
 });

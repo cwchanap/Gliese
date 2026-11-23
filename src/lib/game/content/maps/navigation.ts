@@ -14,8 +14,6 @@ import {
 } from '$lib/game/core/navigation';
 
 const NAVIGATION_CELL_SIZE = 32;
-const LANDMARK_DOORWAY_WIDTH = 56;
-const LANDMARK_TRANSITION_RADIUS = 18;
 
 const openNavigationGrids = new Map<string, NavigationGrid>();
 
@@ -57,20 +55,6 @@ export function buildMapNavigationObstacles(
 		}
 	}
 
-	if (!hasOwnedSource(map, 'fence')) {
-		for (const fence of map.fences ?? []) {
-			obstacles.push(buildStrictRectObstacle(fence.id, fence));
-		}
-	}
-
-	if (!hasOwnedSource(map, 'map-decor')) {
-		for (const decor of map.mapDecor ?? []) {
-			if (decor.collision) {
-				obstacles.push(buildStrictRectObstacle(decor.collision.id, decor.collision));
-			}
-		}
-	}
-
 	if (!hasOwnedSource(map, 'interior-prop')) {
 		for (const prop of map.interiorProps ?? []) {
 			if (prop.collision) {
@@ -83,23 +67,6 @@ export function buildMapNavigationObstacles(
 				obstacles.push(buildEscapeAwareRectObstacle(prop.collision.id, prop.collision));
 			}
 		}
-	}
-
-	const doorCandidates = map.transitions.map((transition) => ({
-		id: transition.id,
-		point: { x: transition.x, y: transition.y }
-	}));
-	for (const landmark of map.landmarks ?? []) {
-		obstacles.push({
-			id: landmark.id,
-			shape: 'landmark',
-			landmarkId: landmark.id,
-			bounds: toNavigationBounds(landmark),
-			doorCandidates,
-			doorwayWidthPx: LANDMARK_DOORWAY_WIDTH,
-			transitionRadiusPx: LANDMARK_TRANSITION_RADIUS,
-			invalidAtRest: true
-		});
 	}
 
 	if (options.includeInteractableNpcs) {

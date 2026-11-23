@@ -10,7 +10,6 @@ const gatedFields = [
 	'discoveries',
 	'transitions',
 	'blockers',
-	'mapDecor',
 	'tileOverlays'
 ] as const satisfies readonly (keyof WorldMapDefinition)[];
 

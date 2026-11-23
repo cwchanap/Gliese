@@ -59,8 +59,6 @@ const manifest: VillageInteriorPackageManifest = {
 const ownerCrops = [{ cropId: 'full-map', requiredBackgroundIds: [manifest.base.id] }];
 const visualOwners: readonly MapBackgroundVisualOwner[] = [
 	{ sourceType: 'blocker', sourceId: 'wall', ownerCrops },
-	{ sourceType: 'decor', sourceId: 'rug', ownerCrops },
-	{ sourceType: 'fence', sourceId: 'fence', ownerCrops },
 	{ sourceType: 'ground-patch', sourceId: 'floor', ownerCrops },
 	{ sourceType: 'interior-prop', sourceId: 'table', ownerCrops }
 ];

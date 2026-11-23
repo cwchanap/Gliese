@@ -19,29 +19,7 @@ const map: WorldMapDefinition = {
 	spawnDirection: 'down',
 	spawn: { x: 16, y: 16 },
 	transitions,
-	blockers: [{ id: 'blocker', x: 64, y: 80, width: 32, height: 64, kind: 'town-hedge' }],
-	fences: [{ id: 'fence', x: 128, y: 80, width: 64, height: 32 }],
-	mapDecor: [
-		{
-			id: 'decor',
-			textureKey: 'crossroads-dressing',
-			frameName: 'waystone',
-			x: 208,
-			y: 80,
-			width: 48,
-			height: 48,
-			collision: { id: 'decor-collision', x: 208, y: 88, width: 32, height: 16 }
-		},
-		{
-			id: 'decor-without-collision',
-			textureKey: 'crossroads-dressing',
-			frameName: 'hangingLantern',
-			x: 256,
-			y: 80,
-			width: 32,
-			height: 32
-		}
-	],
+	blockers: [{ id: 'blocker', x: 64, y: 80, width: 32, height: 64, kind: 'ruin-wall' }],
 	interiorProps: [
 		{
 			id: 'prop',
@@ -59,26 +37,6 @@ const map: WorldMapDefinition = {
 			y: 80,
 			width: 64,
 			height: 32
-		}
-	],
-	landmarks: [
-		{
-			id: 'house-exterior',
-			x: 320,
-			y: 128,
-			width: 160,
-			height: 96,
-			labelKey: 'content.maps.areas.hero-house',
-			label: 'House'
-		},
-		{
-			id: 'missing-exterior',
-			x: 512,
-			y: 128,
-			width: 96,
-			height: 96,
-			labelKey: 'content.maps.areas.hero-house',
-			label: 'Missing'
 		}
 	],
 	npcs: [
@@ -119,52 +77,12 @@ describe('world-map navigation adapter', () => {
 				invalidAtRest: true
 			},
 			{
-				id: 'fence',
-				shape: 'rect',
-				bounds: { left: 96, right: 160, top: 64, bottom: 96 },
-				movement: 'strict',
-				invalidAtRest: true
-			},
-			{
-				id: 'decor-collision',
-				shape: 'rect',
-				bounds: { left: 192, right: 224, top: 80, bottom: 96 },
-				movement: 'strict',
-				invalidAtRest: true
-			},
-			{
 				id: 'prop-collision',
 				shape: 'rect',
 				bounds: { left: 264, right: 312, top: 80, bottom: 96 },
 				movement: 'escape-aware',
 				invalidAtRest: true,
 				escapeOrigin: { x: 288, y: 88 }
-			},
-			{
-				id: 'house-exterior',
-				shape: 'landmark',
-				landmarkId: 'house-exterior',
-				bounds: { left: 240, right: 400, top: 80, bottom: 176 },
-				doorCandidates: [
-					{ id: 'house-entry', point: { x: 320, y: 128 } },
-					{ id: 'unrelated-exit', point: { x: 32, y: 32 } }
-				],
-				doorwayWidthPx: 56,
-				transitionRadiusPx: 18,
-				invalidAtRest: true
-			},
-			{
-				id: 'missing-exterior',
-				shape: 'landmark',
-				landmarkId: 'missing-exterior',
-				bounds: { left: 464, right: 560, top: 80, bottom: 176 },
-				doorCandidates: [
-					{ id: 'house-entry', point: { x: 320, y: 128 } },
-					{ id: 'unrelated-exit', point: { x: 32, y: 32 } }
-				],
-				doorwayWidthPx: 56,
-				transitionRadiusPx: 18,
-				invalidAtRest: true
 			},
 			{
 				id: 'pack-npc',
@@ -204,17 +122,12 @@ describe('world-map navigation adapter', () => {
 					widthCells: map.width * 2,
 					heightCells: map.height * 2
 				}),
-				navigationGridOwnedSources: ['blocker', 'map-decor']
+				navigationGridOwnedSources: ['blocker']
 			},
 			{ includeInteractableNpcs: false }
 		);
 
-		expect(obstacles.map(({ id }) => id)).toEqual([
-			'fence',
-			'prop-collision',
-			'house-exterior',
-			'missing-exterior'
-		]);
+		expect(obstacles.map(({ id }) => id)).toEqual(['prop-collision']);
 	});
 
 	it('keeps exact obstacles for owned interior props without a cell-centre rasterization', () => {
@@ -222,9 +135,6 @@ describe('world-map navigation adapter', () => {
 			{
 				...map,
 				blockers: [],
-				fences: [],
-				mapDecor: [],
-				landmarks: [],
 				npcs: [],
 				interiorProps: [
 					{
@@ -275,18 +185,11 @@ describe('world-map navigation adapter', () => {
 
 	it('keeps fallback obstacles when ownership metadata has no authored grid', () => {
 		const obstacles = buildMapNavigationObstacles(
-			{ ...map, navigationGridOwnedSources: ['blocker', 'map-decor'] },
+			{ ...map, navigationGridOwnedSources: ['blocker'] },
 			{ includeInteractableNpcs: false }
 		);
 
-		expect(obstacles.map(({ id }) => id)).toEqual([
-			'blocker',
-			'fence',
-			'decor-collision',
-			'prop-collision',
-			'house-exterior',
-			'missing-exterior'
-		]);
+		expect(obstacles.map(({ id }) => id)).toEqual(['blocker', 'prop-collision']);
 	});
 
 	it('returns authored grids verbatim and caches equivalent open grids by map dimensions', () => {

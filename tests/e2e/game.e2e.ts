@@ -116,8 +116,6 @@ type RegionalBackgroundPlaneRenderDiagnostic = {
 	collisionIds: string[];
 	statefulObjectIds: string[];
 	selectedFallbackBlockerIds?: string[];
-	selectedFallbackDecorIds: string[];
-	selectedFallbackFenceIds: string[];
 };
 
 type RegionalBackgroundRendererDiagnostic = {
@@ -1436,21 +1434,15 @@ const BLACKSMITH_RUNTIME_EVIDENCE_ROOT = resolve(
 );
 const BLACKSMITH_COLLISION_IDS = [
 	...(blacksmithInteriorMap.blockers ?? []).map(({ id }) => id),
-	...(blacksmithInteriorMap.fences ?? []).map(({ id }) => id),
-	...(blacksmithInteriorMap.mapDecor ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
 	...(blacksmithInteriorMap.interiorProps ?? []).flatMap(({ collision }) =>
 		collision ? [collision.id] : []
-	),
-	...(blacksmithInteriorMap.landmarks ?? []).map(({ id }) => id)
+	)
 ].sort();
 const BLACKSMITH_STATEFUL_OBJECT_IDS = [
 	...blacksmithInteriorMap.transitions.map(({ id }) => id),
 	...(blacksmithInteriorMap.pickups ?? []).map(({ id }) => id),
 	...(blacksmithInteriorMap.encounters ?? []).map(({ id }) => id),
 	...(blacksmithInteriorMap.npcs ?? []).map(({ id }) => id),
-	...(blacksmithInteriorMap.landmarks ?? []).map(({ id }) => id),
 	...(blacksmithInteriorMap.ambientNpcs ?? []).map(({ id }) => id),
 	...(blacksmithInteriorMap.discoveries ?? []).map(({ id }) => id),
 	...(blacksmithInteriorMap.combatBounds ?? []).map(({ id }) => id)
@@ -2163,8 +2155,6 @@ function assertBlacksmithPaintedDiagnostic(diagnostic: RegionalBackgroundPlaneRe
 		selectedBackgroundIds: ['blacksmith-interior-painted-base-image'],
 		successfulBackgroundIds: ['blacksmith-interior-painted-base-image'],
 		selectedFallbackBlockerIds: [],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
 		collisionIds: [...BLACKSMITH_COLLISION_IDS],
 		statefulObjectIds: [...BLACKSMITH_STATEFUL_OBJECT_IDS]
 	});
@@ -2199,8 +2189,6 @@ function assertBlacksmithFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneR
 		selectedBackgroundIds: [],
 		successfulBackgroundIds: [],
 		selectedFallbackBlockerIds: [...BLACKSMITH_FALLBACK_BLOCKER_IDS],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
 		collisionIds: [...BLACKSMITH_COLLISION_IDS],
 		statefulObjectIds: [...BLACKSMITH_STATEFUL_OBJECT_IDS]
 	});

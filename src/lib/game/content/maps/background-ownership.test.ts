@@ -32,18 +32,8 @@ function ownershipSource(
 }
 
 function visualOwnershipSource(
-	visual: MapVisualOwnership,
-	visualSource: 'blocker' | 'decor' | 'fence' = 'blocker'
-): Pick<WorldMapDefinition, 'backgroundImages' | 'blockers' | 'mapDecor' | 'fences'> {
-	const visualItem = {
-		id: 'garden-hedge',
-		x: 0,
-		y: 0,
-		width: 32,
-		height: 32,
-		visual
-	};
-
+	visual: MapVisualOwnership
+): Pick<WorldMapDefinition, 'backgroundImages' | 'blockers'> {
 	return {
 		backgroundImages: [
 			{
@@ -57,10 +47,8 @@ function visualOwnershipSource(
 				drawOrder: 0
 			}
 		],
-		blockers: visualSource === 'blocker' ? [{ ...visualItem, kind: 'garden-hedge' }] : [],
-		mapDecor: visualSource === 'decor' ? [visualItem] : [],
-		fences: visualSource === 'fence' ? [visualItem] : []
-	} as unknown as Pick<WorldMapDefinition, 'backgroundImages' | 'blockers' | 'mapDecor' | 'fences'>;
+		blockers: [{ id: 'ruin-wall', x: 0, y: 0, width: 32, height: 32, kind: 'ruin-wall', visual }]
+	};
 }
 
 describe('map background ownership', () => {
@@ -191,7 +179,7 @@ describe('map background ownership', () => {
 			y: 0,
 			width: 32,
 			height: 32,
-			kind: 'garden-hedge',
+			kind: 'ruin-wall',
 			...(visual ? { visual } : {})
 		} satisfies MapBlocker;
 
@@ -244,7 +232,7 @@ describe('map background ownership', () => {
 		[
 			'no owner crops',
 			{ mode: 'fallback-only', ownerCrops: [] } as const,
-			'Blocker garden-hedge has an empty fallback-only owner crop list'
+			'Blocker ruin-wall has an empty fallback-only owner crop list'
 		],
 		[
 			'duplicate crop IDs',
@@ -255,7 +243,7 @@ describe('map background ownership', () => {
 					{ cropId: 'sundrop', requiredBackgroundIds: ['base'] }
 				]
 			} as const,
-			'Blocker garden-hedge has duplicate fallback-only owner crop ID: sundrop'
+			'Blocker ruin-wall has duplicate fallback-only owner crop ID: sundrop'
 		],
 		[
 			'an owner crop with no required backgrounds',
@@ -263,7 +251,7 @@ describe('map background ownership', () => {
 				mode: 'fallback-only',
 				ownerCrops: [{ cropId: 'sundrop', requiredBackgroundIds: [] }]
 			} as const,
-			'Blocker garden-hedge has an empty fallback-only owner list for crop sundrop'
+			'Blocker ruin-wall has an empty fallback-only owner list for crop sundrop'
 		],
 		[
 			'duplicate required backgrounds within a crop',
@@ -271,7 +259,7 @@ describe('map background ownership', () => {
 				mode: 'fallback-only',
 				ownerCrops: [{ cropId: 'sundrop', requiredBackgroundIds: ['base', 'base'] }]
 			} as const,
-			'Blocker garden-hedge has duplicate fallback-only owner ID in crop sundrop: base'
+			'Blocker ruin-wall has duplicate fallback-only owner ID in crop sundrop: base'
 		],
 		[
 			'a missing required background',
@@ -279,28 +267,11 @@ describe('map background ownership', () => {
 				mode: 'fallback-only',
 				ownerCrops: [{ cropId: 'sundrop', requiredBackgroundIds: ['missing'] }]
 			} as const,
-			'Blocker garden-hedge references missing fallback-only owner ID in crop sundrop: missing'
+			'Blocker ruin-wall references missing fallback-only owner ID in crop sundrop: missing'
 		]
 	])('rejects a fallback-only visual with %s', (_description, visual, message) => {
 		expect(() => validateMapBackgroundOwnership(visualOwnershipSource(visual))).toThrow(message);
 	});
-
-	it.each([
-		['decor', 'decor', 'Map decor garden-hedge'],
-		['fence', 'fence', 'Fence garden-hedge']
-	] as const)(
-		'validates fallback-only ownership on every %s source',
-		(_label, visualSource, sourceName) => {
-			const visual = {
-				mode: 'fallback-only' as const,
-				ownerCrops: [{ cropId: 'sundrop', requiredBackgroundIds: ['missing'] }]
-			};
-
-			expect(() =>
-				validateMapBackgroundOwnership(visualOwnershipSource(visual, visualSource))
-			).toThrow(`${sourceName} references missing fallback-only owner ID in crop sundrop: missing`);
-		}
-	);
 
 	it.each([
 		[

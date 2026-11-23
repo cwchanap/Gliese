@@ -104,19 +104,12 @@ const ALL_EIGHT_INTERIOR_CONTRACTS = [
 	}
 ] as const;
 
-const STATIC_SOURCE_FIELDS = [
-	'groundPatches',
-	'blockers',
-	'mapDecor',
-	'fences',
-	'interiorProps'
-] as const;
+const STATIC_SOURCE_FIELDS = ['groundPatches', 'blockers', 'interiorProps'] as const;
 const LIVE_SOURCE_FIELDS = [
 	'transitions',
 	'pickups',
 	'encounters',
 	'npcs',
-	'landmarks',
 	'ambientNpcs',
 	'discoveries',
 	'combatBounds'

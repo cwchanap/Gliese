@@ -615,7 +615,7 @@ describe('local area map view', () => {
 		});
 	});
 
-	it('frames revealed quest pins, discoveries, and landmarks even when distant from player', () => {
+	it('frames revealed quest pins and discoveries even when distant from player', () => {
 		const quests = questStateAt('meet-lirra-forest');
 		const map = applyStoryGates(overworldMap, getStoryProgress(quests));
 		const lirra = overworldAnchors['wildwood-lirra-forest']!;
