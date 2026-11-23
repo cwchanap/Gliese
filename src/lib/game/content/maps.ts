@@ -15,7 +15,6 @@ export type {
 	MapPickup,
 	MapNpcRole,
 	MapNpc,
-	MapLandmark,
 	MapRect,
 	MapBackgroundPlane,
 	MapGroundTile,
@@ -23,13 +22,10 @@ export type {
 	MapBlockerKind,
 	MapBlocker,
 	MapCombatBounds,
-	MapFenceSegment,
 	MapInteriorPropDepth,
 	MapInteriorProp,
 	MapAmbientNpcRole,
 	MapAmbientNpc,
-	MapDecor,
-	MapDecorDepth,
 	WorldMapDefinition
 } from '$lib/game/content/maps/types';
 

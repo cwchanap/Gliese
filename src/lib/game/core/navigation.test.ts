@@ -12,12 +12,8 @@ import {
 	createOpenNavigationGrid,
 	entersUnrelatedDoorZone,
 	findNearestWalkablePosition,
-	findLandmarkDoorway,
-	getLandmarkCollisionRects,
 	isInTransitionZone,
 	isWalkable,
-	isPointInsideAnyRect,
-	isPointInsideRect,
 	isPositionWalkable,
 	resolveMovementSegment,
 	type NavigationObstacle,
@@ -262,19 +258,6 @@ describe('navigation movement and obstacle policies', () => {
 				invalidAtRest: true,
 				escapeOrigin: { x: 24, y: 24 }
 			} satisfies NavigationObstacle
-		},
-		{
-			label: 'landmark',
-			obstacle: {
-				id: 'house',
-				shape: 'landmark',
-				landmarkId: 'house-exterior',
-				bounds: { left: 20, right: 28, top: 20, bottom: 28 },
-				doorCandidates: [],
-				doorwayWidthPx: 56,
-				transitionRadiusPx: 18,
-				invalidAtRest: true
-			} satisfies NavigationObstacle
 		}
 	])('$label positions are invalid at rest', ({ obstacle }) => {
 		const grid = openGrid(3, 3, 16);
@@ -457,109 +440,6 @@ describe('navigation movement and obstacle policies', () => {
 				y: 48
 			}
 		);
-	});
-
-	it('uses the full landmark body when no transition candidate matches', () => {
-		const grid = openGrid();
-		const landmark: NavigationObstacle = {
-			id: 'house',
-			shape: 'landmark',
-			landmarkId: 'hero-house-exterior',
-			bounds: { left: 32, right: 96, top: 32, bottom: 96 },
-			doorCandidates: [{ id: 'unrelated-exit', point: { x: 64, y: 64 } }],
-			doorwayWidthPx: 24,
-			transitionRadiusPx: 10,
-			invalidAtRest: true
-		};
-
-		const stopped = resolveMovementSegment(grid, [landmark], { x: 16, y: 64 }, { x: 48, y: 64 }, 0);
-		expect(stopped.y).toBe(64);
-		expect(stopped.x).toBeCloseTo(32, 1);
-	});
-
-	it('stops before a landmark body bottom with player radius when approached from below', () => {
-		const grid = openGrid(10, 10);
-		const landmark: NavigationObstacle = {
-			id: 'house',
-			shape: 'landmark',
-			landmarkId: 'hero-house-exterior',
-			bounds: { left: 32, right: 96, top: 32, bottom: 96 },
-			doorCandidates: [{ id: 'unrelated-exit', point: { x: 64, y: 64 } }],
-			doorwayWidthPx: 24,
-			transitionRadiusPx: 10,
-			invalidAtRest: true
-		};
-
-		const stopped = resolveMovementSegment(
-			grid,
-			[landmark],
-			{ x: 64, y: 120 },
-			{ x: 64, y: 100 },
-			12
-		);
-
-		expect(stopped.x).toBe(64);
-		expect(stopped.y).toBeCloseTo(108, 1);
-	});
-
-	it('matches a landmark doorway by candidate ID and point, carves body sides, and passes below it', () => {
-		const grid = openGrid(10, 10);
-		const landmark: NavigationObstacle = {
-			id: 'house',
-			shape: 'landmark',
-			landmarkId: 'hero-house-exterior',
-			bounds: { left: 32, right: 96, top: 32, bottom: 96 },
-			doorCandidates: [
-				{ id: 'hero-house-entry', point: { x: 64, y: 52 } },
-				{ id: 'hero-house-far', point: { x: 112, y: 52 } }
-			],
-			doorwayWidthPx: 24,
-			transitionRadiusPx: 10,
-			invalidAtRest: true
-		};
-
-		expect(resolveMovementSegment(grid, [landmark], { x: 64, y: 64 }, { x: 64, y: 48 }, 0)).toEqual(
-			{
-				x: 64,
-				y: 48
-			}
-		);
-		const west = resolveMovementSegment(grid, [landmark], { x: 64, y: 64 }, { x: 40, y: 64 }, 0);
-		expect(west.y).toBe(64);
-		expect(west.x).toBeCloseTo(52, 1);
-		const east = resolveMovementSegment(grid, [landmark], { x: 64, y: 64 }, { x: 88, y: 64 }, 0);
-		expect(east.y).toBe(64);
-		expect(east.x).toBeCloseTo(76, 1);
-		expect(
-			resolveMovementSegment(grid, [landmark], { x: 64, y: 112 }, { x: 64, y: 128 }, 0)
-		).toEqual({
-			x: 64,
-			y: 128
-		});
-	});
-
-	it('exposes shared doorway decomposition and containment for compatibility adapters', () => {
-		const landmark: NavigationObstacle = {
-			id: 'house',
-			shape: 'landmark',
-			landmarkId: 'hero-house-exterior',
-			bounds: { left: 32, right: 96, top: 32, bottom: 96 },
-			doorCandidates: [{ id: 'hero-house-entry', point: { x: 64, y: 52 } }],
-			doorwayWidthPx: 24,
-			transitionRadiusPx: 10,
-			invalidAtRest: true
-		};
-
-		expect(
-			findLandmarkDoorway(landmark.landmarkId, landmark.bounds, landmark.doorCandidates)
-		).toEqual({ id: 'hero-house-entry', point: { x: 64, y: 52 } });
-		expect(getLandmarkCollisionRects(landmark)).toEqual([
-			{ left: 32, right: 96, top: 32, bottom: 42 },
-			{ left: 32, right: 52, top: 42, bottom: 96 },
-			{ left: 76, right: 96, top: 42, bottom: 96 }
-		]);
-		expect(isPointInsideRect({ x: 48, y: 48 }, landmark.bounds, 0)).toBe(true);
-		expect(isPointInsideAnyRect({ x: 110, y: 48 }, [landmark.bounds], 0)).toBe(false);
 	});
 
 	it('expands rectangle and circle obstacles by player radius without expanding the authored grid again', () => {

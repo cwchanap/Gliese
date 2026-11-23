@@ -1,19 +1,7 @@
 import type {
-	CoastDressingFrameName,
-	CrossroadsDressingFrameName,
-	coastDressingAsset,
-	crossroadsDressingAsset,
-	forestDressingAsset,
-	ForestDressingFrameName,
 	InteriorPropFrameName,
-	marshDressingAsset,
-	MarshDressingFrameName,
 	NpcFrameName,
-	shrineDressingAsset,
-	ShrineDressingFrameName,
-	TerrainTileFrameName,
-	villageDressingAsset,
-	VillageDressingFrameName
+	TerrainTileFrameName
 } from '$lib/game/content/assets';
 import type { GridBuildingType } from '$lib/game/content/maps/grid/buildings';
 import type { LayoutRect } from '$lib/game/content/maps/layouts/layout-rects';
@@ -92,16 +80,6 @@ export interface MapNpc extends StoryGated {
 	shopId?: string;
 }
 
-export interface MapLandmark {
-	id: string;
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	labelKey: MessageKey;
-	label: string;
-}
-
 export interface MapRect {
 	id: string;
 	x: number;
@@ -127,13 +105,7 @@ export interface MapGroundPatch extends MapRect {
 	visual?: MapVisualOwnership;
 }
 
-export type MapBlockerKind =
-	| 'city-wall'
-	| 'town-hedge'
-	| 'garden-hedge'
-	| 'ruin-wall'
-	| 'future-gate'
-	| 'ocean';
+export type MapBlockerKind = 'ruin-wall' | 'future-gate';
 
 export interface MapVisualOwnerCrop {
 	readonly cropId: string;
@@ -144,7 +116,7 @@ export type MapVisualOwnership =
 	| { mode: 'always' }
 	| { mode: 'fallback-only'; ownerCrops: readonly MapVisualOwnerCrop[] };
 
-export type MapVisualSourceType = 'blocker' | 'decor' | 'fence' | 'ground-patch' | 'interior-prop';
+export type MapVisualSourceType = 'blocker' | 'ground-patch' | 'interior-prop';
 
 export interface MapBlocker extends MapRect, StoryGated {
 	kind: MapBlockerKind;
@@ -157,53 +129,6 @@ export interface MapCombatBounds extends MapRect {
 	aggroRadius: number;
 	leashRadius: number;
 }
-
-export interface MapFenceSegment extends MapRect {
-	visual?: MapVisualOwnership;
-}
-
-export type MapDecorDepth = 'floor' | 'furniture' | 'foreground';
-
-interface MapDecorBase extends MapRect, StoryGated {
-	depth?: MapDecorDepth;
-	mode?: 'image' | 'tile';
-	collision?: MapRect;
-	alpha?: number;
-	visual?: MapVisualOwnership;
-}
-
-/**
- * Outdoor decoration, discriminated by `textureKey` so each sheet's `frameName`
- * is compile-checked against that sheet's frame set. A typo like
- * `frameName: 'toriii'` against the coast sheet fails to typecheck instead of
- * silently rendering the missing-texture box at runtime. To opt a new dressing
- * sheet into outdoor decor, add one union member here.
- */
-export type MapDecor =
-	| (MapDecorBase & {
-			textureKey: (typeof coastDressingAsset)['key'];
-			frameName: CoastDressingFrameName;
-	  })
-	| (MapDecorBase & {
-			textureKey: (typeof shrineDressingAsset)['key'];
-			frameName: ShrineDressingFrameName;
-	  })
-	| (MapDecorBase & {
-			textureKey: (typeof marshDressingAsset)['key'];
-			frameName: MarshDressingFrameName;
-	  })
-	| (MapDecorBase & {
-			textureKey: (typeof crossroadsDressingAsset)['key'];
-			frameName: CrossroadsDressingFrameName;
-	  })
-	| (MapDecorBase & {
-			textureKey: (typeof forestDressingAsset)['key'];
-			frameName: ForestDressingFrameName;
-	  })
-	| (MapDecorBase & {
-			textureKey: (typeof villageDressingAsset)['key'];
-			frameName: VillageDressingFrameName;
-	  });
 
 export type MapInteriorPropDepth = 'floor' | 'furniture' | 'foreground';
 
@@ -240,7 +165,7 @@ export interface MapDiscovery extends StoryGated {
 	revealMarker?: boolean;
 }
 
-export type NavigationGridOwnedSource = 'blocker' | 'fence' | 'map-decor' | 'interior-prop';
+export type NavigationGridOwnedSource = 'blocker' | 'interior-prop';
 
 /** A building footprint on a text-grid map, in tiles. */
 export interface MapGridBuilding {
@@ -273,9 +198,6 @@ export interface WorldMapDefinition extends MapDefinition {
 	pickups?: MapPickup[];
 	encounters?: MapEncounter[];
 	npcs?: MapNpc[];
-	landmarks?: MapLandmark[];
-	fences?: MapFenceSegment[];
-	mapDecor?: MapDecor[];
 	groundPatches?: MapGroundPatch[];
 	blockers?: MapBlocker[];
 	combatBounds?: MapCombatBounds[];

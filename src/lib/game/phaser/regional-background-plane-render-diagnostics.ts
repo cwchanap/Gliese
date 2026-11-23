@@ -39,14 +39,10 @@ export interface RegionalBackgroundPlaneRenderDiagnostic {
 	successfulBackgroundIds: readonly string[];
 	/** Blocker IDs drawn live after applying this exact package-success set and ownership policy. */
 	selectedFallbackBlockerIds?: readonly string[];
-	/** Sum of Math.ceil(max(blocker.width, blocker.height) / 48) for selected blockers. */
-	selectedFallbackBlockerSegmentCount?: number;
 	/** Exact live collision-source IDs for this map render. */
 	collisionIds?: readonly string[];
 	/** Exact IDs of the authored stateful collections for this map render. */
 	statefulObjectIds?: readonly string[];
-	selectedFallbackDecorIds: string[];
-	selectedFallbackFenceIds: string[];
 }
 
 export function emitRegionalBackgroundPlaneRenderDiagnostic(

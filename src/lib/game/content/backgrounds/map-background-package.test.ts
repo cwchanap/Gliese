@@ -163,7 +163,7 @@ describe('map background package application', () => {
 		{ cropId: 'full-map', requiredBackgroundIds: ['hero-house-base'] }
 	];
 
-	it('attaches one generic ownership table across all five static source collections', () => {
+	it('attaches one generic ownership table across the three static source collections', () => {
 		const map = {
 			id: 'hero-house',
 			width: 8,
@@ -172,9 +172,7 @@ describe('map background package application', () => {
 			spawn: { x: 64, y: 64 },
 			transitions: [],
 			groundPatches: [{ id: 'path', x: 64, y: 64, width: 32, height: 32, tile: 'pathTile' }],
-			blockers: [{ id: 'wall', x: 96, y: 64, width: 32, height: 32, kind: 'city-wall' }],
-			mapDecor: [{ id: 'rug', x: 128, y: 64, width: 32, height: 32 }],
-			fences: [{ id: 'fence', x: 160, y: 64, width: 32, height: 32 }],
+			blockers: [{ id: 'wall', x: 96, y: 64, width: 32, height: 32, kind: 'ruin-wall' }],
 			interiorProps: [{ id: 'table', x: 192, y: 64, width: 32, height: 32, frameName: 'table' }]
 		} as unknown as WorldMapDefinition;
 		const definition: MapBackgroundPackageDefinition = {
@@ -184,8 +182,6 @@ describe('map background package application', () => {
 			visualOwners: [
 				{ sourceType: 'ground-patch', sourceId: 'path', ownerCrops },
 				{ sourceType: 'blocker', sourceId: 'wall', ownerCrops },
-				{ sourceType: 'decor', sourceId: 'rug', ownerCrops },
-				{ sourceType: 'fence', sourceId: 'fence', ownerCrops },
 				{ sourceType: 'interior-prop', sourceId: 'table', ownerCrops }
 			]
 		};
@@ -200,8 +196,6 @@ describe('map background package application', () => {
 		for (const source of [
 			transformed.groundPatches?.[0],
 			transformed.blockers?.[0],
-			transformed.mapDecor?.[0],
-			transformed.fences?.[0],
 			transformed.interiorProps?.[0]
 		]) {
 			expect(source?.visual).toEqual({ mode: 'fallback-only', ownerCrops });

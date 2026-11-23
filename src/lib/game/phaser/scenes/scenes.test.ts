@@ -1,11 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-	battleBackgroundAssets,
-	environmentDressingAsset,
-	fenceDressingAsset,
-	forestDressingAsset
-} from '$lib/game/content/assets';
+import { battleBackgroundAssets } from '$lib/game/content/assets';
 import {
 	blacksmithInteriorMap,
 	heroHouseMap,
@@ -77,10 +72,7 @@ function collisionIdsOf(source: WorldMapDefinition) {
 	const map = openingView(source);
 	return [
 		...(map.blockers ?? []).map(({ id }) => id),
-		...(map.fences ?? []).map(({ id }) => id),
-		...(map.mapDecor ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
-		...(map.interiorProps ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
-		...(map.landmarks ?? []).map(({ id }) => id)
+		...(map.interiorProps ?? []).flatMap(({ collision }) => (collision ? [collision.id] : []))
 	].sort();
 }
 
@@ -91,7 +83,6 @@ function statefulObjectIdsOf(source: WorldMapDefinition) {
 		...(map.pickups ?? []).map(({ id }) => id),
 		...(map.encounters ?? []).map(({ id }) => id),
 		...(map.npcs ?? []).map(({ id }) => id),
-		...(map.landmarks ?? []).map(({ id }) => id),
 		...(map.ambientNpcs ?? []).map(({ id }) => id),
 		...(map.discoveries ?? []).map(({ id }) => id),
 		...(map.combatBounds ?? []).map(({ id }) => id)
@@ -3514,14 +3505,14 @@ describe('WorldScene', () => {
 				{ id: 'scene-support-stone', x: 320, y: 96, width: 96, height: 96, tile: 'stoneWallTile' }
 			],
 			blockers: [
-				{ id: 'scene-support-blocker', x: 160, y: 96, width: 32, height: 160, kind: 'city-wall' },
+				{ id: 'scene-support-blocker', x: 160, y: 96, width: 32, height: 160, kind: 'ruin-wall' },
 				{
 					id: 'scene-support-hedge',
 					x: 288,
 					y: 224,
 					width: 128,
 					height: 32,
-					kind: 'town-hedge'
+					kind: 'ruin-wall'
 				},
 				{
 					id: 'scene-support-gate',
@@ -3558,11 +3549,8 @@ describe('WorldScene', () => {
 			spawn: { x: 64, y: 64 },
 			transitions: [],
 			blockers: [],
-			fences: [],
-			mapDecor: [],
 			interiorProps: [],
-			npcs: [],
-			landmarks: []
+			npcs: []
 		};
 	}
 
@@ -3632,7 +3620,7 @@ describe('WorldScene', () => {
 					y: 160,
 					width: 32,
 					height: 64,
-					kind: 'city-wall',
+					kind: 'ruin-wall',
 					visual: {
 						mode: 'fallback-only',
 						ownerCrops: [
@@ -3649,7 +3637,7 @@ describe('WorldScene', () => {
 					y: 160,
 					width: 32,
 					height: 64,
-					kind: 'city-wall',
+					kind: 'ruin-wall',
 					visual: {
 						mode: 'fallback-only',
 						ownerCrops: [
@@ -3666,7 +3654,7 @@ describe('WorldScene', () => {
 					y: 160,
 					width: 32,
 					height: 64,
-					kind: 'city-wall'
+					kind: 'ruin-wall'
 				},
 				{
 					id: 'two-plane-explicit-always',
@@ -3674,19 +3662,18 @@ describe('WorldScene', () => {
 					y: 160,
 					width: 32,
 					height: 64,
-					kind: 'city-wall',
+					kind: 'ruin-wall',
 					visual: { mode: 'always' }
 				}
 			],
-			mapDecor: [
+			interiorProps: [
 				{
-					id: 'two-plane-base-only-decor',
+					id: 'two-plane-base-only-prop',
 					x: 224,
 					y: 160,
 					width: 32,
 					height: 32,
-					textureKey: forestDressingAsset.key,
-					frameName: 'brush',
+					frameName: 'table',
 					visual: {
 						mode: 'fallback-only',
 						ownerCrops: [
@@ -3698,47 +3685,12 @@ describe('WorldScene', () => {
 					}
 				},
 				{
-					id: 'two-plane-complete-decor',
+					id: 'two-plane-complete-prop',
 					x: 256,
 					y: 160,
 					width: 32,
 					height: 32,
-					textureKey: forestDressingAsset.key,
-					frameName: 'brush',
-					visual: {
-						mode: 'fallback-only',
-						ownerCrops: [
-							{
-								cropId: 'two-plane-complete',
-								requiredBackgroundIds: ['two-plane-base-image', 'two-plane-foreground-image']
-							}
-						]
-					}
-				}
-			],
-			fences: [
-				{
-					id: 'two-plane-base-only-fence',
-					x: 288,
-					y: 160,
-					width: 32,
-					height: 32,
-					visual: {
-						mode: 'fallback-only',
-						ownerCrops: [
-							{
-								cropId: 'two-plane-base',
-								requiredBackgroundIds: ['two-plane-base-image']
-							}
-						]
-					}
-				},
-				{
-					id: 'two-plane-complete-fence',
-					x: 320,
-					y: 160,
-					width: 32,
-					height: 32,
+					frameName: 'table',
 					visual: {
 						mode: 'fallback-only',
 						ownerCrops: [
@@ -3815,19 +3767,13 @@ describe('WorldScene', () => {
 				marker.destroy.mock.calls.length === 0
 		);
 	const twoPlaneBlockerMarkers = () =>
-		phaserState.imageMarkers.filter(
-			(marker) => marker.texture === 'environment-dressing' && marker.frame === 'townWallVertical'
-		);
-	const twoPlaneOwnedDecorMarkers = () =>
+		phaserState.tileSpriteMarkers.filter((marker) => marker.frame === 'ruinWall');
+	const twoPlaneOwnedPropMarkers = () =>
 		phaserState.imageMarkers.filter(
 			(marker) =>
-				marker.texture === forestDressingAsset.key &&
-				marker.frame === 'brush' &&
+				marker.texture === 'interior-props' &&
+				marker.frame === 'table' &&
 				[224, 256].includes(marker.x)
-		);
-	const twoPlaneOwnedFenceMarkers = () =>
-		phaserState.imageMarkers.filter(
-			(marker) => marker.texture === fenceDressingAsset.key && [288, 320].includes(marker.x)
 		);
 	const alternativeEastBoundaryTextureKey = 'alternative-east-boundary';
 	const alternativeWildwoodBaseTextureKey = 'alternative-wildwood-base';
@@ -3897,29 +3843,18 @@ describe('WorldScene', () => {
 					y: 160,
 					width: 32,
 					height: 64,
-					kind: 'city-wall',
+					kind: 'ruin-wall',
 					visual: alternativeVisual
 				}
 			],
-			mapDecor: [
+			interiorProps: [
 				{
-					id: 'alternative-owner-decor',
+					id: 'alternative-owner-prop',
 					x: 160,
 					y: 160,
 					width: 32,
 					height: 32,
-					textureKey: forestDressingAsset.key,
-					frameName: 'brush',
-					visual: alternativeVisual
-				}
-			],
-			fences: [
-				{
-					id: 'alternative-owner-fence',
-					x: 224,
-					y: 160,
-					width: 32,
-					height: 32,
+					frameName: 'table',
 					visual: alternativeVisual
 				}
 			]
@@ -3950,20 +3885,13 @@ describe('WorldScene', () => {
 	}
 
 	const alternativeOwnedBlockerMarkers = () =>
+		phaserState.tileSpriteMarkers.filter(
+			(marker) => marker.frame === 'ruinWall' && marker.x === 96
+		);
+	const alternativeOwnedPropMarkers = () =>
 		phaserState.imageMarkers.filter(
 			(marker) =>
-				marker.texture === environmentDressingAsset.key &&
-				marker.frame === 'townWallVertical' &&
-				marker.x === 96
-		);
-	const alternativeOwnedDecorMarkers = () =>
-		phaserState.imageMarkers.filter(
-			(marker) =>
-				marker.texture === forestDressingAsset.key && marker.frame === 'brush' && marker.x === 160
-		);
-	const alternativeOwnedFenceMarkers = () =>
-		phaserState.imageMarkers.filter(
-			(marker) => marker.texture === fenceDressingAsset.key && marker.x === 224
+				marker.texture === 'interior-props' && marker.frame === 'table' && marker.x === 160
 		);
 	const alternativeBackgroundMarkers = () =>
 		phaserState.imageMarkers.filter((marker) =>
@@ -4402,8 +4330,6 @@ describe('WorldScene', () => {
 				selectedBackgroundIds: ['item-shop-painted-base-image'],
 				successfulBackgroundIds: ['item-shop-painted-base-image'],
 				selectedFallbackBlockerIds: [],
-				selectedFallbackDecorIds: [],
-				selectedFallbackFenceIds: [],
 				collisionIds: itemShopCollisionIds,
 				statefulObjectIds: itemShopStatefulObjectIds
 			});
@@ -4462,8 +4388,6 @@ describe('WorldScene', () => {
 				selectedBackgroundIds: [],
 				successfulBackgroundIds: [],
 				selectedFallbackBlockerIds: itemShopMap.blockers?.map(({ id }) => id),
-				selectedFallbackDecorIds: [],
-				selectedFallbackFenceIds: [],
 				collisionIds: itemShopCollisionIds,
 				statefulObjectIds: itemShopStatefulObjectIds
 			});
@@ -4557,8 +4481,6 @@ describe('WorldScene', () => {
 				selectedBackgroundIds: ['blacksmith-interior-painted-base-image'],
 				successfulBackgroundIds: ['blacksmith-interior-painted-base-image'],
 				selectedFallbackBlockerIds: [],
-				selectedFallbackDecorIds: [],
-				selectedFallbackFenceIds: [],
 				collisionIds: blacksmithCollisionIds,
 				statefulObjectIds: blacksmithStatefulObjectIds
 			});
@@ -4644,8 +4566,6 @@ describe('WorldScene', () => {
 				selectedBackgroundIds: [],
 				successfulBackgroundIds: [],
 				selectedFallbackBlockerIds: blacksmithInteriorMap.blockers?.map(({ id }) => id),
-				selectedFallbackDecorIds: [],
-				selectedFallbackFenceIds: [],
 				collisionIds: blacksmithCollisionIds,
 				statefulObjectIds: blacksmithStatefulObjectIds
 			});
@@ -4741,8 +4661,6 @@ describe('WorldScene', () => {
 				selectedBackgroundIds: ['villager-house-1-painted-base-image'],
 				successfulBackgroundIds: ['villager-house-1-painted-base-image'],
 				selectedFallbackBlockerIds: [],
-				selectedFallbackDecorIds: [],
-				selectedFallbackFenceIds: [],
 				collisionIds: villagerHouse1CollisionIds,
 				statefulObjectIds: villagerHouse1StatefulObjectIds
 			});
@@ -4806,8 +4724,6 @@ describe('WorldScene', () => {
 				selectedBackgroundIds: [],
 				successfulBackgroundIds: [],
 				selectedFallbackBlockerIds: villagerHouse1Map.blockers?.map(({ id }) => id),
-				selectedFallbackDecorIds: [],
-				selectedFallbackFenceIds: [],
 				collisionIds: villagerHouse1CollisionIds,
 				statefulObjectIds: villagerHouse1StatefulObjectIds
 			});
@@ -4919,8 +4835,6 @@ describe('WorldScene', () => {
 				selectedBackgroundIds: ['villager-house-2-painted-base-image'],
 				successfulBackgroundIds: ['villager-house-2-painted-base-image'],
 				selectedFallbackBlockerIds: [],
-				selectedFallbackDecorIds: [],
-				selectedFallbackFenceIds: [],
 				collisionIds: villagerHouse2CollisionIds,
 				statefulObjectIds: villagerHouse2StatefulObjectIds
 			});
@@ -5018,8 +4932,6 @@ describe('WorldScene', () => {
 				selectedBackgroundIds: [],
 				successfulBackgroundIds: [],
 				selectedFallbackBlockerIds: villagerHouse2Map.blockers?.map(({ id }) => id),
-				selectedFallbackDecorIds: [],
-				selectedFallbackFenceIds: [],
 				collisionIds: villagerHouse2CollisionIds,
 				statefulObjectIds: villagerHouse2StatefulObjectIds
 			});
@@ -5126,8 +5038,6 @@ describe('WorldScene', () => {
 				selectedBackgroundIds: ['villager-house-3-painted-base-image'],
 				successfulBackgroundIds: ['villager-house-3-painted-base-image'],
 				selectedFallbackBlockerIds: [],
-				selectedFallbackDecorIds: [],
-				selectedFallbackFenceIds: [],
 				collisionIds: villagerHouse3CollisionIds,
 				statefulObjectIds: villagerHouse3StatefulObjectIds
 			});
@@ -5217,8 +5127,6 @@ describe('WorldScene', () => {
 				selectedBackgroundIds: [],
 				successfulBackgroundIds: [],
 				selectedFallbackBlockerIds: villagerHouse3Map.blockers?.map(({ id }) => id),
-				selectedFallbackDecorIds: [],
-				selectedFallbackFenceIds: [],
 				collisionIds: villagerHouse3CollisionIds,
 				statefulObjectIds: villagerHouse3StatefulObjectIds
 			});
@@ -5301,8 +5209,6 @@ describe('WorldScene', () => {
 				selectedBackgroundIds: ['shrine-of-aurora-interior-painted-base-image'],
 				successfulBackgroundIds: ['shrine-of-aurora-interior-painted-base-image'],
 				selectedFallbackBlockerIds: [],
-				selectedFallbackDecorIds: [],
-				selectedFallbackFenceIds: [],
 				collisionIds: shrineCollisionIds,
 				statefulObjectIds: shrineStatefulObjectIds
 			});
@@ -5382,8 +5288,6 @@ describe('WorldScene', () => {
 				selectedBackgroundIds: [],
 				successfulBackgroundIds: [],
 				selectedFallbackBlockerIds: shrineOfAuroraInteriorMap.blockers?.map(({ id }) => id),
-				selectedFallbackDecorIds: [],
-				selectedFallbackFenceIds: [],
 				collisionIds: shrineCollisionIds,
 				statefulObjectIds: shrineStatefulObjectIds
 			});
@@ -5589,8 +5493,7 @@ describe('WorldScene', () => {
 			expect(twoPlaneBackgroundMarkers()[1]?.setDisplaySize).toHaveBeenCalledWith(640, 320);
 			expect(twoPlaneBackgroundMarkers()[1]?.setDepth).toHaveBeenCalledWith(100.002);
 			expect(twoPlaneBlockerMarkers()).toHaveLength(0);
-			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(0);
-			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(0);
+			expect(twoPlaneOwnedPropMarkers()).toHaveLength(0);
 			expect(target.diagnostics).toHaveLength(1);
 			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
 				'rendered',
@@ -5632,7 +5535,7 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('uses package draw order and suppresses owned blockers, decor, and fences', async () => {
+	it('uses package draw order and suppresses owned blockers and interior props', async () => {
 		registerTwoPlaneBackgroundTestMap();
 		const target = installPlaneDiagnosticListener();
 		const { WorldScene } = await import('./WorldScene');
@@ -5644,15 +5547,12 @@ describe('WorldScene', () => {
 			expect(twoPlaneBackgroundMarkers()[0]?.setDepth).toHaveBeenCalledWith(-8.999);
 			expect(twoPlaneBackgroundMarkers()[1]?.setDepth).toHaveBeenCalledWith(100.002);
 			expect(twoPlaneBlockerMarkers()).toHaveLength(0);
-			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(0);
-			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(0);
+			expect(twoPlaneOwnedPropMarkers()).toHaveLength(0);
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([
 				'two-plane-base-image',
 				'two-plane-foreground-image'
 			]);
 			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([]);
-			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([]);
-			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([]);
 		} finally {
 			target.restore();
 		}
@@ -5669,9 +5569,8 @@ describe('WorldScene', () => {
 			createSelectedTwoPlaneScene(scene);
 
 			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(8);
-			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(2);
-			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(2);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
+			expect(twoPlaneOwnedPropMarkers()).toHaveLength(2);
 			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
 				'disabled',
 				'disabled'
@@ -5687,14 +5586,6 @@ describe('WorldScene', () => {
 				'two-plane-multi-owner',
 				'two-plane-implicit-always',
 				'two-plane-explicit-always'
-			]);
-			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([
-				'two-plane-base-only-decor',
-				'two-plane-complete-decor'
-			]);
-			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([
-				'two-plane-base-only-fence',
-				'two-plane-complete-fence'
 			]);
 		} finally {
 			restoreLocation();
@@ -5754,9 +5645,8 @@ describe('WorldScene', () => {
 				createSelectedTwoPlaneScene(scene);
 
 				expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
-				expect(twoPlaneBlockerMarkers()).toHaveLength(8);
-				expect(twoPlaneOwnedDecorMarkers()).toHaveLength(2);
-				expect(twoPlaneOwnedFenceMarkers()).toHaveLength(2);
+				expect(twoPlaneBlockerMarkers()).toHaveLength(4);
+				expect(twoPlaneOwnedPropMarkers()).toHaveLength(2);
 				expect(scene.make.tilemap).toHaveBeenCalledOnce();
 				expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
 					'rendered',
@@ -5792,9 +5682,8 @@ describe('WorldScene', () => {
 			createSelectedTwoPlaneScene(scene);
 
 			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(8);
-			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(2);
-			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(2);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
+			expect(twoPlaneOwnedPropMarkers()).toHaveLength(2);
 			expect(scene.make.tilemap).toHaveBeenCalledOnce();
 			expect(target.diagnostics[0]?.entries.map((entry) => entry.status)).toEqual([
 				'rendered',
@@ -5822,9 +5711,8 @@ describe('WorldScene', () => {
 			createSelectedTwoPlaneScene(scene);
 
 			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(8);
-			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(2);
-			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(2);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
+			expect(twoPlaneOwnedPropMarkers()).toHaveLength(2);
 			expect(scene.make.tilemap).toHaveBeenCalledOnce();
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
 			expect(target.diagnostics[0]).toMatchObject({
@@ -5837,14 +5725,6 @@ describe('WorldScene', () => {
 				'two-plane-multi-owner',
 				'two-plane-implicit-always',
 				'two-plane-explicit-always'
-			]);
-			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual([
-				'two-plane-base-only-decor',
-				'two-plane-complete-decor'
-			]);
-			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual([
-				'two-plane-base-only-fence',
-				'two-plane-complete-fence'
 			]);
 		} finally {
 			target.restore();
@@ -5864,9 +5744,8 @@ describe('WorldScene', () => {
 			expect(
 				alternativeBackgroundMarkers().filter((marker) => marker.destroy.mock.calls.length === 0)
 			).toHaveLength(0);
-			expect(alternativeOwnedBlockerMarkers()).toHaveLength(2);
-			expect(alternativeOwnedDecorMarkers()).toHaveLength(1);
-			expect(alternativeOwnedFenceMarkers()).toHaveLength(1);
+			expect(alternativeOwnedBlockerMarkers()).toHaveLength(1);
+			expect(alternativeOwnedPropMarkers()).toHaveLength(1);
 			expect(scene.make.tilemap).toHaveBeenCalledOnce();
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
 			expect(target.diagnostics[0]).toMatchObject({
@@ -5893,9 +5772,8 @@ describe('WorldScene', () => {
 			expect(
 				alternativeBackgroundMarkers().filter((marker) => marker.destroy.mock.calls.length === 0)
 			).toHaveLength(0);
-			expect(alternativeOwnedBlockerMarkers()).toHaveLength(2);
-			expect(alternativeOwnedDecorMarkers()).toHaveLength(1);
-			expect(alternativeOwnedFenceMarkers()).toHaveLength(1);
+			expect(alternativeOwnedBlockerMarkers()).toHaveLength(1);
+			expect(alternativeOwnedPropMarkers()).toHaveLength(1);
 			expect(scene.make.tilemap).toHaveBeenCalledOnce();
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
 			expect(target.diagnostics[0]).toMatchObject({
@@ -5922,9 +5800,8 @@ describe('WorldScene', () => {
 			expect(
 				alternativeBackgroundMarkers().filter((marker) => marker.destroy.mock.calls.length === 0)
 			).toHaveLength(0);
-			expect(alternativeOwnedBlockerMarkers()).toHaveLength(2);
-			expect(alternativeOwnedDecorMarkers()).toHaveLength(1);
-			expect(alternativeOwnedFenceMarkers()).toHaveLength(1);
+			expect(alternativeOwnedBlockerMarkers()).toHaveLength(1);
+			expect(alternativeOwnedPropMarkers()).toHaveLength(1);
 			expect(scene.make.tilemap).toHaveBeenCalledOnce();
 			expect(target.diagnostics[0]?.successfulBackgroundIds).toEqual([]);
 			expect(target.diagnostics[0]).toMatchObject({
@@ -5935,8 +5812,6 @@ describe('WorldScene', () => {
 			expect(target.diagnostics[0]?.selectedFallbackBlockerIds).toEqual([
 				'alternative-owner-blocker'
 			]);
-			expect(target.diagnostics[0]?.selectedFallbackDecorIds).toEqual(['alternative-owner-decor']);
-			expect(target.diagnostics[0]?.selectedFallbackFenceIds).toEqual(['alternative-owner-fence']);
 		} finally {
 			target.restore();
 		}
@@ -5954,9 +5829,8 @@ describe('WorldScene', () => {
 			createSelectedTwoPlaneScene(scene);
 
 			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(8);
-			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(2);
-			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(2);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
+			expect(twoPlaneOwnedPropMarkers()).toHaveLength(2);
 		} finally {
 			restoreLocation();
 		}
@@ -5974,9 +5848,8 @@ describe('WorldScene', () => {
 			createSelectedTwoPlaneScene(scene);
 
 			expect(twoPlaneBackgroundMarkers()).toHaveLength(0);
-			expect(twoPlaneBlockerMarkers()).toHaveLength(8);
-			expect(twoPlaneOwnedDecorMarkers()).toHaveLength(2);
-			expect(twoPlaneOwnedFenceMarkers()).toHaveLength(2);
+			expect(twoPlaneBlockerMarkers()).toHaveLength(4);
+			expect(twoPlaneOwnedPropMarkers()).toHaveLength(2);
 		} finally {
 			restoreLocation();
 		}
@@ -6045,7 +5918,7 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('suppresses static foreground decor for a selected full-map package', async () => {
+	it('suppresses static foreground interior props for a selected full-map package', async () => {
 		registerSceneSupportTestMap();
 		const backgroundTextureKey = 'scene-support-background-texture';
 		phaserState.regionalBackgroundTextureMocks.set(backgroundTextureKey, {
@@ -6063,15 +5936,14 @@ describe('WorldScene', () => {
 			plane: 'base' as const,
 			drawOrder: 1_000
 		} satisfies MapBackgroundImage;
-		maps['scene-support-test']!.mapDecor = [
+		maps['scene-support-test']!.interiorProps = [
 			{
-				id: 'scene-support-floor-decor',
+				id: 'scene-support-floor-prop',
 				x: 128,
 				y: 128,
 				width: 64,
 				height: 64,
-				textureKey: 'forest-dressing',
-				frameName: 'brush',
+				frameName: 'table',
 				depth: 'floor',
 				visual: { mode: 'always' }
 			}
@@ -6091,11 +5963,11 @@ describe('WorldScene', () => {
 		const backgroundCallIndex = imageCalls.findIndex(
 			([, , texture]) => texture === backgroundTextureKey
 		);
-		const floorDecorCallIndex = imageCalls.findIndex(
-			([, , texture, frame]) => texture === 'forest-dressing' && frame === 'brush'
+		const floorPropCallIndex = imageCalls.findIndex(
+			([, , texture, frame]) => texture === 'interior-props' && frame === 'table'
 		);
 		expect(backgroundCallIndex).toBeGreaterThanOrEqual(0);
-		expect(floorDecorCallIndex).toBe(-1);
+		expect(floorPropCallIndex).toBe(-1);
 		expect(scene.make.tilemap).not.toHaveBeenCalled();
 	});
 
@@ -6148,15 +6020,14 @@ describe('WorldScene', () => {
 
 	it('builds the static collision command buffer after foreground world content', async () => {
 		registerSceneSupportTestMap();
-		maps['scene-support-test']!.mapDecor = [
+		maps['scene-support-test']!.interiorProps = [
 			{
 				id: 'scene-support-foreground',
 				x: 320,
 				y: 320,
 				width: 64,
 				height: 64,
-				textureKey: 'forest-dressing',
-				frameName: 'brush',
+				frameName: 'table',
 				depth: 'foreground'
 			}
 		];
@@ -6170,7 +6041,7 @@ describe('WorldScene', () => {
 			const foregroundCallIndex = vi
 				.mocked(scene.add.image)
 				.mock.calls.findIndex(
-					([, , texture, frame]) => texture === 'forest-dressing' && frame === 'brush'
+					([, , texture, frame]) => texture === 'interior-props' && frame === 'table'
 				);
 			const foregroundOrder = vi.mocked(scene.add.image).mock.invocationCallOrder[
 				foregroundCallIndex
@@ -6182,22 +6053,33 @@ describe('WorldScene', () => {
 		}
 	});
 
-	it('draws player-radius-expanded blocker, fence, and colliding decor envelopes', async () => {
+	it('draws player-radius-expanded blocker and interior-prop collision envelopes', async () => {
 		registerSceneSupportTestMap();
-		maps['scene-support-test']!.fences = [
-			{ id: 'scene-support-fence', x: 400, y: 400, width: 64, height: 32 }
-		];
-		maps['scene-support-test']!.mapDecor = [
+		maps['scene-support-test']!.interiorProps = [
 			{
-				id: 'scene-support-colliding-decor',
+				id: 'scene-support-prop',
+				x: 400,
+				y: 400,
+				width: 64,
+				height: 32,
+				frameName: 'table',
+				collision: {
+					id: 'scene-support-prop-bounds',
+					x: 400,
+					y: 400,
+					width: 64,
+					height: 32
+				}
+			},
+			{
+				id: 'scene-support-colliding-prop',
 				x: 500,
 				y: 500,
 				width: 48,
 				height: 32,
-				textureKey: 'forest-dressing',
-				frameName: 'brush',
+				frameName: 'table',
 				collision: {
-					id: 'scene-support-colliding-decor-bounds',
+					id: 'scene-support-colliding-prop-bounds',
 					x: 500,
 					y: 500,
 					width: 40,
@@ -6240,78 +6122,6 @@ describe('WorldScene', () => {
 				color: 0xff3355,
 				alpha: 0.18
 			});
-		} finally {
-			restoreLocation();
-		}
-	});
-
-	it('draws a landmark raw footprint and its doorway-carved collision pieces with player padding', async () => {
-		registerSceneSupportTestMap();
-		maps['scene-support-test']!.landmarks = [
-			{
-				id: 'scene-support-house-exterior',
-				x: 320,
-				y: 320,
-				width: 96,
-				height: 96,
-				labelKey: 'content.maps.areas.hero-house',
-				label: 'Test house'
-			}
-		];
-		maps['scene-support-test']!.transitions.push({
-			id: 'scene-support-house-door',
-			x: 320,
-			y: 350,
-			toMapId: 'hero-house'
-		});
-		const restoreLocation = installLocationSearch('?mapDebug=collision');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new WorldScene();
-
-		try {
-			scene.create({ mapId: 'scene-support-test' });
-
-			const commands = phaserState.graphicsMarkers[0]!.commands;
-			expect(commands).toContainEqual({
-				kind: 'strokeRect',
-				x: 272,
-				y: 272,
-				width: 96,
-				height: 96,
-				color: 0xffc857,
-				alpha: 0.95,
-				lineWidth: 2
-			});
-			expect(commands).toContainEqual(
-				expect.objectContaining({
-					kind: 'fillRect',
-					x: 260,
-					y: 260,
-					width: 120,
-					height: 84,
-					color: 0xff8c42
-				})
-			);
-			expect(commands).toContainEqual(
-				expect.objectContaining({
-					kind: 'fillRect',
-					x: 260,
-					y: 320,
-					width: 44,
-					height: 60,
-					color: 0xff8c42
-				})
-			);
-			expect(commands).toContainEqual(
-				expect.objectContaining({
-					kind: 'fillRect',
-					x: 336,
-					y: 320,
-					width: 44,
-					height: 60,
-					color: 0xff8c42
-				})
-			);
 		} finally {
 			restoreLocation();
 		}
@@ -6559,13 +6369,22 @@ describe('WorldScene', () => {
 
 		scene.update(0, 250);
 
-		expect(scene.add.image).toHaveBeenCalledWith(
+		expect(scene.add.tileSprite).toHaveBeenCalledWith(
 			160,
-			24,
+			96,
+			32,
+			160,
 			'environment-dressing',
-			'townWallVertical'
+			'ruinWall'
 		);
-		expect(scene.add.image).toHaveBeenCalledWith(288, 224, 'forest-dressing', 'treeCluster');
+		expect(scene.add.tileSprite).toHaveBeenCalledWith(
+			288,
+			224,
+			128,
+			32,
+			'environment-dressing',
+			'ruinWall'
+		);
 		expect(scene.add.tileSprite).toHaveBeenCalledWith(
 			224,
 			224,
@@ -6574,21 +6393,12 @@ describe('WorldScene', () => {
 			'environment-dressing',
 			'futureGate'
 		);
-		const verticalWall = phaserState.imageMarkers.find(
-			(marker) => marker.x === 160 && marker.y === 24 && marker.frame === 'townWallVertical'
-		);
-		const horizontalHedge = phaserState.imageMarkers.find(
-			(marker) => marker.x === 288 && marker.y === 224 && marker.frame === 'treeCluster'
-		);
-		expect(verticalWall?.setDisplaySize).toHaveBeenCalledWith(32, 48);
-		expect(horizontalHedge?.setDisplaySize).toHaveBeenCalledWith(48, 32);
 		expect(phaserState.playerMarker.x).toBeCloseTo(132, 1);
 		expect(phaserState.playerMarker.y).toBe(spawn.y);
 	});
 
 	it('registers and renders environment blocker and stair art', async () => {
-		const { environmentDressingAsset, forestDressingAsset } =
-			await import('$lib/game/content/assets');
+		const { environmentDressingAsset } = await import('$lib/game/content/assets');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		registerSceneSupportTestMap();
@@ -6606,13 +6416,14 @@ describe('WorldScene', () => {
 				frame.h
 			);
 		}
-		expect(scene.add.image).toHaveBeenCalledWith(
+		expect(scene.add.tileSprite).toHaveBeenCalledWith(
 			160,
-			24,
+			96,
+			32,
+			160,
 			environmentDressingAsset.key,
-			'townWallVertical'
+			'ruinWall'
 		);
-		expect(scene.add.image).toHaveBeenCalledWith(288, 224, forestDressingAsset.key, 'treeCluster');
 		expect(scene.add.tileSprite).toHaveBeenCalledWith(
 			224,
 			224,
@@ -8944,58 +8755,7 @@ describe('WorldScene', () => {
 		const { WorldScene } = await import('./WorldScene');
 		registerSceneCollisionTestMap();
 		maps['scene-collision-test']!.blockers = [
-			{ id: 'scene-collision-blocker', x: 160, y: 64, width: 32, height: 32, kind: 'city-wall' }
-		];
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'scene-collision-test' });
-		Object.assign(phaserState.playerMarker, { x: 128, y: 64 });
-		phaserState.cursorKeys.right.isDown = true;
-
-		scene.update(0, 250);
-
-		expect(phaserState.playerMarker.x).toBeCloseTo(132, 1);
-		expect(phaserState.playerMarker.y).toBe(64);
-	});
-
-	it('blocks movement through a fence in the scene harness', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		registerSceneCollisionTestMap();
-		maps['scene-collision-test']!.fences = [
-			{ id: 'scene-collision-fence', x: 160, y: 64, width: 32, height: 32 }
-		];
-		const scene = new WorldScene();
-
-		scene.create({ mapId: 'scene-collision-test' });
-		Object.assign(phaserState.playerMarker, { x: 128, y: 64 });
-		phaserState.cursorKeys.right.isDown = true;
-
-		scene.update(0, 250);
-
-		expect(phaserState.playerMarker.x).toBeCloseTo(132, 1);
-		expect(phaserState.playerMarker.y).toBe(64);
-	});
-
-	it('blocks movement through collidable map decor in the scene harness', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		registerSceneCollisionTestMap();
-		maps['scene-collision-test']!.mapDecor = [
-			{
-				id: 'scene-collision-decor',
-				x: 160,
-				y: 64,
-				width: 32,
-				height: 32,
-				textureKey: forestDressingAsset.key,
-				frameName: 'brush',
-				collision: {
-					id: 'scene-collision-decor-bounds',
-					x: 160,
-					y: 64,
-					width: 32,
-					height: 32
-				}
-			}
+			{ id: 'scene-collision-blocker', x: 160, y: 64, width: 32, height: 32, kind: 'ruin-wall' }
 		];
 		const scene = new WorldScene();
 
@@ -9065,51 +8825,11 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.y).toBe(64);
 	});
 
-	it('keeps landmark doorway movement open while blocking its body', async () => {
-		const { WorldScene } = await import('./WorldScene');
-		registerSceneCollisionTestMap();
-		maps['scene-collision-test']!.landmarks = [
-			{
-				id: 'scene-house-exterior',
-				x: 320,
-				y: 320,
-				width: 96,
-				height: 96,
-				labelKey: 'content.maps.areas.hero-house',
-				label: 'Test house'
-			}
-		];
-		maps['scene-collision-test']!.transitions = [
-			{ id: 'scene-house-exterior-door', x: 320, y: 350, toMapId: 'hero-house' }
-		];
-		const doorScene = new WorldScene();
-
-		doorScene.create({ mapId: 'scene-collision-test' });
-		Object.assign(phaserState.playerMarker, { x: 320, y: 410 });
-		phaserState.cursorKeys.up.isDown = true;
-		doorScene.update(0, 250);
-
-		expect(phaserState.playerMarker).toMatchObject({ x: 320, y: 350 });
-		expect(doorScene.scene.restart).toHaveBeenCalled();
-
-		const bodyScene = new WorldScene();
-		bodyScene.create({ mapId: 'scene-collision-test' });
-		Object.assign(phaserState.playerMarker, { x: 280, y: 410 });
-		phaserState.cursorKeys.up.isDown = true;
-		vi.mocked(bodyScene.scene.restart).mockClear();
-
-		bodyScene.update(0, 250);
-
-		expect(phaserState.playerMarker.x).toBe(280);
-		expect(phaserState.playerMarker.y).toBeCloseTo(380, 1);
-		expect(bodyScene.scene.restart).not.toHaveBeenCalled();
-	});
-
 	it('resolves diagonal movement X-then-Y around a scene obstacle', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		registerSceneCollisionTestMap();
 		maps['scene-collision-test']!.blockers = [
-			{ id: 'scene-diagonal-blocker', x: 160, y: 96, width: 32, height: 32, kind: 'city-wall' }
+			{ id: 'scene-diagonal-blocker', x: 160, y: 96, width: 32, height: 32, kind: 'ruin-wall' }
 		];
 		const scene = new WorldScene();
 
@@ -9191,7 +8911,7 @@ describe('WorldScene', () => {
 			const { WorldScene } = await import('./WorldScene');
 			registerSceneCollisionTestMap();
 			maps['scene-collision-test']!.blockers = [
-				{ id: 'scene-diagnostic-blocker', x: 160, y: 64, width: 32, height: 32, kind: 'city-wall' }
+				{ id: 'scene-diagnostic-blocker', x: 160, y: 64, width: 32, height: 32, kind: 'ruin-wall' }
 			];
 			const scene = new WorldScene();
 

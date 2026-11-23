@@ -26,7 +26,6 @@ import {
 } from '$lib/game/content/maps/navigation';
 import { isPositionWalkable as isNavigationPositionWalkable } from '$lib/game/core/navigation';
 import {
-	collectLandmarkRects,
 	collectStrictCollisionRects,
 	createNewSaveState,
 	isInsideAnyCollisionRect,
@@ -491,11 +490,7 @@ describe('save state', () => {
 				isInsideAnyCollisionRect(
 					parsed!.player.x,
 					parsed!.player.y,
-					[
-						...collectStrictCollisionRects(map),
-						...collectLandmarkRects(map),
-						...interiorPropCollisions
-					],
+					[...collectStrictCollisionRects(map), ...interiorPropCollisions],
 					PLAYER_COLLISION_RADIUS
 				),
 				`${mapId}:spawn is inside composed collision`
