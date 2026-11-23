@@ -4982,10 +4982,15 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 	});
 	await continueFromTitle(page);
 	const readHud = () => readHudState(page);
-	// Spawning inside the pack's aggro radius opens the real battle scene.
+	// Spawning inside the pack's aggro radius opens the real battle scene — and
+	// on a contended runner the self-playing fight can already stand at its
+	// summary before the field HUD mounts, so readiness accepts either state.
+	// The stat/feed coverage below is phase-agnostic: the feed listener
+	// accumulates every hit/hurt entry while the fight runs.
 	const battle = page.getByRole('region', { name: 'Battle' });
-	await expect(battle).toBeVisible({ timeout: 15_000 });
-	await expect.poll(async () => (await readHud())?.battle?.phase).toBe('active');
+	const summary = page.getByTestId('battle-summary');
+	await expect(battle.or(summary)).toBeVisible({ timeout: 15_000 });
+	await expect.poll(async () => (await readHud())?.battle?.phase).toMatch(/active|summary/);
 	// Equipped stats must be live inside the fight, not only on the field
 	// hero card: spear ATK 4 and amulet DEF 1 drive the numbers below.
 	expect((await readHud())?.attack).toBe(4);

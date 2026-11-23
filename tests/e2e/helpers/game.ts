@@ -4,14 +4,28 @@ export const SAVES_STORAGE_KEY = 'gliese.saves.v1';
 
 async function waitForPlaying(page: Page) {
 	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	// A save seeded inside an encounter's aggro radius can open the battle
+	// scene — and on a contended runner even resolve it — before the field
+	// HUD's Menu button ever mounts (hosted run 45286324261: Victory at the
+	// 5s mark). The battle HUD or its summary are equally "playing" states,
+	// matched by locale-stable testid.
+	const battleUi = page.locator('[data-testid="battle-hud"], [data-testid="battle-summary"]');
+	await expect(page.getByRole('button', { name: 'Menu' }).or(battleUi)).toBeVisible();
 	// Menu/canvas exist before Phaser boots; the field HUD's "Loading game"
 	// placeholder is only replaced by WorldScene's first publish, when interact
 	// keys are live. Waiting for it keeps keyboard interactions deterministic.
 	// A cold boot also pays for the Phaser import and BootScene's image preload,
 	// which exceeds the 5s default expect timeout on contended CI runners — the
-	// 30s bound matches the suite's other post-boot barriers.
-	await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
+	// 30s bound matches the suite's other post-boot barriers. An immediate
+	// battle can skip the field publish entirely, so the battle UI satisfies
+	// the same readiness guarantee here.
+	await expect
+		.poll(
+			async () =>
+				(await page.getByText('Loading game').count()) === 0 || (await battleUi.count()) > 0,
+			{ timeout: 30_000 }
+		)
+		.toBe(true);
 }
 
 /**
