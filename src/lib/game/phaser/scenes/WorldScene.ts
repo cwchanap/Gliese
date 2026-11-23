@@ -82,6 +82,7 @@ import {
 	type RegionalBackgroundRenderStatus
 } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
 import { emitPlayerMovementDiagnostic } from '$lib/game/phaser/player-movement-diagnostics';
+import { emitWorldSceneCameraDiagnostic } from '$lib/game/phaser/world-scene-camera-diagnostic';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import { buildAreaMapState, getRegionId } from '$lib/game/core/area-map';
 import {
@@ -788,12 +789,38 @@ export class WorldScene extends Phaser.Scene {
 			WorldScene.cameraFollowLerp
 		);
 
+		// The camera diagnostic publishes a typed snapshot only — never the live
+		// camera — and only once Phaser has applied the bounds and refreshed
+		// worldView inside preRender, which the scene 'render' event follows.
+		// Initial readiness publishes once; each real resize re-arms one shot.
+		let cameraDiagnosticPending = false;
+		const publishCameraDiagnostic = () => {
+			if (!cameraDiagnosticPending || this.sceneShutDown) return;
+			cameraDiagnosticPending = false;
+			const camera = this.cameras.main;
+			const bounds = camera.getBounds();
+			const view = camera.worldView;
+			emitWorldSceneCameraDiagnostic({
+				mapId: this.mapId,
+				facing: this.facing,
+				camera: {
+					view: { x: view.x, y: view.y, width: view.width, height: view.height },
+					bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+				}
+			});
+		};
+		if (this.renderOptions.movementDiagnostics) {
+			cameraDiagnosticPending = true;
+			this.events.on('render', publishCameraDiagnostic);
+		}
+
 		// Live viewport resize re-centers the camera bounds; the captured map
 		// dimensions belong to this create() so a transition/restart swaps the
 		// closure via the shutdown cleanup below.
 		const onResize = () => {
 			const bounds = this.getCenteredCameraBounds(width, height);
 			this.cameras.main.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
+			cameraDiagnosticPending = this.renderOptions.movementDiagnostics;
 		};
 		this.scale.on('resize', onResize);
 
@@ -838,6 +865,7 @@ export class WorldScene extends Phaser.Scene {
 			this.unsubscribePreferences?.();
 			this.unsubscribePreferences = null;
 			this.scale.off('resize', onResize);
+			this.events?.off?.('render', publishCameraDiagnostic);
 			this.events?.off?.('shutdown', cleanup);
 			this.events?.off?.('destroy', cleanup);
 		};

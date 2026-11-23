@@ -14,10 +14,31 @@ async function waitForPlaying(page: Page) {
 	await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
 }
 
-/** Boots a fresh run through the Title screen. */
-export async function startNewRunFromTitle(page: Page) {
+/**
+ * Boots a fresh run through the Title screen.
+ *
+ * `movementDiagnostics` arms `?movementDiagnostics=on` after the real Title
+ * has rendered: the shell only classifies the entry URL once at mount, so a
+ * history.replaceState adds the render option for WorldScene's create() —
+ * where resolveWorldRenderOptions re-reads location.search — without a
+ * reload and without turning the visit into a direct-boot tooling link. The
+ * player's Title → New Run journey stays intact.
+ */
+export async function startNewRunFromTitle(
+	page: Page,
+	options: { movementDiagnostics?: boolean } = {}
+) {
 	await page.goto('/');
-	await page.getByRole('button', { name: /New Run/i }).click();
+	const newRun = page.getByRole('button', { name: /New Run/i });
+	await expect(newRun).toBeVisible();
+	if (options.movementDiagnostics) {
+		await page.evaluate(() => {
+			const url = new URL(window.location.href);
+			url.searchParams.set('movementDiagnostics', 'on');
+			window.history.replaceState(null, '', url);
+		});
+	}
+	await newRun.click();
 	// An existing autosave raises the overwrite confirm; fresh profiles boot
 	// straight into the run. Race the two outcomes so both stay deterministic.
 	const confirm = page.getByTestId('confirm-new-run');

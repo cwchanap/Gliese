@@ -9298,6 +9298,116 @@ describe('WorldScene', () => {
 		}
 	});
 
+	it('emits a typed camera/facing diagnostic on first render and after a real resize', async () => {
+		const restoreLocation = installLocationSearch('?movementDiagnostics=on');
+		const target = installHudCommandTarget();
+		const { WORLD_SCENE_CAMERA_DIAGNOSTIC_EVENT } =
+			await import('$lib/game/phaser/world-scene-camera-diagnostic');
+		type WorldSceneCameraDiagnostic =
+			import('$lib/game/phaser/world-scene-camera-diagnostic').WorldSceneCameraDiagnostic;
+		const diagnostics: WorldSceneCameraDiagnostic[] = [];
+		target.target.addEventListener(WORLD_SCENE_CAMERA_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<WorldSceneCameraDiagnostic>).detail);
+		});
+		try {
+			const { WorldScene } = await import('./WorldScene');
+			const { heroHouseMap } = await import('$lib/game/content/maps');
+			const scene = new WorldScene();
+			const camera = phaserState.mainCamera as typeof phaserState.mainCamera & {
+				getBounds: () => { x: number; y: number; width: number; height: number };
+			};
+
+			camera.getBounds = () => ({ x: 0, y: 0, width: 704, height: 576 });
+			Object.defineProperty(camera, 'worldView', {
+				value: { x: 0, y: 0, width: 640, height: 360 },
+				writable: true,
+				configurable: true
+			});
+			scene.create({ mapId: heroHouseMap.id });
+
+			// Nothing may emit before Phaser's preRender refreshes worldView; the
+			// scene 'render' event follows that update.
+			expect(diagnostics).toHaveLength(0);
+			scene.events.emit('render');
+			expect(diagnostics).toEqual([
+				{
+					mapId: 'hero-house',
+					facing: heroHouseMap.spawnDirection,
+					camera: {
+						view: { x: 0, y: 0, width: 640, height: 360 },
+						bounds: { x: 0, y: 0, width: 704, height: 576 }
+					}
+				}
+			]);
+
+			// Another render without a camera update emits nothing new.
+			scene.events.emit('render');
+			expect(diagnostics).toHaveLength(1);
+
+			// An actual resize camera update re-arms exactly one snapshot.
+			const scaleOnMock = scene.scale.on as unknown as import('vitest').Mock;
+			const resizeHandler = (scaleOnMock.mock.calls as Array<[string, () => void]>).find(
+				(call) => call[0] === 'resize'
+			)?.[1];
+			expect(resizeHandler).toBeTypeOf('function');
+			camera.getBounds = () => ({ x: -288, y: -72, width: 1280, height: 720 });
+			Object.defineProperty(camera, 'worldView', {
+				value: { x: -32, y: -18, width: 1280, height: 720 },
+				writable: true,
+				configurable: true
+			});
+			resizeHandler!();
+			scene.events.emit('render');
+
+			expect(diagnostics).toHaveLength(2);
+			expect(diagnostics[1]).toEqual({
+				mapId: 'hero-house',
+				facing: heroHouseMap.spawnDirection,
+				camera: {
+					view: { x: -32, y: -18, width: 1280, height: 720 },
+					bounds: { x: -288, y: -72, width: 1280, height: 720 }
+				}
+			});
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
+	it('does not emit a camera diagnostic when movement diagnostics are off', async () => {
+		const restoreLocation = installLocationSearch('');
+		const target = installHudCommandTarget();
+		const { WORLD_SCENE_CAMERA_DIAGNOSTIC_EVENT } =
+			await import('$lib/game/phaser/world-scene-camera-diagnostic');
+		type WorldSceneCameraDiagnostic =
+			import('$lib/game/phaser/world-scene-camera-diagnostic').WorldSceneCameraDiagnostic;
+		const diagnostics: WorldSceneCameraDiagnostic[] = [];
+		target.target.addEventListener(WORLD_SCENE_CAMERA_DIAGNOSTIC_EVENT, (event) => {
+			diagnostics.push((event as CustomEvent<WorldSceneCameraDiagnostic>).detail);
+		});
+		try {
+			const { WorldScene } = await import('./WorldScene');
+			const { heroHouseMap } = await import('$lib/game/content/maps');
+			const scene = new WorldScene();
+			const camera = phaserState.mainCamera as typeof phaserState.mainCamera & {
+				getBounds: () => { x: number; y: number; width: number; height: number };
+			};
+
+			camera.getBounds = () => ({ x: 0, y: 0, width: 704, height: 576 });
+			Object.defineProperty(camera, 'worldView', {
+				value: { x: 0, y: 0, width: 640, height: 360 },
+				writable: true,
+				configurable: true
+			});
+			scene.create({ mapId: heroHouseMap.id });
+			scene.events.emit('render');
+			expect(diagnostics).toHaveLength(0);
+		} finally {
+			target.restore();
+			restoreLocation();
+		}
+	});
+
 	it('blocks player movement through NPC bodies', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
