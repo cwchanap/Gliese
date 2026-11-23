@@ -52,6 +52,7 @@ type HudStateSnapshot = {
 		phase?: string;
 		active?: {
 			feed?: Array<{ id: number; kind: string; amount: number; subject: string }>;
+			enemies?: Array<{ unitId: string; hp: number; maxHp: number }>;
 		} | null;
 	};
 	nearbyShop?: { shopId?: string; merchantName?: string } | null;
@@ -157,6 +158,11 @@ type GlieseProbeWindow = Window & {
 		y: number;
 	}[];
 	__glieseBattleFeed?: { id: number; kind: string; amount: number; subject: string }[];
+	__glieseWolvesActive?: {
+		attack?: number;
+		defense?: number;
+		enemies: { unitId: string; hp: number; maxHp: number }[];
+	} | null;
 	__glieseRouteRunner?: {
 		start: (plan: BrowserRoutePlan) => BrowserRouteResult;
 		get: (token: string) => BrowserRouteResult | null;
@@ -2792,7 +2798,9 @@ test('encounter opens battle scene and returns through battle summary', async ({
 	});
 
 	await injectSave(page, save);
-	await continueFromTitle(page);
+	// Seeded inside the pack's aggro radius: the self-playing fight can open
+	// before the field HUD's Menu mounts — same boot race as the wolf fight.
+	await continueFromTitle(page, { readiness: 'field-or-battle' });
 
 	// The Heroic summary dialog is named by its outcome (Victory / Defeat);
 	// /battle summary/i keeps matching the pre-Heroic Arcane naming.
@@ -4969,48 +4977,81 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 		);
 		// The HUD feed keeps only the last four entries; accumulate every
 		// battle event so a short fight still proves each hit/hurt amount.
+		// The first active-phase publish carrying both mouth-pack units is
+		// recorded whole: the live fight can resolve to its summary before a
+		// poll observes it, but the snapshot still proves the active HUD
+		// actually rendered — and which stats it showed in combat.
 		const probeWindow = window as GlieseProbeWindow;
 		probeWindow.__glieseBattleFeed = [];
+		probeWindow.__glieseWolvesActive = null;
 		window.addEventListener('gliese:hud-state', (event) => {
-			const feed = (event as CustomEvent<HudStateSnapshot>).detail?.battle?.active?.feed ?? [];
+			const detail = (event as CustomEvent<HudStateSnapshot>).detail;
+			const feed = detail?.battle?.active?.feed ?? [];
 			for (const entry of feed) {
 				if (!probeWindow.__glieseBattleFeed?.some((seen) => seen.id === entry.id)) {
 					probeWindow.__glieseBattleFeed?.push(entry);
 				}
 			}
+			const active = detail?.battle?.phase === 'active' ? detail.battle.active : null;
+			const unitIds = new Set((active?.enemies ?? []).map((enemy) => enemy.unitId));
+			if (
+				probeWindow.__glieseWolvesActive == null &&
+				unitIds.has('wildwood-wolves-mouth:unit:0') &&
+				unitIds.has('wildwood-wolves-mouth:unit:1')
+			) {
+				probeWindow.__glieseWolvesActive = {
+					attack: detail?.attack,
+					defense: detail?.defense,
+					enemies: (active?.enemies ?? []).map((enemy) => ({
+						unitId: enemy.unitId,
+						hp: enemy.hp,
+						maxHp: enemy.maxHp
+					}))
+				};
+			}
 		});
 	});
-	await continueFromTitle(page);
-	const readHud = () => readHudState(page);
+	await continueFromTitle(page, { readiness: 'field-or-battle' });
 	// Spawning inside the pack's aggro radius opens the real battle scene — and
 	// on a contended runner the self-playing fight can already stand at its
-	// summary before the field HUD mounts, so readiness accepts either state.
-	// The stat/feed coverage below is phase-agnostic: the feed listener
-	// accumulates every hit/hurt entry while the fight runs.
+	// summary, so either battle UI is a valid readiness signal here.
 	const battle = page.getByRole('region', { name: 'Battle' });
 	const summary = page.getByTestId('battle-summary');
 	await expect(battle.or(summary)).toBeVisible({ timeout: 15_000 });
-	await expect.poll(async () => (await readHud())?.battle?.phase).toMatch(/active|summary/);
-	// Equipped stats must be live inside the fight, not only on the field
-	// hero card: spear ATK 4 and amulet DEF 1 drive the numbers below.
-	expect((await readHud())?.attack).toBe(4);
-	expect((await readHud())?.defense).toBe(1);
-	// resolveHit has no variance: hero ATK 4 vs wolf DEF 0 lands 4 per hit;
-	// wolf ATK 3 vs hero DEF 1 bites for exactly 2.
+	// The summary recomputes its stats from the applied save, so it cannot
+	// prove what the fight showed. The recorded active snapshot must carry
+	// the two mouth units — and the equipped spear+amulet stats live in
+	// combat (ATK 4, DEF 1), not just on the field hero card.
+	await expect
+		.poll(async () =>
+			page.evaluate(() => (window as GlieseProbeWindow).__glieseWolvesActive?.enemies.length ?? 0)
+		)
+		.toBe(2);
+	const activeFight = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseWolvesActive ?? null
+	);
+	expect(activeFight?.enemies.map((enemy) => enemy.unitId).sort()).toEqual([
+		'wildwood-wolves-mouth:unit:0',
+		'wildwood-wolves-mouth:unit:1'
+	]);
+	expect(activeFight?.attack).toBe(4);
+	expect(activeFight?.defense).toBe(1);
+	// resolveHit has no variance — but feed amounts are HP lost, capped by the
+	// target's remaining HP. `.some(amount===4)` would pass a wrong 6-overkill
+	// followed by a finishing 4, so the proof is the FIRST hit on a 10-HP wolf
+	// and the FIRST bite on the 20-HP hero, when neither can be capped.
 	const seenFeed = async () =>
 		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseBattleFeed ?? [])) ?? [];
 	await expect
-		.poll(
-			async () => (await seenFeed()).some((entry) => entry.kind === 'hit' && entry.amount === 4),
-			{ timeout: 20_000 }
-		)
-		.toBe(true);
+		.poll(async () => (await seenFeed()).find((entry) => entry.kind === 'hit')?.amount ?? null, {
+			timeout: 20_000
+		})
+		.toBe(4);
 	await expect
-		.poll(
-			async () => (await seenFeed()).some((entry) => entry.kind === 'hurt' && entry.amount === 2),
-			{ timeout: 20_000 }
-		)
-		.toBe(true);
+		.poll(async () => (await seenFeed()).find((entry) => entry.kind === 'hurt')?.amount ?? null, {
+			timeout: 20_000
+		})
+		.toBe(2);
 	await hpa839Shot(page, 'first-wolves-battle.png');
 });
 
