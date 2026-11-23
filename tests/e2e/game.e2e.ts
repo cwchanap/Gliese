@@ -4984,16 +4984,19 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 		//     publish carrying both mouth-pack units — the state/stats the
 		//     fight ran with. It says nothing about the DOM.
 		//  2. `__glieseWolvesHudPlates` is recorded by the MutationObserver
-		//     below only when it actually sees a visible battle-hud element
-		//     containing both wolf plates visible in the same check — proof
-		//     the Svelte BattleHud really rendered the active fight.
+		//     below only when the battle HUD and both wolf plates pass the
+		//     visibility and positive-size checks at the same time.
 		const probeWindow = window as GlieseProbeWindow;
 		probeWindow.__glieseBattleFeed = [];
 		probeWindow.__glieseWolvesActive = null;
 		probeWindow.__glieseWolvesHudPlates = undefined;
 		const wolfIds = ['wildwood-wolves-mouth:unit:0', 'wildwood-wolves-mouth:unit:1'];
-		const rendered = (el: Element | null): el is HTMLElement =>
-			el instanceof HTMLElement && el.checkVisibility() && el.getClientRects().length > 0;
+		const rendered = (el: Element | null): el is HTMLElement => {
+			if (!(el instanceof HTMLElement) || !el.checkVisibility({ visibilityProperty: true }))
+				return false;
+			const { width, height } = el.getBoundingClientRect();
+			return width > 0 && height > 0;
+		};
 		const checkHud = (observer: MutationObserver) => {
 			const hud = document.querySelector('[data-testid="battle-hud"]');
 			if (rendered(hud)) {
@@ -5009,8 +5012,7 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 					return;
 				}
 			}
-			// Once the summary is up the active HUD cannot appear — stop
-			// observing so nothing outlives the observation window.
+			// Stop if a visible, positive-size summary appears first.
 			const summary = document.querySelector('[data-testid="battle-summary"]');
 			if (rendered(summary)) observer.disconnect();
 		};
@@ -5057,10 +5059,8 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 	const battle = page.getByRole('region', { name: 'Battle' });
 	const summary = page.getByTestId('battle-summary');
 	await expect(battle.or(summary)).toBeVisible({ timeout: 15_000 });
-	// Proof the Svelte BattleHud really rendered the active fight: the
-	// page-side MutationObserver only records once it sees a visible
-	// battle-hud containing both wolf plates visible in the same check —
-	// a hud-state publish alone could pass while the DOM never showed it.
+	// The page-side observer requires a visible, positive-size battle HUD
+	// and both wolf plates in the same check; a state publish alone cannot.
 	await expect
 		.poll(async () =>
 			page.evaluate(() => ((window as GlieseProbeWindow).__glieseWolvesHudPlates ?? []).join(','))
