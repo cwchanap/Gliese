@@ -77,6 +77,7 @@ describe('createGame', () => {
 		const { BootScene } = await import('$lib/game/phaser/scenes/BootScene');
 		const { WorldScene } = await import('$lib/game/phaser/scenes/WorldScene');
 		const { BattleScene } = await import('$lib/game/phaser/scenes/BattleScene');
+		const { SnareBattleScene } = await import('$lib/game/phaser/scenes/SnareBattleScene');
 		const mountNode = { id: 'mount-node' } as HTMLElement;
 		const startRequest = { reason: 'new', saveState: null } as const;
 
@@ -90,7 +91,7 @@ describe('createGame', () => {
 					mode: 'RESIZE',
 					autoCenter: 'CENTER_BOTH'
 				},
-				scene: [BootScene, WorldScene, BattleScene]
+				scene: [BootScene, WorldScene, BattleScene, SnareBattleScene]
 			})
 		);
 		expect(phaserState.registrySetMock).toHaveBeenCalledWith('startRequest', startRequest);
