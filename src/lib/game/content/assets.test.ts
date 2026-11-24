@@ -6,6 +6,7 @@ import {
 	actorAnimationIds,
 	animationPackAsset,
 	battleBackgroundAssets,
+	environmentDressingAsset,
 	getActorAnimationAsset,
 	getBattleBackgroundAsset,
 	getBattleEnvironmentId,
@@ -101,6 +102,23 @@ describe('battle background asset metadata', () => {
 describe('regional background asset metadata', () => {
 	it('keeps the generic regional preload seam empty', () => {
 		expect(regionalBackgroundAssets).toEqual([]);
+	});
+});
+
+describe('environment dressing asset metadata', () => {
+	it('keeps only the live blocker and stair frames on the original sheet', () => {
+		expect(environmentDressingAsset).toEqual({
+			key: 'environment-dressing',
+			path: '/game/assets/environment-dressing.png',
+			cellWidth: 96,
+			cellHeight: 96,
+			columns: 4,
+			frames: {
+				ruinWall: { x: 0, y: 96, w: 96, h: 96 },
+				futureGate: { x: 96, y: 96, w: 96, h: 96 },
+				stoneStair: { x: 192, y: 96, w: 96, h: 96 }
+			}
+		});
 	});
 });
 
