@@ -12,11 +12,13 @@ import { resolve } from 'node:path';
 import {
 	continueFromTitle,
 	continueFromTitlePicker,
+	expectTimeout,
 	readSlotEnvelope,
 	saveThroughSaveScreen,
 	seedSaveSlots,
 	startNewRunFromTitle,
-	startNewRunThroughOpening
+	startNewRunThroughOpening,
+	testTimeout
 } from './helpers/game';
 import { blacksmithInteriorMap, overworldMap } from '../../src/lib/game/content/maps';
 import {
@@ -209,7 +211,7 @@ async function pressInteractUntilDialog(page: Page, name: string | RegExp) {
 	await expect(async () => {
 		await page.keyboard.press('e', { delay: 50 });
 		await expect(dialog).toBeVisible({ timeout: 1_000 });
-	}).toPass({ timeout: 15_000, intervals: [800, 1_200] });
+	}).toPass({ timeout: expectTimeout(15_000), intervals: [800, 1_200] });
 	return dialog;
 }
 
@@ -2211,8 +2213,20 @@ function assertBlacksmithFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneR
 	]);
 }
 
+/**
+ * Blacksmith runtime evidence: isolated per-test output by default so a
+ * plain `bun run test:e2e` never overwrites the committed docs pack.
+ * `BLACKSMITH_EVIDENCE_DOCS=1` opts back into the committed dir for a
+ * deliberate refresh; `BLACKSMITH_EVIDENCE_ROOT` captures into a custom dir.
+ */
+function blacksmithEvidenceRoot(info: TestInfo) {
+	if (process.env.BLACKSMITH_EVIDENCE_ROOT) return process.env.BLACKSMITH_EVIDENCE_ROOT;
+	if (process.env.BLACKSMITH_EVIDENCE_DOCS === '1') return BLACKSMITH_RUNTIME_EVIDENCE_ROOT;
+	return info.outputPath('blacksmith-evidence');
+}
+
 async function saveBlacksmithCanvas(page: Page, name: string) {
-	return saveInteriorCanvas(page, BLACKSMITH_RUNTIME_EVIDENCE_ROOT, 'blacksmith-interior', name);
+	return saveInteriorCanvas(page, blacksmithEvidenceRoot(test.info()), 'blacksmith-interior', name);
 }
 
 async function saveInteriorCanvas(page: Page, evidenceRoot: string, styleId: string, name: string) {
@@ -2238,7 +2252,7 @@ async function saveInteriorCanvas(page: Page, evidenceRoot: string, styleId: str
 // Registered first on purpose: at ~3 minutes this sweep is the longest tail
 // in the suite, so a worker takes it at t=0 and the rest overlap it.
 test('HPA-840 overlay evidence sweep across the required viewport matrix', async ({ page }) => {
-	test.setTimeout(540_000);
+	test.setTimeout(testTimeout(540_000));
 	// Every overlay also runs a real journey once at 640×360 (the most
 	// clip-prone viewport): scroll the inner panel to the last control, then
 	// activate a real action with a locator click or keyboard Enter and observe
@@ -2727,10 +2741,15 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 test('entry map boots with no game console errors', async ({ page }) => {
 	// Collect console errors emitted during boot. Phaser logs missing-texture and
 	// asset-load failures to console.error, so this catches a broken/missing asset
-	// from the entry-map enrichment (terrain tiles, decor packs, etc.).
+	// from the entry-map enrichment (terrain tiles, decor packs, etc.). Missing
+	// atlas frames and texture keys only surface as console warnings — a stale
+	// reference to a deleted sheet is not an error — so those are gated below
+	// on an asset-scoped pass over the warning stream.
 	const errors: string[] = [];
+	const warnings: string[] = [];
 	page.on('console', (msg) => {
 		if (msg.type() === 'error') errors.push(msg.text());
+		if (msg.type() === 'warning') warnings.push(msg.text());
 	});
 
 	await startNewRunFromTitle(page);
@@ -2750,6 +2769,13 @@ test('entry map boots with no game console errors', async ({ page }) => {
 	const gameErrors = errors.filter((text) => !benign.test(text));
 
 	expect(gameErrors).toEqual([]);
+
+	// A boot also logs unrelated browser warnings (WebGL "GPU stall" noise),
+	// so instead of asserting on every warning, fail only on ones that name
+	// game content — Phaser's "Frame not found in texture" and "No texture
+	// found matching key" both land here.
+	const gameAsset = /texture|frame|atlas|sprite|tile(set|map)|animation|audio|font|phaser|asset/i;
+	expect(warnings.filter((text) => !benign.test(text) && gameAsset.test(text))).toEqual([]);
 });
 
 test('game route boots', async ({ page }) => {
@@ -2817,7 +2843,7 @@ test('encounter opens battle scene and returns through battle summary', async ({
 test('fleeing the boar king requires leaving and returning before re-engagement', async ({
 	page
 }) => {
-	test.setTimeout(90_000);
+	test.setTimeout(testTimeout(90_000));
 	const home = anchorPoint('silverpine-boar-king');
 	const save = {
 		...createSaveFixture({
@@ -2848,10 +2874,12 @@ test('fleeing the boar king requires leaving and returning before re-engagement'
 	});
 	await page.goto('/?movementDiagnostics=on');
 	const battle = page.getByRole('region', { name: 'Battle' });
-	await expect(battle).toBeVisible({ timeout: 15_000 });
+	await expect(battle).toBeVisible({ timeout: expectTimeout(15_000) });
 	await page.keyboard.down('ArrowDown');
 	await battle.getByRole('button', { name: 'Flee' }).click();
-	await expect(fieldStatus(page)).toContainText(/leave.+return/i, { timeout: 10_000 });
+	await expect(fieldStatus(page)).toContainText(/leave.+return/i, {
+		timeout: expectTimeout(10_000)
+	});
 	await page.keyboard.up('ArrowDown');
 	await page.waitForTimeout(5_500);
 	await expect(fieldStatus(page)).toContainText(/leave.+return/i);
@@ -3298,7 +3326,13 @@ test('E on genuinely empty ground opens no dialogue and publishes no status', as
 	await continueFromTitle(page);
 
 	const statusBefore = await fieldStatus(page).textContent();
-	await page.keyboard.press('e');
+	// Hold 'e' across frames: a zero-delay press can have its JustDown edge
+	// cleared by keyup before any update consumes it (~200ms/frame under CI
+	// contention — see the sealed-gate comment below), which would let this
+	// absence-only test pass without the interact ever being delivered.
+	await page.keyboard.down('e');
+	await page.waitForTimeout(500);
+	await page.keyboard.up('e');
 	// Wait a bounded window so an unintended async dialogue fetch or status
 	// publish has time to surface before asserting absence.
 	await page.waitForTimeout(250);
@@ -3578,7 +3612,7 @@ test('interact key shop purchase appears in inventory', async ({ page }) => {
 });
 
 test('HPA-839 Mira salve economy, potion prices, and tooltip clearance', async ({ page }) => {
-	test.setTimeout(300_000);
+	test.setTimeout(testTimeout(300_000));
 
 	type PassLocale = 'en' | 'ja' | 'zh-Hant';
 	type PassCopy = {
@@ -4022,7 +4056,7 @@ test('HPA-839 Mira salve economy, potion prices, and tooltip clearance', async (
 });
 
 test('Blacksmith graybox entrance', async ({ page }) => {
-	test.setTimeout(180_000);
+	test.setTimeout(testTimeout(180_000));
 	const blacksmith: InteriorGrayboxCase = {
 		mapId: 'blacksmith-interior',
 		...overworldDoor('blacksmith-interior'),
@@ -4100,7 +4134,7 @@ function settledBlockedWindow(input: {
 }
 
 test('Blacksmith Oren equipment shop', async ({ page }) => {
-	test.setTimeout(180_000);
+	test.setTimeout(testTimeout(180_000));
 	const blacksmith: InteriorGrayboxCase = {
 		mapId: 'blacksmith-interior',
 		...overworldDoor('blacksmith-interior'),
@@ -4225,7 +4259,7 @@ test('Blacksmith Oren equipment shop', async ({ page }) => {
 test('proving morning keyboard journey reaches Oren through the painted forge lane', async ({
 	page
 }) => {
-	test.setTimeout(240_000);
+	test.setTimeout(testTimeout(240_000));
 	await installRuntimeProbes(page);
 	// Instant text: at normal speed a reveal-skip Enter never changes the HUD
 	// dialogue payload, so every advanceDialogue press would eat the full
@@ -4384,7 +4418,7 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 		}
 	}
 	await expect
-		.poll(async () => (await readHud())?.status, { timeout: 10_000 })
+		.poll(async () => (await readHud())?.status, { timeout: expectTimeout(10_000) })
 		.toBe('Old Mott nearby');
 	await pressInteractUntilDialog(page, 'Old Mott');
 	await advanceDialogue();
@@ -4876,7 +4910,7 @@ test('proving morning keyboard journey reaches Oren through the painted forge la
 test('HPA-839 Oren reward equips the practice spear and shows it on the field HUD', async ({
 	page
 }) => {
-	test.setTimeout(120_000);
+	test.setTimeout(testTimeout(120_000));
 	// Real-game checkpoint one step from Oren — the same seeded-continue
 	// pattern the quest-log and shop tests use. The amulet is already worn
 	// (maxHp 22, DEF 1) exactly as Mott's reward left it; the long proving
@@ -4958,7 +4992,7 @@ test('HPA-839 Oren reward equips the practice spear and shows it on the field HU
 });
 
 test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async ({ page }) => {
-	test.setTimeout(120_000);
+	test.setTimeout(testTimeout(120_000));
 	// The wildwood mouth pack is the proving day's first wolf fight: seeded at
 	// report-to-borak with the spear and amulet already worn exactly as Oren's
 	// and Mott's auto-equip left them, three potions in the bag.
@@ -5114,7 +5148,7 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 	// summary, so either battle UI is a valid readiness signal here.
 	const battle = page.getByRole('region', { name: 'Battle' });
 	const summary = page.getByTestId('battle-summary');
-	await expect(battle.or(summary)).toBeVisible({ timeout: 15_000 });
+	await expect(battle.or(summary)).toBeVisible({ timeout: expectTimeout(15_000) });
 	// The page-side observer requires the named, exposed Battle region and
 	// both visible, on-screen wolf plates in the same check before summary.
 	await expect
@@ -5148,12 +5182,12 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseBattleFeed ?? [])) ?? [];
 	await expect
 		.poll(async () => (await seenFeed()).find((entry) => entry.kind === 'hit')?.amount ?? null, {
-			timeout: 20_000
+			timeout: expectTimeout(20_000)
 		})
 		.toBe(4);
 	await expect
 		.poll(async () => (await seenFeed()).find((entry) => entry.kind === 'hurt')?.amount ?? null, {
-			timeout: 20_000
+			timeout: expectTimeout(20_000)
 		})
 		.toBe(2);
 	await hpa839Shot(page, 'first-wolves-fight.png');
@@ -5162,7 +5196,7 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 test('HPA-839 reporting the Boar King equips the hunter knife and persists it', async ({
 	page
 }) => {
-	test.setTimeout(240_000);
+	test.setTimeout(testTimeout(240_000));
 	// Same real-game checkpoint the quest-log test uses: inside the guild hall,
 	// one step from Borak, with the Boar King trial already cleared so the
 	// report-boar-king branch awards the knife.
@@ -5238,7 +5272,9 @@ test('HPA-839 reporting the Boar King equips the hunter knife and persists it', 
 		await loadDialog.getByTestId('save-slot-1').click();
 		await expect(page.locator('canvas')).toBeVisible();
 		await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
-		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible({
+			timeout: expectTimeout(15_000)
+		});
 	};
 	await loadManualSlot();
 	await expect
@@ -5274,7 +5310,7 @@ test('HPA-839 reporting the Boar King equips the hunter knife and persists it', 
 });
 
 test('HPA-839 portrait forge tooltip stays on screen at 390x844', async ({ page }) => {
-	test.setTimeout(120_000);
+	test.setTimeout(testTimeout(120_000));
 	// Post-spear checkpoint at the forge counter: Oren's always-branch offers
 	// the Shop choice. All four stock pieces are finite and wrap to a
 	// 3-tile first row plus one at 390px — exactly the case whose tooltip
@@ -5379,7 +5415,7 @@ test('HPA-839 portrait forge tooltip stays on screen at 390x844', async ({ page 
 });
 
 test('Blacksmith painted interior preserves baked composition and collision', async ({ page }) => {
-	test.setTimeout(600_000);
+	test.setTimeout(testTimeout(600_000));
 	const blacksmith: InteriorGrayboxCase = {
 		mapId: 'blacksmith-interior',
 		...overworldDoor('blacksmith-interior'),
@@ -5567,7 +5603,7 @@ test('quest log shows main quest and completes proving morning at Borak', async 
 	// The dialogue advance, quest-log round-trip, and Escape all run on real
 	// HUD publishes; under two-worker CPU contention the whole sequence can
 	// pass the default 30s before the final assertion.
-	test.setTimeout(60_000);
+	test.setTimeout(testTimeout(60_000));
 	const save = createSaveFixture({
 		mapId: 'guild-hall',
 		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 800, y: 184, facing: 'up' },
@@ -5618,7 +5654,7 @@ test('quest log shows main quest and completes proving morning at Borak', async 
 	await page.locator('canvas').click();
 	await page.keyboard.press('e', { delay: 50 });
 	const borakDialog = page.getByRole('dialog', { name: 'Borak' });
-	await expect(borakDialog).toBeVisible({ timeout: 10_000 });
+	await expect(borakDialog).toBeVisible({ timeout: expectTimeout(10_000) });
 	// Scope to the visible line: the sr-only status twin repeats the dialogue text.
 	await expect(borakDialog.locator('.jrpg-dialogue-line')).toContainText(/Grik\. You came/i);
 	await borakDialog.getByRole('button', { name: 'Next' }).click();
@@ -5692,7 +5728,7 @@ test('quest log shows main quest and completes proving morning at Borak', async 
 test('a seeded near-end saved run finishes the prologue and Continue restores the ridge without replay', async ({
 	page
 }) => {
-	test.setTimeout(120_000);
+	test.setTimeout(testTimeout(120_000));
 	const ridge = anchorPoint('wildwood-ridge-overlook');
 	const save = createSaveFixture({
 		player: { level: 1, xp: 0, hp: 200, attack: 50, x: ridge.x, y: ridge.y, facing: 'up' },
@@ -5843,10 +5879,29 @@ if (process.env.HPA840_SHARED_CDP) {
 	});
 }
 
-const hpa840Capture = hpa840Evidence(process.env.HPA840_EVIDENCE_ROOT);
+/**
+ * HPA-840 evidence capture: isolated per-test output by default so a plain
+ * `bun run test:e2e` can never overwrite — or leave `-retryN` litter in —
+ * the committed docs pack. `HPA840_EVIDENCE_DOCS=1` opts back into the
+ * committed dir for a deliberate refresh; `HPA840_EVIDENCE_ROOT` captures
+ * into a custom (still 'wx'-guarded) root.
+ */
+function hpa840Capture(info: TestInfo) {
+	if (process.env.HPA840_EVIDENCE_ROOT) {
+		return hpa840Evidence(process.env.HPA840_EVIDENCE_ROOT);
+	}
+	if (process.env.HPA840_EVIDENCE_DOCS === '1') {
+		return hpa840Evidence();
+	}
+	return hpa840Evidence(info.outputPath('hpa-840-evidence'));
+}
 
 async function hpa840Shot(page: Page, name: string) {
-	await hpa840Capture.shot(page, name);
+	// A retried attempt re-takes the same screenshots; stamp the retry index so
+	// the no-overwrite guard still flags stale evidence instead of the retry.
+	const retry = test.info().retry;
+	const stamped = retry > 0 ? name.replace(/\.png$/, `-retry${retry}.png`) : name;
+	await hpa840Capture(test.info()).shot(page, stamped);
 }
 
 /**
@@ -5943,7 +5998,7 @@ async function settleMotion(target: Locator) {
 async function expectFocusInside(dialog: Locator) {
 	await expect
 		.poll(() => dialog.evaluate((el) => el.contains(document.activeElement)), {
-			timeout: 5_000
+			timeout: expectTimeout(5_000)
 		})
 		.toBe(true);
 }
@@ -6011,15 +6066,18 @@ async function documentScrollTop(page: Page) {
 	return page.evaluate(() => document.documentElement.scrollTop + document.body.scrollTop);
 }
 
-type LiveCameraSnapshot = {
+type CameraSnapshot = {
 	view: { x: number; y: number; width: number; height: number } | null;
 	bounds: { x: number; y: number; width: number; height: number } | null;
 };
 
 // The scene emits one camera diagnostic after the first post-startFollow
-// render and one more after each real resize, so the latest snapshot is the
-// current camera geometry — no live Phaser object crosses the wire.
-async function waitForLiveCamera(page: Page, width: number, height: number) {
+// render and one more after each real resize — nothing in between. The
+// returned snapshot is that last emitted geometry, so view.x/y go stale as
+// soon as the camera follows a moving player: only read it right after
+// waitForCameraSnapshot, and keep bounds assertions to center/clamp math
+// that movement cannot change.
+async function waitForCameraSnapshot(page: Page, width: number, height: number) {
 	await page.waitForFunction(
 		({ w, h }) => {
 			const diagnostic = (window as GlieseProbeWindow).__glieseLastSceneCameraDiagnostic;
@@ -6030,7 +6088,7 @@ async function waitForLiveCamera(page: Page, width: number, height: number) {
 	);
 }
 
-async function liveCamera(page: Page): Promise<LiveCameraSnapshot> {
+async function cameraSnapshot(page: Page): Promise<CameraSnapshot> {
 	return page.evaluate(() => {
 		const diagnostic = (window as GlieseProbeWindow).__glieseLastSceneCameraDiagnostic;
 		const camera = diagnostic?.camera;
@@ -6051,7 +6109,7 @@ function expectCameraAxes(
 	mapH: number,
 	vw: number,
 	vh: number,
-	cam: LiveCameraSnapshot
+	cam: CameraSnapshot
 ) {
 	expect(cam.bounds, `${mapId} camera bounds`).not.toBeNull();
 	expect(cam.view, `${mapId} world view`).not.toBeNull();
@@ -6169,7 +6227,7 @@ for (const interior of [
 	test(`HPA-840 ${interior.mapId} recenters the camera across live resizes and keeps movement working`, async ({
 		page
 	}) => {
-		test.setTimeout(120_000);
+		test.setTimeout(testTimeout(120_000));
 		await installRuntimeProbes(page);
 		await page.setViewportSize({ width: 1280, height: 720 });
 		await page.goto(`/?movementDiagnostics=on&startMap=${interior.mapId}`);
@@ -6179,39 +6237,39 @@ for (const interior of [
 		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 		await waitForHudPosition(page, interior.mapId, interior.spawn);
 
-		await waitForLiveCamera(page, 1280, 720);
+		await waitForCameraSnapshot(page, 1280, 720);
 		expectCameraAxes(
 			interior.mapId,
 			interior.mapW,
 			interior.mapH,
 			1280,
 			720,
-			await liveCamera(page)
+			await cameraSnapshot(page)
 		);
 		await hpa840Shot(page, `${interior.mapId}-before-1280x720.png`);
 
 		await page.setViewportSize({ width: 1920, height: 1080 });
-		await waitForLiveCamera(page, 1920, 1080);
+		await waitForCameraSnapshot(page, 1920, 1080);
 		expectCameraAxes(
 			interior.mapId,
 			interior.mapW,
 			interior.mapH,
 			1920,
 			1080,
-			await liveCamera(page)
+			await cameraSnapshot(page)
 		);
 		await expectPlayerMoves(page, interior.mapId);
 		await hpa840Shot(page, `${interior.mapId}-resized-1920x1080.png`);
 
 		await page.setViewportSize({ width: 640, height: 360 });
-		await waitForLiveCamera(page, 640, 360);
+		await waitForCameraSnapshot(page, 640, 360);
 		expectCameraAxes(
 			interior.mapId,
 			interior.mapW,
 			interior.mapH,
 			640,
 			360,
-			await liveCamera(page)
+			await cameraSnapshot(page)
 		);
 		await expectPlayerMoves(page, interior.mapId);
 		await hpa840Shot(page, `${interior.mapId}-resized-640x360.png`);
@@ -6281,7 +6339,7 @@ for (const interior of [
 test('HPA-840 compact field HUD at 640×360 hides the minimap, keeps M, and stays disjoint', async ({
 	page
 }) => {
-	test.setTimeout(90_000);
+	test.setTimeout(testTimeout(90_000));
 	await installRuntimeProbes(page);
 	// Same seeded-save reason as the interior gates: a `?startMap=` fresh boot
 	// would park the run inside the prologue.opening scene.

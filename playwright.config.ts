@@ -21,8 +21,10 @@ export default defineConfig({
 	// Hosted runners split two Chromium workers over shared vCPUs, so Phaser
 	// boot, HUD publishes and keyboard journeys run several times slower than
 	// locally — bounds that are comfortable on a dev machine flake there.
-	// Looser caps cost nothing while the suite is green; explicit per-test and
-	// per-assert timeouts still win where a test sets them deliberately.
+	// Looser caps cost nothing while the suite is green. Explicit per-test and
+	// per-assert timeouts go through testTimeout/expectTimeout in
+	// tests/e2e/helpers/game.ts, which never shrink below these CI defaults
+	// and cap a runaway test below the global budget.
 	timeout: process.env.CI ? 120_000 : 30_000,
 	expect: { timeout: process.env.CI ? 30_000 : 5_000 },
 	// CI keeps the terse dot output but also emits playwright-report/ for the
