@@ -12,14 +12,13 @@ import { resolve } from 'node:path';
 import {
 	continueFromTitle,
 	continueFromTitlePicker,
-	expectTimeout,
 	readSlotEnvelope,
 	saveThroughSaveScreen,
 	seedSaveSlots,
 	startNewRunFromTitle,
-	startNewRunThroughOpening,
-	testTimeout
+	startNewRunThroughOpening
 } from './helpers/game';
+import { expectTimeout, testTimeout } from '../../tools/e2e-timeout-budget';
 import { blacksmithInteriorMap, overworldMap } from '../../src/lib/game/content/maps';
 import {
 	overworldDoorArrival,

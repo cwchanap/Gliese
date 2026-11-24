@@ -17,6 +17,8 @@ coverage:
 # commands; `story:check:strict` guards it instead of tests.
 ignore:
   - 'src-tauri/src/story/generated.rs'
-  # E2e helpers are exercised by the Playwright job, not unit tests; the
-  # unit runner cannot cover them.
+  # tests/ reaches the vitest report only when a spec imports a
+  # Playwright-bound helper (Page APIs a unit run cannot cover); the e2e
+  # job exercises those lines instead. Node-pure timeout logic lives in
+  # tools/e2e-timeout-budget.ts so its unit-tested coverage stays counted.
   - 'tests/**'

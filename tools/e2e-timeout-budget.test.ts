@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { expectTimeout, testTimeout } from './game';
+import { expectTimeout, testTimeout } from './e2e-timeout-budget';
 
 const RUN_BUDGET_MS = 720_000;
 const NOW = new Date('2026-11-24T12:00:00.000Z');
