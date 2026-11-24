@@ -18,6 +18,9 @@ export default defineConfig({
 	globalTimeout: process.env.CI
 		? Number(process.env.PLAYWRIGHT_GLOBAL_TIMEOUT_MS || 12 * 60_000)
 		: 0,
+	// Stamps PLAYWRIGHT_RUN_START_MS so testTimeout can budget per-test caps
+	// against time remaining, not the whole suite budget.
+	globalSetup: './tests/e2e/global-setup.ts',
 	// Hosted runners split two Chromium workers over shared vCPUs, so Phaser
 	// boot, HUD publishes and keyboard journeys run several times slower than
 	// locally — bounds that are comfortable on a dev machine flake there.

@@ -166,7 +166,9 @@ jobs:
   # The 20-minute timeout is a hard cap, not the target. Playwright's
   # globalTimeout only covers the test run, so the test step passes it the
   # job budget left after setup (minus a reserve for build + report upload);
-  # a slow setup then cannot cancel the run before the upload runs.
+  # a slow setup then cannot cancel the run before the upload runs — under
+  # four minutes left, the step fails outright instead of handing Playwright
+  # a budget the job cannot honor.
   # Keep E2E_JOB_CAP_MINUTES in sync with timeout-minutes.
   e2e:
     name: Playwright E2E
@@ -196,8 +198,11 @@ jobs:
       - name: Run e2e tests
         run: |
           remaining_s=$(( E2E_JOB_CAP_MINUTES * 60 - ($(date +%s) - E2E_JOB_START) ))
+          if (( remaining_s < 240 )); then
+            echo "::error::e2e setup left ${remaining_s}s of the ${E2E_JOB_CAP_MINUTES}-minute job budget; at least 240s are needed (60s minimum run + 180s build/upload reserve)"
+            exit 1
+          fi
           budget_s=$(( remaining_s - 180 ))
-          (( budget_s < 60 )) && budget_s=60
           PLAYWRIGHT_GLOBAL_TIMEOUT_MS=$(( budget_s * 1000 )) bun run test:e2e
 
       - name: Upload Playwright report
