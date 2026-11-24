@@ -21,6 +21,7 @@ export type LanePattern = {
 	recoveryMs: number;
 	/** Stunned this long when the lane ends at the arena edge. */
 	edgeStunMs?: number;
+	/** From the wind-up's start, or from the end of the edge stun when there is one. */
 	intervalMs: number;
 	/** Starts only while Grik stands this close. */
 	range: number;
@@ -110,24 +111,24 @@ const boarCharge: LanePattern = {
 
 const enemyProfiles: Record<SnareEnemyId, EnemyProfile> = {
 	'forest-wolf': {
-		hp: 24,
+		hp: 36, // paper 24: standing still won
 		walkSpeed: 110,
 		holdDistance: 90,
 		radius: 28,
 		turnDelayMs: 400,
 		loopsToSnare: 1,
-		snareMs: 3_000,
+		snareMs: 4_500, // paper 3_000
 		ringsFallOffMs: 10_000,
 		patterns: [wolfLunge]
 	},
 	'boar-king': {
-		hp: 680, // paper 520
+		hp: 760, // paper 520
 		walkSpeed: 90,
 		holdDistance: 60,
 		radius: 60,
 		turnDelayMs: 1_000,
 		loopsToSnare: 3,
-		snareMs: 10_000, // paper 6_000: looping was slower than dodge-and-punish
+		snareMs: 7_000, // paper 6_000
 		ringsFallOffMs: 10_000,
 		patterns: [boarCharge, boarGore],
 		phaseTwo: {
@@ -155,7 +156,9 @@ export const snareTuning = {
 		backHitMultiplier: 3,
 		focusEvery: 4,
 		focusMultiplier: 2,
-		backHurtMultiplier: 1.5
+		backHurtMultiplier: 1.5,
+		/** A hit stops Grik's throws for this long and resets Focus. */
+		hitStaggerMs: 1_000
 	},
 	line: {
 		maxLength: 720,

@@ -578,13 +578,14 @@ export class SnareBattleScene extends Phaser.Scene {
 
 		if (!hero.planted) return;
 
-		// Focus pips: every 4th planted throw doubles.
+		// Focus pips: every 4th planted throw doubles. Red while a hit staggers him.
 		const every = snareTuning.hero.focusEvery;
 		const filled = hero.focusCount % every;
 		const top = hero.y - this.hero.displayHeight - 4;
+		const pipColor = this.state.now < hero.staggeredUntil ? colors.cut : colors.focus;
 		for (let pip = 0; pip < every - 1; pip += 1) {
 			const x = hero.x + (pip - (every - 2) / 2) * 12;
-			this.overlay.lineStyle(2, colors.focus, 0.9);
+			this.overlay.lineStyle(2, pipColor, 0.9);
 			this.overlay.strokeCircle(x, top, 4);
 			if (pip < filled) {
 				this.overlay.fillStyle(colors.focus, 1);
@@ -907,7 +908,10 @@ export class SnareBattleScene extends Phaser.Scene {
 			ribbon: sortBattleRibbonEntries([
 				{
 					unitId: 'hero',
-					readyAt: hero.planted ? hero.nextThrowAt : now + snareTuning.hero.firstThrowDelayMs
+					readyAt: Math.max(
+						hero.planted ? hero.nextThrowAt : now + snareTuning.hero.firstThrowDelayMs,
+						hero.staggeredUntil
+					)
 				},
 				...living.map((enemy) => ({
 					unitId: enemy.unitId,

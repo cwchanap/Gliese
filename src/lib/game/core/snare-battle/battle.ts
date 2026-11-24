@@ -47,6 +47,8 @@ export type SnareHero = {
 	nextThrowAt: number;
 	/** Throws in a row from this spot. */
 	focusCount: number;
+	/** A hit stops his throws until then. */
+	staggeredUntil: number;
 };
 
 export type EnemyAttack = {
@@ -182,7 +184,8 @@ export function createSnareBattle(fightId: SnareFightId): SnareBattleState {
 			facing: 1,
 			planted: true,
 			nextThrowAt: tuning.hero.firstThrowDelayMs,
-			focusCount: 0
+			focusCount: 0,
+			staggeredUntil: 0
 		},
 		line: createLine(heroStart),
 		lineBlockedUntil: 0,
@@ -342,7 +345,7 @@ function stepThrows(state: SnareBattleState, events: SnareEvent[]) {
 
 	if (target.x !== hero.x) hero.facing = target.x > hero.x ? 1 : -1;
 
-	if (state.now < hero.nextThrowAt) {
+	if (state.now < hero.nextThrowAt || state.now < hero.staggeredUntil) {
 		return;
 	}
 
@@ -592,6 +595,8 @@ function runLane(
 	if (pattern.edgeStunMs !== undefined) {
 		enemy.attack = null;
 		enemy.stunnedUntil = state.now + pattern.edgeStunMs;
+		// Its cooldown starts once it is back on its feet, so it does not charge again from the wall.
+		enemy.readyAt[pattern.name] = enemy.stunnedUntil + pattern.intervalMs;
 		events.push({ type: 'stunned', unitId: enemy.unitId });
 		return;
 	}
@@ -623,6 +628,8 @@ function hurtHero(
 	const back = isBehind(hero, from.x);
 	const amount = Math.round(damage * (back ? tuning.hero.backHurtMultiplier : 1));
 	hero.hp = Math.max(0, hero.hp - amount);
+	hero.staggeredUntil = state.now + tuning.hero.hitStaggerMs;
+	hero.focusCount = 0;
 	events.push({ type: 'hero-hit', unitId: enemy.unitId, damage: amount, back });
 
 	if (hero.hp === 0) {

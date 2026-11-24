@@ -122,7 +122,7 @@ describe('snare battle: the loop', () => {
 		expect(isSnared(outside, state.now)).toBe(false);
 	});
 
-	it('holds a wolf for 3 s: it cannot move, turn or attack', () => {
+	it('holds a wolf for its snare time: it cannot move, turn or attack', () => {
 		const state = setup(
 			'wolves-2',
 			[
@@ -144,8 +144,9 @@ describe('snare battle: the loop', () => {
 
 		expect(events.some((event) => event.type === 'windup')).toBe(false);
 		expect({ x: wolf.x, y: wolf.y, facing: wolf.facing }).toEqual(held);
-		expect(isSnared(wolf, snaredAt + 2_950)).toBe(true);
-		expect(isSnared(wolf, snaredAt + 3_000)).toBe(false);
+		const snareMs = snareTuning.enemies['forest-wolf'].snareMs;
+		expect(isSnared(wolf, snaredAt + snareMs - 50)).toBe(true);
+		expect(isSnared(wolf, snaredAt + snareMs)).toBe(false);
 	});
 
 	it('brings the Boar King down on the third Bound ring, for its bring-down time', () => {
@@ -389,6 +390,30 @@ describe('snare battle: enemy attacks', () => {
 		expect(frontHit).toMatchObject({ type: 'hero-hit', back: false, damage: 4 });
 	});
 
+	it('a hit staggers Grik: no throws for 1 s, and Focus starts over', () => {
+		const state = setup(
+			'wolves-2',
+			[
+				{ x: 560, y: 250 },
+				{ x: 360, y: 250, facing: 1 }
+			],
+			{ x: 450, y: 250 }
+		);
+		state.targetId = state.enemies[0]!.unitId;
+		const lunger = state.enemies[1]!;
+		release(lunger);
+		lunger.readyAt.lunge = 0;
+
+		const before = runUntil(state, still, (event) => event.type === 'hero-hit');
+		expect(before.some((event) => event.type === 'throw')).toBe(true);
+		expect(state.hero.focusCount).toBe(0);
+
+		const staggered = run(state, still, snareTuning.hero.hitStaggerMs - 20);
+		expect(staggered.some((event) => event.type === 'throw')).toBe(false);
+		const after = run(state, still, 100);
+		expect(after.some((event) => event.type === 'throw')).toBe(true);
+	});
+
 	it('deals damage only through attacks: touching Grik does nothing', () => {
 		const state = setup(
 			'wolves-2',
@@ -405,7 +430,7 @@ describe('snare battle: enemy attacks', () => {
 		expect(state.hero.hp).toBe(state.hero.maxHp);
 	});
 
-	it('stuns the Boar King when its charge reaches the arena edge', () => {
+	it('stuns the Boar King when its charge reaches the arena edge, and its cooldown starts after', () => {
 		const state = setup('boar-king', [{ x: 500, y: 250, facing: 1 }], { x: 640, y: 250 });
 		const boar = state.enemies[0]!;
 		release(boar);
@@ -415,6 +440,8 @@ describe('snare battle: enemy attacks', () => {
 		expect(boar.x).toBeCloseTo(snareTuning.arena.width - snareTuning.arena.padding);
 		expect(isStunned(boar, state.now + 2_400)).toBe(true);
 		expect(isStunned(boar, state.now + 2_500)).toBe(false);
+		// The next charge waits its full 8 s after the stun, not after the wind-up began.
+		expect(boar.readyAt.charge).toBe(boar.stunnedUntil + 8_000);
 	});
 
 	it('enters phase 2 at half HP: faster, charging every 5 s', () => {
