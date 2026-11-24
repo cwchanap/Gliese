@@ -29,18 +29,18 @@ describe('world scene camera diagnostic', () => {
 	});
 
 	it('does not throw when no window-like target exists', () => {
+		// Omit the target: this Node-project test has no `window`, so the call
+		// exercises the emitter's no-target fallback.
+		expect(typeof window).toBe('undefined');
 		expect(() =>
-			emitWorldSceneCameraDiagnostic(
-				{
-					mapId: 'overworld',
-					facing: 'up',
-					camera: {
-						view: { x: 0, y: 0, width: 1280, height: 720 },
-						bounds: { x: 0, y: 0, width: 8_096, height: 8_096 }
-					}
-				},
-				new EventTarget()
-			)
+			emitWorldSceneCameraDiagnostic({
+				mapId: 'overworld',
+				facing: 'up',
+				camera: {
+					view: { x: 0, y: 0, width: 1280, height: 720 },
+					bounds: { x: 0, y: 0, width: 8_096, height: 8_096 }
+				}
+			})
 		).not.toThrow();
 	});
 });
