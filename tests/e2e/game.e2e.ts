@@ -3320,13 +3320,13 @@ test('E facing the south-road sealed gate reports the way barred without a dialo
 	);
 	await continueFromTitle(page);
 
-	// A lone press's edge lives only for the physical hold: Phaser v4 clears
+	// A lone press's edge likely died with its hold: Phaser v4 clears
 	// Key._justDown in onUp, and WorldScene drains JustDown every frame — at
-	// ~200ms/frame under CI contention (run 45297648388) no update ran inside
-	// a ~1ms press and the interact vanished. Hold 'e' until the real
-	// interact path lands the barred line: the first update in the window
-	// consumes the edge once, and held repeats cannot re-fire it (onDown
-	// only re-arms while !isDown).
+	// ~200ms/frame under CI contention (run 45297648388) a ~1ms press can
+	// clear before any update consumes it, with no evidence the interact
+	// ever ran. Hold 'e' until the real interact path lands the barred
+	// line: the first update in the window consumes the edge once, and held
+	// repeats cannot re-fire it (onDown only re-arms while !isDown).
 	await page.keyboard.down('e');
 	try {
 		await expect(fieldStatus(page)).toContainText(/barred/i);
