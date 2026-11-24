@@ -2,17 +2,42 @@ import { expect, type Page } from '@playwright/test';
 
 export const SAVES_STORAGE_KEY = 'gliese.saves.v1';
 
-async function waitForPlaying(page: Page) {
+/**
+ * CI-aware bounds for explicit timeouts. The config raises the suite defaults
+ * on CI (test 120s, expect 30s — keep in sync with playwright.config.ts), so
+ * an explicit bound tuned for the tighter local defaults must not shrink the
+ * CI budget. testTimeout also keeps one test from holding the whole suite:
+ * on CI a runaway is cut three minutes before the workflow-provided
+ * PLAYWRIGHT_GLOBAL_TIMEOUT_MS would end the run, so the failure lands on the
+ * hanging test instead of leaving everything queued behind it "did not run".
+ */
+export function testTimeout(ms: number): number {
+	if (!process.env.CI) return ms;
+	const budget = Number(process.env.PLAYWRIGHT_GLOBAL_TIMEOUT_MS || 12 * 60_000);
+	return Math.min(Math.max(ms, 120_000), Math.max(30_000, budget - 180_000));
+}
+
+export function expectTimeout(ms: number): number {
+	return process.env.CI ? Math.max(ms, 30_000) : ms;
+}
+
+async function waitForPlaying(page: Page, options: { allowDialogue?: boolean } = {}) {
 	await expect(page.locator('canvas')).toBeVisible();
 	// A New Run can raise the modal Opening dialogue before this check runs.
 	// A modal makes the field HUD inert and role queries skip inert subtrees,
 	// so a bare Menu assert can never resolve once the dialogue is up (hosted
-	// runs 45309241043, 45312640393). Either element proves the run reached
-	// the field; the publish barrier below still gates real readiness.
+	// runs 45309241043, 45312640393). For that path either element proves the
+	// run reached the field; the publish barrier below still gates real
+	// readiness. A loaded save has no legitimate dialogue, though — if one is
+	// up, the load replayed a scene and failing here keeps the error at the
+	// readiness check instead of a misleading downstream miss.
 	// The dialogue panel is a <dialog>; BattleSummary is also role="dialog", so
 	// match the element, not the role, or a battle summary would pass as the
 	// field being ready.
-	await expect(page.getByRole('button', { name: 'Menu' }).or(page.locator('dialog'))).toBeVisible();
+	const fieldReady = page.getByRole('button', { name: 'Menu' });
+	await expect(
+		options.allowDialogue ? fieldReady.or(page.locator('dialog')) : fieldReady
+	).toBeVisible();
 	// Menu/canvas exist before Phaser boots; the field HUD's "Loading game"
 	// placeholder is only replaced by WorldScene's first publish, when interact
 	// keys are live. Waiting for it keeps keyboard interactions deterministic.
@@ -60,6 +85,12 @@ async function waitForPlayingOrBattle(page: Page) {
  * where resolveWorldRenderOptions re-reads location.search — without a
  * reload and without turning the visit into a direct-boot tooling link. The
  * player's Title → New Run journey stays intact.
+ *
+ * The param is left on the URL on purpose: a later page.reload() re-runs the
+ * entry classification, and keeping it is what lets the interior checkpoint
+ * tests resume the newest save straight into the field (Title → Continue
+ * picks the autosave slot instead). A test that wants the Title screen back
+ * after a reload must strip the query params itself.
  */
 export async function startNewRunFromTitle(
 	page: Page,
@@ -93,7 +124,7 @@ export async function startNewRunFromTitle(
 			.then(() => 'playing' as const)
 	]);
 	if (outcome === 'confirm') await confirm.click();
-	await waitForPlaying(page);
+	await waitForPlaying(page, { allowDialogue: true });
 }
 
 export async function startNewRunThroughOpening(page: Page) {

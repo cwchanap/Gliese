@@ -50,7 +50,7 @@ export default defineConfig({
 					hookTimeout: 60_000,
 					include: [
 						'src/**/*.{test,spec}.{js,ts}',
-						// vitest-native and CI-safe tools specs: no LFS assets, no
+						// vitest-native and CI-safe tools specs: no
 						// bun:test/node:test imports, CPU-cheap.
 						'tools/validate-heroic-ui-art.test.ts'
 					],
