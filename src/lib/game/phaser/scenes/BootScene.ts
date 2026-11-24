@@ -33,6 +33,7 @@ import {
 } from '$lib/game/phaser/renderer-diagnostics';
 import { preloadAudio } from '$lib/game/phaser/audio';
 import { resolveWorldRenderOptions } from '$lib/game/phaser/world-render-options';
+import { SnareBattleScene, type SnareBattleStartData } from './SnareBattleScene';
 import { WorldScene } from './WorldScene';
 
 export class BootScene extends Phaser.Scene {
@@ -185,6 +186,12 @@ export class BootScene extends Phaser.Scene {
 	}
 
 	create() {
+		// `?battleTest=<fight>` (dev only) opens one prototype fight and never saves.
+		const fightId = resolveWorldRenderOptions().battleTestId;
+		if (fightId) {
+			this.scene.start(SnareBattleScene.key, { fightId } satisfies SnareBattleStartData);
+			return;
+		}
 		this.scene.start(WorldScene.key, this.startRequest);
 	}
 }
