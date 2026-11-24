@@ -160,9 +160,11 @@ jobs:
           flags: rust
 
   # Single blocking e2e job: `bun run test:e2e` builds once, so there is no
-  # separate build step. The 20-minute timeout is headroom for variable setup
-  # (browser install and the test step); the <=10-minute suite target still
-  # applies.
+  # separate build step. The design's ~10-minute target is for the whole job
+  # (checkout, install, Chromium install, build and tests) and is not yet met:
+  # the last measured run took ~15 minutes, ~5.5 of them installing Chromium.
+  # The 20-minute timeout is a hard cap, not the target; playwright.config.ts
+  # sets a globalTimeout below it so the report upload still runs.
   e2e:
     name: Playwright E2E
     runs-on: ubuntu-24.04

@@ -9,9 +9,10 @@ async function waitForPlaying(page: Page) {
 	// so a bare Menu assert can never resolve once the dialogue is up (hosted
 	// runs 45309241043, 45312640393). Either element proves the run reached
 	// the field; the publish barrier below still gates real readiness.
-	await expect(
-		page.getByRole('button', { name: 'Menu' }).or(page.getByRole('dialog'))
-	).toBeVisible();
+	// The dialogue panel is a <dialog>; BattleSummary is also role="dialog", so
+	// match the element, not the role, or a battle summary would pass as the
+	// field being ready.
+	await expect(page.getByRole('button', { name: 'Menu' }).or(page.locator('dialog'))).toBeVisible();
 	// Menu/canvas exist before Phaser boots; the field HUD's "Loading game"
 	// placeholder is only replaced by WorldScene's first publish, when interact
 	// keys are live. Waiting for it keeps keyboard interactions deterministic.
@@ -66,8 +67,10 @@ export async function startNewRunFromTitle(
 ) {
 	await page.goto('/');
 	const newRun = page.getByRole('button', { name: /New Run/i });
-	await expect(newRun).toBeVisible();
 	if (options.movementDiagnostics) {
+		// The Title must have rendered before the URL is amended. waitFor uses
+		// the action timeout, so a slow boot keeps the same budget click() had.
+		await newRun.waitFor({ state: 'visible' });
 		await page.evaluate(() => {
 			const url = new URL(window.location.href);
 			url.searchParams.set('movementDiagnostics', 'on');
@@ -85,7 +88,7 @@ export async function startNewRunFromTitle(
 	const outcome = await Promise.race([
 		confirm.waitFor({ state: 'visible' }).then(() => 'confirm' as const),
 		menu
-			.or(page.getByRole('dialog'))
+			.or(page.locator('dialog'))
 			.waitFor({ state: 'visible' })
 			.then(() => 'playing' as const)
 	]);
