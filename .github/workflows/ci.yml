@@ -163,13 +163,21 @@ jobs:
   # separate build step. The design's ~10-minute target is for the whole job
   # (checkout, install, Chromium install, build and tests) and is not yet met:
   # the last measured run took ~15 minutes, ~5.5 of them installing Chromium.
-  # The 20-minute timeout is a hard cap, not the target; playwright.config.ts
-  # sets a globalTimeout below it so the report upload still runs.
+  # The 20-minute timeout is a hard cap, not the target. Playwright's
+  # globalTimeout only covers the test run, so the test step passes it the
+  # job budget left after setup (minus a reserve for build + report upload);
+  # a slow setup then cannot cancel the run before the upload runs.
+  # Keep E2E_JOB_CAP_MINUTES in sync with timeout-minutes.
   e2e:
     name: Playwright E2E
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      E2E_JOB_CAP_MINUTES: '20'
     steps:
+      - name: Record job start
+        run: echo "E2E_JOB_START=$(date +%s)" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -186,7 +194,11 @@ jobs:
         run: bunx playwright install --with-deps chromium
 
       - name: Run e2e tests
-        run: bun run test:e2e
+        run: |
+          remaining_s=$(( E2E_JOB_CAP_MINUTES * 60 - ($(date +%s) - E2E_JOB_START) ))
+          budget_s=$(( remaining_s - 180 ))
+          (( budget_s < 60 )) && budget_s=60
+          PLAYWRIGHT_GLOBAL_TIMEOUT_MS=$(( budget_s * 1000 )) bun run test:e2e
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}

@@ -9,12 +9,15 @@ export default defineConfig({
 	fullyParallel: true,
 	workers: process.env.CI ? 2 : 1,
 	retries: 0,
-	// The CI job is capped at 20 minutes and spends ~6 of them on setup. If a
-	// shared boot failure makes every test burn its full timeout, the job cap
-	// would cancel the run and skip the report upload. Ending the run here
-	// (12 min, against ~9 for a healthy suite) lets Playwright write its
-	// report and the upload step run.
-	globalTimeout: process.env.CI ? 12 * 60_000 : 0,
+	// The CI job is capped at 20 minutes, much of it setup Playwright never
+	// sees. The workflow passes the job budget left after setup (minus a
+	// reserve for the build and the report upload) as
+	// PLAYWRIGHT_GLOBAL_TIMEOUT_MS, so a shared boot failure ends the run
+	// here — Playwright writes its report and the upload step still runs.
+	// Twelve minutes is the fallback when the variable is unset.
+	globalTimeout: process.env.CI
+		? Number(process.env.PLAYWRIGHT_GLOBAL_TIMEOUT_MS || 12 * 60_000)
+		: 0,
 	// Hosted runners split two Chromium workers over shared vCPUs, so Phaser
 	// boot, HUD publishes and keyboard journeys run several times slower than
 	// locally — bounds that are comfortable on a dev machine flake there.
