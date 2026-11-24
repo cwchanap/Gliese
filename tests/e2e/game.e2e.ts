@@ -4983,23 +4983,60 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 		//  1. `__glieseWolvesActive` records the first active-phase hud-state
 		//     publish carrying both mouth-pack units — the state/stats the
 		//     fight ran with. It says nothing about the DOM.
-		//  2. `__glieseWolvesHudPlates` is recorded by the MutationObserver
-		//     below only when the battle HUD and both wolf plates pass the
-		//     visibility and positive-size checks at the same time.
+		//  2. `__glieseWolvesHudPlates` records the named, exposed Battle
+		//     region and both visible, on-screen plates in one observation.
 		const probeWindow = window as GlieseProbeWindow;
 		probeWindow.__glieseBattleFeed = [];
 		probeWindow.__glieseWolvesActive = null;
 		probeWindow.__glieseWolvesHudPlates = undefined;
 		const wolfIds = ['wildwood-wolves-mouth:unit:0', 'wildwood-wolves-mouth:unit:1'];
 		const rendered = (el: Element | null): el is HTMLElement => {
-			if (!(el instanceof HTMLElement) || !el.checkVisibility({ visibilityProperty: true }))
+			if (
+				!(el instanceof HTMLElement) ||
+				!el.checkVisibility({ visibilityProperty: true, opacityProperty: true })
+			)
 				return false;
-			const { width, height } = el.getBoundingClientRect();
-			return width > 0 && height > 0;
+			const box = el.getBoundingClientRect();
+			if (box.width <= 0 || box.height <= 0) return false;
+			let left = Math.max(box.left, 0);
+			let top = Math.max(box.top, 0);
+			let right = Math.min(box.right, window.innerWidth);
+			let bottom = Math.min(box.bottom, window.innerHeight);
+			for (let node: HTMLElement | null = el; node; node = node.parentElement) {
+				if (
+					node.hasAttribute('inert') ||
+					node.getAttribute('aria-hidden')?.trim().toLowerCase() === 'true'
+				)
+					return false;
+				const style = getComputedStyle(node);
+				if (Number(style.opacity) <= 0) return false;
+				if (node !== el) {
+					const clip = node.getBoundingClientRect();
+					if (['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowX)) {
+						left = Math.max(left, clip.left);
+						right = Math.min(right, clip.right);
+					}
+					if (['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowY)) {
+						top = Math.max(top, clip.top);
+						bottom = Math.min(bottom, clip.bottom);
+					}
+				}
+			}
+			return right > left && bottom > top;
 		};
-		const checkHud = (observer: MutationObserver) => {
+		const checkHud = () => {
+			// A mounted summary ends observation, even before its entrance transition.
+			if (document.querySelector('[data-testid="battle-summary"]')) return stop();
 			const hud = document.querySelector('[data-testid="battle-hud"]');
-			if (rendered(hud)) {
+			// BattleHud is a section named directly with aria-label; reject alternate
+			// roles or aria-labelledby, which can override that accessible name.
+			if (
+				rendered(hud) &&
+				hud.tagName === 'SECTION' &&
+				(!hud.hasAttribute('role') || hud.getAttribute('role') === 'region') &&
+				!hud.hasAttribute('aria-labelledby') &&
+				hud.getAttribute('aria-label')?.replace(/\s+/g, ' ').trim() === 'Battle'
+			) {
 				const plates = wolfIds
 					.map((unitId) =>
 						hud.querySelector(`[data-testid="battle-plate"][data-unit-id="${unitId}"]`)
@@ -5008,23 +5045,31 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 					.map((plate) => plate.dataset.unitId ?? '');
 				if (plates.length === wolfIds.length) {
 					probeWindow.__glieseWolvesHudPlates = plates;
-					observer.disconnect();
-					return;
+					stop();
 				}
 			}
-			// Stop if a visible, positive-size summary appears first.
-			const summary = document.querySelector('[data-testid="battle-summary"]');
-			if (rendered(summary)) observer.disconnect();
 		};
-		// `document` exists when init scripts run; document.body may not.
-		const hudObserver = new MutationObserver((mutations, observer) => checkHud(observer));
+		let finished = false;
+		let frame = 0;
+		const hudObserver = new MutationObserver(checkHud);
+		const stop = () => {
+			finished = true;
+			hudObserver.disconnect();
+			cancelAnimationFrame(frame);
+			clearTimeout(deadline);
+		};
+		const deadline = window.setTimeout(stop, 120_000);
+		const checkFrame = () => {
+			checkHud();
+			if (!finished) frame = requestAnimationFrame(checkFrame);
+		};
 		hudObserver.observe(document, {
 			childList: true,
 			subtree: true,
 			attributes: true,
-			attributeFilter: ['style', 'class', 'hidden']
+			characterData: true
 		});
-		checkHud(hudObserver);
+		checkFrame();
 		window.addEventListener('gliese:hud-state', (event) => {
 			const detail = (event as CustomEvent<HudStateSnapshot>).detail;
 			const feed = detail?.battle?.active?.feed ?? [];
@@ -5059,8 +5104,8 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 	const battle = page.getByRole('region', { name: 'Battle' });
 	const summary = page.getByTestId('battle-summary');
 	await expect(battle.or(summary)).toBeVisible({ timeout: 15_000 });
-	// The page-side observer requires a visible, positive-size battle HUD
-	// and both wolf plates in the same check; a state publish alone cannot.
+	// The page-side observer requires the named, exposed Battle region and
+	// both visible, on-screen wolf plates in the same check before summary.
 	await expect
 		.poll(async () =>
 			page.evaluate(() => ((window as GlieseProbeWindow).__glieseWolvesHudPlates ?? []).join(','))
@@ -5100,7 +5145,7 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 			timeout: 20_000
 		})
 		.toBe(2);
-	await hpa839Shot(page, 'first-wolves-battle.png');
+	await hpa839Shot(page, 'first-wolves-fight.png');
 });
 
 test('HPA-839 reporting the Boar King equips the hunter knife and persists it', async ({

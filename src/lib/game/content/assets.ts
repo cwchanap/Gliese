@@ -139,10 +139,6 @@ export const environmentDressingAsset = {
 	cellHeight: 96,
 	columns: 4,
 	frames: {
-		townWallHorizontal: { x: 0, y: 0, w: 96, h: 96 },
-		townWallVertical: { x: 96, y: 0, w: 96, h: 96 },
-		townHedgeHorizontal: { x: 192, y: 0, w: 96, h: 96 },
-		townHedgeVertical: { x: 288, y: 0, w: 96, h: 96 },
 		ruinWall: { x: 0, y: 96, w: 96, h: 96 },
 		futureGate: { x: 96, y: 96, w: 96, h: 96 },
 		stoneStair: { x: 192, y: 96, w: 96, h: 96 }
