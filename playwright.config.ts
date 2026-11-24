@@ -9,6 +9,13 @@ export default defineConfig({
 	fullyParallel: true,
 	workers: process.env.CI ? 2 : 1,
 	retries: 0,
+	// Hosted runners split two Chromium workers over shared vCPUs, so Phaser
+	// boot, HUD publishes and keyboard journeys run several times slower than
+	// locally — bounds that are comfortable on a dev machine flake there.
+	// Looser caps cost nothing while the suite is green; explicit per-test and
+	// per-assert timeouts still win where a test sets them deliberately.
+	timeout: process.env.CI ? 120_000 : 30_000,
+	expect: { timeout: process.env.CI ? 30_000 : 5_000 },
 	// CI keeps the terse dot output but also emits playwright-report/ for the
 	// workflow's artifact upload; locally stays on the default list reporter.
 	reporter: process.env.CI ? [['dot'], ['html', { open: 'never' }]] : 'list',
