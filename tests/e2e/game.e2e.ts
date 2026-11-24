@@ -3322,7 +3322,7 @@ test('E facing the south-road sealed gate reports the way barred without a dialo
 
 	// A lone press's edge likely died with its hold: Phaser v4 clears
 	// Key._justDown in onUp, and WorldScene drains JustDown every frame — at
-	// ~200ms/frame under CI contention (run 45297648388) a ~1ms press can
+	// ~200ms/frame under CI contention (run 45297648388) a zero-delay press can
 	// clear before any update consumes it, with no evidence the interact
 	// ever ran. Hold 'e' until the real interact path lands the barred
 	// line: the first update in the window consumes the edge once, and held
