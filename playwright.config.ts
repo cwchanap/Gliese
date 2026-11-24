@@ -26,7 +26,7 @@ export default defineConfig({
 	// locally — bounds that are comfortable on a dev machine flake there.
 	// Looser caps cost nothing while the suite is green. Explicit per-test and
 	// per-assert timeouts go through testTimeout/expectTimeout in
-	// tests/e2e/helpers/game.ts, which never shrink below these CI defaults
+	// tools/e2e-timeout-budget.ts, which never shrink below these CI defaults
 	// and cap a runaway test below the global budget.
 	timeout: process.env.CI ? 120_000 : 30_000,
 	expect: { timeout: process.env.CI ? 30_000 : 5_000 },
