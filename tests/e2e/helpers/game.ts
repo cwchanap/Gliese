@@ -4,7 +4,14 @@ export const SAVES_STORAGE_KEY = 'gliese.saves.v1';
 
 async function waitForPlaying(page: Page) {
 	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	// A New Run can raise the modal Opening dialogue before this check runs.
+	// A modal makes the field HUD inert and role queries skip inert subtrees,
+	// so a bare Menu assert can never resolve once the dialogue is up (hosted
+	// runs 45309241043, 45312640393). Either element proves the run reached
+	// the field; the publish barrier below still gates real readiness.
+	await expect(
+		page.getByRole('button', { name: 'Menu' }).or(page.getByRole('dialog'))
+	).toBeVisible();
 	// Menu/canvas exist before Phaser boots; the field HUD's "Loading game"
 	// placeholder is only replaced by WorldScene's first publish, when interact
 	// keys are live. Waiting for it keeps keyboard interactions deterministic.
@@ -70,11 +77,17 @@ export async function startNewRunFromTitle(
 	await newRun.click();
 	// An existing autosave raises the overwrite confirm; fresh profiles boot
 	// straight into the run. Race the two outcomes so both stay deterministic.
+	// The playing arm also accepts the Opening dialogue: the shell removes the
+	// Menu chip while a dialogue is up, so menu-only could hang on a fresh
+	// profile where no confirm exists to break the tie.
 	const confirm = page.getByTestId('confirm-new-run');
 	const menu = page.getByRole('button', { name: 'Menu' });
 	const outcome = await Promise.race([
 		confirm.waitFor({ state: 'visible' }).then(() => 'confirm' as const),
-		menu.waitFor({ state: 'visible' }).then(() => 'playing' as const)
+		menu
+			.or(page.getByRole('dialog'))
+			.waitFor({ state: 'visible' })
+			.then(() => 'playing' as const)
 	]);
 	if (outcome === 'confirm') await confirm.click();
 	await waitForPlaying(page);
