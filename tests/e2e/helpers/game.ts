@@ -24,14 +24,17 @@ function runElapsedMs(): number {
  * interrupt: an early runaway is cut three minutes before the
  * workflow-provided PLAYWRIGHT_GLOBAL_TIMEOUT_MS would end the run so queued
  * tests still get a slice, and a late-starting test is capped ten seconds
- * under the run time it actually has left so its own timeout fires first.
+ * under the run time it actually has left so its own timeout fires first. The
+ * floor under that cap is only a sliver — a real floor like 30s would hand
+ * the kill back to the global deadline once under ~40s remained, and 0 would
+ * disable the test timeout entirely.
  */
 export function testTimeout(ms: number): number {
 	if (!process.env.CI) return ms;
 	const budget = Number(process.env.PLAYWRIGHT_GLOBAL_TIMEOUT_MS || 12 * 60_000);
 	const hogCap = budget - 180_000;
 	const deadlineCap = budget - runElapsedMs() - 10_000;
-	return Math.min(Math.max(ms, 120_000), Math.max(30_000, Math.min(hogCap, deadlineCap)));
+	return Math.min(Math.max(ms, 120_000), Math.max(1_000, Math.min(hogCap, deadlineCap)));
 }
 
 export function expectTimeout(ms: number): number {

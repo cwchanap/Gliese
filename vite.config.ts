@@ -52,7 +52,9 @@ export default defineConfig({
 						'src/**/*.{test,spec}.{js,ts}',
 						// vitest-native and CI-safe tools specs: no
 						// bun:test/node:test imports, CPU-cheap.
-						'tools/validate-heroic-ui-art.test.ts'
+						'tools/validate-heroic-ui-art.test.ts',
+						// e2e helper logic that runs in node, not a browser worker.
+						'tests/e2e/helpers/*.test.ts'
 					],
 					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
 				}
