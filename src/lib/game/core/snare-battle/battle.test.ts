@@ -234,6 +234,18 @@ describe('snare battle: cutting the line', () => {
 		expect(state.line.points.length).toBeGreaterThan(1);
 	});
 
+	it('a charge across the drawn tip of the line cuts it', () => {
+		const state = setup('boar-king', [{ x: 304, y: 420, facing: 1 }], { x: 306, y: 200 });
+		const boar = state.enemies[0]!;
+		// One stored sample; the 6 px tip on to Grik is not stored yet.
+		state.line.points = [{ x: 300, y: 200 }];
+		release(boar);
+		boar.readyAt.charge = state.now;
+
+		const events = runUntil(state, still, (event) => event.type === 'line-cut', 4_000);
+		expect(events).toContainEqual({ type: 'line-cut', unitId: boar.unitId });
+	});
+
 	it('a wolf lunging across the line does not cut it', () => {
 		const state = setup(
 			'wolves-2',
@@ -423,6 +435,28 @@ describe('snare battle: enemy attacks', () => {
 		expect(staggered.some((event) => event.type === 'throw')).toBe(false);
 		const after = run(state, still, 100);
 		expect(after.some((event) => event.type === 'throw')).toBe(true);
+	});
+
+	it('a lunge does not reach Grik standing just past the end of its lane', () => {
+		const state = setup(
+			'wolves-2',
+			[
+				{ x: 400, y: 250, facing: 1 },
+				{ x: 800, y: 450 }
+			],
+			{ x: 540, y: 250 }
+		);
+		const wolf = state.enemies[0]!;
+		release(wolf);
+		wolf.readyAt.lunge = state.now;
+
+		// The lane is aimed while Grik is in range; he then steps 15 px past its far end.
+		runUntil(state, still, (event) => event.type === 'windup');
+		const end = wolf.attack!.origin.x + wolf.attack!.length;
+		state.hero.x = end + 15;
+		const events = run(state, still, 1_300);
+		expect(events).toContainEqual({ type: 'strike', unitId: wolf.unitId, pattern: 'lunge' });
+		expect(events.some((event) => event.type === 'hero-hit')).toBe(false);
 	});
 
 	it('deals damage only through attacks: touching Grik does nothing', () => {
