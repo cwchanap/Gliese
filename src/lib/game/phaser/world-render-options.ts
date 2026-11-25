@@ -64,5 +64,8 @@ const RENDER_OPTION_KEYS = [
  */
 export function hasRenderOptionOverrides(search: string): boolean {
 	const parameters = new URLSearchParams(search);
-	return RENDER_OPTION_KEYS.some((key) => parameters.has(key));
+	return RENDER_OPTION_KEYS.some((key) =>
+		// An unknown battleTest id boots the normal game, so it should not skip the title.
+		key === 'battleTest' ? isSnareFightId(parameters.get(key)) : parameters.has(key)
+	);
 }

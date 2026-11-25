@@ -718,8 +718,7 @@ export class SnareBattleScene extends Phaser.Scene {
 		const { width, height } = snareTuning.arena;
 		const zoom = Math.min(1, this.scale.width / width, this.scale.height / height);
 		this.cameras.main.setZoom(zoom);
-		this.cameras.main.scrollX = (width - this.scale.width / zoom) / 2;
-		this.cameras.main.scrollY = (height - this.scale.height / zoom) / 2;
+		this.cameras.main.centerOn(width / 2, height / 2);
 	};
 
 	// ---- HUD: the Svelte battle HUD, unchanged ---------------------------------
@@ -915,7 +914,11 @@ export class SnareBattleScene extends Phaser.Scene {
 				},
 				...living.map((enemy) => ({
 					unitId: enemy.unitId,
-					readyAt: Math.max(enemy.snaredUntil, Math.min(...Object.values(enemy.readyAt)))
+					readyAt: Math.max(
+						enemy.snaredUntil,
+						enemy.stunnedUntil,
+						Math.min(...Object.values(enemy.readyAt))
+					)
 				}))
 			]),
 			feed: this.feed,

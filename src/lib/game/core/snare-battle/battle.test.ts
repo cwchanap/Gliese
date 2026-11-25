@@ -178,6 +178,17 @@ describe('snare battle: the loop', () => {
 		expect(boar.boundRings).toBe(0);
 	});
 
+	it('starts a fresh count when the old rings have run out', () => {
+		const state = setup('boar-king', [{ x: 450, y: 250 }], { x: 360, y: 160 });
+		const boar = state.enemies[0]!;
+		boar.boundRings = 2;
+		boar.ringsExpireAt = state.now;
+
+		const events = runPath(state, loopAround(boar, 90));
+		expect(events).toContainEqual({ type: 'bound', unitId: boar.unitId, rings: 1 });
+		expect(isSnared(boar, state.now)).toBe(false);
+	});
+
 	it('does not snare an enemy again right after a snare ends', () => {
 		const state = setup(
 			'wolves-2',
@@ -451,7 +462,8 @@ describe('snare battle: enemy attacks', () => {
 			y: 250
 		});
 		const boar = state.enemies[0]!;
-		boar.readyAt.charge = Number.POSITIVE_INFINITY;
+		// Not parked: a parked boar counts as stunned, and its cooldowns would wait for that.
+		release(boar);
 
 		const events = runUntil(state, still, (event) => event.type === 'phase-two');
 		expect(hits(events).at(-1)!.damage).toBe(8);
@@ -459,6 +471,22 @@ describe('snare battle: enemy attacks', () => {
 		expect(boar.phase).toBe(2);
 		expect(boar.readyAt.charge).toBe(state.now + 5_000);
 		expect(state.phaseTwoAt).toBe(state.now);
+	});
+});
+
+describe('snare battle: phase 2 during an edge stun', () => {
+	it('counts the phase-2 charge cooldown from the end of the stun', () => {
+		const halfHp = snareTuning.enemies['boar-king'].hp / 2;
+		const state = setup('boar-king', [{ x: 520, y: 250, facing: -1, hp: halfHp + 2 }], {
+			x: 400,
+			y: 250
+		});
+		const boar = state.enemies[0]!;
+		boar.stunnedUntil = state.now + 2_500;
+
+		runUntil(state, still, (event) => event.type === 'phase-two');
+		expect(isStunned(boar, state.now)).toBe(true);
+		expect(boar.readyAt.charge).toBe(boar.stunnedUntil + 5_000);
 	});
 });
 
@@ -478,6 +506,17 @@ describe('snare battle: the whole fight', () => {
 
 		expect(potions).toBe(0);
 		expect(state.outcome).toBe('defeat');
+	});
+
+	it('moves the target to a living enemy after a kill', () => {
+		const state = setup('wolves-2', [
+			{ x: 400, y: 250, hp: 1 },
+			{ x: 420, y: 260 }
+		]);
+		state.targetId = state.enemies[0]!.unitId;
+		runUntil(state, still, (event) => event.type === 'enemy-defeated');
+
+		expect(state.targetId).toBe(state.enemies[1]!.unitId);
 	});
 
 	it('wins once every enemy is down', () => {

@@ -80,4 +80,24 @@ describe('snare line', () => {
 		expect(lineCrossesSegment(line, { x: -20, y: 50 }, { x: 20, y: 50 })).toBe(true);
 		expect(lineCrossesSegment(line, { x: 10, y: 50 }, { x: 40, y: 50 })).toBe(false);
 	});
+
+	it('a short last step still closes a loop', () => {
+		const line = createLine({ x: 100, y: 100 });
+		lay(line, [
+			{ x: 200, y: 100 },
+			{ x: 200, y: 200 },
+			{ x: 100, y: 200 },
+			{ x: 100, y: 104 }
+		]);
+
+		// 6 px is under the sample spacing, but it crosses the first piece.
+		expect(extendLine(line, { x: 100, y: 98 }, rules)).not.toBeNull();
+	});
+
+	it('a segment lying along the line counts as crossing it', () => {
+		const line = createLine({ x: 0, y: 0 });
+		lay(line, [{ x: 0, y: 100 }]);
+
+		expect(lineCrossesSegment(line, { x: 0, y: 20 }, { x: 0, y: 60 })).toBe(true);
+	});
 });
