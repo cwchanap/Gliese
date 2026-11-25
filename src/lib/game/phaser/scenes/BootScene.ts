@@ -6,6 +6,7 @@ import {
 	environmentDressingAsset,
 	interiorPropAsset,
 	npcPackAsset,
+	snareEffectAssets,
 	starterPackAsset,
 	terrainTilesAsset
 } from '$lib/game/content/assets';
@@ -151,6 +152,16 @@ export class BootScene extends Phaser.Scene {
 		this.load.image(interiorPropAsset.key, interiorPropAsset.path);
 		this.load.image(environmentDressingAsset.key, environmentDressingAsset.path);
 		preloadAudio(this.load);
+		for (const asset of Object.values(snareEffectAssets)) {
+			if ('frameWidth' in asset) {
+				this.load.spritesheet(asset.key, asset.path, {
+					frameWidth: asset.frameWidth,
+					frameHeight: asset.frameHeight
+				});
+			} else {
+				this.load.image(asset.key, asset.path);
+			}
+		}
 		for (const asset of Object.values(battleBackgroundAssets)) {
 			this.load.image(asset.key, asset.path);
 		}
