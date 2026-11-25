@@ -584,16 +584,22 @@ function runLane(
 	enemy.y = clamp(enemy.y + attack.aim.y * step, snareArenaBox.minY, snareArenaBox.maxY);
 	attack.travelled += step;
 
-	if (pattern.cutsLine && lineCrossesSegment(state.line, from, enemy)) {
+	// The drawn line runs on to Grik, past the last stored sample.
+	const drawn = state.line.points.length > 0 ? [...state.line.points, state.hero] : [];
+	if (pattern.cutsLine && lineCrossesSegment({ ...state.line, points: drawn }, from, enemy)) {
 		cutLine(state, enemy, events);
 	}
 
-	// Only the lane ahead of the start counts, so Grik is safe behind a charge.
-	const ahead =
+	// Only the drawn lane counts: Grik is safe behind its start and past its end.
+	const along =
 		(state.hero.x - attack.origin.x) * attack.aim.x +
-			(state.hero.y - attack.origin.y) * attack.aim.y >=
-		0;
-	if (!attack.hitHero && ahead && distanceToSegment(state.hero, from, enemy) <= pattern.width / 2) {
+		(state.hero.y - attack.origin.y) * attack.aim.y;
+	const inLane = along >= 0 && along <= attack.length;
+	if (
+		!attack.hitHero &&
+		inLane &&
+		distanceToSegment(state.hero, from, enemy) <= pattern.width / 2
+	) {
 		attack.hitHero = true;
 		hurtHero(state, enemy, attack.origin, pattern.damage, events);
 		if (state.outcome) return;
@@ -620,7 +626,7 @@ function runLane(
 
 /** An attack crossed the line: all of it is lost, and a new one starts after a pause. */
 function cutLine(state: SnareBattleState, enemy: SnareEnemy, events: SnareEvent[]) {
-	if (state.line.points.length < 2) {
+	if (state.line.points.length === 0) {
 		return;
 	}
 
