@@ -296,6 +296,53 @@ function buildActorAnimationAsset(
 	};
 }
 
+/**
+ * Effect art for the Snare, Flank, Loose battle (HPA-1322). Every image is stored
+ * at twice the size it is drawn; `frameWidth`/`frameHeight` mark a one-row strip of
+ * animation frames.
+ */
+export const snareEffectAssets = {
+	rope: { key: 'snare-rope', path: '/game/assets/snare-battle/rope.png' },
+	ropeCoilWolf: {
+		key: 'snare-rope-coil-wolf',
+		path: '/game/assets/snare-battle/rope-coil-wolf.png'
+	},
+	ropeCoilBoar: {
+		key: 'snare-rope-coil-boar',
+		path: '/game/assets/snare-battle/rope-coil-boar.png'
+	},
+	boundRing: { key: 'snare-bound-ring', path: '/game/assets/snare-battle/bound-ring.png' },
+	spear: { key: 'snare-spear', path: '/game/assets/snare-battle/spear.png' },
+	spearFocus: { key: 'snare-spear-focus', path: '/game/assets/snare-battle/spear-focus.png' },
+	hitSpark: {
+		key: 'snare-hit-spark',
+		path: '/game/assets/snare-battle/hit-spark.png',
+		frameWidth: 96,
+		frameHeight: 96
+	},
+	backHitSpark: {
+		key: 'snare-back-hit-spark',
+		path: '/game/assets/snare-battle/back-hit-spark.png',
+		frameWidth: 160,
+		frameHeight: 160
+	},
+	stunDust: {
+		key: 'snare-stun-dust',
+		path: '/game/assets/snare-battle/stun-dust.png',
+		frameWidth: 192,
+		frameHeight: 128
+	},
+	stunStar: { key: 'snare-stun-star', path: '/game/assets/snare-battle/stun-star.png' },
+	telegraphLane: {
+		key: 'snare-telegraph-lane',
+		path: '/game/assets/snare-battle/telegraph-lane.png'
+	},
+	telegraphCone: {
+		key: 'snare-telegraph-cone',
+		path: '/game/assets/snare-battle/telegraph-cone.png'
+	}
+} as const;
+
 export const animationPackAsset = {
 	key: 'animation-pack',
 	path: '/game/assets/animation-pack.png',
