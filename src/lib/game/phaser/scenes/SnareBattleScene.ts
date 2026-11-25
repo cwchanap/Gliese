@@ -285,11 +285,12 @@ export class SnareBattleScene extends Phaser.Scene {
 					const enemy = this.findEnemy(event.unitId);
 					const view = this.enemyViews.get(event.unitId);
 					if (view) view.flashUntil = now + hitFlashMs;
-					if (enemy && view) {
+					if (enemy) {
+						// The spark bursts where the spear arrives, at spear height.
 						this.playOnce(
 							event.back ? snareEffectAssets.backHitSpark.key : snareEffectAssets.hitSpark.key,
 							enemy.x,
-							enemy.y - view.sprite.displayHeight * 0.45
+							enemy.y - spearHeight
 						);
 					}
 					const multiplier =
