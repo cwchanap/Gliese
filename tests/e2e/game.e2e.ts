@@ -296,7 +296,7 @@ function evidenceShots(defaultRoot: string) {
 
 const HPA839_EVIDENCE_DOCS_DIR = 'docs/superpowers/reports/img/hpa-839-story-gear-shop';
 const hpa839Evidence = evidenceShots(HPA839_EVIDENCE_DOCS_DIR);
-const hpa840Evidence = evidenceShots('docs/superpowers/reports/img/hpa-840-responsive');
+const hpa840Evidence = evidenceShots('verification-output/hpa-840-responsive');
 
 /**
  * HPA-839 evidence capture: isolated per-test output by default so a plain
@@ -1438,7 +1438,7 @@ const BLACKSMITH_ARMORY_TRANSIT_X = 611;
 
 // The guild hall tests seed the boar king trial, so Drogg is not rendered in the lodge.
 const BLACKSMITH_RUNTIME_EVIDENCE_ROOT = resolve(
-	'docs/superpowers/reports/img/hpa-586-interiors-runtime/blacksmith-interior'
+	'verification-output/hpa-586-interiors-runtime/blacksmith-interior'
 );
 const BLACKSMITH_COLLISION_IDS = [
 	...(blacksmithInteriorMap.blockers ?? []).map(({ id }) => id),
@@ -2214,8 +2214,8 @@ function assertBlacksmithFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneR
 
 /**
  * Blacksmith runtime evidence: isolated per-test output by default so a
- * plain `bun run test:e2e` never overwrites the committed docs pack.
- * `BLACKSMITH_EVIDENCE_DOCS=1` opts back into the committed dir for a
+ * plain `bun run test:e2e` never overwrites the shared evidence dir.
+ * `BLACKSMITH_EVIDENCE_DOCS=1` opts back into the shared dir for a
  * deliberate refresh; `BLACKSMITH_EVIDENCE_ROOT` captures into a custom dir.
  */
 function blacksmithEvidenceRoot(info: TestInfo) {
@@ -5881,8 +5881,8 @@ if (process.env.HPA840_SHARED_CDP) {
 /**
  * HPA-840 evidence capture: isolated per-test output by default so a plain
  * `bun run test:e2e` can never overwrite — or leave `-retryN` litter in —
- * the committed docs pack. `HPA840_EVIDENCE_DOCS=1` opts back into the
- * committed dir for a deliberate refresh; `HPA840_EVIDENCE_ROOT` captures
+ * the shared evidence dir. `HPA840_EVIDENCE_DOCS=1` opts back into the
+ * shared dir for a deliberate refresh; `HPA840_EVIDENCE_ROOT` captures
  * into a custom (still 'wx'-guarded) root.
  */
 function hpa840Capture(info: TestInfo) {
