@@ -315,7 +315,8 @@ function bindEnemy(state: SnareBattleState, enemy: SnareEnemy, events: SnareEven
 	}
 
 	const profile = getEnemyProfile(enemy);
-	enemy.boundRings += 1;
+	const ringsLeft = now < enemy.ringsExpireAt ? enemy.boundRings : 0;
+	enemy.boundRings = ringsLeft + 1;
 	enemy.ringsExpireAt = now + profile.ringsFallOffMs;
 
 	if (enemy.boundRings < profile.loopsToSnare) {
@@ -409,6 +410,9 @@ function landSpear(
 	target.defeated = true;
 	target.attack = null;
 	events.push({ type: 'enemy-defeated', unitId: target.unitId });
+	if (state.targetId === target.unitId) {
+		state.targetId = state.enemies.find((enemy) => !enemy.defeated)?.unitId ?? null;
+	}
 
 	if (state.enemies.every((enemy) => enemy.defeated)) {
 		state.outcome = 'victory';
@@ -429,10 +433,12 @@ function enterPhaseTwo(state: SnareBattleState, enemy: SnareEnemy, events: Snare
 
 	enemy.phase = 2;
 	state.phaseTwoAt = state.now;
+	// Cooldowns count from now, or from the end of an edge stun it is still in.
+	const from = Math.max(state.now, enemy.stunnedUntil);
 	for (const pattern of phaseTwo.patterns) {
 		enemy.readyAt[pattern.name] = Math.min(
 			enemy.readyAt[pattern.name] ?? 0,
-			state.now + pattern.intervalMs
+			from + pattern.intervalMs
 		);
 	}
 	events.push({ type: 'phase-two', unitId: enemy.unitId });
@@ -582,7 +588,12 @@ function runLane(
 		cutLine(state, enemy, events);
 	}
 
-	if (!attack.hitHero && distanceToSegment(state.hero, from, enemy) <= pattern.width / 2) {
+	// Only the lane ahead of the start counts, so Grik is safe behind a charge.
+	const ahead =
+		(state.hero.x - attack.origin.x) * attack.aim.x +
+			(state.hero.y - attack.origin.y) * attack.aim.y >=
+		0;
+	if (!attack.hitHero && ahead && distanceToSegment(state.hero, from, enemy) <= pattern.width / 2) {
 		attack.hitHero = true;
 		hurtHero(state, enemy, attack.origin, pattern.damage, events);
 		if (state.outcome) return;
@@ -596,7 +607,9 @@ function runLane(
 		enemy.attack = null;
 		enemy.stunnedUntil = state.now + pattern.edgeStunMs;
 		// Its cooldown starts once it is back on its feet, so it does not charge again from the wall.
-		enemy.readyAt[pattern.name] = enemy.stunnedUntil + pattern.intervalMs;
+		// The phase decides the cooldown, in case phase 2 began during the charge.
+		const current = getPhaseProfile(enemy).patterns.find((each) => each.name === pattern.name);
+		enemy.readyAt[pattern.name] = enemy.stunnedUntil + (current ?? pattern).intervalMs;
 		events.push({ type: 'stunned', unitId: enemy.unitId });
 		return;
 	}

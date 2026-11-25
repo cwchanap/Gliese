@@ -290,14 +290,22 @@ const showStats = values.stats;
 
 // `--set enemies.forest-wolf.hp=30` tries a number without editing tuning.ts.
 for (const assignment of values.set) {
-	const [path, value] = assignment.split('=') as [string, string];
+	const [path = '', raw = ''] = assignment.split('=');
+	const value = Number(raw);
 	const keys = path.split('.');
+	// The arena box is computed when tuning.ts loads, so an arena override would do nothing.
+	if (keys[0] === 'arena' || !Number.isFinite(value) || raw.trim() === '') {
+		throw new Error(`--set ${assignment}: expects a finite number outside arena.*`);
+	}
 	const parent = keys
 		.slice(0, -1)
 		.reduce<
 			Record<string, unknown>
-		>((node, key) => node[key] as Record<string, unknown>, snareTuning);
-	parent[keys.at(-1)!] = Number(value);
+		>((node, key) => node?.[key] as Record<string, unknown>, snareTuning);
+	if (typeof parent?.[keys.at(-1)!] !== 'number') {
+		throw new Error(`--set ${assignment}: ${path} is not a tuning number`);
+	}
+	parent[keys.at(-1)!] = value;
 }
 
 for (const fightId of snareFightIds) {

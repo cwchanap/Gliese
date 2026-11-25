@@ -1,5 +1,6 @@
 import {
 	distance,
+	distanceToSegment,
 	pathLength,
 	pointInArc,
 	segmentIntersection,
@@ -35,11 +36,26 @@ export function extendLine(line: SnareLine, to: Vec, rules: LineRules): Vec[] | 
 		return null;
 	}
 
+	// A short step is not laid yet, but it can still close a loop.
+	const loop = findLoop(points, head, to, rules);
+	if (loop) {
+		clearLine(line, to);
+		return loop;
+	}
+
 	const step = distance(head, to);
 	if (step < rules.sampleSpacing) {
 		return null;
 	}
 
+	points.push({ ...to });
+	line.length += step;
+	trimLine(line, rules.maxLength);
+	return null;
+}
+
+/** The loop that `head → to` closes, or null. */
+function findLoop(points: Vec[], head: Vec, to: Vec, rules: LineRules): Vec[] | null {
 	// The last piece shares `head` with the new one, so it is never a crossing.
 	for (let index = 0; index + 2 < points.length; index += 1) {
 		const crossing = segmentIntersection(points[index]!, points[index + 1]!, head, to);
@@ -48,16 +64,8 @@ export function extendLine(line: SnareLine, to: Vec, rules: LineRules): Vec[] | 
 		}
 
 		const loop = [crossing, ...points.slice(index + 1)];
-		if (pathLength(loop) + distance(head, crossing) >= rules.minLoopLength) {
-			clearLine(line, to);
-			return loop;
-		}
-		break;
+		return pathLength(loop) + distance(head, crossing) >= rules.minLoopLength ? loop : null;
 	}
-
-	points.push({ ...to });
-	line.length += step;
-	trimLine(line, rules.maxLength);
 	return null;
 }
 
@@ -85,12 +93,12 @@ function trimLine(line: SnareLine, maxLength: number) {
 
 /** True when segment ab crosses any piece of the line. */
 export function lineCrossesSegment(line: SnareLine, a: Vec, b: Vec): boolean {
-	for (let index = 1; index < line.points.length; index += 1) {
-		if (segmentIntersection(line.points[index - 1]!, line.points[index]!, a, b)) {
-			return true;
-		}
-	}
-	return false;
+	return line.points.some(
+		(point, index) =>
+			// A path lying along the segment never crosses it, so touching counts too.
+			distanceToSegment(point, a, b) <= 1 ||
+			(index > 0 && segmentIntersection(line.points[index - 1]!, point, a, b) !== null)
+	);
 }
 
 /** True when any laid point of the line sits inside the arc. */
