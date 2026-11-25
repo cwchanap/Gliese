@@ -14,7 +14,7 @@ const BACKGROUND_ORDER_SCALE = 10_000;
 
 export type MapBackgroundOwnershipSource = Pick<
 	WorldMapDefinition,
-	'backgroundImages' | 'blockers' | 'mapDecor' | 'fences' | 'groundPatches' | 'interiorProps'
+	'backgroundImages' | 'blockers' | 'groundPatches' | 'interiorProps'
 >;
 
 type VisualOwnershipSource = {
@@ -72,8 +72,6 @@ export function validateMapBackgroundOwnership(map: MapBackgroundOwnershipSource
 	}
 
 	validateVisualOwnershipSources('Blocker', map.blockers ?? [], descriptorIds);
-	validateVisualOwnershipSources('Map decor', map.mapDecor ?? [], descriptorIds);
-	validateVisualOwnershipSources('Fence', map.fences ?? [], descriptorIds);
 	validateVisualOwnershipSources('Ground patch', map.groundPatches ?? [], descriptorIds);
 	validateVisualOwnershipSources('Interior prop', map.interiorProps ?? [], descriptorIds);
 }

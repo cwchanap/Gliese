@@ -1,63 +1,49 @@
 import { defineConfig } from '@playwright/test';
 
-// HPA-399/PR1 regional-background proof cases depend on retired V1 LFS art.
-// Keep the generic gameplay E2E suite while the V2 map work replaces those proofs.
-const retiredV1RegionalBackgroundProofs =
-	/(regional background (load failure|missing foreground|wrong-sized base|wrong-sized foreground|alternative ownership|base render failure|foreground render failure|enabled capture|collision capture)|regional foreground runtime (hedge|low-wall) (behind|front) proof|entry map boots with no game console errors)/;
-
-// Known-flaky route-walking e2e tests: pre-existing timing/precision failures
-// on CI runners (hero gets stuck at collision boundaries, route segments not
-// axis-aligned). Isolated into the `flaky` project so the `gate` project can
-// run blocking in the Asset Integrity workflow without these masking real
-// regressions. `bun run test:e2e` (no --project) still runs both, matching
-// prior local behavior.
-//
-// 'Blacksmith Oren equipment shop' lived here too (hero blocked at the
-// service-counter corridor); it now walks up from the customer aisle on the
-// compiled grid and returns to the gate. The painted-interior asset proof for
-// the same map stays gated.
-const flakyRouteWalkTests =
-	/(Crossroads gameplay loop|traverses every map in fallback mode|Hero House painted interior preserves runtime)/;
-
-const exhaustivePaintedInteriorTests =
-	/^(?!.*Blacksmith painted interior).*painted (?:village )?interiors?/i;
-
+// Single non-quarantined suite: every test in tests/e2e is a first-class,
+// blocking check that runs fully parallel at zero retries. fullyParallel
+// plus two CI workers lets the one spec file split across processes;
+// locally it stays serial. Observation is per-page event listeners, so a
+// test never inherits another worker's probe state.
 export default defineConfig({
-	workers: 1,
-	// Route-walking e2e tests are timing-sensitive on CI runners; allow
-	// retries there but keep zero retries locally for fast feedback.
-	retries: process.env.CI ? 2 : 0,
-	grepInvert: retiredV1RegionalBackgroundProofs,
+	fullyParallel: true,
+	workers: process.env.CI ? 2 : 1,
+	retries: 0,
+	// The CI job is capped at 20 minutes, much of it setup Playwright never
+	// sees. The workflow passes the job budget left after setup (minus a
+	// reserve for the build and the report upload) as
+	// PLAYWRIGHT_GLOBAL_TIMEOUT_MS, so a shared boot failure ends the run
+	// here — Playwright writes its report and the upload step still runs.
+	// Twelve minutes is the fallback when the variable is unset.
+	globalTimeout: process.env.CI
+		? Number(process.env.PLAYWRIGHT_GLOBAL_TIMEOUT_MS || 12 * 60_000)
+		: 0,
+	// Stamps PLAYWRIGHT_RUN_START_MS so testTimeout can budget per-test caps
+	// against time remaining, not the whole suite budget.
+	globalSetup: './tests/e2e/global-setup.ts',
+	// Hosted runners split two Chromium workers over shared vCPUs, so Phaser
+	// boot, HUD publishes and keyboard journeys run several times slower than
+	// locally — bounds that are comfortable on a dev machine flake there.
+	// Looser caps cost nothing while the suite is green. Explicit per-test and
+	// per-assert timeouts go through testTimeout/expectTimeout in
+	// tools/e2e-timeout-budget.ts, which never shrink below these CI defaults
+	// and cap a runaway test below the global budget.
+	timeout: process.env.CI ? 120_000 : 30_000,
+	expect: { timeout: process.env.CI ? 30_000 : 5_000 },
+	// CI keeps the terse dot output but also emits playwright-report/ for the
+	// workflow's artifact upload; locally stays on the default list reporter.
+	reporter: process.env.CI ? [['dot'], ['html', { open: 'never' }]] : 'list',
 	use: {
 		baseURL: 'http://127.0.0.1:4173',
+		browserName: 'chromium',
 		screenshot: 'only-on-failure',
 		trace: 'retain-on-failure'
 	},
 	webServer: {
 		command: 'bun run preview -- --host 127.0.0.1 --port 4173',
 		port: 4173,
-		reuseExistingServer: true
+		reuseExistingServer: !process.env.CI
 	},
 	testDir: 'tests/e2e',
-	testMatch: '**/*.e2e.{ts,js}',
-	projects: [
-		{
-			name: 'gate',
-			grepInvert: [
-				retiredV1RegionalBackgroundProofs,
-				flakyRouteWalkTests,
-				exhaustivePaintedInteriorTests
-			]
-		},
-		{
-			name: 'exhaustive',
-			grep: exhaustivePaintedInteriorTests,
-			grepInvert: [retiredV1RegionalBackgroundProofs, flakyRouteWalkTests]
-		},
-		{
-			name: 'flaky',
-			grep: flakyRouteWalkTests,
-			grepInvert: retiredV1RegionalBackgroundProofs
-		}
-	]
+	testMatch: '**/*.e2e.{ts,js}'
 });

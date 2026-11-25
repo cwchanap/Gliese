@@ -6,25 +6,15 @@ import {
 	actorAnimationAssets,
 	actorAnimationKeys,
 	animationPackAsset,
-	coastDressingAsset,
-	crossroadsDressingAsset,
 	environmentDressingAsset,
-	fenceDressingAsset,
-	forestDressingAsset,
 	getActorAnimationAsset,
 	getEnemyActorId,
-	getVillageBuildingFrameName,
 	interiorPropAsset,
 	isNpcPackFrameName,
-	marshDressingAsset,
 	npcPackAsset,
-	shrineDressingAsset,
 	starterPackAsset,
 	terrainFrameOrder,
 	terrainTilesAsset,
-	villageBuildingAsset,
-	villageDressingAsset,
-	villageHedgeAsset,
 	type ActorAnimationKey,
 	type EnvironmentDressingFrameName
 } from '$lib/game/content/assets';
@@ -39,21 +29,17 @@ import {
 	type MapBackgroundPackagePresentation,
 	type MapBackgroundPackageSelection
 } from '$lib/game/content/backgrounds/map-background-package';
-import { getBlockerRuntimeRenderMode } from '$lib/game/content/maps/blocker-rendering';
 import {
 	findMap,
 	maps,
 	openingMapId,
 	type MapBlocker,
 	type MapCombatBounds,
-	type MapDecorDepth,
 	type MapDiscovery,
-	type MapFenceSegment,
 	type MapGroundPatch,
 	type MapGroundTile,
 	type MapAmbientNpc,
 	type MapInteriorProp,
-	type MapLandmark,
 	type MapNpc,
 	type MapRect,
 	type MapTransition,
@@ -82,6 +68,7 @@ import {
 	type RegionalBackgroundRenderStatus
 } from '$lib/game/phaser/regional-background-plane-render-diagnostics';
 import { emitPlayerMovementDiagnostic } from '$lib/game/phaser/player-movement-diagnostics';
+import { emitWorldSceneCameraDiagnostic } from '$lib/game/phaser/world-scene-camera-diagnostic';
 import { advanceBossPhase } from '$lib/game/core/boss';
 import { buildAreaMapState, getRegionId } from '$lib/game/core/area-map';
 import {
@@ -298,7 +285,7 @@ type NpcMarker = {
 	setDisplaySize: (width: number, height: number) => unknown;
 };
 
-type LandmarkCollisionBounds = {
+type MapRectBounds = {
 	left: number;
 	right: number;
 	top: number;
@@ -316,7 +303,7 @@ type CollisionRect = {
 
 /**
  * Shape shared by every sprite-sheet asset (`starterPackAsset`,
- * `forestDressingAsset`, …): a texture key plus a map of named frames whose
+ * `environmentDressingAsset`, …): a texture key plus a map of named frames whose
  * source rectangles live on the sheet.
  */
 type SpriteSheetAsset = {
@@ -412,14 +399,10 @@ export class WorldScene extends Phaser.Scene {
 	private static readonly hitImpactRingTint = 0xfff0a8;
 	private static readonly hitImpactSparkTint = 0xfff7d6;
 	private static readonly maxMovementDeltaMs = 250;
-	private static readonly landmarkDoorwayClearanceWidth = 56;
 	private static readonly npcPackDisplaySize = { width: 96, height: 87 };
 	private static readonly playerRadius = PLAYER_COLLISION_RADIUS;
 	private static readonly starterNpcDisplaySize = { width: 60, height: 54 };
 	private static readonly tileSize = 32;
-	private static readonly fenceTileLength = 64;
-	private static readonly fenceTileThickness = 32;
-	private static readonly environmentBlockerSegmentLength = 48;
 	private static readonly terrainTilesetKey = 'starter-ground-tiles';
 	/**
 	 * Invariant: `terrainTileIndexes[name]` MUST equal the index of `name` in
@@ -444,7 +427,7 @@ export class WorldScene extends Phaser.Scene {
 	// World markers stay hidden until the player is within this distance, so a normal
 	// camera view never shows a cluster of pulsing circles — at most the one(s) nearby.
 	private static readonly discoveryRevealRadius = 240;
-	// Rendered above all gameplay layers, live hedges, and the baked regional background.
+	// Rendered above all gameplay layers and the baked regional background.
 	private static readonly collisionDebugOverlayDepth = 10_000;
 	/** Grid-map tree crowns draw over actors, like a foreground background plane. */
 	private static readonly gridCanopyDepth = 100;
@@ -701,16 +684,7 @@ export class WorldScene extends Phaser.Scene {
 
 		this.registerAssetFrames(starterPackAsset);
 		this.registerAssetFrames(npcPackAsset);
-		this.registerAssetFrames(villageBuildingAsset);
-		this.registerAssetFrames(forestDressingAsset);
-		this.registerAssetFrames(fenceDressingAsset);
 		this.registerAssetFrames(environmentDressingAsset);
-		this.registerAssetFrames(coastDressingAsset);
-		this.registerAssetFrames(shrineDressingAsset);
-		this.registerAssetFrames(marshDressingAsset);
-		this.registerAssetFrames(crossroadsDressingAsset);
-		this.registerAssetFrames(villageDressingAsset);
-		this.registerAssetFrames(villageHedgeAsset);
 		this.registerAssetFrames(interiorPropAsset);
 		this.registerAssetFrames(animationPackAsset);
 		this.ensureActorAnimations();
@@ -726,10 +700,7 @@ export class WorldScene extends Phaser.Scene {
 		) {
 			this.renderGround(map);
 		}
-		this.renderMapDecor(map, ['floor', 'furniture'], packageRender);
-		this.renderFences(map, packageRender);
 		this.renderBlockers(map, packageRender);
-		this.renderLandmarks(map);
 		this.renderInteriorProps(map, ['floor', 'furniture'], packageRender);
 		const heroAnimation = getActorAnimationAsset('hero');
 		this.player = this.add.sprite(
@@ -770,7 +741,6 @@ export class WorldScene extends Phaser.Scene {
 		this.renderNpcs(map);
 		this.renderAmbientNpcs(map);
 		this.renderInteriorProps(map, ['foreground'], packageRender);
-		this.renderMapDecor(map, ['foreground'], packageRender);
 		this.renderCollisionDebugOverlay(map);
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
@@ -788,12 +758,38 @@ export class WorldScene extends Phaser.Scene {
 			WorldScene.cameraFollowLerp
 		);
 
+		// The camera diagnostic publishes a typed snapshot only — never the live
+		// camera — and only once Phaser has applied the bounds and refreshed
+		// worldView inside preRender, which the scene 'render' event follows.
+		// Initial readiness publishes once; each real resize re-arms one shot.
+		let cameraDiagnosticPending = false;
+		const publishCameraDiagnostic = () => {
+			if (!cameraDiagnosticPending || this.sceneShutDown) return;
+			cameraDiagnosticPending = false;
+			const camera = this.cameras.main;
+			const bounds = camera.getBounds();
+			const view = camera.worldView;
+			emitWorldSceneCameraDiagnostic({
+				mapId: this.mapId,
+				facing: this.facing,
+				camera: {
+					view: { x: view.x, y: view.y, width: view.width, height: view.height },
+					bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+				}
+			});
+		};
+		if (this.renderOptions.movementDiagnostics) {
+			cameraDiagnosticPending = true;
+			this.events.on('render', publishCameraDiagnostic);
+		}
+
 		// Live viewport resize re-centers the camera bounds; the captured map
 		// dimensions belong to this create() so a transition/restart swaps the
 		// closure via the shutdown cleanup below.
 		const onResize = () => {
 			const bounds = this.getCenteredCameraBounds(width, height);
 			this.cameras.main.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
+			cameraDiagnosticPending = this.renderOptions.movementDiagnostics;
 		};
 		this.scale.on('resize', onResize);
 
@@ -838,6 +834,7 @@ export class WorldScene extends Phaser.Scene {
 			this.unsubscribePreferences?.();
 			this.unsubscribePreferences = null;
 			this.scale.off('resize', onResize);
+			this.events?.off?.('render', publishCameraDiagnostic);
 			this.events?.off?.('shutdown', cleanup);
 			this.events?.off?.('destroy', cleanup);
 		};
@@ -2208,16 +2205,8 @@ export class WorldScene extends Phaser.Scene {
 			successfulBackgroundIdSet: successfulBackgroundIds,
 			useOwnership: packageSucceeded && definition?.coverage === 'historical-partial'
 		};
-		const selectedFallbackBlockers = (map.blockers ?? []).filter(
-			(blocker) =>
-				getBlockerRuntimeRenderMode(blocker.kind) !== 'collision-only' &&
-				shouldReportSelectedStaticOverlay(blocker.visual, presentation)
-		);
-		const selectedFallbackDecor = (map.mapDecor ?? []).filter((decor) =>
-			shouldReportSelectedStaticOverlay(decor.visual, presentation)
-		);
-		const selectedFallbackFences = (map.fences ?? []).filter((fence) =>
-			shouldReportSelectedStaticOverlay(fence.visual, presentation)
+		const selectedFallbackBlockers = (map.blockers ?? []).filter((blocker) =>
+			shouldReportSelectedStaticOverlay(blocker.visual, presentation)
 		);
 		emitRegionalBackgroundPlaneRenderDiagnostic({
 			mapId: map.id,
@@ -2229,14 +2218,8 @@ export class WorldScene extends Phaser.Scene {
 			entries,
 			successfulBackgroundIds: presentation.successfulBackgroundIds,
 			selectedFallbackBlockerIds: selectedFallbackBlockers.map((blocker) => blocker.id),
-			selectedFallbackBlockerSegmentCount: selectedFallbackBlockers.reduce(
-				(total, blocker) => total + Math.ceil(Math.max(blocker.width, blocker.height) / 48),
-				0
-			),
 			collisionIds: this.getRuntimeCollisionIds(map),
-			statefulObjectIds: this.getRuntimeStatefulObjectIds(map),
-			selectedFallbackDecorIds: selectedFallbackDecor.map((decor) => decor.id),
-			selectedFallbackFenceIds: selectedFallbackFences.map((fence) => fence.id)
+			statefulObjectIds: this.getRuntimeStatefulObjectIds(map)
 		});
 		return presentation;
 	}
@@ -2244,10 +2227,7 @@ export class WorldScene extends Phaser.Scene {
 	private getRuntimeCollisionIds(map: WorldMapDefinition): string[] {
 		return [
 			...(map.blockers ?? []).map(({ id }) => id),
-			...(map.fences ?? []).map(({ id }) => id),
-			...(map.mapDecor ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
-			...(map.interiorProps ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
-			...(map.landmarks ?? []).map(({ id }) => id)
+			...(map.interiorProps ?? []).flatMap(({ collision }) => (collision ? [collision.id] : []))
 		].sort();
 	}
 
@@ -2257,7 +2237,6 @@ export class WorldScene extends Phaser.Scene {
 			...(map.pickups ?? []).map(({ id }) => id),
 			...(map.encounters ?? []).map(({ id }) => id),
 			...(map.npcs ?? []).map(({ id }) => id),
-			...(map.landmarks ?? []).map(({ id }) => id),
 			...(map.ambientNpcs ?? []).map(({ id }) => id),
 			...(map.discoveries ?? []).map(({ id }) => id),
 			...(map.combatBounds ?? []).map(({ id }) => id)
@@ -2299,9 +2278,8 @@ export class WorldScene extends Phaser.Scene {
 	 * Renders a visual overlay of the collision categories for a map when
 	 * `renderOptions.collisionDebug` is enabled. Draws, onto a single
 	 * high-depth `Graphics` object, the map bounds and player-radius inset,
-	 * then the player-expanded exclusion envelopes for blockers, fences,
-	 * map decor, and interior props, the landmark bounds and their
-	 * collision rects, and the interaction radii around NPCs, transitions,
+	 * then the player-expanded exclusion envelopes for blockers and
+	 * interior props, and the interaction radii around NPCs, transitions,
 	 * pickups, and discoveries. The graphics are cleared and destroyed on
 	 * scene shutdown. No-op when collision debugging is disabled.
 	 *
@@ -2329,8 +2307,8 @@ export class WorldScene extends Phaser.Scene {
 			height - WorldScene.playerRadius * 2
 		);
 		// These are resolved player-center exclusion envelopes and alignment aids, not
-		// an exact movement predictor: escape-aware rectangles and the landmark
-		// below-footprint rule also depend on the current and target positions.
+		// an exact movement predictor: escape-aware rectangles also depend on the
+		// current and target positions.
 		graphics.fillStyle(0xff3355, 0.18);
 		for (const blocker of map.blockers ?? []) {
 			this.fillExpandedCollisionRect(
@@ -2339,22 +2317,6 @@ export class WorldScene extends Phaser.Scene {
 				WorldScene.playerRadius
 			);
 		}
-		for (const fence of map.fences ?? []) {
-			this.fillExpandedCollisionRect(
-				graphics,
-				this.getMapRectBounds(fence),
-				WorldScene.playerRadius
-			);
-		}
-		for (const decor of map.mapDecor ?? []) {
-			if (decor.collision) {
-				this.fillExpandedCollisionRect(
-					graphics,
-					this.getMapRectBounds(decor.collision),
-					WorldScene.playerRadius
-				);
-			}
-		}
 		for (const prop of map.interiorProps ?? []) {
 			if (prop.collision) {
 				this.fillExpandedCollisionRect(
@@ -2362,23 +2324,6 @@ export class WorldScene extends Phaser.Scene {
 					this.getMapRectBounds(prop.collision),
 					WorldScene.playerRadius
 				);
-			}
-		}
-		graphics.lineStyle(2, 0xffc857, 0.95);
-		for (const landmark of map.landmarks ?? []) {
-			const bounds = this.getLandmarkCollisionBounds(landmark);
-			graphics.strokeRect(
-				bounds.left,
-				bounds.top,
-				bounds.right - bounds.left,
-				bounds.bottom - bounds.top
-			);
-		}
-		graphics.fillStyle(0xff8c42, 0.2);
-		for (const landmark of map.landmarks ?? []) {
-			const bounds = this.getLandmarkCollisionBounds(landmark);
-			for (const collisionRect of this.getLandmarkCollisionRects(landmark, bounds)) {
-				this.fillExpandedCollisionRect(graphics, collisionRect, WorldScene.playerRadius);
 			}
 		}
 		graphics.lineStyle(2, 0xc084fc, 0.95);
@@ -2664,215 +2609,36 @@ export class WorldScene extends Phaser.Scene {
 		};
 	}
 
-	private renderLandmarks(map: WorldMapDefinition) {
-		// Landmarks whose art is supplied by a co-located mapDecor sprite (same
-		// anchor x/y) are "decor-backed". Their furniture/foreground sprite is
-		// already drawn by renderMapDecor, so the opaque placeholder rectangle
-		// must be skipped or it would cover the artwork. The pairing convention
-		// across regions (castle-gate, silver-shrine-gate, ferry-crossing,
-		// witchwood-gate, …) is an exact anchor match.
-		const decorAnchors = new Set((map.mapDecor ?? []).map((decor) => `${decor.x}:${decor.y}`));
-
-		for (const landmark of map.landmarks ?? []) {
-			const frameName = getVillageBuildingFrameName(landmark.id);
-			const isDecorBacked = decorAnchors.has(`${landmark.x}:${landmark.y}`);
-
-			if (frameName) {
-				this.add
-					.image(landmark.x, landmark.y, villageBuildingAsset.key, frameName)
-					.setDisplaySize(landmark.width, landmark.height);
-			} else if (!isDecorBacked) {
-				this.add.rectangle(landmark.x, landmark.y, landmark.width, landmark.height, 0x5b4636, 0.9);
-				this.add.rectangle(
-					landmark.x,
-					landmark.y + landmark.height / 2,
-					landmark.width,
-					24,
-					0x2f241c,
-					0.95
-				);
-			}
-
-			const label = this.add.text(
-				landmark.x,
-				landmark.y - landmark.height / 2 + 4,
-				landmark.label,
-				{
-					color: '#f8fafc',
-					fontSize: '12px'
-				}
-			) as OverlayMarker;
-			label.setOrigin?.(0.5, 0);
-		}
-	}
-
-	private renderMapDecor(
-		map: WorldMapDefinition,
-		depths: Array<MapDecorDepth>,
-		packageRender: RegionalBackgroundPackageRender
-	) {
-		for (const decor of map.mapDecor ?? []) {
-			const depth = decor.depth ?? 'furniture';
-
-			if (!depths.includes(depth)) {
-				continue;
-			}
-			if (!shouldRenderStaticOverlay(decor.visual, packageRender)) {
-				continue;
-			}
-
-			const object =
-				(decor.mode ?? 'image') === 'tile'
-					? this.add.tileSprite(
-							decor.x,
-							decor.y,
-							decor.width,
-							decor.height,
-							decor.textureKey,
-							decor.frameName
-						)
-					: this.add
-							.image(decor.x, decor.y, decor.textureKey, decor.frameName)
-							.setDisplaySize(decor.width, decor.height);
-
-			if (decor.alpha !== undefined) {
-				object.setAlpha(decor.alpha);
-			}
-		}
-	}
-
-	private renderFences(map: WorldMapDefinition, packageRender: RegionalBackgroundPackageRender) {
-		const fences: MapFenceSegment[] = map.fences ?? [];
-
-		for (const fence of fences) {
-			if (!shouldRenderStaticOverlay(fence.visual, packageRender)) {
-				continue;
-			}
-			this.renderFenceSegment(fence);
-		}
-	}
-
 	private renderBlockers(map: WorldMapDefinition, packageRender: RegionalBackgroundPackageRender) {
 		const blockers: MapBlocker[] = map.blockers ?? [];
 
 		for (const blocker of blockers) {
-			if (getBlockerRuntimeRenderMode(blocker.kind) === 'collision-only') {
-				// Collision-only: the seaTile ground tile + shoreline-foam decor provide the visuals.
-				continue;
-			}
-
 			if (!shouldRenderStaticOverlay(blocker.visual, packageRender)) {
 				continue;
 			}
 
-			switch (blocker.kind) {
-				case 'town-hedge':
-					this.renderBlockerSegments(blocker, forestDressingAsset.key, 'treeCluster');
-					break;
-
-				case 'garden-hedge':
-					this.renderBlockerSegments(blocker, villageHedgeAsset.key, 'hedgeSegment');
-					break;
-
-				case 'city-wall':
-					this.renderBlockerSegments(
-						blocker,
-						environmentDressingAsset.key,
-						this.getBlockerFrameName(blocker)
-					);
-					break;
-
-				case 'future-gate':
-				case 'ruin-wall':
-					this.add.tileSprite(
-						blocker.x,
-						blocker.y,
-						blocker.width,
-						blocker.height,
-						environmentDressingAsset.key,
-						this.getBlockerFrameName(blocker)
-					);
-					break;
-
-				case 'ocean':
-					throw new Error('Collision-only ocean blocker reached the live render branch');
-
-				default:
-					blocker.kind satisfies never;
-					throw new Error(`Unknown blocker kind: ${blocker.kind}`);
-			}
-		}
-	}
-
-	private renderBlockerSegments(blocker: MapBlocker, textureKey: string, frameName: string) {
-		const isHorizontal = blocker.width >= blocker.height;
-		const length = isHorizontal ? blocker.width : blocker.height;
-		const tileCount = Math.max(1, Math.ceil(length / WorldScene.environmentBlockerSegmentLength));
-		const firstOffset = -((tileCount - 1) * WorldScene.environmentBlockerSegmentLength) / 2;
-		const displayWidth = isHorizontal ? WorldScene.environmentBlockerSegmentLength : blocker.width;
-		const displayHeight = isHorizontal
-			? blocker.height
-			: WorldScene.environmentBlockerSegmentLength;
-
-		for (let index = 0; index < tileCount; index += 1) {
-			const offset = firstOffset + index * WorldScene.environmentBlockerSegmentLength;
-			const x = blocker.x + (isHorizontal ? offset : 0);
-			const y = blocker.y + (isHorizontal ? 0 : offset);
-
-			this.add.image(x, y, textureKey, frameName).setDisplaySize(displayWidth, displayHeight);
+			this.add.tileSprite(
+				blocker.x,
+				blocker.y,
+				blocker.width,
+				blocker.height,
+				environmentDressingAsset.key,
+				this.getBlockerFrameName(blocker)
+			);
 		}
 	}
 
 	private getBlockerFrameName(blocker: MapBlocker): EnvironmentDressingFrameName {
-		const orientation = blocker.width >= blocker.height ? 'Horizontal' : 'Vertical';
-
 		switch (blocker.kind) {
-			case 'ocean':
-				// RenderBlockers skips ocean (collision-only), so this is runtime-unreachable.
-				// The case is required so `blocker.kind satisfies never` in the default branch
-				// passes the exhaustiveness check.
-				throw new Error('Ocean blockers are collision-only and should not request a sprite frame');
-
-			case 'garden-hedge':
-				throw new Error(
-					'garden-hedge blockers render via renderBlockerSegments and should not request an orientation frame'
-				);
-
 			case 'future-gate':
 				return 'futureGate';
 
 			case 'ruin-wall':
 				return 'ruinWall';
 
-			case 'town-hedge':
-				return `townHedge${orientation}` as EnvironmentDressingFrameName;
-
-			case 'city-wall':
-				return `townWall${orientation}` as EnvironmentDressingFrameName;
-
 			default:
 				blocker.kind satisfies never;
 				throw new Error(`Unknown blocker kind: ${blocker.kind}`);
-		}
-	}
-
-	private renderFenceSegment(fence: MapFenceSegment) {
-		const isHorizontal = fence.width >= fence.height;
-		const length = isHorizontal ? fence.width : fence.height;
-		const tileCount = Math.max(1, Math.ceil(length / WorldScene.fenceTileLength));
-		const firstOffset = -((tileCount - 1) * WorldScene.fenceTileLength) / 2;
-		const frameName = isHorizontal ? 'horizontalFence' : 'verticalFence';
-		const displayWidth = isHorizontal ? WorldScene.fenceTileLength : WorldScene.fenceTileThickness;
-		const displayHeight = isHorizontal ? WorldScene.fenceTileThickness : WorldScene.fenceTileLength;
-
-		for (let index = 0; index < tileCount; index += 1) {
-			const offset = firstOffset + index * WorldScene.fenceTileLength;
-			const x = fence.x + (isHorizontal ? offset : 0);
-			const y = fence.y + (isHorizontal ? 0 : offset);
-
-			this.add
-				.image(x, y, fenceDressingAsset.key, frameName)
-				.setDisplaySize(displayWidth, displayHeight);
 		}
 	}
 
@@ -3031,23 +2797,7 @@ export class WorldScene extends Phaser.Scene {
 			: STARTER_NPC_COLLISION_RADIUS;
 	}
 
-	private getLandmarkCollisionBounds(landmark: MapLandmark): LandmarkCollisionBounds {
-		const left = landmark.x - landmark.width / 2;
-		const right = landmark.x + landmark.width / 2;
-		const top = landmark.y - landmark.height / 2;
-		const bottom = landmark.y + landmark.height / 2;
-
-		return {
-			left,
-			right,
-			top,
-			bottom,
-			centerX: landmark.x,
-			centerY: landmark.y
-		};
-	}
-
-	private getMapRectBounds(rect: MapRect): LandmarkCollisionBounds {
+	private getMapRectBounds(rect: MapRect): MapRectBounds {
 		const left = rect.x - rect.width / 2;
 		const right = rect.x + rect.width / 2;
 		const top = rect.y - rect.height / 2;
@@ -3061,46 +2811,6 @@ export class WorldScene extends Phaser.Scene {
 			centerX: rect.x,
 			centerY: rect.y
 		};
-	}
-
-	private getLandmarkCollisionRects(
-		landmark: MapLandmark,
-		bounds: LandmarkCollisionBounds
-	): CollisionRect[] {
-		const doorway = this.findLandmarkDoorway(landmark, bounds);
-
-		if (!doorway) {
-			return [bounds];
-		}
-
-		const doorLeft = Math.max(
-			bounds.left,
-			doorway.x - WorldScene.landmarkDoorwayClearanceWidth / 2
-		);
-		const doorRight = Math.min(
-			bounds.right,
-			doorway.x + WorldScene.landmarkDoorwayClearanceWidth / 2
-		);
-		const doorTop = Math.max(bounds.top, doorway.y - WorldScene.transitionRadius);
-
-		return [
-			{ left: bounds.left, right: bounds.right, top: bounds.top, bottom: doorTop },
-			{ left: bounds.left, right: doorLeft, top: doorTop, bottom: bounds.bottom },
-			{ left: doorRight, right: bounds.right, top: doorTop, bottom: bounds.bottom }
-		].filter((rect) => rect.right > rect.left && rect.bottom > rect.top);
-	}
-
-	private findLandmarkDoorway(landmark: MapLandmark, bounds: LandmarkCollisionBounds) {
-		const map = this.resolveMap(this.mapId);
-
-		return map.transitions.find(
-			(transition) =>
-				transition.x >= bounds.left &&
-				transition.x <= bounds.right &&
-				transition.y >= bounds.top &&
-				transition.y <= bounds.bottom &&
-				transition.id.includes(landmark.id.replace('-exterior', ''))
-		);
 	}
 
 	private resolveMapBackgroundPackageSelection(mapId: string): MapBackgroundPackageSelection {

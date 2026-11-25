@@ -2,9 +2,23 @@ import { expect, type Page } from '@playwright/test';
 
 export const SAVES_STORAGE_KEY = 'gliese.saves.v1';
 
-async function waitForPlaying(page: Page) {
+async function waitForPlaying(page: Page, options: { allowDialogue?: boolean } = {}) {
 	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	// A New Run can raise the modal Opening dialogue before this check runs.
+	// A modal makes the field HUD inert and role queries skip inert subtrees,
+	// so a bare Menu assert can never resolve once the dialogue is up (hosted
+	// runs 45309241043, 45312640393). For that path either element proves the
+	// run reached the field; the publish barrier below still gates real
+	// readiness. A loaded save has no legitimate dialogue, though — if one is
+	// up, the load replayed a scene and failing here keeps the error at the
+	// readiness check instead of a misleading downstream miss.
+	// The dialogue panel is a <dialog>; BattleSummary is also role="dialog", so
+	// match the element, not the role, or a battle summary would pass as the
+	// field being ready.
+	const fieldReady = page.getByRole('button', { name: 'Menu' });
+	await expect(
+		options.allowDialogue ? fieldReady.or(page.locator('dialog')) : fieldReady
+	).toBeVisible();
 	// Menu/canvas exist before Phaser boots; the field HUD's "Loading game"
 	// placeholder is only replaced by WorldScene's first publish, when interact
 	// keys are live. Waiting for it keeps keyboard interactions deterministic.
@@ -14,20 +28,84 @@ async function waitForPlaying(page: Page) {
 	await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
 }
 
-/** Boots a fresh run through the Title screen. */
-export async function startNewRunFromTitle(page: Page) {
+/**
+ * Battle-aware variant of the playing barrier, used ONLY by tests that seed
+ * a save inside an encounter's aggro radius: there the fight can open while
+ * the field HUD is still publishing — and on a contended runner reach its
+ * summary before the "Loading game" placeholder clears, so field-only
+ * readiness is a guaranteed flake (hosted run 45286324261). Every other
+ * caller keeps the strict field barrier: a caller that sends field input
+ * must never proceed while battle is up.
+ */
+async function waitForPlayingOrBattle(page: Page) {
+	await expect(page.locator('canvas')).toBeVisible();
+	const battleUi = page.locator('[data-testid="battle-hud"], [data-testid="battle-summary"]');
+	await expect(page.getByRole('button', { name: 'Menu' }).or(battleUi)).toBeVisible();
+	// Same publish barrier as waitForPlaying, satisfied by either a live field
+	// publish (placeholder gone) or a battle UI element that is actually
+	// visible — :visible tests each match, so a hidden hud can't mask a
+	// visible summary the way .first() on the DOM-ordered union could.
+	const battleVisible = page.locator(
+		'[data-testid="battle-hud"]:visible, [data-testid="battle-summary"]:visible'
+	);
+	await expect
+		.poll(
+			async () =>
+				(await page.getByText('Loading game').count()) === 0 || (await battleVisible.count()) > 0,
+			{ timeout: 30_000 }
+		)
+		.toBe(true);
+}
+
+/**
+ * Boots a fresh run through the Title screen.
+ *
+ * `movementDiagnostics` arms `?movementDiagnostics=on` after the real Title
+ * has rendered: the shell only classifies the entry URL once at mount, so a
+ * history.replaceState adds the render option for WorldScene's create() —
+ * where resolveWorldRenderOptions re-reads location.search — without a
+ * reload and without turning the visit into a direct-boot tooling link. The
+ * player's Title → New Run journey stays intact.
+ *
+ * The param is left on the URL on purpose: a later page.reload() re-runs the
+ * entry classification, and keeping it is what lets the interior checkpoint
+ * tests resume the newest save straight into the field (Title → Continue
+ * picks the autosave slot instead). A test that wants the Title screen back
+ * after a reload must strip the query params itself.
+ */
+export async function startNewRunFromTitle(
+	page: Page,
+	options: { movementDiagnostics?: boolean } = {}
+) {
 	await page.goto('/');
-	await page.getByRole('button', { name: /New Run/i }).click();
+	const newRun = page.getByRole('button', { name: /New Run/i });
+	if (options.movementDiagnostics) {
+		// The Title must have rendered before the URL is amended. waitFor uses
+		// the action timeout, so a slow boot keeps the same budget click() had.
+		await newRun.waitFor({ state: 'visible' });
+		await page.evaluate(() => {
+			const url = new URL(window.location.href);
+			url.searchParams.set('movementDiagnostics', 'on');
+			window.history.replaceState(null, '', url);
+		});
+	}
+	await newRun.click();
 	// An existing autosave raises the overwrite confirm; fresh profiles boot
 	// straight into the run. Race the two outcomes so both stay deterministic.
+	// The playing arm also accepts the Opening dialogue: the shell removes the
+	// Menu chip while a dialogue is up, so menu-only could hang on a fresh
+	// profile where no confirm exists to break the tie.
 	const confirm = page.getByTestId('confirm-new-run');
 	const menu = page.getByRole('button', { name: 'Menu' });
 	const outcome = await Promise.race([
 		confirm.waitFor({ state: 'visible' }).then(() => 'confirm' as const),
-		menu.waitFor({ state: 'visible' }).then(() => 'playing' as const)
+		menu
+			.or(page.locator('dialog'))
+			.waitFor({ state: 'visible' })
+			.then(() => 'playing' as const)
 	]);
 	if (outcome === 'confirm') await confirm.click();
-	await waitForPlaying(page);
+	await waitForPlaying(page, { allowDialogue: true });
 }
 
 export async function startNewRunThroughOpening(page: Page) {
@@ -55,10 +133,18 @@ export async function startNewRunThroughOpening(page: Page) {
 	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 }
 
+/** Readiness after the load resolves: strict field boot, or the seeded
+ * save may legitimately open straight into battle before the field HUD
+ * mounts. */
+export type ContinueReadiness = 'field' | 'field-or-battle';
+
 /** Boots through the Title screen: Continue opens the Load picker, then resumes the first occupied slot. */
-export async function continueFromTitle(page: Page) {
+export async function continueFromTitle(
+	page: Page,
+	options: { readiness?: ContinueReadiness } = {}
+) {
 	await page.goto('/');
-	await continueFromTitlePicker(page);
+	await continueFromTitlePicker(page, options);
 }
 
 /**
@@ -66,11 +152,18 @@ export async function continueFromTitle(page: Page) {
  * same-page returns (e.g. dismissing the completion card) must not reload
  * the document, which would clear the state the test is there to exercise.
  */
-export async function continueFromTitlePicker(page: Page) {
+export async function continueFromTitlePicker(
+	page: Page,
+	options: { readiness?: ContinueReadiness } = {}
+) {
 	await page.getByRole('button', { name: /Continue/i }).click();
 	const loadDialog = page.getByRole('dialog', { name: /load/i });
 	await expect(loadDialog).toBeVisible();
 	await loadDialog.locator('[data-testid^="save-slot-"]:not([disabled])').first().click();
+	if (options.readiness === 'field-or-battle') {
+		await waitForPlayingOrBattle(page);
+		return;
+	}
 	await waitForPlaying(page);
 }
 

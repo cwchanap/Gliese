@@ -12,12 +12,6 @@ export interface NavigationRect {
 	readonly bottom: number;
 }
 
-export interface NavigationDoorCandidate<T = unknown> {
-	readonly id: string;
-	readonly point: NavigationPoint;
-	readonly value?: T;
-}
-
 export type NavigationObstacle =
 	| {
 			readonly id: string;
@@ -34,16 +28,6 @@ export type NavigationObstacle =
 			readonly radius: number;
 			readonly movement: 'escape-aware';
 			readonly invalidAtRest: boolean;
-	  }
-	| {
-			readonly id: string;
-			readonly shape: 'landmark';
-			readonly landmarkId: string;
-			readonly bounds: NavigationRect;
-			readonly doorCandidates: readonly NavigationDoorCandidate[];
-			readonly doorwayWidthPx: number;
-			readonly transitionRadiusPx: number;
-			readonly invalidAtRest: true;
 	  };
 
 export interface NavigationMaskSource {
@@ -415,22 +399,6 @@ export function isPositionWalkable(
 	});
 }
 
-export function findLandmarkDoorway<T>(
-	landmarkId: string,
-	bounds: NavigationRect,
-	doorCandidates: readonly NavigationDoorCandidate<T>[]
-): NavigationDoorCandidate<T> | undefined {
-	const landmarkKey = landmarkId.replace('-exterior', '');
-	return doorCandidates.find(
-		(candidate) =>
-			candidate.point.x >= bounds.left &&
-			candidate.point.x <= bounds.right &&
-			candidate.point.y >= bounds.top &&
-			candidate.point.y <= bounds.bottom &&
-			candidate.id.includes(landmarkKey)
-	);
-}
-
 export function isPointInsideRect(
 	point: NavigationPoint,
 	rect: NavigationRect,
@@ -634,21 +602,10 @@ function isSegmentBlockedByObstacle(
 		return isMovementBlockedByCircle(from, to, obstacle.center, obstacle.radius + radius);
 	}
 
-	const rects =
-		obstacle.shape === 'landmark' ? getLandmarkCollisionRects(obstacle) : [obstacle.bounds];
+	const rects = [obstacle.bounds];
 	return rects.some((rect) => {
-		if (
-			obstacle.shape === 'landmark' &&
-			from.y >= obstacle.bounds.bottom + radius &&
-			to.y >= obstacle.bounds.bottom + radius
-		) {
-			return false;
-		}
-		const escapeOrigin =
-			obstacle.shape === 'rect' && obstacle.escapeOrigin
-				? obstacle.escapeOrigin
-				: getRectCenter(obstacle.bounds);
-		return obstacle.shape === 'rect' && obstacle.movement === 'strict'
+		const escapeOrigin = obstacle.escapeOrigin ?? getRectCenter(obstacle.bounds);
+		return obstacle.movement === 'strict'
 			? isMovementBlockedByStrictRect(from, to, rect, radius)
 			: isMovementBlockedByEscapeAwareRect(from, to, rect, radius, escapeOrigin);
 	});
@@ -664,45 +621,7 @@ function isPointBlockedByObstacle(
 		return distanceSquared(point, obstacle.center) < effectiveRadius * effectiveRadius;
 	}
 
-	const rects =
-		obstacle.shape === 'landmark' ? getLandmarkCollisionRects(obstacle) : [obstacle.bounds];
-	return rects.some((rect) => isPointInsideRect(point, rect, radius));
-}
-
-export function getLandmarkCollisionRects(
-	obstacle: Extract<NavigationObstacle, { shape: 'landmark' }>
-): NavigationRect[] {
-	const doorway = findLandmarkDoorway(
-		obstacle.landmarkId,
-		obstacle.bounds,
-		obstacle.doorCandidates
-	);
-	if (!doorway) return [obstacle.bounds];
-
-	const doorLeft = Math.max(obstacle.bounds.left, doorway.point.x - obstacle.doorwayWidthPx / 2);
-	const doorRight = Math.min(obstacle.bounds.right, doorway.point.x + obstacle.doorwayWidthPx / 2);
-	const doorTop = Math.max(obstacle.bounds.top, doorway.point.y - obstacle.transitionRadiusPx);
-
-	return [
-		{
-			left: obstacle.bounds.left,
-			right: obstacle.bounds.right,
-			top: obstacle.bounds.top,
-			bottom: doorTop
-		},
-		{
-			left: obstacle.bounds.left,
-			right: doorLeft,
-			top: doorTop,
-			bottom: obstacle.bounds.bottom
-		},
-		{
-			left: doorRight,
-			right: obstacle.bounds.right,
-			top: doorTop,
-			bottom: obstacle.bounds.bottom
-		}
-	].filter((rect) => rect.right > rect.left && rect.bottom > rect.top);
+	return isPointInsideRect(point, obstacle.bounds, radius);
 }
 
 function isMovementBlockedByStrictRect(

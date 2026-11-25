@@ -12,6 +12,7 @@ describe('hasRenderOptionOverrides', () => {
 		expect(hasRenderOptionOverrides('?mapBackgroundReview=hero-house-review')).toBe(true);
 		expect(hasRenderOptionOverrides('?regionalBackground=off')).toBe(true);
 		expect(hasRenderOptionOverrides('?startMap=overworld')).toBe(true);
+		expect(hasRenderOptionOverrides('?battleTest=boar-king')).toBe(true);
 		expect(
 			hasRenderOptionOverrides('?regionalBackgroundFault=sundrop-village-foreground-image:render')
 		).toBe(true);
@@ -31,8 +32,18 @@ describe('world render URL options', () => {
 			collisionDebug: false,
 			movementDiagnostics: false,
 			startMapId: null,
+			battleTestId: null,
 			regionalBackgroundFault: null
 		});
+	});
+
+	it('accepts only a known battle test fight', () => {
+		expect(parseWorldRenderOptions('?battleTest=wolves-2').battleTestId).toBe('wolves-2');
+		expect(parseWorldRenderOptions('?battleTest=wolves-3').battleTestId).toBe('wolves-3');
+		expect(parseWorldRenderOptions('?battleTest=boar-king').battleTestId).toBe('boar-king');
+		for (const search of ['?battleTest=', '?battleTest=wolves-9', '?battleTest=mist-toad']) {
+			expect(parseWorldRenderOptions(search).battleTestId, search).toBeNull();
+		}
 	});
 
 	it('accepts a slug-shaped start map and ignores anything else', () => {

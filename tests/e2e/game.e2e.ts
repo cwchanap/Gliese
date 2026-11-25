@@ -18,18 +18,8 @@ import {
 	startNewRunFromTitle,
 	startNewRunThroughOpening
 } from './helpers/game';
-import {
-	blacksmithInteriorMap,
-	guildHallMap,
-	heroHouseMap,
-	itemShopMap,
-	overworldMap,
-	ruinsThresholdMap,
-	shrineOfAuroraInteriorMap,
-	villagerHouse1Map,
-	villagerHouse2Map,
-	villagerHouse3Map
-} from '../../src/lib/game/content/maps';
+import { expectTimeout, testTimeout } from '../../tools/e2e-timeout-budget';
+import { blacksmithInteriorMap, overworldMap } from '../../src/lib/game/content/maps';
 import {
 	overworldDoorArrival,
 	type OverworldDoorMapId
@@ -39,16 +29,14 @@ import {
 	NPC_PACK_COLLISION_RADIUS,
 	PLAYER_COLLISION_RADIUS
 } from '../../src/lib/game/core/collision';
-import { isWalkable } from '../../src/lib/game/core/navigation';
 import {
 	expandedLayoutRectContainsPoint,
 	layoutRectContainsPoint
 } from '../../src/lib/game/content/maps/layouts/layout-rects';
 import { VILLAGE_INTERIOR_LAYOUTS } from '../../src/lib/game/content/maps/layouts/village-interiors-v2';
 import { anchorPoint } from '../../src/lib/game/content/maps/overworld/world';
-import { getStoryProgress, type QuestState } from '../../src/lib/game/core/quests';
+import { type QuestState } from '../../src/lib/game/core/quests';
 import { questStateAt } from '../../src/lib/game/core/quests.fixtures';
-import { applyStoryGates } from '../../src/lib/game/core/story-gates';
 
 type HudStateSnapshot = {
 	ready?: boolean;
@@ -65,6 +53,7 @@ type HudStateSnapshot = {
 		phase?: string;
 		active?: {
 			feed?: Array<{ id: number; kind: string; amount: number; subject: string }>;
+			enemies?: Array<{ unitId: string; hp: number; maxHp: number }>;
 		} | null;
 	};
 	nearbyShop?: { shopId?: string; merchantName?: string } | null;
@@ -86,34 +75,17 @@ type PlayerMovementDiagnostic = {
 	blocked: boolean;
 };
 
-type TransitionSourceWaitResult = {
-	found: boolean;
-	diagnostic: PlayerMovementDiagnostic | null;
-	lastDiagnostic: PlayerMovementDiagnostic | null;
-	hudMapId: string | null;
-	diagnosticCount: number;
-	sourceEventCount: number;
-	sourceWaitStartedAt?: number;
-	sourceWaitFinishedAt?: number;
-	sourceDiagnosticAt?: number | null;
-	sourceHudAt?: number;
-	sourceMovementAt?: number;
-};
-
-type SceneEncounterDiagnostic = {
+// Mirrors WorldSceneCameraDiagnostic in
+// src/lib/game/phaser/world-scene-camera-diagnostic.ts: a plain-data
+// map/facing/camera snapshot emitted after Phaser has applied the camera
+// bounds and refreshed worldView. Never the live camera object.
+type WorldSceneCameraDiagnostic = {
 	mapId: string;
-	clearedEncounterIds: string[];
-	enemies: Array<{
-		id: string;
-		defeated: boolean;
-		hp: number;
-		maxHp: number;
-	}>;
-};
-
-type TransitionGateDiagnostic = SceneEncounterDiagnostic & {
-	player: { x: number; y: number } | null;
-	hasLivingEnemies: boolean;
+	facing: string;
+	camera: {
+		view: { x: number; y: number; width: number; height: number };
+		bounds: { x: number; y: number; width: number; height: number };
+	};
 };
 
 type RegionalBackgroundPlaneRenderDiagnosticEntry = {
@@ -146,8 +118,6 @@ type RegionalBackgroundPlaneRenderDiagnostic = {
 	collisionIds: string[];
 	statefulObjectIds: string[];
 	selectedFallbackBlockerIds?: string[];
-	selectedFallbackDecorIds: string[];
-	selectedFallbackFenceIds: string[];
 };
 
 type RegionalBackgroundRendererDiagnostic = {
@@ -159,78 +129,46 @@ type RegionalBackgroundRendererDiagnostic = {
 	regionalBackgroundLoadMs: number | null;
 };
 
-type OverworldCameraSample = {
-	mapId: string;
-	routeToken: string;
-	pointIndex: number;
-	left: number;
-	top: number;
-	right: number;
-	bottom: number;
-	width: number;
-	height: number;
-};
-
-type OverworldSceneCamera = {
-	zoom?: number;
-	worldView?: {
-		x?: number;
-		y?: number;
-		left?: number;
-		top?: number;
-		right?: number;
-		bottom?: number;
-		width?: number;
-		height?: number;
-	};
-};
-
 type GlieseProbeWindow = Window & {
 	__glieseLastHudState?: HudStateSnapshot;
-	__glieseLastPlayerFacing?: string;
 	__glieseLastHudAt?: number;
 	__glieseMovementDiagnostics?: PlayerMovementDiagnostic[];
 	__glieseLastMovementDiagnostic?: PlayerMovementDiagnostic;
 	__glieseLastMovementAt?: number;
-	__glieseSceneEncounterState?: SceneEncounterDiagnostic;
-	__glieseTransitionGateState?: TransitionGateDiagnostic;
-	__glieseTransitionSourceWait?: () => Promise<TransitionSourceWaitResult>;
-	__glieseTransitionSourceCleanup?: () => void;
-	__glieseCharacterizationMovementCount?: number;
-	__glieseCharacterizationSyntheticPhase?: boolean;
 	__glieseRegionalBackgroundDiagnostics?: RegionalBackgroundPlaneRenderDiagnostic[];
 	__glieseRegionalBackgroundRendererDiagnostics?: RegionalBackgroundRendererDiagnostic[];
-	__glieseActiveSceneCamera?: OverworldSceneCamera;
-	__glieseCameraSamples?: OverworldCameraSample[];
-	__glieseExteriorRouteTokens?: string[];
+	__glieseLastSceneCameraDiagnostic?: WorldSceneCameraDiagnostic;
 	__glieseRouteVisibilityState?: string;
 	__glieseRouteHasFocus?: boolean;
 	__glieseRouteBlurAt?: number;
 	__glieseRouteFocusAt?: number;
 	__glieseJourneyTrace?: { x: number; y: number; mapId?: string }[];
 	__glieseAxisHold?: {
+		token: number;
 		axis: 'x' | 'y';
 		direction: 'gte' | 'lte';
 		value: number;
 		key: string;
 		keyCode: number;
 	} | null;
+	__glieseAxisHoldLog?: {
+		token: number;
+		key: string;
+		value: number;
+		x: number;
+		y: number;
+	}[];
 	__glieseBattleFeed?: { id: number; kind: string; amount: number; subject: string }[];
+	__glieseWolvesHudPlates?: string[];
+	__glieseWolvesActive?: {
+		attack?: number;
+		defense?: number;
+		enemies: { unitId: string; hp: number; maxHp: number }[];
+	} | null;
 	__glieseRouteRunner?: {
 		start: (plan: BrowserRoutePlan) => BrowserRouteResult;
 		get: (token: string) => BrowserRouteResult | null;
 		cancel: (token: string, reason: string) => BrowserRouteResult | null;
-		startGuildMasterSemanticDiagonal: (
-			plan: GuildMasterSemanticDiagonalPlan
-		) => GuildMasterSemanticDiagonalResult;
-		getGuildMasterSemanticDiagonal: (token: string) => GuildMasterSemanticDiagonalResult | null;
-		cancelGuildMasterSemanticDiagonal: (
-			token: string,
-			reason: string
-		) => GuildMasterSemanticDiagonalResult | null;
-		startCaveDoorwayBand: (plan: CaveDoorwayBandPlan) => CaveDoorwayBandResult;
-		getCaveDoorwayBand: (token: string) => CaveDoorwayBandResult | null;
-		cancelCaveDoorwayBand: (token: string, reason: string) => CaveDoorwayBandResult | null;
 		active: () => BrowserRouteResult | null;
 	};
 };
@@ -272,7 +210,7 @@ async function pressInteractUntilDialog(page: Page, name: string | RegExp) {
 	await expect(async () => {
 		await page.keyboard.press('e', { delay: 50 });
 		await expect(dialog).toBeVisible({ timeout: 1_000 });
-	}).toPass({ timeout: 15_000, intervals: [800, 1_200] });
+	}).toPass({ timeout: expectTimeout(15_000), intervals: [800, 1_200] });
 	return dialog;
 }
 
@@ -389,25 +327,8 @@ async function hpa839Shot(page: Page, name: string) {
  * The boar king trial. The lodge still has Borak and its keeper, but Drogg (there only during the
  * earlier trials) has left the training-hall row that the guild hall route walks.
  */
-function createBoarKingQuestFixture(): QuestState {
-	return {
-		entries: {
-			'prologue-trial-boar-king': {
-				status: 'active',
-				currentObjectiveId: 'meet-drogg-north-gate',
-				progress: 0,
-				countedSourceIds: []
-			}
-		},
-		completedObjectives: {},
-		pendingEffects: []
-	};
-}
 
 /** The guild hall route walks the training-hall row, which Drogg holds during the earlier trials. */
-function allEightQuests(interior: { mapId: string }): QuestState | undefined {
-	return interior.mapId === 'guild-hall' ? createBoarKingQuestFixture() : undefined;
-}
 
 function createQuestFixture(): QuestState {
 	return {
@@ -468,12 +389,6 @@ const SAVES_STORAGE_KEY = 'gliese.saves.v1';
 type SaveInitPayload = { encoded: string; key: string };
 type SaveSeedInitPayload = SaveInitPayload & { marker: string };
 const SAVE_SEED_MARKER = '__gliese_e2e_save_seeded_v1';
-
-// WorldScene camera probe marker: the call ends with `,` or `;` depending on
-// how the chunk minifier groups it — the probe inherits either terminator.
-// Module scope so a cheap gate test can pin both accepted forms.
-const WORLDSCENE_START_FOLLOW_MARKER =
-	/this\.cameras\.main\.startFollow\(this\.player,[^;)]*cameraFollowLerp[^;)]*\)[;,]/;
 
 function createSaveFixture(overrides: SaveFixtureOverrides = {}) {
 	return {
@@ -588,96 +503,23 @@ function readManualSlotState(page: Page): Promise<LooseSaveState> {
 	);
 }
 
-function readAutosaveState(page: Page): Promise<LooseSaveState> {
-	return readSlotEnvelope(page).then(
-		(envelope) => (envelope?.slots[0]?.state ?? {}) as LooseSaveState
-	);
-}
-
-function rewriteSceneStateProbeSource(servedBody: string): string {
-	const encounterMatch = servedBody.match(/this\.setupEncounters\([^)]*\)/);
-	const transitionGateMatch = servedBody.match(
-		/((?<![A-Za-z0-9_$])[A-Za-z_$][\w$]*)=this\.hasLivingEnemies\(\);for\(let ([A-Za-z_$][\w$]*) of ([A-Za-z_$][\w$]*)\.transitions\)/
-	);
-	if (!encounterMatch) {
-		throw new Error('WorldScene encounter probe marker was not found in the served test chunk');
-	}
-	if (!transitionGateMatch) {
-		throw new Error(
-			'WorldScene transition gate probe marker was not found in the served test chunk'
-		);
-	}
-	servedBody = servedBody.replace(
-		encounterMatch[0],
-		`${encounterMatch[0]},globalThis.__glieseSceneEncounterState={mapId:this.mapId,clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))}`
-	);
-	const [, livingEnemiesVariable, transitionVariable, mapVariable] = transitionGateMatch;
-	return servedBody.replace(
-		transitionGateMatch[0],
-		`${livingEnemiesVariable}=this.hasLivingEnemies();globalThis.__glieseTransitionGateState={mapId:this.mapId,player:this.player?{x:this.player.x,y:this.player.y}:null,hasLivingEnemies:${livingEnemiesVariable},clearedEncounterIds:[...this.clearedEncounterIds],enemies:this.enemies.map(e=>({id:e.id,defeated:e.defeated,hp:e.hp,maxHp:e.maxHp}))};{const __glieseTrace=globalThis.__glieseJourneyTrace;if(__glieseTrace&&this.player){const __glieseLast=__glieseTrace[__glieseTrace.length-1];if(!__glieseLast||__glieseLast.x!==this.player.x||__glieseLast.y!==this.player.y||__glieseLast.mapId!==this.mapId)__glieseTrace.push({x:this.player.x,y:this.player.y,mapId:this.mapId});}}{const __glieseHold=globalThis.__glieseAxisHold;if(__glieseHold&&this.player){const __glieseAxisValue=__glieseHold.axis==='x'?this.player.x:this.player.y;if((__glieseHold.direction==='gte'&&__glieseAxisValue>=__glieseHold.value)||(__glieseHold.direction==='lte'&&__glieseAxisValue<=__glieseHold.value)){globalThis.__glieseAxisHold=null;const __glieseKeyup=new KeyboardEvent('keyup',{bubbles:true,cancelable:true,key:__glieseHold.key});try{Object.defineProperty(__glieseKeyup,'keyCode',{configurable:true,value:__glieseHold.keyCode});Object.defineProperty(__glieseKeyup,'which',{configurable:true,value:__glieseHold.keyCode});}catch{}window.dispatchEvent(__glieseKeyup);}}}for(let ${transitionVariable} of ${mapVariable}.transitions)`
-	);
-}
-
-async function installRuntimeProbes(
-	page: Page,
-	options: { captureFacing?: boolean; captureSceneState?: boolean } = {}
-) {
-	// WorldScene keeps its live facing private and the HUD intentionally omits it.
-	// Instrument only the browser-served test chunk so the E2E can observe the
-	// scene-create transition payload without adding a production diagnostic hook
-	// or mutating any game state. The replacement is limited to the existing
-	// authored `create()` assignment and records the value after it is applied.
-	if (options.captureFacing || options.captureSceneState) {
-		await page.route('**/assets/WorldScene-*.js', async (route) => {
-			const response = await route.fetch();
-			const body = await response.text();
-			let servedBody = body;
-			// Vite's chunk minifier renames local variables between builds. Match the
-			// authored assignments by their stable property names instead of coupling
-			// the probe to one particular minified variable spelling.
-			if (options.captureFacing) {
-				const facingMatch = servedBody.match(/this\.facing=[^;]*?spawnDirection/);
-				const cameraMatch = servedBody.match(WORLDSCENE_START_FOLLOW_MARKER);
-				if (!facingMatch) {
-					throw new Error('WorldScene facing probe marker was not found in the served test chunk');
-				}
-				if (!cameraMatch) {
-					throw new Error('WorldScene camera probe marker was not found in the served test chunk');
-				}
-				servedBody = servedBody.replace(
-					facingMatch[0],
-					`${facingMatch[0]},globalThis.__glieseLastPlayerFacing=this.facing`
-				);
-				servedBody = servedBody.replace(
-					cameraMatch[0],
-					`${cameraMatch[0]}globalThis.__glieseActiveSceneCamera=this.cameras.main${cameraMatch[0].endsWith(',') ? ',' : ';'}`
-				);
-			}
-			if (options.captureSceneState) {
-				servedBody = rewriteSceneStateProbeSource(servedBody);
-			}
-			await route.fulfill({
-				response,
-				body: servedBody
-			});
-		});
-	}
-
+async function installRuntimeProbes(page: Page) {
+	// Runtime observation is event-driven: the app emits typed
+	// `gliese:*-diagnostic` CustomEvents (HUD, movement, camera) which the init
+	// script below mirrors onto `window.__gliese*` handles. No production bundle
+	// rewriting; the game chunk the tests run is byte-identical to the shipped one.
 	return page.addInitScript(() => {
 		const probeWindow = window as GlieseProbeWindow;
 		probeWindow.__glieseLastHudState = undefined;
-		probeWindow.__glieseLastPlayerFacing = undefined;
 		probeWindow.__glieseLastHudAt = 0;
 		probeWindow.__glieseMovementDiagnostics = [];
 		probeWindow.__glieseLastMovementDiagnostic = undefined;
 		probeWindow.__glieseLastMovementAt = 0;
-		probeWindow.__glieseSceneEncounterState = undefined;
-		probeWindow.__glieseTransitionGateState = undefined;
 		probeWindow.__glieseRegionalBackgroundDiagnostics = [];
 		probeWindow.__glieseRegionalBackgroundRendererDiagnostics = [];
-		probeWindow.__glieseActiveSceneCamera = undefined;
-		probeWindow.__glieseCameraSamples = [];
-		probeWindow.__glieseExteriorRouteTokens = [];
+		probeWindow.__glieseLastSceneCameraDiagnostic = undefined;
+		probeWindow.__glieseAxisHold = null;
+		probeWindow.__glieseAxisHoldLog = [];
 		probeWindow.__glieseRouteVisibilityState = document.visibilityState;
 		probeWindow.__glieseRouteHasFocus = document.hasFocus();
 		probeWindow.__glieseRouteBlurAt = undefined;
@@ -691,6 +533,72 @@ async function installRuntimeProbes(
 			probeWindow.__glieseMovementDiagnostics?.push(detail);
 			probeWindow.__glieseLastMovementDiagnostic = detail;
 			probeWindow.__glieseLastMovementAt = performance.now();
+			// The journey trace records every resolved step once the test arms it;
+			// mapId tags each point so multi-map legs filter client-side.
+			const trace = probeWindow.__glieseJourneyTrace;
+			if (trace) {
+				const last = trace[trace.length - 1];
+				if (
+					!last ||
+					last.x !== detail.resolvedPosition.x ||
+					last.y !== detail.resolvedPosition.y ||
+					last.mapId !== detail.mapId
+				) {
+					trace.push({
+						x: detail.resolvedPosition.x,
+						y: detail.resolvedPosition.y,
+						mapId: detail.mapId
+					});
+				}
+			}
+			// An armed axis hold releases its key on the same frame the resolved
+			// position crosses the threshold — synchronous with the movement
+			// update, so no CDP or poll latency adds overshoot. The arm is
+			// consumed on the first matching event so exactly one keyup is
+			// dispatched; the test-side poll observes that hold's completion
+			// through the release log's token.
+			const hold = probeWindow.__glieseAxisHold;
+			if (hold) {
+				const axisValue = hold.axis === 'x' ? detail.resolvedPosition.x : detail.resolvedPosition.y;
+				const crossed =
+					(hold.direction === 'gte' && axisValue >= hold.value) ||
+					(hold.direction === 'lte' && axisValue <= hold.value);
+				if (crossed) {
+					probeWindow.__glieseAxisHold = null;
+					probeWindow.__glieseAxisHoldLog?.push({
+						token: hold.token,
+						key: hold.key,
+						value: hold.value,
+						x: detail.resolvedPosition.x,
+						y: detail.resolvedPosition.y
+					});
+					const keyup = new KeyboardEvent('keyup', {
+						bubbles: true,
+						cancelable: true,
+						key: hold.key,
+						code: `Key${hold.key.toUpperCase()}`
+					});
+					try {
+						Object.defineProperty(keyup, 'keyCode', {
+							configurable: true,
+							value: hold.keyCode
+						});
+						Object.defineProperty(keyup, 'which', {
+							configurable: true,
+							value: hold.keyCode
+						});
+					} catch {
+						// keyCode/which are read-only on some engines; the `key`
+						// field alone still satisfies the Phaser keyup listener.
+					}
+					window.dispatchEvent(keyup);
+				}
+			}
+		});
+		window.addEventListener('gliese:world-scene-camera-diagnostic', (event) => {
+			probeWindow.__glieseLastSceneCameraDiagnostic = (
+				event as CustomEvent<WorldSceneCameraDiagnostic>
+			).detail;
 		});
 		window.addEventListener('gliese:regional-background-plane-render-diagnostic', (event) => {
 			probeWindow.__glieseRegionalBackgroundDiagnostics?.push(
@@ -749,28 +657,10 @@ async function installRuntimeProbes(
 			invalidDiagnostics: PlayerMovementDiagnostic[];
 			diagnosticAxes: Axis[];
 		};
-		type InternalGuildMasterSemanticDiagonalState = GuildMasterSemanticDiagonalResult & {
-			expectedMapId: string;
-			minY: number;
-			maxYExclusive: number;
-			xDirection: -1 | 1;
-			yDirection: -1 | 0 | 1;
-		};
-		type InternalCaveDoorwayBandState = CaveDoorwayBandResult & {
-			expectedMapId: string;
-			minX: number;
-			maxXExclusive: number;
-			expectedY: number;
-			xDirection: -1 | 0 | 1;
-		};
 		let routeState: InternalRouteState | null = null;
 		let keyLeaseFrame: number | null = null;
 		let scheduledCorrectionWaitFrame: number | null = null;
 		let scheduledCorrectionFrame: number | null = null;
-		let semanticDiagonalState: InternalGuildMasterSemanticDiagonalState | null = null;
-		let semanticKeyLeaseFrame: number | null = null;
-		let caveDoorwayBandState: InternalCaveDoorwayBandState | null = null;
-		let caveDoorwayBandKeyLeaseFrame: number | null = null;
 
 		const cloneDiagnostic = (diagnostic: PlayerMovementDiagnostic | null) =>
 			diagnostic
@@ -782,28 +672,6 @@ async function installRuntimeProbes(
 						blocked: diagnostic.blocked
 					}
 				: null;
-		const semanticSnapshot = (): GuildMasterSemanticDiagonalResult | null => {
-			if (!semanticDiagonalState) return null;
-			return {
-				token: semanticDiagonalState.token,
-				mapId: semanticDiagonalState.mapId,
-				status: semanticDiagonalState.status,
-				position: semanticDiagonalState.position ? { ...semanticDiagonalState.position } : null,
-				lastDiagnostic: cloneDiagnostic(semanticDiagonalState.lastDiagnostic),
-				diagnostics: semanticDiagonalState.diagnostics.map(
-					(diagnostic) => cloneDiagnostic(diagnostic)!
-				),
-				invalidDiagnostics: semanticDiagonalState.invalidDiagnostics.map(
-					(diagnostic) => cloneDiagnostic(diagnostic)!
-				),
-				activeKeys: [...semanticDiagonalState.activeKeys],
-				releasedKeys: [...semanticDiagonalState.releasedKeys],
-				released: semanticDiagonalState.released,
-				startedAt: semanticDiagonalState.startedAt,
-				finishedAt: semanticDiagonalState.finishedAt,
-				error: semanticDiagonalState.error
-			};
-		};
 		const snapshot = (): BrowserRouteResult | null => {
 			if (!routeState) return null;
 			return {
@@ -857,40 +725,6 @@ async function installRuntimeProbes(
 				}
 			}
 			window.dispatchEvent(event);
-		};
-		const cancelSemanticKeyLease = () => {
-			if (semanticKeyLeaseFrame === null) return;
-			cancelAnimationFrame(semanticKeyLeaseFrame);
-			semanticKeyLeaseFrame = null;
-		};
-		const releaseSemanticDiagonalKeys = () => {
-			if (!semanticDiagonalState) return;
-			cancelSemanticKeyLease();
-			for (const key of [...semanticDiagonalState.activeKeys].reverse()) {
-				dispatchSyntheticKey('keyup', key);
-				semanticDiagonalState.releasedKeys.push(key);
-			}
-			semanticDiagonalState.activeKeys = [];
-			semanticDiagonalState.released = true;
-		};
-		const finishSemanticDiagonal = (status: 'done' | 'error', error?: string) => {
-			if (!semanticDiagonalState) return;
-			releaseSemanticDiagonalKeys();
-			semanticDiagonalState.status = status;
-			semanticDiagonalState.finishedAt = performance.now();
-			if (error) semanticDiagonalState.error = error;
-		};
-		const runSemanticKeyLeaseFrame = () => {
-			semanticKeyLeaseFrame = null;
-			if (!semanticDiagonalState || semanticDiagonalState.status !== 'running') return;
-			for (const key of semanticDiagonalState.activeKeys) {
-				dispatchSyntheticKey('keydown', key);
-			}
-			semanticKeyLeaseFrame = requestAnimationFrame(runSemanticKeyLeaseFrame);
-		};
-		const startSemanticKeyLease = () => {
-			if (semanticKeyLeaseFrame !== null) return;
-			semanticKeyLeaseFrame = requestAnimationFrame(runSemanticKeyLeaseFrame);
 		};
 		const cancelKeyLease = () => {
 			if (keyLeaseFrame === null) return;
@@ -995,335 +829,6 @@ async function installRuntimeProbes(
 				return { x: hudPlayer.x, y: hudPlayer.y };
 			}
 			return diagnosticPosition ? { ...diagnosticPosition } : null;
-		};
-		const startGuildMasterSemanticDiagonal = (
-			plan: GuildMasterSemanticDiagonalPlan
-		): GuildMasterSemanticDiagonalResult => {
-			if (semanticDiagonalState?.status === 'running') {
-				finishSemanticDiagonal('error', 'semantic diagonal was already active');
-			}
-			const currentMapId = probeWindow.__glieseLastHudState?.mapId ?? '';
-			const position = actualPosition();
-			semanticDiagonalState = {
-				token: plan.token,
-				mapId: currentMapId,
-				status: 'running',
-				position: position ? { ...position } : null,
-				lastDiagnostic: null,
-				diagnostics: [],
-				invalidDiagnostics: [],
-				activeKeys: [],
-				releasedKeys: [],
-				released: false,
-				startedAt: performance.now(),
-				finishedAt: null,
-				expectedMapId: plan.expectedMapId,
-				minY: plan.minY,
-				maxYExclusive: plan.maxYExclusive,
-				xDirection: plan.xDirection,
-				yDirection: 0
-			};
-			if (
-				!Number.isFinite(plan.minY) ||
-				!Number.isFinite(plan.maxYExclusive) ||
-				plan.minY >= plan.maxYExclusive ||
-				(plan.xDirection !== -1 && plan.xDirection !== 1)
-			) {
-				finishSemanticDiagonal('error', `invalid semantic diagonal plan ${JSON.stringify(plan)}`);
-				return semanticSnapshot()!;
-			}
-			if (!position) {
-				finishSemanticDiagonal('error', 'semantic diagonal missing current player position');
-				return semanticSnapshot()!;
-			}
-			if (currentMapId !== plan.expectedMapId) {
-				finishSemanticDiagonal(
-					'error',
-					`semantic diagonal started on ${currentMapId}; expected ${plan.expectedMapId}`
-				);
-				return semanticSnapshot()!;
-			}
-			const yDirection: -1 | 0 | 1 =
-				position.y < plan.minY ? 1 : position.y >= plan.maxYExclusive ? -1 : 0;
-			semanticDiagonalState.yDirection = yDirection;
-			if (yDirection === 0) {
-				finishSemanticDiagonal('done');
-				return semanticSnapshot()!;
-			}
-			const yKey = yDirection > 0 ? 'ArrowDown' : 'ArrowUp';
-			semanticDiagonalState.activeKeys = [yKey, 'ArrowLeft'];
-			dispatchSyntheticKey('keydown', yKey);
-			dispatchSyntheticKey('keydown', 'ArrowLeft');
-			startSemanticKeyLease();
-			return semanticSnapshot()!;
-		};
-		const onGuildMasterSemanticDiagonalDiagnostic = (event: Event) => {
-			if (!semanticDiagonalState || semanticDiagonalState.status !== 'running') return;
-			const diagnostic = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
-			const clonedDiagnostic = {
-				mapId: diagnostic.mapId,
-				previousPosition: { ...diagnostic.previousPosition },
-				requestedPosition: { ...diagnostic.requestedPosition },
-				resolvedPosition: { ...diagnostic.resolvedPosition },
-				blocked: diagnostic.blocked
-			};
-			semanticDiagonalState.diagnostics.push(clonedDiagnostic);
-			semanticDiagonalState.lastDiagnostic = clonedDiagnostic;
-			semanticDiagonalState.position = { ...diagnostic.resolvedPosition };
-			const failSemanticDiagnostic = (reason: string) => {
-				semanticDiagonalState!.invalidDiagnostics.push(clonedDiagnostic);
-				finishSemanticDiagonal('error', reason);
-			};
-			if (diagnostic.mapId !== semanticDiagonalState.expectedMapId) {
-				failSemanticDiagnostic(
-					`semantic diagonal received wrong-map diagnostic: expected ${semanticDiagonalState.expectedMapId}, received ${diagnostic.mapId}`
-				);
-				return;
-			}
-			if (diagnostic.blocked) {
-				failSemanticDiagnostic('semantic diagonal received blocked diagnostic');
-				return;
-			}
-			const { previousPosition, resolvedPosition } = diagnostic;
-			if (
-				![previousPosition.x, previousPosition.y, resolvedPosition.x, resolvedPosition.y].every(
-					(value) => Number.isFinite(value)
-				)
-			) {
-				failSemanticDiagnostic('semantic diagonal received non-finite diagnostic');
-				return;
-			}
-			const movedAwayFromDesk =
-				(resolvedPosition.x - previousPosition.x) * semanticDiagonalState.xDirection > 0;
-			const movedTowardBand =
-				semanticDiagonalState.yDirection === 1
-					? resolvedPosition.y > previousPosition.y
-					: semanticDiagonalState.yDirection === -1
-						? resolvedPosition.y < previousPosition.y
-						: false;
-			if (!movedAwayFromDesk || !movedTowardBand) {
-				failSemanticDiagnostic(
-					`semantic diagonal did not make monotonic progress: ${JSON.stringify({ diagnostic, movedAwayFromDesk, movedTowardBand })}`
-				);
-				return;
-			}
-			const overshotBand =
-				semanticDiagonalState.yDirection === 1
-					? resolvedPosition.y >= semanticDiagonalState.maxYExclusive
-					: resolvedPosition.y < semanticDiagonalState.minY;
-			if (overshotBand) {
-				failSemanticDiagnostic(
-					`semantic diagonal overshot its band: ${JSON.stringify({ diagnostic, minY: semanticDiagonalState.minY, maxYExclusive: semanticDiagonalState.maxYExclusive })}`
-				);
-				return;
-			}
-			if (
-				resolvedPosition.y >= semanticDiagonalState.minY &&
-				resolvedPosition.y < semanticDiagonalState.maxYExclusive
-			) {
-				finishSemanticDiagonal('done');
-			}
-		};
-		const caveDoorwaySnapshot = (): CaveDoorwayBandResult | null => {
-			if (!caveDoorwayBandState) return null;
-			return {
-				token: caveDoorwayBandState.token,
-				mapId: caveDoorwayBandState.mapId,
-				status: caveDoorwayBandState.status,
-				position: caveDoorwayBandState.position ? { ...caveDoorwayBandState.position } : null,
-				lastDiagnostic: cloneDiagnostic(caveDoorwayBandState.lastDiagnostic),
-				diagnostics: caveDoorwayBandState.diagnostics.map(
-					(diagnostic) => cloneDiagnostic(diagnostic)!
-				),
-				invalidDiagnostics: caveDoorwayBandState.invalidDiagnostics.map(
-					(diagnostic) => cloneDiagnostic(diagnostic)!
-				),
-				activeKeys: [...caveDoorwayBandState.activeKeys],
-				releasedKeys: [...caveDoorwayBandState.releasedKeys],
-				released: caveDoorwayBandState.released,
-				startedAt: caveDoorwayBandState.startedAt,
-				finishedAt: caveDoorwayBandState.finishedAt,
-				error: caveDoorwayBandState.error
-			};
-		};
-		const cancelCaveDoorwayBandKeyLease = () => {
-			if (caveDoorwayBandKeyLeaseFrame === null) return;
-			cancelAnimationFrame(caveDoorwayBandKeyLeaseFrame);
-			caveDoorwayBandKeyLeaseFrame = null;
-		};
-		const releaseCaveDoorwayBandKey = () => {
-			if (!caveDoorwayBandState) return;
-			cancelCaveDoorwayBandKeyLease();
-			for (const key of [...caveDoorwayBandState.activeKeys].reverse()) {
-				dispatchSyntheticKey('keyup', key);
-				caveDoorwayBandState.releasedKeys.push(key);
-			}
-			caveDoorwayBandState.activeKeys = [];
-			caveDoorwayBandState.released = true;
-		};
-		const finishCaveDoorwayBand = (status: 'done' | 'error', error?: string) => {
-			if (!caveDoorwayBandState) return;
-			releaseCaveDoorwayBandKey();
-			caveDoorwayBandState.status = status;
-			caveDoorwayBandState.finishedAt = performance.now();
-			if (error) caveDoorwayBandState.error = error;
-		};
-		const runCaveDoorwayBandKeyLeaseFrame = () => {
-			caveDoorwayBandKeyLeaseFrame = null;
-			if (!caveDoorwayBandState || caveDoorwayBandState.status !== 'running') return;
-			for (const key of caveDoorwayBandState.activeKeys) {
-				dispatchSyntheticKey('keydown', key);
-			}
-			caveDoorwayBandKeyLeaseFrame = requestAnimationFrame(runCaveDoorwayBandKeyLeaseFrame);
-		};
-		const startCaveDoorwayBandKeyLease = () => {
-			if (caveDoorwayBandKeyLeaseFrame !== null) return;
-			caveDoorwayBandKeyLeaseFrame = requestAnimationFrame(runCaveDoorwayBandKeyLeaseFrame);
-		};
-		const startCaveDoorwayBand = (plan: CaveDoorwayBandPlan): CaveDoorwayBandResult => {
-			if (caveDoorwayBandState?.status === 'running') {
-				finishCaveDoorwayBand('error', 'cave doorway band was already active');
-			}
-			const currentMapId = probeWindow.__glieseLastHudState?.mapId ?? '';
-			const position = actualPosition();
-			caveDoorwayBandState = {
-				token: plan.token,
-				mapId: currentMapId,
-				status: 'running',
-				position: position ? { ...position } : null,
-				lastDiagnostic: null,
-				diagnostics: [],
-				invalidDiagnostics: [],
-				activeKeys: [],
-				releasedKeys: [],
-				released: false,
-				startedAt: performance.now(),
-				finishedAt: null,
-				expectedMapId: plan.expectedMapId,
-				minX: plan.minX,
-				maxXExclusive: plan.maxXExclusive,
-				expectedY: plan.expectedY,
-				xDirection: 0
-			};
-			if (
-				![plan.minX, plan.maxXExclusive, plan.expectedY].every(Number.isFinite) ||
-				plan.minX >= plan.maxXExclusive
-			) {
-				finishCaveDoorwayBand('error', `invalid cave doorway band plan ${JSON.stringify(plan)}`);
-				return caveDoorwaySnapshot()!;
-			}
-			if (!position) {
-				finishCaveDoorwayBand('error', 'cave doorway band missing current player position');
-				return caveDoorwaySnapshot()!;
-			}
-			if (currentMapId !== plan.expectedMapId) {
-				finishCaveDoorwayBand(
-					'error',
-					`cave doorway band started on ${currentMapId}; expected ${plan.expectedMapId}`
-				);
-				return caveDoorwaySnapshot()!;
-			}
-			if (position.y !== plan.expectedY) {
-				finishCaveDoorwayBand(
-					'error',
-					`cave doorway band started off safe row: ${JSON.stringify({ position, expectedY: plan.expectedY })}`
-				);
-				return caveDoorwaySnapshot()!;
-			}
-			const xDirection: -1 | 0 | 1 =
-				position.x < plan.minX ? 1 : position.x >= plan.maxXExclusive ? -1 : 0;
-			caveDoorwayBandState.xDirection = xDirection;
-			if (xDirection === 0) {
-				finishCaveDoorwayBand('done');
-				return caveDoorwaySnapshot()!;
-			}
-			const key = xDirection > 0 ? 'ArrowRight' : 'ArrowLeft';
-			caveDoorwayBandState.activeKeys = [key];
-			dispatchSyntheticKey('keydown', key);
-			startCaveDoorwayBandKeyLease();
-			return caveDoorwaySnapshot()!;
-		};
-		const onCaveDoorwayBandDiagnostic = (event: Event) => {
-			if (!caveDoorwayBandState || caveDoorwayBandState.status !== 'running') return;
-			const diagnostic = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
-			const clonedDiagnostic = {
-				mapId: diagnostic.mapId,
-				previousPosition: { ...diagnostic.previousPosition },
-				requestedPosition: { ...diagnostic.requestedPosition },
-				resolvedPosition: { ...diagnostic.resolvedPosition },
-				blocked: diagnostic.blocked
-			};
-			caveDoorwayBandState.diagnostics.push(clonedDiagnostic);
-			caveDoorwayBandState.lastDiagnostic = clonedDiagnostic;
-			caveDoorwayBandState.position = { ...diagnostic.resolvedPosition };
-			const failCaveDoorwayDiagnostic = (reason: string) => {
-				caveDoorwayBandState!.invalidDiagnostics.push(clonedDiagnostic);
-				finishCaveDoorwayBand('error', reason);
-			};
-			if (diagnostic.mapId !== caveDoorwayBandState.expectedMapId) {
-				failCaveDoorwayDiagnostic(
-					`cave doorway band received wrong-map diagnostic: expected ${caveDoorwayBandState.expectedMapId}, received ${diagnostic.mapId}`
-				);
-				return;
-			}
-			if (diagnostic.blocked) {
-				failCaveDoorwayDiagnostic('cave doorway band received blocked diagnostic');
-				return;
-			}
-			const { previousPosition, resolvedPosition } = diagnostic;
-			if (
-				![previousPosition.x, previousPosition.y, resolvedPosition.x, resolvedPosition.y].every(
-					Number.isFinite
-				)
-			) {
-				failCaveDoorwayDiagnostic('cave doorway band received non-finite diagnostic');
-				return;
-			}
-			if (
-				previousPosition.y !== caveDoorwayBandState.expectedY ||
-				resolvedPosition.y !== caveDoorwayBandState.expectedY
-			) {
-				failCaveDoorwayDiagnostic(
-					`cave doorway band left safe row: ${JSON.stringify({ diagnostic, expectedY: caveDoorwayBandState.expectedY })}`
-				);
-				return;
-			}
-			const movedTowardBand =
-				(resolvedPosition.x - previousPosition.x) * caveDoorwayBandState.xDirection > 0;
-			if (!movedTowardBand) {
-				failCaveDoorwayDiagnostic(
-					`cave doorway band did not make monotonic progress: ${JSON.stringify({ diagnostic, xDirection: caveDoorwayBandState.xDirection })}`
-				);
-				return;
-			}
-			const overshotBand =
-				caveDoorwayBandState.xDirection === 1
-					? resolvedPosition.x >= caveDoorwayBandState.maxXExclusive
-					: resolvedPosition.x < caveDoorwayBandState.minX;
-			if (overshotBand) {
-				// A single movement step can be wider than the band on slow CI
-				// runners (variable frame timing). `movedTowardBand` already
-				// proved monotonic progress toward the band, not blocked, on
-				// the safe row, on the right map — and the band only starts
-				// when the player is outside it (an in-band start finishes
-				// 'done' above), so an overshoot here means the step crossed
-				// the whole band: the player passed through the doorway. Snap
-				// to the near edge and succeed instead of failing on a
-				// frame-timing artifact.
-				const snappedX =
-					caveDoorwayBandState.xDirection === 1
-						? caveDoorwayBandState.maxXExclusive - 0.001
-						: caveDoorwayBandState.minX;
-				caveDoorwayBandState.position = { x: snappedX, y: resolvedPosition.y };
-				finishCaveDoorwayBand('done');
-				return;
-			}
-			if (
-				resolvedPosition.x >= caveDoorwayBandState.minX &&
-				resolvedPosition.x < caveDoorwayBandState.maxXExclusive
-			) {
-				finishCaveDoorwayBand('done');
-			}
 		};
 		const beginNextAxis = () => {
 			let contractAdvanced = false;
@@ -1565,46 +1070,6 @@ async function installRuntimeProbes(
 			scheduleCorrection(axisKey(axis, targetValue - value));
 		};
 		window.addEventListener('gliese:player-movement-diagnostic', onMovementDiagnostic);
-		window.addEventListener(
-			'gliese:player-movement-diagnostic',
-			onGuildMasterSemanticDiagonalDiagnostic
-		);
-		window.addEventListener('gliese:player-movement-diagnostic', onCaveDoorwayBandDiagnostic);
-		const sampleCamera = () => {
-			const activeRoute = probeWindow.__glieseRouteRunner?.active();
-			const view = probeWindow.__glieseActiveSceneCamera?.worldView;
-			const mapId = activeRoute?.mapId;
-			const left = typeof view?.left === 'number' ? view.left : view?.x;
-			const top = typeof view?.top === 'number' ? view.top : view?.y;
-			const width = view?.width;
-			const height = view?.height;
-			const right = typeof view?.right === 'number' ? view.right : undefined;
-			const bottom = typeof view?.bottom === 'number' ? view.bottom : undefined;
-			if (
-				activeRoute?.status === 'running' &&
-				typeof mapId === 'string' &&
-				typeof left === 'number' &&
-				typeof top === 'number' &&
-				typeof width === 'number' &&
-				typeof height === 'number' &&
-				typeof right === 'number' &&
-				typeof bottom === 'number'
-			) {
-				probeWindow.__glieseCameraSamples?.push({
-					mapId,
-					routeToken: activeRoute.token,
-					pointIndex: activeRoute.pointIndex,
-					left,
-					top,
-					right,
-					bottom,
-					width,
-					height
-				});
-			}
-			requestAnimationFrame(sampleCamera);
-		};
-		requestAnimationFrame(sampleCamera);
 		const routeRunner: NonNullable<GlieseProbeWindow['__glieseRouteRunner']> = {
 			start: (plan) => {
 				if (routeState?.status === 'running') {
@@ -1643,9 +1108,6 @@ async function installRuntimeProbes(
 					invalidDiagnostics: [],
 					diagnosticAxes: []
 				};
-				if (routeState.mapId === 'overworld') {
-					probeWindow.__glieseExteriorRouteTokens?.push(plan.token);
-				}
 				if (points.length < 1) {
 					failRoute('route requires at least one point');
 					return snapshot()!;
@@ -1675,38 +1137,12 @@ async function installRuntimeProbes(
 				if (routeState?.token !== token) return null;
 				if (routeState.status === 'running') failRoute(reason);
 				return snapshot();
-			},
-			startGuildMasterSemanticDiagonal,
-			getGuildMasterSemanticDiagonal: (token) =>
-				semanticDiagonalState?.token === token ? semanticSnapshot() : null,
-			cancelGuildMasterSemanticDiagonal: (token, reason) => {
-				if (semanticDiagonalState?.token !== token) return null;
-				if (semanticDiagonalState.status === 'running') {
-					finishSemanticDiagonal('error', reason);
-				}
-				return semanticSnapshot();
-			},
-			startCaveDoorwayBand,
-			getCaveDoorwayBand: (token) =>
-				caveDoorwayBandState?.token === token ? caveDoorwaySnapshot() : null,
-			cancelCaveDoorwayBand: (token, reason) => {
-				if (caveDoorwayBandState?.token !== token) return null;
-				if (caveDoorwayBandState.status === 'running') {
-					finishCaveDoorwayBand('error', reason);
-				}
-				return caveDoorwaySnapshot();
 			}
 		};
 		probeWindow.__glieseRouteRunner = routeRunner;
 		window.addEventListener('pagehide', () => {
 			cancelScheduledCorrection();
 			cancelKeyLease();
-			if (semanticDiagonalState?.status === 'running') {
-				finishSemanticDiagonal('error', 'page unloaded while semantic diagonal was active');
-			}
-			if (caveDoorwayBandState?.status === 'running') {
-				finishCaveDoorwayBand('error', 'page unloaded while cave doorway band was active');
-			}
 			if (routeState?.status === 'running') {
 				failRoute('page unloaded while route was active');
 			}
@@ -1725,63 +1161,6 @@ type BrowserRoutePlan = {
 	reachTolerance: number;
 	maxCorrectionTaps: number;
 	blockedTolerance?: number;
-};
-
-type GuildMasterSemanticDiagonalPlan = {
-	token: string;
-	expectedMapId: string;
-	minY: number;
-	maxYExclusive: number;
-	xDirection: -1 | 1;
-};
-
-type GuildMasterSemanticDiagonalResult = {
-	token: string;
-	mapId: string;
-	status: 'running' | 'done' | 'error';
-	position: Point | null;
-	lastDiagnostic: PlayerMovementDiagnostic | null;
-	diagnostics: PlayerMovementDiagnostic[];
-	invalidDiagnostics: PlayerMovementDiagnostic[];
-	activeKeys: Array<'ArrowDown' | 'ArrowLeft' | 'ArrowUp'>;
-	releasedKeys: Array<'ArrowDown' | 'ArrowLeft' | 'ArrowUp'>;
-	released: boolean;
-	startedAt: number;
-	finishedAt: number | null;
-	error?: string;
-};
-
-type CaveDoorwayBandPlan = {
-	token: string;
-	expectedMapId: string;
-	minX: number;
-	maxXExclusive: number;
-	expectedY: number;
-};
-
-type CaveDoorwayBandResult = {
-	token: string;
-	mapId: string;
-	status: 'running' | 'done' | 'error';
-	position: Point | null;
-	lastDiagnostic: PlayerMovementDiagnostic | null;
-	diagnostics: PlayerMovementDiagnostic[];
-	invalidDiagnostics: PlayerMovementDiagnostic[];
-	activeKeys: Array<'ArrowLeft' | 'ArrowRight'>;
-	releasedKeys: Array<'ArrowLeft' | 'ArrowRight'>;
-	released: boolean;
-	startedAt: number;
-	finishedAt: number | null;
-	error?: string;
-};
-
-type FixedXAxisBandSteeringRequest = {
-	expectedMapId: string;
-	minX: number;
-	maxXExclusive: number;
-	expectedY: number;
-	initialPoint: Point;
-	tokenPrefix: string;
 };
 
 type BrowserRouteResult = {
@@ -1812,45 +1191,12 @@ type BrowserRouteResult = {
 	error?: string;
 };
 
-type JourneyRouteEvidence = {
-	label: string;
-	token: string;
-	status: BrowserRouteResult['status'];
-	mapId: string;
-	position: Point | null;
-	lastDiagnostic: PlayerMovementDiagnostic | null;
-	diagnosticCount: number;
-	diagnosticMapIds: string[];
-	invalidDiagnostics: PlayerMovementDiagnostic[];
-};
-
-function collectJourneyRouteEvidence(
-	label: string,
-	result: BrowserRouteResult
-): JourneyRouteEvidence {
-	return {
-		label,
-		token: result.token,
-		status: result.status,
-		mapId: result.mapId,
-		position: result.position,
-		lastDiagnostic: result.lastDiagnostic,
-		diagnosticCount: result.diagnostics?.length ?? 0,
-		diagnosticMapIds: [...new Set((result.diagnostics ?? []).map(({ mapId }) => mapId))],
-		invalidDiagnostics: result.invalidDiagnostics ?? []
-	};
-}
-
 const AXIS_SETTLE_TOLERANCE = 12;
 const AXIS_REACH_TOLERANCE = 18;
 const MAX_AXIS_CORRECTION_TAPS = 8;
 const ROUTE_NO_PROGRESS_WATCHDOG_MS = 15_000;
 // Mirrors WorldScene playerRadius (12) + transitionRadius (18).
 const PLAYER_TRANSITION_REACH = 30;
-
-async function latestMovement(page: Page): Promise<PlayerMovementDiagnostic | null> {
-	return page.evaluate(() => (window as GlieseProbeWindow).__glieseLastMovementDiagnostic ?? null);
-}
 
 let routeTokenSequence = 0;
 let previousRouteSettleTolerance = AXIS_SETTLE_TOLERANCE;
@@ -2071,20 +1417,6 @@ function overworldDoor(
 const TIGHT_HANDOFF_REACH_TOLERANCE = 6;
 
 /** An axis-aligned route from `start` through `targets`, moving along `first` before the other axis on each hop. */
-function axisRoute(start: Point, targets: readonly Point[], first: 'x' | 'y'): Point[] {
-	const route = [start];
-	for (const target of targets) {
-		const last = route.at(-1)!;
-		const corner = first === 'x' ? { x: target.x, y: last.y } : { x: last.x, y: target.y };
-		for (const next of [corner, target]) {
-			const previous = route.at(-1)!;
-			if (Math.abs(next.x - previous.x) > 0.5 || Math.abs(next.y - previous.y) > 0.5) {
-				route.push(next);
-			}
-		}
-	}
-	return route;
-}
 
 /**
  * Ambient villagers answer E only to a player who is close and facing them (HPA-760), so walk
@@ -2092,3207 +1424,45 @@ function axisRoute(start: Point, targets: readonly Point[], first: 'x' | 'y'): P
  * tap toward the villager. The tap sets the facing even where a wall blocks the step, and it
  * undoes any reverse correction the route runner made on its last leg.
  */
-async function walkToAmbientNpcStance(
-	page: Page,
-	mapId: string,
-	npc: Point,
-	offsets: readonly number[]
-) {
-	const stances = offsets.map((offset) => ({ x: npc.x + offset, y: npc.y }));
-	await moveRoute(
-		page,
-		axisRoute(await currentHudPlayerPoint(page, mapId), stances, 'y'),
-		INTERIOR_ROUTE_SETTLE_TOLERANCE,
-		undefined,
-		undefined,
-		TIGHT_HANDOFF_REACH_TOLERANCE
-	);
-	await page.locator('canvas').click();
-	await page.keyboard.press(
-		trustedNpcDirectionToward(await currentHudPlayerPoint(page, mapId), npc),
-		{
-			delay: 40
-		}
-	);
-}
 
 /** Returns the player to `point` after a stance, so later legs start where the journey expects. */
-async function walkBackToStepPoint(page: Page, mapId: string, point: Point) {
-	await moveRoute(
-		page,
-		axisRoute(await currentHudPlayerPoint(page, mapId), [point], 'x'),
-		INTERIOR_ROUTE_SETTLE_TOLERANCE
-	);
-}
-
-const INTERIOR_GRAYBOX_CASES: readonly InteriorGrayboxCase[] = [
-	{
-		mapId: 'guild-hall',
-		...overworldDoor('guild-hall'),
-		spawn: { x: 512, y: 736 },
-		exit: { x: 512, y: 816 },
-		persistAfterStep: 'quartermaster-approach',
-		steps: [
-			{ label: 'entrance-lobby-spine', point: { x: 512, y: 656 } },
-			{ label: 'common-hall-spine', point: { x: 512, y: 512 } },
-			{ label: 'common-hall-west', point: { x: 367, y: 512 } },
-			{ label: 'common-hall-south', point: { x: 367, y: 568 } },
-			{ label: 'common-hall-south-west', point: { x: 112, y: 568 } },
-			{ label: 'common-hall-member-west-staging', point: { x: 112, y: 592 } },
-			{
-				label: 'common-hall-member-west',
-				point: VILLAGE_INTERIOR_LAYOUTS['guild-hall'].ambientActivity['guild-hall-member-west']
-			},
-			{ label: 'common-hall-member-west-return', point: { x: 112, y: 592 } },
-			{ label: 'common-hall-south-west-return', point: { x: 112, y: 568 } },
-			{ label: 'common-hall-south-return', point: { x: 367, y: 568 } },
-			{ label: 'common-hall-west-return', point: { x: 367, y: 512 } },
-			{ label: 'records-hall-spine', point: { x: 512, y: 512 } },
-			{ label: 'records-hall-north', point: { x: 512, y: 208 } },
-			{
-				label: 'records-hall-west-corridor',
-				point: { x: 400, y: 208 }
-			},
-			{
-				label: 'records-hall-room-corridor',
-				point: { x: 240, y: 208 }
-			},
-			{
-				label: 'records-hall-west-return',
-				point: { x: 400, y: 208 }
-			},
-			{
-				label: 'records-hall-spine-return',
-				point: { x: 512, y: 208 }
-			},
-			{ label: 'guild-master-approach-spine', point: { x: 512, y: 184 } },
-			{
-				label: 'guild-master-approach',
-				point: { x: 800, y: 184 },
-				interaction: { speaker: 'Borak' }
-			},
-			{ label: 'training-hall-spine', point: { x: 512, y: 184 } },
-			{ label: 'training-hall-south', point: { x: 512, y: 336 } },
-			{ label: 'training-hall-room', point: { x: 912, y: 336 } },
-			{
-				label: 'training-hall-member-east',
-				point: VILLAGE_INTERIOR_LAYOUTS['guild-hall'].ambientActivity['guild-hall-member-east']
-			},
-			{ label: 'training-hall-member-east-return', point: { x: 912, y: 336 } },
-			{ label: 'quartermaster-spine', point: { x: 512, y: 336 } },
-			{ label: 'quartermaster-south', point: { x: 512, y: 568 } },
-			{
-				label: 'quartermaster-approach',
-				point: { x: 816, y: 568 },
-				interaction: { speaker: 'Lodge Keeper', shopName: 'Lodge Stores' }
-			},
-			{ label: 'lobby-return-spine', point: { x: 512, y: 568 } },
-			{ label: 'lobby-return', point: { x: 512, y: 736 } }
-		]
-	},
-	{
-		mapId: 'hero-house',
-		...overworldDoor('hero-house'),
-		spawn: { x: 352, y: 480 },
-		exit: { x: 352, y: 560 },
-		steps: [
-			{ label: 'living-kitchen', point: { x: 400, y: 480 } },
-			{ label: 'hall-south', point: { x: 352, y: 320 } },
-			{ label: 'hall-north', point: { x: 352, y: 160 } },
-			{ label: 'bedroom', point: { x: 232, y: 160 } },
-			{ label: 'study-door', point: { x: 352, y: 160 } },
-			{ label: 'study', point: { x: 472, y: 160 } },
-			{ label: 'study-hall-door', point: { x: 352, y: 160 } },
-			{
-				label: 'spawn-return',
-				point: { x: 352, y: 480 },
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-			}
-		]
-	},
-	{
-		mapId: 'item-shop',
-		...overworldDoor('item-shop'),
-		spawn: { x: 416, y: 544 },
-		exit: { x: 416, y: 624 },
-		persistAfterStep: 'mira-approach',
-		steps: [
-			{ label: 'sales-west-aisle', point: { x: 192, y: 544 } },
-			{ label: 'ambient-customer', point: { x: 256, y: 512 } },
-			{ label: 'sales-west-shelf', point: { x: 240, y: 448 } },
-			{ label: 'mira-cross-aisle', point: { x: 416, y: 448 } },
-			{
-				label: 'mira-approach',
-				point: { x: 416, y: 360 },
-				interaction: {
-					speaker: 'Mira',
-					shopName: "Mira's Herb Hut",
-					purchase: {
-						label: 'Field Potion',
-						itemId: 'field-potion',
-						quantityAfter: 2,
-						coinsAfter: 20
-					}
-				}
-			},
-			{ label: 'east-aisle-crossing', point: { x: 416, y: 448 } },
-			{ label: 'east-aisle', point: { x: 592, y: 448 } },
-			{ label: 'service-corridor-south', point: { x: 640, y: 544 } },
-			{ label: 'service-corridor-north', point: { x: 640, y: 300 } },
-			{ label: 'service-corridor-west', point: { x: 448, y: 300 } },
-			{ label: 'stockroom-entry', point: { x: 448, y: 160 } },
-			{ label: 'stockroom', point: { x: 288, y: 192 } },
-			{ label: 'office-door', point: { x: 448, y: 160 } },
-			{ label: 'office', point: { x: 736, y: 192 } },
-			{ label: 'service-return-east', point: { x: 448, y: 160 } },
-			{ label: 'service-return-west', point: { x: 448, y: 300 } },
-			{ label: 'service-return-south', point: { x: 640, y: 300 } },
-			{ label: 'spawn-return-corridor', point: { x: 640, y: 544 } },
-			{
-				label: 'spawn-return',
-				point: { x: 416, y: 544 },
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-			}
-		]
-	},
-	{
-		mapId: 'shrine-of-aurora-interior',
-		...overworldDoor('shrine-of-aurora-interior'),
-		spawn: VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'].spawn,
-		exit: VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'].exit,
-		persistAfterStep: 'east-archive',
-		steps: [
-			{ label: 'entrance-hall', point: { x: 512, y: 736 } },
-			{ label: 'nave', point: { x: 512, y: 624 } },
-			{ label: 'west-door-staging', point: { x: 336, y: 640 } },
-			{ label: 'west-door-lateral', point: { x: 336, y: 496 } },
-			{ label: 'west-room-opening', point: { x: 288, y: 496 } },
-			{
-				label: 'west-room-aisle',
-				point: { x: 220, y: 496 },
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-			},
-			{ label: 'west-preparation', point: { x: 96, y: 624 } },
-			{ label: 'west-preparation-return-aisle', point: { x: 248, y: 624 } },
-			{ label: 'west-room-aisle-return', point: { x: 224, y: 496 } },
-			{ label: 'west-room-opening-return', point: { x: 288, y: 496 } },
-			{ label: 'west-door-lateral-return', point: { x: 352, y: 496 } },
-			{ label: 'west-door-staging-return', point: { x: 336, y: 640 } },
-			{ label: 'nave-west-return', point: { x: 512, y: 624 } },
-			{
-				label: 'east-door-staging',
-				point: { x: 688, y: 640 },
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-			},
-			{
-				label: 'east-door-lateral',
-				point: { x: 688, y: 496 },
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-			},
-			{ label: 'east-room-opening', point: { x: 736, y: 496 } },
-			{
-				label: 'east-room-aisle',
-				point: { x: 804, y: 496 },
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-			},
-			{ label: 'east-archive', point: { x: 928, y: 624 } },
-			{
-				label: 'east-archive-return-aisle',
-				point: { x: 776, y: 624 },
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-			},
-			{
-				label: 'east-room-aisle-return',
-				point: { x: 788, y: 496 },
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-			},
-			{ label: 'east-room-opening-return', point: { x: 736, y: 496 } },
-			{
-				label: 'east-door-lateral-return',
-				point: { x: 672, y: 496 },
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-			},
-			{
-				label: 'east-door-staging-return',
-				point: { x: 688, y: 640 },
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-			},
-			{ label: 'nave-east-return', point: { x: 512, y: 624 } },
-			{ label: 'sanctum-opening', point: { x: 512, y: 304 } },
-			{ label: 'sanctum-focal-approach', point: { x: 512, y: 224 } },
-			{ label: 'sanctum-west-aisle', point: { x: 320, y: 224 } },
-			{ label: 'inner-sanctum', point: { x: 320, y: 96 } },
-			{ label: 'sanctum-focal-return', point: { x: 512, y: 224 } },
-			{ label: 'sanctum-opening-return', point: { x: 512, y: 304 } },
-			{ label: 'procession-return', point: { x: 512, y: 624 } },
-			{
-				label: 'spawn-return',
-				point: VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'].spawn,
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-			}
-		]
-	},
-	{
-		mapId: 'villager-house-1',
-		...overworldDoor('villager-house-1'),
-		spawn: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].spawn,
-		exit: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].exit,
-		persistAfterStep: 'family-anchor',
-		steps: [
-			{
-				label: 'living-center',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.width / 2,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.livingKitchen.y + 32
-				}
-			},
-			{
-				label: 'family-table-living',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].propZones.familyTable.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].propZones.familyTable.width +
-						16,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].propZones.familyTable.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].propZones.familyTable.height +
-						32
-				}
-			},
-			{
-				label: 'kitchen',
-				point: {
-					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].propZones.kitchen.x - 16,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].propZones.kitchen.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].propZones.kitchen.height
-				}
-			},
-			{
-				label: 'lynn-staging',
-				point: {
-					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].npcApproaches.lynn.approach.x + 112,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].npcApproaches.lynn.approach.y
-				}
-			},
-			{
-				label: 'lynn-approach',
-				point: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].npcApproaches.lynn.approach,
-				interaction: { speaker: 'Lynn' }
-			},
-			{
-				label: 'family-anchor',
-				point:
-					VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].ambientActivity!['villager-house-1-family']
-			},
-			{
-				label: 'hall',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.width / 2,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.bedroom.y + 32
-				}
-			},
-			{
-				label: 'bedroom-door',
-				point: {
-					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.bedroom.x + 16,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.bedroom.y + 32
-				}
-			},
-			{
-				label: 'bedroom',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.bedroom.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.bedroom.width / 2,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.bedroom.y + 128
-				}
-			},
-			{
-				label: 'hall-return',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.width / 2,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.bedroom.y + 32
-				}
-			},
-			{
-				label: 'storage-door',
-				point: {
-					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.x + 16,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.height / 2
-				}
-			},
-			{
-				label: 'storage',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.storage.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.storage.width / 2,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.storage.y + 128
-				}
-			},
-			{
-				label: 'storage-return-door',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.width / 2,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.height / 2
-				}
-			},
-			{
-				label: 'storage-return-hall',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.width / 2,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].doors.storage.height / 2
-				}
-			},
-			{
-				label: 'living-kitchen-return',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].corridors.hall.width / 2,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].rooms.livingKitchen.y + 32
-				}
-			},
-			{
-				label: 'spawn-return',
-				point: VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].spawn,
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-			}
-		]
-	},
-	{
-		mapId: 'villager-house-2',
-		...overworldDoor('villager-house-2'),
-		spawn: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].spawn,
-		exit: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].exit,
-		persistAfterStep: 'toma-approach',
-		steps: [
-			{
-				label: 'living-center',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].corridors.hall.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].corridors.hall.width / 2,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].rooms.livingArea.y + 32
-				}
-			},
-			{
-				label: 'hall-upper',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].corridors.hall.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].corridors.hall.width / 2,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].rooms.workshop.y + 144
-				}
-			},
-			{
-				label: 'workshop-door',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.workshop.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.workshop.width / 2,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.workshop.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.workshop.height / 2
-				}
-			},
-			{
-				label: 'workshop-storage-entry',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].propZones.workshopStorage.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].propZones.workshopStorage.width +
-						16,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].propCollisions.workshopStorage.y - 64
-				}
-			},
-			{
-				label: 'workshop-storage',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].propZones.workshopStorage.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].propZones.workshopStorage.width +
-						16,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].propZones.workshopStorage.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].propZones.workshopStorage.height
-				}
-			},
-			{
-				label: 'workshop-storage-return',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].propZones.workshopStorage.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].propZones.workshopStorage.width +
-						16,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].propCollisions.tomaWorkbench.y + 64
-				}
-			},
-			{
-				label: 'toma-approach',
-				point: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].npcApproaches.toma.approach,
-				interaction: { speaker: 'Toma' }
-			},
-			{
-				label: 'bedroom-door',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.bedroom.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.bedroom.width / 2,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.bedroom.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.bedroom.height / 2
-				}
-			},
-			{
-				label: 'bedroom-entry',
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE,
-				point: {
-					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].rooms.bedroom.x + 32,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.bedroom.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.bedroom.height / 2
-				}
-			},
-			{
-				label: 'bedroom',
-				point: {
-					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].rooms.bedroom.x + 32,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].rooms.bedroom.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].rooms.bedroom.height -
-						48
-				}
-			},
-			{
-				label: 'bedroom-return-door',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.bedroom.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.bedroom.width / 2,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.bedroom.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.bedroom.height / 2
-				}
-			},
-			{
-				label: 'hall-return',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].corridors.hall.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].corridors.hall.width / 2,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.bedroom.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].doors.bedroom.height / 2
-				}
-			},
-			{
-				label: 'living-return',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].corridors.hall.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].corridors.hall.width / 2,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].rooms.livingArea.y + 32
-				}
-			},
-			{
-				label: 'neighbor',
-				point:
-					VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].ambientActivity!['villager-house-2-neighbor']
-			},
-			{
-				label: 'spawn-return',
-				point: VILLAGE_INTERIOR_LAYOUTS['villager-house-2'].spawn,
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-			}
-		]
-	},
-	{
-		mapId: 'villager-house-3',
-		...overworldDoor('villager-house-3'),
-		spawn: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].spawn,
-		exit: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].exit,
-		persistAfterStep: 'io-approach',
-		steps: [
-			{
-				label: 'sitting-room',
-				point: { x: 864, y: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.sittingRoom.y + 192 }
-			},
-			{
-				label: 'sitting-room-hall-handoff',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.width / 2,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.sittingRoom.y + 192
-				}
-			},
-			{
-				label: 'hall-archive',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.width / 2,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.archive.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.archive.height / 2
-				}
-			},
-			{
-				label: 'archive-study',
-				point: {
-					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.archiveStudy.x + 240,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.archive.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.archive.height / 2
-				}
-			},
-			{
-				label: 'io-approach',
-				point: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].npcApproaches.io.approach,
-				interaction: { speaker: 'Io' }
-			},
-			{
-				label: 'bedroom-door',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.width / 2,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.height / 2
-				}
-			},
-			{
-				label: 'bedroom-entry',
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE,
-				point: {
-					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.bedroomStorage.x + 32,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.height / 2
-				}
-			},
-			{
-				label: 'bedroom-storage',
-				point: {
-					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.bedroomStorage.x + 224,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.bedroomStorage.y + 256
-				}
-			},
-			{
-				label: 'bedroom-return-lane',
-				point: {
-					x: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.bedroomStorage.x + 32,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.bedroomStorage.y + 256
-				}
-			},
-			{
-				label: 'hall-return',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.width / 2,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.y +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].doors.bedroom.height / 2
-				}
-			},
-			{
-				label: 'spawn-return-hall',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.x +
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].corridors.hall.width / 2,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].rooms.sittingRoom.y + 32
-				}
-			},
-			{
-				label: 'neighbor-staging',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].ambientActivity![
-							'villager-house-3-neighbor'
-						].x + 96,
-					y:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].ambientActivity![
-							'villager-house-3-neighbor'
-						].y + 32
-				}
-			},
-			{
-				label: 'neighbor',
-				point: {
-					x:
-						VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].ambientActivity![
-							'villager-house-3-neighbor'
-						].x + 96,
-					y: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].ambientActivity![
-						'villager-house-3-neighbor'
-					].y
-				}
-			},
-			{
-				label: 'spawn-return',
-				point: VILLAGE_INTERIOR_LAYOUTS['villager-house-3'].spawn,
-				reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-			}
-		]
-	}
-];
 
 // Graybox and all-eight route staging on the open row between the showroom-divider
 // clearance (y < 400) and the service-counter zone (y >= 412). The interaction test
 // does not use it; it walks up from the customer aisle on the compiled grid.
 const blacksmithOrenInteractionStagingPoint = { x: 384, y: 400 };
 
-const BLACKSMITH_ALL_EIGHT_CASE: InteriorGrayboxCase = {
-	mapId: 'blacksmith-interior',
-	...overworldDoor('blacksmith-interior'),
-	spawn: VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'].spawn,
-	exit: VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'].exit,
-	steps: [
-		{
-			label: 'oren-approach',
-			point: VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'].npcApproaches.oren.approach,
-			interaction: { speaker: 'Oren', shopName: 'Sundrop Forge' }
-		}
-	]
-};
-
 // The armory passage has one open navigation column: x=592..<608. Bias the
 // 18px reach target east so its first accepted point is inside that column.
 const BLACKSMITH_ARMORY_TRANSIT_X = 611;
 
-function requiredInteriorGrayboxCase(mapId: string): InteriorGrayboxCase {
-	const interior = INTERIOR_GRAYBOX_CASES.find((candidate) => candidate.mapId === mapId);
-	if (!interior) throw new Error(`Missing Task 8 interior fixture: ${mapId}`);
-	return interior;
-}
-
-const ALL_EIGHT_PAINTED_INTERIOR_CASES: readonly InteriorGrayboxCase[] = [
-	requiredInteriorGrayboxCase('hero-house'),
-	requiredInteriorGrayboxCase('guild-hall'),
-	requiredInteriorGrayboxCase('item-shop'),
-	BLACKSMITH_ALL_EIGHT_CASE,
-	requiredInteriorGrayboxCase('villager-house-1'),
-	requiredInteriorGrayboxCase('villager-house-2'),
-	requiredInteriorGrayboxCase('villager-house-3'),
-	requiredInteriorGrayboxCase('shrine-of-aurora-interior')
-];
-
-const HERO_HOUSE_RUNTIME_EVIDENCE_ROOT = resolve(
-	'docs/superpowers/reports/img/hpa-586-interiors-runtime/hero-house'
-);
-const GUILD_HALL_RUNTIME_EVIDENCE_ROOT = resolve(
-	'docs/superpowers/reports/img/hpa-586-interiors-runtime/guild-hall'
-);
-const saveFixtureStoryProgress = getStoryProgress(createQuestFixture());
-const heroHouseMapAtFixtureProgress = applyStoryGates(heroHouseMap, saveFixtureStoryProgress);
-const HERO_HOUSE_COLLISION_IDS = [
-	...(heroHouseMapAtFixtureProgress.blockers ?? []).map(({ id }) => id),
-	...(heroHouseMapAtFixtureProgress.fences ?? []).map(({ id }) => id),
-	...(heroHouseMapAtFixtureProgress.mapDecor ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(heroHouseMapAtFixtureProgress.interiorProps ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(heroHouseMapAtFixtureProgress.landmarks ?? []).map(({ id }) => id)
-].sort();
-const HERO_HOUSE_STATEFUL_OBJECT_IDS = [
-	...heroHouseMapAtFixtureProgress.transitions.map(({ id }) => id),
-	...(heroHouseMapAtFixtureProgress.pickups ?? []).map(({ id }) => id),
-	...(heroHouseMapAtFixtureProgress.encounters ?? []).map(({ id }) => id),
-	...(heroHouseMapAtFixtureProgress.npcs ?? []).map(({ id }) => id),
-	...(heroHouseMapAtFixtureProgress.landmarks ?? []).map(({ id }) => id),
-	...(heroHouseMapAtFixtureProgress.ambientNpcs ?? []).map(({ id }) => id),
-	...(heroHouseMapAtFixtureProgress.discoveries ?? []).map(({ id }) => id),
-	...(heroHouseMapAtFixtureProgress.combatBounds ?? []).map(({ id }) => id)
-].sort();
-const HERO_HOUSE_FALLBACK_BLOCKER_IDS = (heroHouseMapAtFixtureProgress.blockers ?? []).map(
-	({ id }) => id
-);
-const GUILD_HALL_COLLISION_IDS = [
-	...(guildHallMap.blockers ?? []).map(({ id }) => id),
-	...(guildHallMap.fences ?? []).map(({ id }) => id),
-	...(guildHallMap.mapDecor ?? []).flatMap(({ collision }) => (collision ? [collision.id] : [])),
-	...(guildHallMap.interiorProps ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(guildHallMap.landmarks ?? []).map(({ id }) => id)
-].sort();
 // The guild hall tests seed the boar king trial, so Drogg is not rendered in the lodge.
-const guildHallMapAtBoarKingProgress = applyStoryGates(
-	guildHallMap,
-	getStoryProgress(createBoarKingQuestFixture())
-);
-const GUILD_HALL_STATEFUL_OBJECT_IDS = [
-	...guildHallMapAtBoarKingProgress.transitions.map(({ id }) => id),
-	...(guildHallMapAtBoarKingProgress.pickups ?? []).map(({ id }) => id),
-	...(guildHallMapAtBoarKingProgress.encounters ?? []).map(({ id }) => id),
-	...(guildHallMapAtBoarKingProgress.npcs ?? []).map(({ id }) => id),
-	...(guildHallMapAtBoarKingProgress.landmarks ?? []).map(({ id }) => id),
-	...(guildHallMapAtBoarKingProgress.ambientNpcs ?? []).map(({ id }) => id),
-	...(guildHallMapAtBoarKingProgress.discoveries ?? []).map(({ id }) => id),
-	...(guildHallMapAtBoarKingProgress.combatBounds ?? []).map(({ id }) => id)
-].sort();
-const GUILD_HALL_FALLBACK_BLOCKER_IDS = (guildHallMap.blockers ?? []).map(({ id }) => id);
-const ITEM_SHOP_RUNTIME_EVIDENCE_ROOT = resolve(
-	'docs/superpowers/reports/img/hpa-586-interiors-runtime/item-shop'
-);
-const itemShopMapAtFixtureProgress = applyStoryGates(itemShopMap, saveFixtureStoryProgress);
-const ITEM_SHOP_COLLISION_IDS = [
-	...(itemShopMapAtFixtureProgress.blockers ?? []).map(({ id }) => id),
-	...(itemShopMapAtFixtureProgress.fences ?? []).map(({ id }) => id),
-	...(itemShopMapAtFixtureProgress.mapDecor ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(itemShopMapAtFixtureProgress.interiorProps ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(itemShopMapAtFixtureProgress.landmarks ?? []).map(({ id }) => id)
-].sort();
-const ITEM_SHOP_STATEFUL_OBJECT_IDS = [
-	...itemShopMapAtFixtureProgress.transitions.map(({ id }) => id),
-	...(itemShopMapAtFixtureProgress.pickups ?? []).map(({ id }) => id),
-	...(itemShopMapAtFixtureProgress.encounters ?? []).map(({ id }) => id),
-	...(itemShopMapAtFixtureProgress.npcs ?? []).map(({ id }) => id),
-	...(itemShopMapAtFixtureProgress.landmarks ?? []).map(({ id }) => id),
-	...(itemShopMapAtFixtureProgress.ambientNpcs ?? []).map(({ id }) => id),
-	...(itemShopMapAtFixtureProgress.discoveries ?? []).map(({ id }) => id),
-	...(itemShopMapAtFixtureProgress.combatBounds ?? []).map(({ id }) => id)
-].sort();
-const ITEM_SHOP_FALLBACK_BLOCKER_IDS = (itemShopMapAtFixtureProgress.blockers ?? []).map(
-	({ id }) => id
-);
-const VILLAGER_HOUSE_1_RUNTIME_EVIDENCE_ROOT = resolve(
-	'docs/superpowers/reports/img/hpa-586-interiors-runtime/villager-house-1'
-);
-const VILLAGER_HOUSE_1_COLLISION_IDS = [
-	...(villagerHouse1Map.blockers ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.fences ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.mapDecor ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(villagerHouse1Map.interiorProps ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(villagerHouse1Map.landmarks ?? []).map(({ id }) => id)
-].sort();
-const VILLAGER_HOUSE_1_STATEFUL_OBJECT_IDS = [
-	...villagerHouse1Map.transitions.map(({ id }) => id),
-	...(villagerHouse1Map.pickups ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.encounters ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.npcs ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.landmarks ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.ambientNpcs ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.discoveries ?? []).map(({ id }) => id),
-	...(villagerHouse1Map.combatBounds ?? []).map(({ id }) => id)
-].sort();
-const VILLAGER_HOUSE_1_FALLBACK_BLOCKER_IDS = (villagerHouse1Map.blockers ?? []).map(
-	({ id }) => id
-);
-const VILLAGER_HOUSE_2_RUNTIME_EVIDENCE_ROOT = resolve(
-	'docs/superpowers/reports/img/hpa-586-interiors-runtime/villager-house-2'
-);
-const VILLAGER_HOUSE_2_COLLISION_IDS = [
-	...(villagerHouse2Map.blockers ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.fences ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.mapDecor ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(villagerHouse2Map.interiorProps ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(villagerHouse2Map.landmarks ?? []).map(({ id }) => id)
-].sort();
-const VILLAGER_HOUSE_2_STATEFUL_OBJECT_IDS = [
-	...villagerHouse2Map.transitions.map(({ id }) => id),
-	...(villagerHouse2Map.pickups ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.encounters ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.npcs ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.landmarks ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.ambientNpcs ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.discoveries ?? []).map(({ id }) => id),
-	...(villagerHouse2Map.combatBounds ?? []).map(({ id }) => id)
-].sort();
-const VILLAGER_HOUSE_2_FALLBACK_BLOCKER_IDS = (villagerHouse2Map.blockers ?? []).map(
-	({ id }) => id
-);
-const VILLAGER_HOUSE_3_RUNTIME_EVIDENCE_ROOT = resolve(
-	'docs/superpowers/reports/img/hpa-586-interiors-runtime/villager-house-3'
-);
-const VILLAGER_HOUSE_3_COLLISION_IDS = [
-	...(villagerHouse3Map.blockers ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.fences ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.mapDecor ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(villagerHouse3Map.interiorProps ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(villagerHouse3Map.landmarks ?? []).map(({ id }) => id)
-].sort();
-const VILLAGER_HOUSE_3_STATEFUL_OBJECT_IDS = [
-	...villagerHouse3Map.transitions.map(({ id }) => id),
-	...(villagerHouse3Map.pickups ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.encounters ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.npcs ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.landmarks ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.ambientNpcs ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.discoveries ?? []).map(({ id }) => id),
-	...(villagerHouse3Map.combatBounds ?? []).map(({ id }) => id)
-].sort();
-const VILLAGER_HOUSE_3_FALLBACK_BLOCKER_IDS = (villagerHouse3Map.blockers ?? []).map(
-	({ id }) => id
-);
 const BLACKSMITH_RUNTIME_EVIDENCE_ROOT = resolve(
 	'docs/superpowers/reports/img/hpa-586-interiors-runtime/blacksmith-interior'
 );
 const BLACKSMITH_COLLISION_IDS = [
 	...(blacksmithInteriorMap.blockers ?? []).map(({ id }) => id),
-	...(blacksmithInteriorMap.fences ?? []).map(({ id }) => id),
-	...(blacksmithInteriorMap.mapDecor ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
 	...(blacksmithInteriorMap.interiorProps ?? []).flatMap(({ collision }) =>
 		collision ? [collision.id] : []
-	),
-	...(blacksmithInteriorMap.landmarks ?? []).map(({ id }) => id)
+	)
 ].sort();
 const BLACKSMITH_STATEFUL_OBJECT_IDS = [
 	...blacksmithInteriorMap.transitions.map(({ id }) => id),
 	...(blacksmithInteriorMap.pickups ?? []).map(({ id }) => id),
 	...(blacksmithInteriorMap.encounters ?? []).map(({ id }) => id),
 	...(blacksmithInteriorMap.npcs ?? []).map(({ id }) => id),
-	...(blacksmithInteriorMap.landmarks ?? []).map(({ id }) => id),
 	...(blacksmithInteriorMap.ambientNpcs ?? []).map(({ id }) => id),
 	...(blacksmithInteriorMap.discoveries ?? []).map(({ id }) => id),
 	...(blacksmithInteriorMap.combatBounds ?? []).map(({ id }) => id)
 ].sort();
 const BLACKSMITH_FALLBACK_BLOCKER_IDS = (blacksmithInteriorMap.blockers ?? []).map(({ id }) => id);
-const SHRINE_RUNTIME_EVIDENCE_ROOT = resolve(
-	'docs/superpowers/reports/img/hpa-586-interiors-runtime/shrine-of-aurora-interior'
-);
-const FINAL_INTERIOR_RUNTIME_EVIDENCE_ROOT = resolve(
-	'docs/superpowers/reports/img/hpa-586-interiors/final'
-);
-const SHRINE_COLLISION_IDS = [
-	...(shrineOfAuroraInteriorMap.blockers ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.fences ?? []).map(({ id }) => id),
-	...(shrineOfAuroraInteriorMap.mapDecor ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(shrineOfAuroraInteriorMap.interiorProps ?? []).flatMap(({ collision }) =>
-		collision ? [collision.id] : []
-	),
-	...(shrineOfAuroraInteriorMap.landmarks ?? []).map(({ id }) => id)
-].sort();
 // Mott stands in the shrine only during the escape, so the run under test does not render him.
-const shrineMapAtFixtureProgress = applyStoryGates(
-	shrineOfAuroraInteriorMap,
-	saveFixtureStoryProgress
-);
-const SHRINE_STATEFUL_OBJECT_IDS = [
-	...shrineMapAtFixtureProgress.transitions.map(({ id }) => id),
-	...(shrineMapAtFixtureProgress.pickups ?? []).map(({ id }) => id),
-	...(shrineMapAtFixtureProgress.encounters ?? []).map(({ id }) => id),
-	...(shrineMapAtFixtureProgress.npcs ?? []).map(({ id }) => id),
-	...(shrineMapAtFixtureProgress.landmarks ?? []).map(({ id }) => id),
-	...(shrineMapAtFixtureProgress.ambientNpcs ?? []).map(({ id }) => id),
-	...(shrineMapAtFixtureProgress.discoveries ?? []).map(({ id }) => id),
-	...(shrineMapAtFixtureProgress.combatBounds ?? []).map(({ id }) => id)
-].sort();
-const SHRINE_FALLBACK_BLOCKER_IDS = (shrineOfAuroraInteriorMap.blockers ?? []).map(({ id }) => id);
 
-type InteriorNpcApproachBinding = {
-	readonly approachKey: string;
-	readonly propCollisionKey?: string;
-};
-
-const INTERIOR_NPC_APPROACH_BINDINGS = {
-	'guild-hall': {
-		Borak: { approachKey: 'guildMaster', propCollisionKey: 'guildMasterDesk' },
-		'Lodge Keeper': {
-			approachKey: 'quartermaster',
-			propCollisionKey: 'quartermasterCounter'
-		}
-	},
-	'item-shop': {
-		Mira: { approachKey: 'mira', propCollisionKey: 'miraCounter' }
-	},
-	'blacksmith-interior': {
-		Oren: { approachKey: 'oren', propCollisionKey: 'serviceCounter' }
-	},
-	'villager-house-1': {
-		Lynn: { approachKey: 'lynn' }
-	},
-	'villager-house-2': {
-		Toma: { approachKey: 'toma', propCollisionKey: 'tomaWorkbench' }
-	},
-	'villager-house-3': {
-		Io: { approachKey: 'io', propCollisionKey: 'ioWestArchiveShelves' }
-	}
-} as const satisfies Readonly<Record<string, Readonly<Record<string, InteriorNpcApproachBinding>>>>;
-
-const NPC_APPROACH_SETTLE_TOLERANCE = 4;
 const INTERIOR_ROUTE_SETTLE_TOLERANCE = 4;
-
-function villagerHouse1LynnStagingPoint(): Point {
-	const { approach } = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'].npcApproaches.lynn;
-	return { x: approach.x, y: approach.y - 2 * PLAYER_COLLISION_RADIUS };
-}
-
-function villagerHouse1DoorwayRouteTarget(currentPoint: Point, targetPoint: Point): Point {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
-	const navigationGrid = villagerHouse1Map.navigationGrid;
-	if (!navigationGrid) throw new Error('Villager House 1 navigation source is missing');
-	for (const door of [layout.doors.bedroom, layout.doors.storage]) {
-		const centerX = door.x + door.width / 2;
-		const centerY = door.y + door.height / 2;
-		const crossesDoorway =
-			targetPoint.y === centerY &&
-			Math.min(currentPoint.x, targetPoint.x) <= centerX &&
-			Math.max(currentPoint.x, targetPoint.x) >= centerX;
-		const continuesFromDoorway =
-			targetPoint.y === centerY &&
-			currentPoint.x >= door.x &&
-			currentPoint.x <= door.x + door.width &&
-			(currentPoint.x - centerX) * (targetPoint.x - centerX) > 0;
-		if (!crossesDoorway && !continuesFromDoorway) continue;
-		expect(Math.abs(currentPoint.y - targetPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-		expect(currentPoint.y).toBeGreaterThan(door.y + PLAYER_COLLISION_RADIUS);
-		expect(currentPoint.y).toBeLessThan(door.y + door.height - PLAYER_COLLISION_RADIUS);
-		expect(isWalkable(navigationGrid, centerX, currentPoint.y)).toBe(true);
-		return { x: targetPoint.x, y: currentPoint.y };
-	}
-	return targetPoint;
-}
-
-function interiorRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	return currentPoint.y !== targetPoint.y
-		? [currentPoint, { x: currentPoint.x, y: targetPoint.y }, targetPoint]
-		: [currentPoint, targetPoint];
-}
-
-function isItemShopOutwardApproachStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return (
-		interior.mapId === 'item-shop' &&
-		(step.label === 'ambient-customer' ||
-			step.label === 'mira-cross-aisle' ||
-			step.label === 'sales-west-shelf' ||
-			step.label === 'east-aisle')
-	);
-}
-
-function isItemShopMiraCrossAisleStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'item-shop' && step.label === 'mira-cross-aisle';
-}
-
-function itemShopOutwardRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	return currentPoint.x !== targetPoint.x
-		? [currentPoint, { x: targetPoint.x, y: currentPoint.y }, targetPoint]
-		: [currentPoint, targetPoint];
-}
-
-function isVillagerHouse1LynnStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'villager-house-1' && step.label === 'lynn-approach';
-}
-
-function villagerHouse1LynnRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const stagingPoint = villagerHouse1LynnStagingPoint();
-	expect(targetPoint).toEqual(stagingPoint);
-	return [currentPoint, { x: stagingPoint.x, y: currentPoint.y }, stagingPoint];
-}
-
-function isVillagerHouse2TomaStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'villager-house-2' && step.label === 'toma-approach';
-}
-
-function villagerHouse2TomaRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-2'];
-	const approach = layout.npcApproaches.toma.approach;
-	const interactionTarget = approach;
-	const stagingOffset = AXIS_SETTLE_TOLERANCE;
-	expect(stagingOffset).toBe(12);
-	expect(targetPoint).toEqual(approach);
-	return [
-		currentPoint,
-		{ x: interactionTarget.x + stagingOffset, y: currentPoint.y },
-		interactionTarget
-	];
-}
-
-function isShrineWestPreparationReturnAisleStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return (
-		interior.mapId === 'shrine-of-aurora-interior' && step.label === 'west-preparation-return-aisle'
-	);
-}
-
-function isShrineWestPreparationRoomStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'shrine-of-aurora-interior' && step.label === 'west-preparation';
-}
-
-function isShrineWestPreparationAisleStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return (
-		interior.mapId === 'shrine-of-aurora-interior' &&
-		(step.label === 'west-room-aisle' || step.label === 'west-room-aisle-return')
-	);
-}
-
-function isShrineWestDoorAisleStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return (
-		interior.mapId === 'shrine-of-aurora-interior' &&
-		(step.label === 'west-door-staging' ||
-			step.label === 'west-door-staging-return' ||
-			step.label === 'west-door-lateral' ||
-			step.label === 'west-door-lateral-return')
-	);
-}
-
-function isShrineEastDoorStagingStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return (
-		interior.mapId === 'shrine-of-aurora-interior' &&
-		(step.label === 'east-door-staging' ||
-			step.label === 'east-door-staging-return' ||
-			step.label === 'east-door-lateral' ||
-			step.label === 'east-door-lateral-return')
-	);
-}
-
-function isShrineEastRoomAisleStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return (
-		interior.mapId === 'shrine-of-aurora-interior' &&
-		(step.label === 'east-room-aisle' ||
-			step.label === 'east-archive-return-aisle' ||
-			step.label === 'east-room-aisle-return')
-	);
-}
-
-function shrineWestPreparationSafeAisleX(): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
-	const preparation = layout.propCollisions.preparation;
-	const divider = layout.walls.find(({ id }) => id === 'shrine-of-aurora-west-room-divider-south');
-	if (!divider) {
-		throw new Error('Shrine west preparation return divider source is missing');
-	}
-
-	const preparationExpandedRight = preparation.x + preparation.width + PLAYER_COLLISION_RADIUS;
-	const dividerExpandedLeft = divider.x - PLAYER_COLLISION_RADIUS;
-	const safeX = Math.floor((preparationExpandedRight + dividerExpandedLeft) / 2);
-	expect(safeX).toBeGreaterThan(preparationExpandedRight);
-	expect(safeX).toBeLessThan(dividerExpandedLeft);
-	return safeX;
-}
-
-function shrineDoorStagingAisleX(side: 'west' | 'east'): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
-	const divider = layout.walls.find(
-		({ id }) => id === `shrine-of-aurora-${side}-room-divider-south`
-	);
-	if (!divider) throw new Error(`Shrine ${side} door staging divider source is missing`);
-	const benches =
-		side === 'west' ? layout.propCollisions.westBenches : layout.propCollisions.eastBenches;
-	const corridorLeft =
-		side === 'west'
-			? divider.x + divider.width + PLAYER_COLLISION_RADIUS
-			: benches.x + benches.width + PLAYER_COLLISION_RADIUS;
-	const corridorRight =
-		side === 'west' ? benches.x - PLAYER_COLLISION_RADIUS : divider.x - PLAYER_COLLISION_RADIUS;
-	const safeX = Math.floor((corridorLeft + corridorRight) / 2);
-	const navigationGrid = shrineOfAuroraInteriorMap.navigationGrid;
-	if (!navigationGrid) throw new Error('Shrine navigation grid source is missing');
-	expect(safeX).toBeGreaterThan(corridorLeft);
-	expect(safeX).toBeLessThan(corridorRight);
-	expect(isWalkable(navigationGrid, safeX, 640)).toBe(true);
-	return safeX;
-}
-
-function shrineWestDoorStagingAisleX(): number {
-	return shrineDoorStagingAisleX('west');
-}
-
-function shrineEastDoorStagingAisleX(): number {
-	return shrineDoorStagingAisleX('east');
-}
-
-function shrineEastRoomAisleX(): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
-	const divider = layout.walls.find(({ id }) => id === 'shrine-of-aurora-east-room-divider-south');
-	if (!divider) throw new Error('Shrine east room aisle divider source is missing');
-	const archive = layout.propCollisions.archive;
-	const dividerExpandedRight = divider.x + divider.width + PLAYER_COLLISION_RADIUS;
-	const archiveExpandedLeft = archive.x - PLAYER_COLLISION_RADIUS;
-	const safeX = Math.floor((dividerExpandedRight + archiveExpandedLeft) / 2);
-	const navigationGrid = shrineOfAuroraInteriorMap.navigationGrid;
-	if (!navigationGrid) throw new Error('Shrine navigation grid source is missing');
-	expect(safeX).toBeGreaterThan(dividerExpandedRight);
-	expect(safeX).toBeLessThan(archiveExpandedLeft);
-	expect(isWalkable(navigationGrid, safeX, 496)).toBe(true);
-	expect(isWalkable(navigationGrid, safeX, 624)).toBe(true);
-	return safeX;
-}
-
-function assertShrineWestPreparationRouteSegments(points: readonly Point[], label: string): void {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
-	const preparation = layout.propCollisions.preparation;
-	const divider = layout.walls.find(({ id }) => id === 'shrine-of-aurora-west-room-divider-south');
-	if (!divider) {
-		throw new Error('Shrine west preparation return divider source is missing');
-	}
-	for (let index = 1; index < points.length; index += 1) {
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				points[index - 1]!,
-				points[index]!,
-				preparation,
-				PLAYER_COLLISION_RADIUS
-			),
-			`${label} crossed source preparation collision`
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				points[index - 1]!,
-				points[index]!,
-				divider,
-				PLAYER_COLLISION_RADIUS
-			),
-			`${label} crossed source west-room divider`
-		).toBe(false);
-	}
-}
-
-function assertShrineDoorStagingRouteSegments(
-	points: readonly Point[],
-	label: string,
-	side: 'west' | 'east'
-): void {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
-	const divider = layout.walls.find(
-		({ id }) => id === `shrine-of-aurora-${side}-room-divider-south`
-	);
-	if (!divider) throw new Error(`Shrine ${side} door staging divider source is missing`);
-	const benches =
-		side === 'west' ? layout.propCollisions.westBenches : layout.propCollisions.eastBenches;
-	for (let index = 1; index < points.length; index += 1) {
-		for (const obstacle of [divider, benches]) {
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					points[index - 1]!,
-					points[index]!,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${label} crossed source staging obstacle ${'id' in obstacle ? obstacle.id : `${side} benches`}`
-			).toBe(false);
-		}
-	}
-}
-
-function assertShrineEastRoomAisleRouteSegments(points: readonly Point[], label: string): void {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
-	const divider = layout.walls.find(({ id }) => id === 'shrine-of-aurora-east-room-divider-south');
-	if (!divider) throw new Error('Shrine east room aisle divider source is missing');
-	const archive = layout.propCollisions.archive;
-	for (let index = 1; index < points.length; index += 1) {
-		for (const obstacle of [divider, archive]) {
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					points[index - 1]!,
-					points[index]!,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${label} crossed source aisle obstacle ${'id' in obstacle ? obstacle.id : 'archive'}`
-			).toBe(false);
-		}
-	}
-}
-
-function shrineEastRoomAisleRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const safeX = shrineEastRoomAisleX();
-	expect([
-		{ x: 804, y: 496 },
-		{ x: 776, y: 624 },
-		{ x: 788, y: 496 }
-	]).toContainEqual(targetPoint);
-	const transitX = safeX + Math.sign(targetPoint.x - safeX) * (INTERIOR_ROUTE_SETTLE_TOLERANCE + 1);
-	expect(Math.abs(targetPoint.x - transitX)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-
-	const points = [
-		currentPoint,
-		{ x: transitX, y: currentPoint.y },
-		{ x: transitX, y: targetPoint.y }
-	];
-	assertShrineEastRoomAisleRouteSegments(points, 'Shrine east room aisle');
-	return points;
-}
-
-function shrineSanctumFocalReturnRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
-	const navigationGrid = shrineOfAuroraInteriorMap.navigationGrid;
-	if (!navigationGrid) throw new Error('Shrine navigation grid source is missing');
-	const altar = layout.propCollisions.altar;
-	const expandedBottom = altar.y + altar.height + PLAYER_COLLISION_RADIUS;
-	const firstClearRowY =
-		Math.ceil(expandedBottom / navigationGrid.cellSizePx) * navigationGrid.cellSizePx;
-	const transitY = firstClearRowY + AXIS_REACH_TOLERANCE + 1;
-	const points = [
-		currentPoint,
-		{ x: currentPoint.x, y: transitY },
-		{ x: targetPoint.x, y: transitY },
-		targetPoint
-	];
-
-	expect(targetPoint).toEqual({ x: 512, y: 224 });
-	expect(Math.abs(transitY - targetPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(isWalkable(navigationGrid, targetPoint.x, transitY)).toBe(true);
-	for (let index = 1; index < points.length; index += 1) {
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				points[index - 1]!,
-				points[index]!,
-				altar,
-				PLAYER_COLLISION_RADIUS
-			),
-			'Shrine sanctum focal return crossed the altar collision'
-		).toBe(false);
-	}
-	return points;
-}
-
-function shrineEastDoorStagingRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const safeX = shrineEastDoorStagingAisleX();
-	const transitX = safeX + INTERIOR_ROUTE_SETTLE_TOLERANCE;
-	expect([
-		{ x: 688, y: 640 },
-		{ x: 688, y: 496 },
-		{ x: 672, y: 496 }
-	]).toContainEqual(targetPoint);
-	expect(Math.abs(targetPoint.x - transitX)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	const points = [
-		currentPoint,
-		{ x: transitX, y: currentPoint.y },
-		{ x: transitX, y: targetPoint.y }
-	];
-	assertShrineDoorStagingRouteSegments(points, 'Shrine east door staging aisle', 'east');
-	return points;
-}
-
-function shrineWestDoorAisleRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const safeX = shrineWestDoorStagingAisleX();
-	expect([
-		{ x: 336, y: 640 },
-		{ x: 336, y: 496 },
-		{ x: 352, y: 496 }
-	]).toContainEqual(targetPoint);
-	expect(Math.abs(targetPoint.x - safeX)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-
-	const points = [currentPoint, { x: safeX, y: currentPoint.y }, { x: safeX, y: targetPoint.y }];
-	assertShrineDoorStagingRouteSegments(points, 'Shrine west door staging aisle', 'west');
-	return points;
-}
-
-function shrineWestPreparationAisleRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const safeX = shrineWestPreparationSafeAisleX();
-	expect(targetPoint.y).toBe(496);
-	expect([220, 224]).toContain(targetPoint.x);
-	expect(Math.abs(targetPoint.x - safeX)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	const navigationGrid = shrineOfAuroraInteriorMap.navigationGrid;
-	if (!navigationGrid) throw new Error('Shrine preparation navigation grid source is missing');
-	expect(isWalkable(navigationGrid, safeX, targetPoint.y)).toBe(true);
-
-	const points = [currentPoint, { x: safeX, y: currentPoint.y }, { x: safeX, y: targetPoint.y }];
-	assertShrineWestPreparationRouteSegments(points, 'Shrine west preparation aisle');
-	return points;
-}
-
-function shrineWestPreparationRoomRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const safeX = shrineWestPreparationSafeAisleX();
-	expect(targetPoint).toEqual({ x: 96, y: 624 });
-	const points = [
-		currentPoint,
-		{ x: safeX, y: currentPoint.y },
-		{ x: safeX, y: currentPoint.y },
-		{ x: safeX, y: targetPoint.y },
-		targetPoint
-	];
-	assertShrineWestPreparationRouteSegments(points, 'Shrine west preparation room');
-	return points;
-}
-
-function shrineWestPreparationReturnAisleRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point
-): Point[] {
-	// The authored x=248 checkpoint is inside the divider's expanded left edge
-	// (256 - playerRadius = 244). Keep the authored ±18 checkpoint contract while
-	// routing to a source-derived west-side endpoint that cannot touch that wall.
-	const safeX = shrineWestPreparationSafeAisleX();
-	expect(targetPoint).toEqual({ x: 248, y: 624 });
-	expect(Math.abs(targetPoint.x - safeX)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	const navigationGrid = shrineOfAuroraInteriorMap.navigationGrid;
-	if (!navigationGrid) throw new Error('Shrine preparation navigation grid source is missing');
-	expect(isWalkable(navigationGrid, safeX, targetPoint.y)).toBe(true);
-
-	const points = [currentPoint, { x: safeX, y: currentPoint.y }, { x: safeX, y: targetPoint.y }];
-	assertShrineWestPreparationRouteSegments(points, 'Shrine west preparation return aisle');
-	return points;
-}
-
-function assertVillagerHouse1LynnRouteGeometry(points: readonly Point[], targetPoint: Point): void {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
-	const approach = layout.npcApproaches.lynn.approach;
-	const npc = layout.npcApproaches.lynn.npc;
-	const stagingPoint = villagerHouse1LynnStagingPoint();
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
-
-	expect(targetPoint).toEqual(stagingPoint);
-	expect(points).toHaveLength(3);
-	expect(points[1]?.x).toBe(stagingPoint.x);
-	expect(points[1]?.y).toBe(points[0]?.y);
-	expect(points.at(-1)).toEqual(stagingPoint);
-
-	for (let index = 1; index < points.length; index += 1) {
-		expect(
-			routeSegmentIntersectsCircle(points[index - 1]!, points[index]!, npc, npcCollisionRadius)
-		).toBe(false);
-	}
-
-	const authoredDistance = Math.hypot(approach.x - npc.x, approach.y - npc.y);
-	expect(authoredDistance).toBe(48);
-	expect(authoredDistance).toBeGreaterThan(npcCollisionRadius);
-	expect(authoredDistance).toBeLessThanOrEqual(interactionRadius);
-	expect(Math.hypot(stagingPoint.x - npc.x, stagingPoint.y - npc.y)).toBeGreaterThan(
-		interactionRadius
-	);
-}
-
-function assertVillagerHouse1LynnRouteResult(
-	points: readonly Point[],
-	result: BrowserRouteResult
-): Point {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
-	const npc = layout.npcApproaches.lynn.npc;
-	const stagingPoint = villagerHouse1LynnStagingPoint();
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-
-	assertVillagerHouse1LynnRouteGeometry(points, stagingPoint);
-	expect(result.status).toBe('done');
-	expect(result.mapId).toBe('villager-house-1');
-	expect(result.activeKey).toBeNull();
-	expect(result.invalidDiagnostics ?? []).toEqual([]);
-	expect(result.position).not.toBeNull();
-	if (!result.position) {
-		throw new Error(
-			`VH1 Lynn route returned no live endpoint: ${describeBrowserRouteResult(result, result.token)}`
-		);
-	}
-	for (const diagnostic of result.diagnostics ?? []) {
-		expect(diagnostic.mapId).toBe('villager-house-1');
-		expect(diagnostic.blocked).toBe(false);
-		expect(
-			routeSegmentIntersectsCircle(
-				diagnostic.previousPosition,
-				diagnostic.requestedPosition,
-				npc,
-				npcCollisionRadius
-			)
-		).toBe(false);
-	}
-	const liveDistance = Math.hypot(result.position.x - npc.x, result.position.y - npc.y);
-	expect(liveDistance).toBeGreaterThan(npcCollisionRadius);
-	expect(Math.abs(result.position.x - stagingPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(result.position.y - stagingPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	return result.position;
-}
-
-function assertVillagerHouse2TomaRouteGeometry(points: readonly Point[], targetPoint: Point): void {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-2'];
-	const approach = layout.npcApproaches.toma.approach;
-	const npc = layout.npcApproaches.toma.npc;
-	const workbench = layout.propCollisions.tomaWorkbench;
-	const workshopSouthDivider = layout.walls.find(
-		({ id }) => id === 'villager-house-2-workshop-divider-south'
-	);
-	if (!workshopSouthDivider) {
-		throw new Error('Villager House 2 workshop south divider source is missing');
-	}
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
-	const interactionTarget = approach;
-	const stagingOffset = AXIS_SETTLE_TOLERANCE;
-
-	expect(targetPoint).toEqual(approach);
-	expect(points).toHaveLength(3);
-	expect(points[1]?.x).toBe(interactionTarget.x + stagingOffset);
-	expect(points[1]?.y).toBe(points[0]?.y);
-	expect(points.at(-1)).toEqual(interactionTarget);
-
-	for (let index = 1; index < points.length; index += 1) {
-		const from = points[index - 1]!;
-		const to = points[index]!;
-		expect(routeSegmentIntersectsExpandedRect(from, to, workbench, PLAYER_COLLISION_RADIUS)).toBe(
-			false
-		);
-		expect(
-			routeSegmentIntersectsExpandedRect(from, to, workshopSouthDivider, PLAYER_COLLISION_RADIUS)
-		).toBe(false);
-		expect(routeSegmentIntersectsCircle(from, to, npc, npcCollisionRadius)).toBe(false);
-	}
-
-	const authoredDistance = Math.hypot(approach.x - npc.x, approach.y - npc.y);
-	expect(authoredDistance).toBe(40);
-	expect(authoredDistance).toBeGreaterThan(npcCollisionRadius);
-	expect(authoredDistance).toBeLessThanOrEqual(interactionRadius);
-}
-
-function assertVillagerHouse2TomaRouteResult(
-	points: readonly Point[],
-	result: BrowserRouteResult
-): Point {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-2'];
-	const approach = layout.npcApproaches.toma.approach;
-	const npc = layout.npcApproaches.toma.npc;
-	const workbench = layout.propCollisions.tomaWorkbench;
-	const workshopSouthDivider = layout.walls.find(
-		({ id }) => id === 'villager-house-2-workshop-divider-south'
-	);
-	if (!workshopSouthDivider) {
-		throw new Error('Villager House 2 workshop south divider source is missing');
-	}
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-
-	assertVillagerHouse2TomaRouteGeometry(points, approach);
-	expect(result.status).toBe('done');
-	expect(result.mapId).toBe('villager-house-2');
-	expect(result.activeKey).toBeNull();
-	expect(result.invalidDiagnostics ?? []).toEqual([]);
-	expect(result.diagnostics?.length ?? 0).toBeGreaterThan(0);
-	expect(result.position).not.toBeNull();
-	if (!result.position) {
-		throw new Error(
-			`VH2 Toma route returned no live endpoint: ${describeBrowserRouteResult(result, result.token)}`
-		);
-	}
-
-	for (const diagnostic of result.diagnostics ?? []) {
-		expect(diagnostic.mapId).toBe('villager-house-2');
-		expect(diagnostic.blocked).toBe(false);
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				diagnostic.previousPosition,
-				diagnostic.requestedPosition,
-				workbench,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				diagnostic.previousPosition,
-				diagnostic.requestedPosition,
-				workshopSouthDivider,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsCircle(
-				diagnostic.previousPosition,
-				diagnostic.requestedPosition,
-				npc,
-				npcCollisionRadius
-			)
-		).toBe(false);
-	}
-	if (result.lastDiagnostic) {
-		expect(result.lastDiagnostic.mapId).toBe('villager-house-2');
-		expect(result.lastDiagnostic.blocked).toBe(false);
-	}
-
-	const liveDistance = Math.hypot(result.position.x - npc.x, result.position.y - npc.y);
-	expect(liveDistance).toBeGreaterThan(npcCollisionRadius);
-	expect(Math.abs(result.position.x - approach.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(result.position.y - approach.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	return result.position;
-}
-
-function isItemShopServiceCorridorWestStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'item-shop' && step.label === 'service-corridor-west';
-}
-
-function isItemShopServiceCorridorNorthStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'item-shop' && step.label === 'service-corridor-north';
-}
-
-function isItemShopStockroomDoorwayStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	if (interior.mapId === 'item-shop' && step.label === 'stockroom-entry') {
-		// Keep the authored doorway checkpoint attached to the exact dispatch key;
-		// otherwise the generic route can silently bypass the source-safe office
-		// divider handoff.
-		expect(step.point).toEqual({ x: 448, y: 160 });
-	}
-	return interior.mapId === 'item-shop' && step.label === 'stockroom-entry';
-}
-
-function isItemShopStockroomTerminalStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'item-shop' && step.label === 'stockroom';
-}
-
-function isItemShopStockroomReturnDoorwayStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'item-shop' && step.label === 'office-door';
-}
-
-function isItemShopOfficeDoorwayStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return (
-		interior.mapId === 'item-shop' &&
-		(step.label === 'office' || step.label === 'service-return-east')
-	);
-}
-
-function isItemShopSpawnReturnCorridorStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	if (interior.mapId === 'item-shop' && step.label === 'spawn-return-corridor') {
-		// Keep this fixed-axis handoff attached to the exact authored checkpoint;
-		// otherwise the generic two-axis route can reintroduce symmetric x residue
-		// into the already-clear vertical service-corridor transit.
-		expect(step.point).toEqual({ x: 640, y: 544 });
-	}
-	return interior.mapId === 'item-shop' && step.label === 'spawn-return-corridor';
-}
-
-function isItemShopSpawnReturnStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'item-shop' && step.label === 'spawn-return';
-}
-
-function itemShopAsymmetricDoorwayKind(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): 'stockroom' | 'office' | null {
-	if (
-		isItemShopStockroomTerminalStep(interior, step) ||
-		isItemShopStockroomReturnDoorwayStep(interior, step)
-	) {
-		return 'stockroom';
-	}
-	if (isItemShopOfficeDoorwayStep(interior, step)) return 'office';
-	return null;
-}
-
-function isGuildHallRecordsAisleHandoffStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'guild-hall' && step.label === 'records-hall-west';
-}
-
-function isGuildHallCommonHallWestStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'guild-hall' && step.label === 'common-hall-west';
-}
-
-function isGuildHallCommonHallSouthStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'guild-hall' && step.label === 'common-hall-south';
-}
-
-function isGuildHallHorizontalFixedAxisStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return (
-		interior.mapId === 'guild-hall' &&
-		[
-			'records-hall-west-corridor',
-			'records-hall-room-corridor',
-			'records-hall-west-return',
-			'records-hall-spine-return',
-			'training-hall-room',
-			'quartermaster-spine'
-		].includes(step.label)
-	);
-}
-
-function guildHallCommonHallSouthRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const wall = guildHallAisleWall(GUILD_HALL_COMMON_AISLE_SPEC);
-	const safeX = wall.x - PLAYER_COLLISION_RADIUS - 2 * AXIS_REACH_TOLERANCE - 1;
-	// The preceding {367,512} checkpoint can settle with the unchanged ±18
-	// endpoint residue. Move left to a source-derived x lane before descending
-	// past common-spine-south, then finish at the canonical {367,568} point.
-	const points = [
-		currentPoint,
-		{ x: safeX, y: currentPoint.y },
-		{ x: safeX, y: targetPoint.y },
-		targetPoint
-	];
-	assertTask6InteriorRouteEnvelope(
-		'guild-hall',
-		points,
-		'guild-hall:common-hall-south:canonical-lane'
-	);
-	return points;
-}
-
-function isGuildHallCommonHallRoomStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'guild-hall' && step.label === 'common-hall-room';
-}
-
-function isGuildHallRecordsRoomStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'guild-hall' && step.label === 'records-hall-room';
-}
-
-function isGuildHallGuildMasterNorthStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'guild-hall' && step.label === 'guild-master-north';
-}
-
-function isGuildHallGuildMasterSpineStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'guild-hall' && step.label === 'guild-master-spine';
-}
-
-type GuildHallAisleSpec = {
-	readonly wallId: 'guild-hall-records-spine-south' | 'guild-hall-common-spine-south';
-	readonly roomKey: 'recordsHall' | 'commonHall';
-	readonly handoffY: 'target' | 'safe-above';
-	readonly safeAboveInset: number;
-	readonly finalClearance: 'top' | 'left';
-};
-
-const GUILD_HALL_RECORDS_AISLE_SPEC: GuildHallAisleSpec = {
-	wallId: 'guild-hall-records-spine-south',
-	roomKey: 'recordsHall',
-	handoffY: 'safe-above',
-	safeAboveInset: 0,
-	finalClearance: 'top'
-};
-
-const GUILD_HALL_COMMON_AISLE_SPEC: GuildHallAisleSpec = {
-	wallId: 'guild-hall-common-spine-south',
-	roomKey: 'commonHall',
-	handoffY: 'safe-above',
-	// One extra source-safe pixel keeps the observed terminal correction residue
-	// inside the unchanged reach band without changing the authored checkpoint.
-	safeAboveInset: 1,
-	finalClearance: 'top'
-};
 
 // The route runner may legally finish a corrected axis anywhere inside its
 // unchanged reach tolerance. Keep the full possible endpoint residue separate
 // from the ordinary settle tolerance when deriving an obstacle-side handoff.
-const GUILD_HALL_ROUTE_ENDPOINT_RESIDUE = AXIS_REACH_TOLERANCE;
-
-function guildHallAisleWall(spec: GuildHallAisleSpec) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const wall = layout.walls.find(({ id }) => id === spec.wallId);
-	if (!wall) {
-		throw new Error(`Guild Hall ${spec.wallId} source is missing`);
-	}
-	return wall;
-}
-
-function guildHallAisleSafeAboveY(wall: { y: number }, safeAboveInset = 0): number {
-	const expandedTop = wall.y - PLAYER_COLLISION_RADIUS;
-	return expandedTop - 2 * AXIS_REACH_TOLERANCE - 1 - safeAboveInset;
-}
-
-function guildHallAisleHandoffPoint(targetPoint: Point, spec: GuildHallAisleSpec): Point {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const wall = guildHallAisleWall(spec);
-	const expandedLeft = wall.x - PLAYER_COLLISION_RADIUS;
-	const handoffX = expandedLeft - AXIS_REACH_TOLERANCE - GUILD_HALL_ROUTE_ENDPOINT_RESIDUE - 1;
-	const handoffY =
-		spec.handoffY === 'safe-above'
-			? guildHallAisleSafeAboveY(wall, spec.safeAboveInset)
-			: targetPoint.y;
-	expect(handoffX + AXIS_REACH_TOLERANCE + GUILD_HALL_ROUTE_ENDPOINT_RESIDUE).toBeLessThan(
-		expandedLeft
-	);
-	if (spec.handoffY === 'safe-above') {
-		// Keep the source-derived safe row within the authored checkpoint's
-		// unchanged reach contract as well as outside the full two-reach envelope.
-		expect(Math.abs(handoffY - targetPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-		expect(handoffY + AXIS_REACH_TOLERANCE + GUILD_HALL_ROUTE_ENDPOINT_RESIDUE).toBeLessThan(
-			wall.y - PLAYER_COLLISION_RADIUS
-		);
-	}
-	expect(
-		layoutRectContainsPoint(layout.rooms[spec.roomKey], {
-			x: handoffX,
-			y: handoffY
-		})
-	).toBe(true);
-	return { x: handoffX, y: handoffY };
-}
-
-function guildHallAisleRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point,
-	spec: GuildHallAisleSpec
-): Point[] {
-	const handoff = guildHallAisleHandoffPoint(targetPoint, spec);
-	const points =
-		currentPoint.y !== handoff.y
-			? [currentPoint, { x: currentPoint.x, y: handoff.y }, handoff]
-			: [currentPoint, handoff];
-	expect(points.at(-1)).toEqual(handoff);
-	return points;
-}
-
-function guildHallAisleFinalCheckpointRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point,
-	spec: GuildHallAisleSpec
-): Point[] {
-	const wall = guildHallAisleWall(spec);
-	const expandedLeft = wall.x - PLAYER_COLLISION_RADIUS;
-	const expandedTop = wall.y - PLAYER_COLLISION_RADIUS;
-	// The final leg is only valid after the actual handoff remains clear of the
-	// source wall even at the unchanged route reach envelope.
-	if (spec.finalClearance === 'top') {
-		expect(currentPoint.y + AXIS_REACH_TOLERANCE).toBeLessThan(expandedTop);
-	} else {
-		expect(currentPoint.x + AXIS_REACH_TOLERANCE).toBeLessThan(expandedLeft);
-	}
-	if (
-		Math.abs(currentPoint.x - targetPoint.x) <= AXIS_REACH_TOLERANCE &&
-		Math.abs(currentPoint.y - targetPoint.y) <= AXIS_REACH_TOLERANCE
-	) {
-		// The live endpoint already satisfies the authored checkpoint contract.
-		// Do not synthesize a corner whose skipped first axis would leave the
-		// runner at this unchanged coordinate for an unsafe second-axis tap.
-		return [currentPoint];
-	}
-	const points =
-		currentPoint.x !== targetPoint.x
-			? [currentPoint, { x: targetPoint.x, y: currentPoint.y }, targetPoint]
-			: [currentPoint, targetPoint];
-	for (let index = 1; index < points.length; index += 1) {
-		const from = points[index - 1]!;
-		const to = points[index]!;
-		expect(
-			routeSegmentIntersectsExpandedRectAtReachEnvelope(from, to, wall, PLAYER_COLLISION_RADIUS)
-		).toBe(false);
-	}
-	return points;
-}
-
-function guildHallRecordsAisleRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	return guildHallAisleRoutePoints(currentPoint, targetPoint, GUILD_HALL_RECORDS_AISLE_SPEC);
-}
-
-function guildHallRecordsAisleFinalCheckpointRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point
-): Point[] {
-	return guildHallAisleFinalCheckpointRoutePoints(
-		currentPoint,
-		targetPoint,
-		GUILD_HALL_RECORDS_AISLE_SPEC
-	);
-}
-
-function guildHallRecordsWallTerminalDepartureRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point
-): Point[] {
-	const wall = guildHallAisleWall(GUILD_HALL_RECORDS_AISLE_SPEC);
-	const safeY = guildHallAisleSafeAboveY(wall);
-	// The preceding records-hall-west endpoint is a terminal checkpoint. Leave
-	// it by moving north first, then use the source-derived safe row for every
-	// transit leg that follows.
-	expect(currentPoint.y).toBeGreaterThan(safeY);
-	expect(targetPoint.y).toBeGreaterThan(safeY);
-	return [
-		currentPoint,
-		{ x: currentPoint.x, y: safeY },
-		{ x: targetPoint.x, y: safeY },
-		targetPoint
-	];
-}
-
-function guildHallAisleTerminalDepartureRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point,
-	spec: GuildHallAisleSpec
-): Point[] {
-	const handoff = guildHallAisleHandoffPoint(targetPoint, spec);
-	// A terminal endpoint may be inside the symmetric residue envelope while
-	// still being collision-free. Depart north first, then apply the full
-	// envelope only after reaching the source-derived safe row.
-	expect(currentPoint.y).toBeGreaterThan(handoff.y);
-	return [currentPoint, { x: currentPoint.x, y: handoff.y }, handoff];
-}
-
-function guildHallRecordsRoomRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	return guildHallRecordsWallTerminalDepartureRoutePoints(currentPoint, targetPoint);
-}
-
-function guildHallGuildMasterSpineConservativeX(): number {
-	const wall = guildHallAisleWall(GUILD_HALL_RECORDS_AISLE_SPEC);
-	const expandedLeft = wall.x - PLAYER_COLLISION_RADIUS;
-	const conservativeX = expandedLeft - 2 * AXIS_REACH_TOLERANCE - 1;
-	// Reserve one reach span for the route endpoint and another for the final
-	// correction before descending toward the authored terminal band.
-	expect(conservativeX + 2 * AXIS_REACH_TOLERANCE).toBeLessThan(expandedLeft);
-	return conservativeX;
-}
-
-function guildHallGuildMasterSpineRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const wall = guildHallAisleWall(GUILD_HALL_RECORDS_AISLE_SPEC);
-	const safeY = guildHallAisleSafeAboveY(wall);
-	const conservativeX = guildHallGuildMasterSpineConservativeX();
-	// The authored checkpoint is deliberately consumed by the dedicated trusted
-	// convergence that follows this safe-row handoff.
-	expect(targetPoint.y).toBeGreaterThan(safeY);
-	const points = [currentPoint, { x: currentPoint.x, y: safeY }, { x: conservativeX, y: safeY }];
-	for (let index = 1; index < points.length; index += 1) {
-		expect(
-			routeSegmentIntersectsExpandedRectAtReachEnvelope(
-				points[index - 1]!,
-				points[index]!,
-				wall,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-	}
-	return points;
-}
-
-function assertGuildHallGuildMasterSpineRouteContract(
-	points: readonly Point[],
-	targetPoint: Point
-) {
-	const wall = guildHallAisleWall(GUILD_HALL_RECORDS_AISLE_SPEC);
-	const safeY = guildHallAisleSafeAboveY(wall);
-	const conservativeX = guildHallGuildMasterSpineConservativeX();
-	expect(points.at(-1)).toEqual({ x: conservativeX, y: safeY });
-	expect(targetPoint.y).toBeGreaterThan(safeY);
-	expect(points[1]?.x).toBe(points[0]?.x);
-	expect(points[1]?.y).toBe(safeY);
-	expect(points[2]).toEqual({ x: conservativeX, y: safeY });
-	expect(
-		layoutRectContainsPoint(VILLAGE_INTERIOR_LAYOUTS['guild-hall'].rooms.recordsHall, {
-			x: conservativeX,
-			y: safeY
-		})
-	).toBe(true);
-	for (let index = 1; index < points.length; index += 1) {
-		expect(
-			routeSegmentIntersectsExpandedRectAtReachEnvelope(
-				points[index - 1]!,
-				points[index]!,
-				wall,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-	}
-}
-
-function guildHallGuildMasterNorthRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	// The authored y checkpoint is already inside the unchanged reach band once
-	// the real endpoint is on the safe row. Converge that terminal y with one
-	// trusted-keyboard diagnostic instead of a correction-loop center target.
-	return guildHallRecordsWallTerminalDepartureRoutePoints(currentPoint, targetPoint).slice(0, 3);
-}
-
-function guildHallCommonHallWestRouteTarget(targetPoint: Point): Point {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const wall = guildHallAisleWall(GUILD_HALL_COMMON_AISLE_SPEC);
-	const expandedTop = wall.y - PLAYER_COLLISION_RADIUS;
-	const safeY = guildHallAisleSafeAboveY(wall, GUILD_HALL_COMMON_AISLE_SPEC.safeAboveInset);
-	// Move the common-west checkpoint onto a source-derived row whose complete
-	// endpoint-residue plus reach envelope remains above common-spine-south. The
-	// row is still within the authored checkpoint's unchanged ±18 assertion.
-	expect(Math.abs(safeY - targetPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(safeY + AXIS_REACH_TOLERANCE + GUILD_HALL_ROUTE_ENDPOINT_RESIDUE).toBeLessThan(
-		expandedTop
-	);
-	expect(layoutRectContainsPoint(layout.rooms.commonHall, { x: targetPoint.x, y: safeY })).toBe(
-		true
-	);
-	return { x: targetPoint.x, y: safeY };
-}
-
-function guildHallCommonHallRoomAisleRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	return guildHallAisleTerminalDepartureRoutePoints(
-		currentPoint,
-		targetPoint,
-		GUILD_HALL_COMMON_AISLE_SPEC
-	);
-}
-
-function guildHallCommonHallRoomFinalCheckpointRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point
-): Point[] {
-	return guildHallAisleFinalCheckpointRoutePoints(
-		currentPoint,
-		targetPoint,
-		GUILD_HALL_COMMON_AISLE_SPEC
-	);
-}
-
-function isItemShopMiraStep(interior: InteriorGrayboxCase, step: InteriorGrayboxStep): boolean {
-	return interior.mapId === 'item-shop' && step.interaction?.speaker === 'Mira';
-}
-
-function isItemShopMiraReturnStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep,
-	leavingInteraction: boolean
-): boolean {
-	return (
-		leavingInteraction && interior.mapId === 'item-shop' && step.label === 'east-aisle-crossing'
-	);
-}
-
-function isItemShopMiraServiceReturnWestStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'item-shop' && step.label === 'service-return-west';
-}
-
-function isItemShopServiceReturnSouthStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'item-shop' && step.label === 'service-return-south';
-}
-
-function isGuildHallGuildMasterStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'guild-hall' && step.interaction?.speaker === 'Borak';
-}
-
-function isGuildHallGuildMasterReturnStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep,
-	leavingInteraction: boolean
-): boolean {
-	return (
-		leavingInteraction && interior.mapId === 'guild-hall' && step.label === 'training-hall-spine'
-	);
-}
-
-function isGuildHallQuartermasterStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'guild-hall' && step.interaction?.speaker === 'Lodge Keeper';
-}
-
-function isGuildHallQuartermasterReturnStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep,
-	leavingInteraction: boolean
-): boolean {
-	return (
-		leavingInteraction && interior.mapId === 'guild-hall' && step.label === 'lobby-return-spine'
-	);
-}
-
-function isGuildHallLobbyReturnStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep
-): boolean {
-	return interior.mapId === 'guild-hall' && step.label === 'lobby-return';
-}
-
-function guildHallGuildMasterCheckpoint(): Point {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const approach = layout.npcApproaches.guildMaster.approach;
-	const npc = layout.npcApproaches.guildMaster.npc;
-	const desk = layout.propCollisions.guildMasterDesk;
-	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
-	const minimumSafeTargetY =
-		desk.y + desk.height + PLAYER_COLLISION_RADIUS + NPC_APPROACH_SETTLE_TOLERANCE + 1;
-	const maximumSafeTargetY = Math.floor(
-		npc.y +
-			Math.sqrt(interactionRadius ** 2 - NPC_APPROACH_SETTLE_TOLERANCE ** 2) -
-			NPC_APPROACH_SETTLE_TOLERANCE
-	);
-	return {
-		x: approach.x,
-		y: Math.floor((minimumSafeTargetY + maximumSafeTargetY) / 2)
-	};
-}
-
-function guildHallGuildMasterInteractionStagingBand(): IntegerBand {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const npc = layout.npcApproaches.guildMaster.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
-	const minimumStableY = Math.ceil(
-		npc.y - Math.sqrt(interactionRadius ** 2 - AXIS_REACH_TOLERANCE ** 2)
-	);
-	const maximumStableY = npc.y - npcCollisionRadius - 1;
-
-	// The complete integer band is source-derived for the unchanged ±18 route
-	// endpoint residue: every y in it remains outside the 29px player/NPC
-	// collision circle while every endpoint dx in [-18, 18] remains within the
-	// 48px live interaction radius. The strict integer row below the collision
-	// boundary is y=114; the interaction envelope's lower row is y=100.
-	expect({ minimumStableY, maximumStableY }).toEqual({
-		minimumStableY: 100,
-		maximumStableY: 114
-	});
-	return { min: minimumStableY, max: maximumStableY };
-}
-
-function guildHallGuildMasterInteractionYBand(): { min: number; maxExclusive: number } {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const npc = layout.npcApproaches.guildMaster.npc;
-	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const min = npc.y - Math.sqrt(interactionRadius ** 2 - AXIS_REACH_TOLERANCE ** 2);
-	const maxExclusive = npc.y - npcCollisionRadius;
-	// This continuous source-derived band is the geometry contract for the live
-	// point: the integer checkpoints above are 100..114, while a real frame may
-	// settle at any y >= npc.y-44.49 and strictly below npc.y-29.
-	expect(min).toBeGreaterThan(99);
-	expect(min).toBeLessThan(100);
-	expect(maxExclusive).toBe(115);
-	return { min, maxExclusive };
-}
-
-function assertGuildHallGuildMasterInteractionBand(stagingPoint: Point, livePoint?: Point) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const desk = layout.propCollisions.guildMasterDesk;
-	const npc = layout.npcApproaches.guildMaster.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
-	const interactionYBand = guildHallGuildMasterInteractionYBand();
-	const expandedDeskLeft = desk.x - PLAYER_COLLISION_RADIUS;
-	const leftClearanceX = desk.x - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1;
-	const officeSpineNorth = layout.walls.find(({ id }) => id === 'guild-hall-office-spine-north');
-	const officeSpineSouth = layout.walls.find(({ id }) => id === 'guild-hall-office-spine-south');
-	if (!officeSpineNorth || !officeSpineSouth) {
-		throw new Error('Guild Hall office-spine collision sources are missing');
-	}
-	const band = guildHallGuildMasterInteractionStagingBand();
-
-	expect(stagingPoint.x).toBe(leftClearanceX);
-	expect(leftClearanceX + AXIS_REACH_TOLERANCE).toBeLessThan(expandedDeskLeft);
-	expect(stagingPoint.y).toBe(Math.floor((band.min + band.max) / 2));
-	for (let y = band.min; y <= band.max; y += 1) {
-		for (let x = npc.x - AXIS_REACH_TOLERANCE; x <= npc.x + AXIS_REACH_TOLERANCE; x += 1) {
-			const candidate = { x, y };
-			const distanceSquared = (x - npc.x) ** 2 + (y - npc.y) ** 2;
-			expect(distanceSquared).toBeGreaterThan(npcCollisionRadius ** 2);
-			expect(distanceSquared).toBeLessThanOrEqual(interactionRadius ** 2);
-			expect(expandedLayoutRectContainsPoint(desk, candidate, PLAYER_COLLISION_RADIUS)).toBe(false);
-		}
-		const horizontalEnvelopeStart = {
-			x: leftClearanceX + AXIS_REACH_TOLERANCE,
-			y
-		};
-		const horizontalEnvelopeEnd = { x: npc.x + AXIS_REACH_TOLERANCE, y };
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				horizontalEnvelopeStart,
-				horizontalEnvelopeEnd,
-				desk,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsCircle(
-				horizontalEnvelopeStart,
-				horizontalEnvelopeEnd,
-				npc,
-				npcCollisionRadius
-			)
-		).toBe(false);
-		// The semantic row stays inside the authored office and crosses only the
-		// open desk-side aisle; neither office/spine partition can intersect the
-		// full horizontal endpoint envelope.
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				horizontalEnvelopeStart,
-				horizontalEnvelopeEnd,
-				officeSpineNorth,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				horizontalEnvelopeStart,
-				horizontalEnvelopeEnd,
-				officeSpineSouth,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-	}
-
-	if (livePoint) {
-		const liveDistanceSquared = (livePoint.x - npc.x) ** 2 + (livePoint.y - npc.y) ** 2;
-		expect(livePoint.y).toBeGreaterThanOrEqual(interactionYBand.min);
-		expect(livePoint.y).toBeLessThan(interactionYBand.maxExclusive);
-		expect(liveDistanceSquared).toBeGreaterThan(npcCollisionRadius ** 2);
-		expect(liveDistanceSquared).toBeLessThanOrEqual(interactionRadius ** 2);
-		expect(expandedLayoutRectContainsPoint(desk, livePoint, PLAYER_COLLISION_RADIUS)).toBe(false);
-	}
-}
-
-async function assertGuildHallGuildMasterStagingContract(
-	page: Page,
-	stagingPoint: Point,
-	evidence: MapAwarePlayerEvidence
-): Promise<Point> {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const desk = layout.propCollisions.guildMasterDesk;
-	const npc = layout.npcApproaches.guildMaster.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const interactionYBand = guildHallGuildMasterInteractionYBand();
-	const livePoint = evidence.selectedPoint;
-	const npcCollisionBounds = {
-		x: npc.x - npcCollisionRadius,
-		y: npc.y - npcCollisionRadius,
-		width: npcCollisionRadius * 2,
-		height: npcCollisionRadius * 2
-	};
-	const officeSpineNorth = layout.walls.find(({ id }) => id === 'guild-hall-office-spine-north');
-	const officeSpineSouth = layout.walls.find(({ id }) => id === 'guild-hall-office-spine-south');
-	if (!officeSpineNorth || !officeSpineSouth) {
-		throw new Error('Guild Hall office-spine collision sources are missing');
-	}
-
-	// This is only the left-side handoff. The NPC annulus is asserted after the
-	// horizontal route reaches the NPC's x coordinate below; the staging point is
-	// deliberately outside that annulus so it can clear the desk first.
-	expect(evidence.state?.ready).toBe(true);
-	expect(evidence.state?.mapId).toBe('guild-hall');
-	expect(evidence.diagnostic?.mapId).toBe('guild-hall');
-	expect(evidence.diagnostic?.blocked).toBe(false);
-	expect(Math.abs(livePoint.y - stagingPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(livePoint.y).toBeGreaterThanOrEqual(interactionYBand.min);
-	expect(livePoint.y).toBeLessThan(interactionYBand.maxExclusive);
-	// The preceding route can settle x on either side of the nominal checkpoint
-	// inside its unchanged ±18 band. Prove the complete live residue box is clear
-	// in 2D: y separation above the desk is sufficient even when x+18 reaches its
-	// expanded left edge, while the same box must be axis-disjoint from the NPC's
-	// combined collision envelope and both authored office partitions.
-	expect(
-		endpointBoxIsDisjointFromExpandedRect(livePoint, desk, PLAYER_COLLISION_RADIUS),
-		`Guild Master live residue intersects the desk envelope: ${JSON.stringify({ livePoint, desk })}`
-	).toBe(true);
-	expect(
-		endpointBoxIsDisjointFromExpandedRect(livePoint, npcCollisionBounds, 0),
-		`Guild Master live residue intersects the NPC collision envelope: ${JSON.stringify({ livePoint, npc })}`
-	).toBe(true);
-	expect(
-		endpointBoxIsDisjointFromExpandedRect(livePoint, officeSpineNorth, PLAYER_COLLISION_RADIUS),
-		`Guild Master live residue intersects the north office partition: ${JSON.stringify({ livePoint, officeSpineNorth })}`
-	).toBe(true);
-	expect(
-		endpointBoxIsDisjointFromExpandedRect(livePoint, officeSpineSouth, PLAYER_COLLISION_RADIUS),
-		`Guild Master live residue intersects the south office partition: ${JSON.stringify({ livePoint, officeSpineSouth })}`
-	).toBe(true);
-	expect(expandedLayoutRectContainsPoint(desk, livePoint, PLAYER_COLLISION_RADIUS)).toBe(false);
-	expect(
-		expandedLayoutRectContainsPoint(officeSpineNorth, livePoint, PLAYER_COLLISION_RADIUS)
-	).toBe(false);
-	expect(
-		expandedLayoutRectContainsPoint(officeSpineSouth, livePoint, PLAYER_COLLISION_RADIUS)
-	).toBe(false);
-	const horizontalTarget = { x: npc.x, y: livePoint.y };
-	expect(
-		routeSegmentIntersectsExpandedRect(livePoint, horizontalTarget, desk, PLAYER_COLLISION_RADIUS)
-	).toBe(false);
-	expect(routeSegmentIntersectsCircle(livePoint, horizontalTarget, npc, npcCollisionRadius)).toBe(
-		false
-	);
-
-	const activeRoute = await page.evaluate(
-		() => (window as GlieseProbeWindow).__glieseRouteRunner?.active() ?? null
-	);
-	expect(activeRoute?.activeKey ?? null).toBeNull();
-	return livePoint;
-}
-
-function guildHallGuildMasterInteractionStagingPoint(): Point {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const desk = layout.propCollisions.guildMasterDesk;
-	const npc = layout.npcApproaches.guildMaster.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
-	const stagingBand = guildHallGuildMasterInteractionStagingBand();
-	const stagingY = Math.floor((stagingBand.min + stagingBand.max) / 2);
-	const leftClearanceX = desk.x - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1;
-	for (let rowY = stagingBand.min; rowY <= stagingBand.max; rowY += 1) {
-		const verticalDistance = npc.y - rowY;
-		expect(verticalDistance).toBeGreaterThan(npcCollisionRadius);
-		expect(verticalDistance).toBeLessThanOrEqual(interactionRadius);
-		expect(rowY).toBeLessThan(desk.y - PLAYER_COLLISION_RADIUS);
-		const interactionEntryX =
-			npc.x - Math.floor(Math.sqrt(interactionRadius ** 2 - verticalDistance ** 2));
-		const approachStart = { x: leftClearanceX, y: rowY };
-		const interactionEntry = { x: interactionEntryX, y: rowY };
-		expect(interactionEntryX).toBeLessThan(npc.x);
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				approachStart,
-				interactionEntry,
-				desk,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsCircle(approachStart, interactionEntry, npc, npcCollisionRadius)
-		).toBe(false);
-	}
-	return {
-		// The semantic approach stays in the source-derived upper annulus band:
-		// every unchanged settle corner is above the expanded desk, outside the
-		// NPC's 29px combined collision, and can enter the exact 48px interaction
-		// annulus on a horizontal approach without targeting the NPC center.
-		x: leftClearanceX,
-		y: stagingY
-	};
-}
-
-function guildHallGuildMasterUpperTransitY(): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const desk = layout.propCollisions.guildMasterDesk;
-	const expandedDeskTop = desk.y - PLAYER_COLLISION_RADIUS;
-	const transitY = expandedDeskTop - 2 * AXIS_REACH_TOLERANCE - 1;
-	expect(transitY + 2 * AXIS_REACH_TOLERANCE).toBeLessThan(expandedDeskTop);
-	return transitY;
-}
-
-function guildHallGuildMasterDoorwayTransitY(): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const officeSpineNorth = layout.walls.find(({ id }) => id === 'guild-hall-office-spine-north');
-	const officeSpineSouth = layout.walls.find(({ id }) => id === 'guild-hall-office-spine-south');
-	if (!officeSpineNorth || !officeSpineSouth) {
-		throw new Error('Guild Hall office-spine doorway source is missing');
-	}
-	return Math.floor((officeSpineNorth.y + officeSpineNorth.height + officeSpineSouth.y) / 2);
-}
-
-function guildHallGuildMasterRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point,
-	semanticApproach = false,
-	returningToSpine = false
-): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const desk = layout.propCollisions.guildMasterDesk;
-	const leftClearanceX = desk.x - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1;
-	// Reserve one additional unchanged reach span for a correction that begins
-	// from the preceding route endpoint residue before the return leg crosses
-	// the desk row. This is source-derived headroom, not a tolerance change.
-	const returnClearanceX =
-		desk.x - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - GUILD_HALL_ROUTE_ENDPOINT_RESIDUE - 1;
-	const safeTransitY = guildHallGuildMasterDoorwayTransitY();
-	const upperTransitY = guildHallGuildMasterUpperTransitY();
-	if (semanticApproach) {
-		return [
-			currentPoint,
-			// Cross the office/spine partition through its authored doorway before
-			// climbing beside the desk. The upper row is only safe after the
-			// horizontal handoff has cleared the desk's expanded left edge.
-			{ x: currentPoint.x, y: safeTransitY },
-			{ x: returnClearanceX, y: safeTransitY },
-			{ x: returnClearanceX, y: upperTransitY },
-			{ x: leftClearanceX, y: upperTransitY },
-			targetPoint
-		];
-	}
-	if (returningToSpine) {
-		// The semantic interaction leaves the player above the NPC. Move laterally
-		// while still above its collision circle, then descend at the conservative
-		// desk-clearance x before crossing the authored office doorway.
-		return [
-			currentPoint,
-			{ x: returnClearanceX, y: currentPoint.y },
-			{ x: returnClearanceX, y: safeTransitY },
-			{ x: targetPoint.x, y: safeTransitY },
-			targetPoint
-		];
-	}
-	return [
-		currentPoint,
-		{ x: currentPoint.x, y: upperTransitY },
-		{ x: returnClearanceX, y: upperTransitY },
-		{ x: returnClearanceX, y: safeTransitY },
-		{ x: targetPoint.x, y: safeTransitY },
-		targetPoint
-	];
-}
-
-type IntegerBand = { min: number; max: number };
-
-type GuildHallQuartermasterStagedApproachRow = {
-	stagingY: number;
-	targetY: number;
-	bands: IntegerBand[];
-};
-
-type GuildHallQuartermasterStagedApproachCandidate = {
-	stagingY: number;
-	targetY: number;
-	x: number;
-};
-
-function guildHallQuartermasterStableApproachBands(targetY: number): IntegerBand[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const counter = layout.propCollisions.quartermasterCounter;
-	const npc = layout.npcApproaches.quartermaster.npc;
-	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
-	const candidateStart = Math.ceil(npc.x - interactionRadius - NPC_APPROACH_SETTLE_TOLERANCE);
-	const candidateEnd = Math.floor(npc.x + interactionRadius + NPC_APPROACH_SETTLE_TOLERANCE);
-	const settleOffsets = [-NPC_APPROACH_SETTLE_TOLERANCE, NPC_APPROACH_SETTLE_TOLERANCE];
-	const stableX = Array.from({ length: candidateEnd - candidateStart + 1 }, (_, index) => {
-		const x = candidateStart + index;
-		return settleOffsets.every((offsetX) =>
-			settleOffsets.every((offsetY) => {
-				const settledPoint = { x: x + offsetX, y: targetY + offsetY };
-				const distance = Math.hypot(settledPoint.x - npc.x, settledPoint.y - npc.y);
-				return (
-					!expandedLayoutRectContainsPoint(counter, settledPoint, PLAYER_COLLISION_RADIUS) &&
-					distance > PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS &&
-					distance <= interactionRadius
-				);
-			})
-		);
-	})
-		.map((stable, index) => (stable ? candidateStart + index : null))
-		.filter((x): x is number => x !== null);
-	const bands: IntegerBand[] = [];
-	for (const x of stableX) {
-		const previous = bands.at(-1);
-		if (previous && x === previous.max + 1) {
-			previous.max = x;
-		} else {
-			bands.push({ min: x, max: x });
-		}
-	}
-	return bands;
-}
-
-function guildHallQuartermasterHorizontalCorrectionIsSafe(targetX: number, targetY: number) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const counter = layout.propCollisions.quartermasterCounter;
-	const npc = layout.npcApproaches.quartermaster.npc;
-	const trainingQuartermasterDivider = layout.walls.find(
-		({ id }) => id === 'guild-hall-training-quartermaster-divider'
-	);
-	if (!trainingQuartermasterDivider) {
-		throw new Error('Guild Hall training-quartermaster divider source is missing');
-	}
-	const rightClearanceX =
-		counter.x + counter.width + PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE + 1;
-	const settleOffsets = [-NPC_APPROACH_SETTLE_TOLERANCE, NPC_APPROACH_SETTLE_TOLERANCE];
-	return settleOffsets.every((offsetY) => {
-		const from = { x: rightClearanceX, y: targetY + offsetY };
-		const to = { x: targetX, y: targetY + offsetY };
-		return (
-			!routeSegmentIntersectsExpandedRect(from, to, counter, PLAYER_COLLISION_RADIUS) &&
-			!routeSegmentIntersectsExpandedRect(
-				from,
-				to,
-				trainingQuartermasterDivider,
-				PLAYER_COLLISION_RADIUS
-			) &&
-			!routeSegmentIntersectsCircle(
-				from,
-				to,
-				npc,
-				PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
-			)
-		);
-	});
-}
-
-function guildHallQuartermasterFinalVerticalCorrectionIsSafe(
-	targetX: number,
-	stagingY: number,
-	targetY: number
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const counter = layout.propCollisions.quartermasterCounter;
-	const npc = layout.npcApproaches.quartermaster.npc;
-	const trainingQuartermasterDivider = layout.walls.find(
-		({ id }) => id === 'guild-hall-training-quartermaster-divider'
-	);
-	if (!trainingQuartermasterDivider) {
-		throw new Error('Guild Hall training-quartermaster divider source is missing');
-	}
-	const from = { x: targetX, y: stagingY + NPC_APPROACH_SETTLE_TOLERANCE };
-	const through = { x: targetX, y: targetY - AXIS_REACH_TOLERANCE };
-	return (
-		!routeSegmentIntersectsExpandedRect(from, through, counter, PLAYER_COLLISION_RADIUS) &&
-		!routeSegmentIntersectsExpandedRect(
-			from,
-			through,
-			trainingQuartermasterDivider,
-			PLAYER_COLLISION_RADIUS
-		) &&
-		!routeSegmentIntersectsCircle(
-			from,
-			through,
-			npc,
-			PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
-		)
-	);
-}
-
-function guildHallQuartermasterStagedApproachRows(): {
-	minimumStableY: number;
-	maximumStableY: number;
-	minimumFinalTravel: number;
-	rows: GuildHallQuartermasterStagedApproachRow[];
-	candidates: GuildHallQuartermasterStagedApproachCandidate[];
-} {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const counter = layout.propCollisions.quartermasterCounter;
-	const trainingQuartermasterDivider = layout.walls.find(
-		({ id }) => id === 'guild-hall-training-quartermaster-divider'
-	);
-	if (!trainingQuartermasterDivider) {
-		throw new Error('Guild Hall training-quartermaster divider source is missing');
-	}
-	const minimumStableY =
-		trainingQuartermasterDivider.y +
-		trainingQuartermasterDivider.height +
-		PLAYER_COLLISION_RADIUS +
-		NPC_APPROACH_SETTLE_TOLERANCE +
-		1;
-	const maximumStableY = counter.y - PLAYER_COLLISION_RADIUS - NPC_APPROACH_SETTLE_TOLERANCE - 1;
-	const minimumFinalTravel = NPC_APPROACH_SETTLE_TOLERANCE + 1;
-	const rows: GuildHallQuartermasterStagedApproachRow[] = [];
-	const candidates: GuildHallQuartermasterStagedApproachCandidate[] = [];
-	for (let stagingY = minimumStableY; stagingY <= maximumStableY; stagingY += 1) {
-		for (let targetY = minimumStableY; targetY <= maximumStableY; targetY += 1) {
-			if (stagingY - targetY < minimumFinalTravel) continue;
-			if (
-				targetY - AXIS_REACH_TOLERANCE <=
-				trainingQuartermasterDivider.y +
-					trainingQuartermasterDivider.height +
-					PLAYER_COLLISION_RADIUS
-			) {
-				continue;
-			}
-			const stableX = guildHallQuartermasterStableApproachBands(targetY)
-				.flatMap((band) =>
-					Array.from({ length: band.max - band.min + 1 }, (_, index) => band.min + index)
-				)
-				.filter(
-					(targetX) =>
-						guildHallQuartermasterHorizontalCorrectionIsSafe(targetX, stagingY) &&
-						guildHallQuartermasterFinalVerticalCorrectionIsSafe(targetX, stagingY, targetY)
-				);
-			const bands: IntegerBand[] = [];
-			for (const targetX of stableX) {
-				const previous = bands.at(-1);
-				if (previous && targetX === previous.max + 1) {
-					previous.max = targetX;
-				} else {
-					bands.push({ min: targetX, max: targetX });
-				}
-				candidates.push({ stagingY, targetY, x: targetX });
-			}
-			if (bands.length > 0) rows.push({ stagingY, targetY, bands });
-		}
-	}
-	return { minimumStableY, maximumStableY, minimumFinalTravel, rows, candidates };
-}
-
-function guildHallQuartermasterSelectedStagedApproach(): GuildHallQuartermasterStagedApproachCandidate {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const authoredApproach = layout.npcApproaches.quartermaster.approach;
-	const { candidates } = guildHallQuartermasterStagedApproachRows();
-	const selected = candidates.reduce<GuildHallQuartermasterStagedApproachCandidate | null>(
-		(best, candidate) => {
-			if (!best) return candidate;
-			const candidateDistance =
-				(candidate.x - authoredApproach.x) ** 2 + (candidate.targetY - authoredApproach.y) ** 2;
-			const bestDistance =
-				(best.x - authoredApproach.x) ** 2 + (best.targetY - authoredApproach.y) ** 2;
-			if (candidateDistance !== bestDistance)
-				return candidateDistance < bestDistance ? candidate : best;
-			return candidate.stagingY > best.stagingY ? candidate : best;
-		},
-		null
-	);
-	if (!selected) {
-		throw new Error('Guild Hall Quartermaster has no source-derived staged approach');
-	}
-	return selected;
-}
-
-function guildHallQuartermasterInteractionStagingPoint(): Point {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const counter = layout.propCollisions.quartermasterCounter;
-	return {
-		x: counter.x + counter.width + PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE + 1,
-		// The semantic keyboard approach is separate from the coordinate checkpoint:
-		// keep every legal route-residue y above the expanded counter while remaining
-		// below the expanded training divider.
-		y: counter.y - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1
-	};
-}
-
-function assertGuildHallGuildMasterRouteContract(
-	points: readonly Point[],
-	targetPoint: Point,
-	semanticApproach = false,
-	returningToSpine = false
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const desk = layout.propCollisions.guildMasterDesk;
-	const leftClearanceX = desk.x - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1;
-	const returnClearanceX =
-		desk.x - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - GUILD_HALL_ROUTE_ENDPOINT_RESIDUE - 1;
-	const safeTransitY = guildHallGuildMasterDoorwayTransitY();
-	const upperTransitY = guildHallGuildMasterUpperTransitY();
-	const npc = layout.npcApproaches.guildMaster.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-
-	expect(points.at(-1)).toEqual(targetPoint);
-	if (semanticApproach) {
-		const officeSpineNorth = layout.walls.find(({ id }) => id === 'guild-hall-office-spine-north');
-		const officeSpineSouth = layout.walls.find(({ id }) => id === 'guild-hall-office-spine-south');
-		if (!officeSpineNorth || !officeSpineSouth) {
-			throw new Error('Guild Hall office-spine doorway source is missing');
-		}
-		const expandedNorthBottom =
-			officeSpineNorth.y + officeSpineNorth.height + PLAYER_COLLISION_RADIUS;
-		const expandedSouthTop = officeSpineSouth.y - PLAYER_COLLISION_RADIUS;
-		expect(points).toHaveLength(6);
-		expect(points[1]?.x).toBe(points[0]?.x);
-		expect(points[1]?.y).toBe(safeTransitY);
-		expect(points[2]?.x).toBe(returnClearanceX);
-		expect(points[2]?.y).toBe(safeTransitY);
-		expect(points[3]?.x).toBe(returnClearanceX);
-		expect(points[3]?.y).toBe(upperTransitY);
-		expect(points[4]?.x).toBe(leftClearanceX);
-		expect(points[4]?.y).toBe(upperTransitY);
-		expect(targetPoint).toEqual(guildHallGuildMasterInteractionStagingPoint());
-		const expandedDeskLeft = desk.x - PLAYER_COLLISION_RADIUS;
-		const expandedDeskTop = desk.y - PLAYER_COLLISION_RADIUS;
-		const semanticStaging = guildHallGuildMasterInteractionStagingPoint();
-		assertGuildHallGuildMasterInteractionBand(semanticStaging);
-		// The first horizontal leg uses the authored office/spine doorway. Keep
-		// every unchanged route-residue corner strictly between the two expanded
-		// partition bands before taking the upper desk approach.
-		for (let offset = -AXIS_REACH_TOLERANCE; offset <= AXIS_REACH_TOLERANCE; offset += 1) {
-			expect(safeTransitY + offset).toBeGreaterThan(expandedNorthBottom);
-			expect(safeTransitY + offset).toBeLessThan(expandedSouthTop);
-		}
-		expect(
-			routeSegmentIntersectsExpandedRectAtReachEnvelope(
-				points[1]!,
-				points[2]!,
-				officeSpineNorth,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsExpandedRectAtReachEnvelope(
-				points[1]!,
-				points[2]!,
-				officeSpineSouth,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			returnClearanceX + AXIS_REACH_TOLERANCE + GUILD_HALL_ROUTE_ENDPOINT_RESIDUE
-		).toBeLessThan(expandedDeskLeft);
-		expect(upperTransitY + 2 * AXIS_REACH_TOLERANCE).toBeLessThan(expandedDeskTop);
-		expect(leftClearanceX + AXIS_REACH_TOLERANCE).toBeLessThan(expandedDeskLeft);
-		const transitPoints = [points[1]!, points[2]!, points[3]!, points[4]!];
-		for (const transitPoint of transitPoints) {
-			for (let offsetX = -AXIS_REACH_TOLERANCE; offsetX <= AXIS_REACH_TOLERANCE; offsetX += 1) {
-				for (let offsetY = -AXIS_REACH_TOLERANCE; offsetY <= AXIS_REACH_TOLERANCE; offsetY += 1) {
-					const settledPoint = {
-						x: transitPoint.x + offsetX,
-						y: transitPoint.y + offsetY
-					};
-					const dx = settledPoint.x - npc.x;
-					const dy = settledPoint.y - npc.y;
-					expect(dx * dx + dy * dy).toBeGreaterThan(npcCollisionRadius ** 2);
-					expect(expandedLayoutRectContainsPoint(desk, settledPoint, PLAYER_COLLISION_RADIUS)).toBe(
-						false
-					);
-				}
-			}
-		}
-		expect(
-			routeSegmentIntersectsExpandedRectAtReachEnvelope(
-				points[1]!,
-				points[2]!,
-				desk,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsExpandedRectAtReachEnvelope(
-				points[2]!,
-				points[3]!,
-				desk,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsExpandedRectAtReachEnvelope(
-				points[3]!,
-				points[4]!,
-				desk,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		for (let offsetY = -AXIS_REACH_TOLERANCE; offsetY <= AXIS_REACH_TOLERANCE; offsetY += 1) {
-			for (const fromOffsetX of [-AXIS_REACH_TOLERANCE, AXIS_REACH_TOLERANCE]) {
-				for (const toOffsetX of [-AXIS_REACH_TOLERANCE, AXIS_REACH_TOLERANCE]) {
-					expect(
-						routeSegmentIntersectsCircle(
-							{
-								x: points[3]!.x + fromOffsetX,
-								y: points[3]!.y + offsetY
-							},
-							{
-								x: points[4]!.x + toOffsetX,
-								y: points[4]!.y + offsetY
-							},
-							npc,
-							npcCollisionRadius
-						)
-					).toBe(false);
-				}
-			}
-		}
-		for (let offset = -AXIS_REACH_TOLERANCE; offset <= AXIS_REACH_TOLERANCE; offset += 1) {
-			expect(targetPoint.x + offset).toBeLessThan(expandedDeskLeft);
-			if (Math.abs(offset) <= NPC_APPROACH_SETTLE_TOLERANCE) {
-				expect(targetPoint.y + offset).toBeLessThan(expandedDeskTop);
-			}
-		}
-		expect(targetPoint).toEqual(semanticStaging);
-		expect(targetPoint.x).toBe(leftClearanceX);
-		expect(trustedNpcDirectionToward(targetPoint, npc)).toBe('ArrowRight');
-		for (
-			let offset = -NPC_APPROACH_SETTLE_TOLERANCE;
-			offset <= NPC_APPROACH_SETTLE_TOLERANCE;
-			offset += 1
-		) {
-			const rowY = targetPoint.y + offset;
-			const verticalDistance = npc.y - rowY;
-			const interactionEntryX =
-				npc.x -
-				Math.floor(
-					Math.sqrt((PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS) ** 2 - verticalDistance ** 2)
-				);
-			expect(verticalDistance).toBeGreaterThan(npcCollisionRadius);
-			expect(verticalDistance).toBeLessThanOrEqual(
-				PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS
-			);
-			expect(interactionEntryX).toBeLessThan(npc.x);
-			expect(
-				routeSegmentIntersectsCircle(
-					{ x: leftClearanceX, y: rowY },
-					{ x: interactionEntryX, y: rowY },
-					npc,
-					npcCollisionRadius
-				)
-			).toBe(false);
-		}
-	} else {
-		expect(
-			returnClearanceX + AXIS_REACH_TOLERANCE + GUILD_HALL_ROUTE_ENDPOINT_RESIDUE
-		).toBeLessThan(desk.x - PLAYER_COLLISION_RADIUS);
-		if (returningToSpine) {
-			// Leave the semantic interaction laterally while still above the NPC,
-			// then descend only after the full-residue handoff is desk-clear.
-			expect(points).toHaveLength(5);
-			expect(npc.y - points[0]!.y).toBeGreaterThan(npcCollisionRadius);
-			expect(points[1]?.x).toBe(returnClearanceX);
-			expect(points[1]?.y).toBe(points[0]?.y);
-			expect(points[2]?.x).toBe(returnClearanceX);
-			expect(points[2]?.y).toBe(safeTransitY);
-			expect(points[3]?.x).toBe(targetPoint.x);
-			expect(points[3]?.y).toBe(safeTransitY);
-		} else {
-			expect(points[1]?.x).toBe(points[0]?.x);
-			expect(points[1]?.y).toBe(upperTransitY);
-			expect(points[2]?.x).toBe(returnClearanceX);
-			expect(points[2]?.y).toBe(upperTransitY);
-			expect(points[3]?.x).toBe(returnClearanceX);
-			expect(points[3]?.y).toBe(safeTransitY);
-			expect(points[4]?.x).toBe(targetPoint.x);
-			expect(points[4]?.y).toBe(safeTransitY);
-		}
-		expect(points.some((point) => point.y === safeTransitY)).toBe(true);
-		if (returningToSpine) {
-			const clearancePoints = [points[1]!, points[2]!];
-			for (const clearancePoint of clearancePoints) {
-				for (let offsetX = -AXIS_REACH_TOLERANCE; offsetX <= AXIS_REACH_TOLERANCE; offsetX += 1) {
-					for (let offsetY = -AXIS_REACH_TOLERANCE; offsetY <= AXIS_REACH_TOLERANCE; offsetY += 1) {
-						const settledPoint = {
-							x: clearancePoint.x + offsetX,
-							y: clearancePoint.y + offsetY
-						};
-						const dx = settledPoint.x - npc.x;
-						const dy = settledPoint.y - npc.y;
-						expect(dx * dx + dy * dy).toBeGreaterThan(npcCollisionRadius ** 2);
-						expect(
-							expandedLayoutRectContainsPoint(desk, settledPoint, PLAYER_COLLISION_RADIUS)
-						).toBe(false);
-					}
-				}
-			}
-		}
-		const officeSpineNorth = layout.walls.find(({ id }) => id === 'guild-hall-office-spine-north');
-		const officeSpineSouth = layout.walls.find(({ id }) => id === 'guild-hall-office-spine-south');
-		if (!officeSpineNorth || !officeSpineSouth) {
-			throw new Error('Guild Hall office-spine doorway source is missing');
-		}
-		const expandedNorthBottom =
-			officeSpineNorth.y + officeSpineNorth.height + PLAYER_COLLISION_RADIUS;
-		const expandedSouthTop = officeSpineSouth.y - PLAYER_COLLISION_RADIUS;
-		for (let offset = -AXIS_REACH_TOLERANCE; offset <= AXIS_REACH_TOLERANCE; offset += 1) {
-			expect(safeTransitY + offset).toBeGreaterThan(expandedNorthBottom);
-			expect(safeTransitY + offset).toBeLessThan(expandedSouthTop);
-		}
-	}
-	const routeClearanceX = semanticApproach ? leftClearanceX : returnClearanceX;
-	expect(
-		layoutRectContainsPoint(layout.rooms.guildMasterOffice, {
-			x: routeClearanceX,
-			y: safeTransitY
-		})
-	).toBe(true);
-	if (returningToSpine) {
-		expect(layoutRectContainsPoint(layout.corridors.mainSpine, targetPoint)).toBe(true);
-	} else {
-		expect(layoutRectContainsPoint(layout.rooms.guildMasterOffice, targetPoint)).toBe(true);
-	}
-
-	for (let index = 1; index < points.length; index += 1) {
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				points[index - 1]!,
-				points[index]!,
-				desk,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		if (!semanticApproach) {
-			const officeSpineNorth = layout.walls.find(
-				({ id }) => id === 'guild-hall-office-spine-north'
-			);
-			const officeSpineSouth = layout.walls.find(
-				({ id }) => id === 'guild-hall-office-spine-south'
-			);
-			if (!officeSpineNorth || !officeSpineSouth) {
-				throw new Error('Guild Hall office-spine doorway source is missing');
-			}
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					points[index - 1]!,
-					points[index]!,
-					officeSpineNorth,
-					PLAYER_COLLISION_RADIUS
-				)
-			).toBe(false);
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					points[index - 1]!,
-					points[index]!,
-					officeSpineSouth,
-					PLAYER_COLLISION_RADIUS
-				)
-			).toBe(false);
-		}
-		if (semanticApproach || returningToSpine) {
-			expect(
-				routeSegmentIntersectsCircle(points[index - 1]!, points[index]!, npc, npcCollisionRadius)
-			).toBe(false);
-		}
-	}
-}
-
-function guildHallQuartermasterCheckpoint(): Point {
-	const selected = guildHallQuartermasterSelectedStagedApproach();
-	return { x: selected.x, y: selected.targetY };
-}
-
-function guildHallQuartermasterDoorwayTransitY(): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const quartermasterSpineSouth = layout.walls.find(
-		({ id }) => id === 'guild-hall-quartermaster-spine-south'
-	);
-	const quartermasterToSpine = layout.doors.quartermasterToSpine;
-	if (!quartermasterSpineSouth) {
-		throw new Error('Guild Hall quartermaster spine south source is missing');
-	}
-	const transitY = quartermasterSpineSouth.y - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1;
-	expect(transitY).toBeGreaterThanOrEqual(quartermasterToSpine.y);
-	expect(transitY).toBeLessThanOrEqual(quartermasterToSpine.y + quartermasterToSpine.height);
-	expect(transitY + AXIS_REACH_TOLERANCE).toBeLessThan(
-		quartermasterSpineSouth.y - PLAYER_COLLISION_RADIUS
-	);
-	return transitY;
-}
-
-function guildHallQuartermasterDoorwayRightClearanceX(): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const quartermasterSpineSouth = layout.walls.find(
-		({ id }) => id === 'guild-hall-quartermaster-spine-south'
-	);
-	if (!quartermasterSpineSouth) {
-		throw new Error('Guild Hall quartermaster spine south source is missing');
-	}
-	const clearanceX =
-		quartermasterSpineSouth.x +
-		quartermasterSpineSouth.width +
-		PLAYER_COLLISION_RADIUS +
-		AXIS_REACH_TOLERANCE +
-		1;
-	expect(clearanceX - AXIS_REACH_TOLERANCE).toBeGreaterThan(
-		quartermasterSpineSouth.x + quartermasterSpineSouth.width + PLAYER_COLLISION_RADIUS
-	);
-	expect(
-		layoutRectContainsPoint(layout.rooms.quartermasterRoom, {
-			x: clearanceX,
-			y: guildHallQuartermasterDoorwayTransitY()
-		})
-	).toBe(true);
-	return clearanceX;
-}
-
-function guildHallQuartermasterRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point,
-	leavingInteraction: boolean,
-	semanticApproach = false
-): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const counter = layout.propCollisions.quartermasterCounter;
-	const rightClearanceX =
-		counter.x + counter.width + PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE + 1;
-	const belowCounterY =
-		counter.y + counter.height + PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE + 1;
-	if (leavingInteraction) {
-		// The post-dialogue endpoint is already in the authored open row between the
-		// expanded training divider and counter. Exit the Quartermaster NPC circle
-		// on that actual y first; only then descend at the source-derived counter
-		// right clearance. This avoids a one-frame downward overshoot back into the
-		// NPC collision circle.
-		const doorwayTransitY = guildHallQuartermasterDoorwayTransitY();
-		const doorwayRightClearanceX = guildHallQuartermasterDoorwayRightClearanceX();
-		return [
-			currentPoint,
-			{ x: rightClearanceX, y: currentPoint.y },
-			{ x: rightClearanceX, y: belowCounterY },
-			{ x: doorwayRightClearanceX, y: belowCounterY },
-			{ x: doorwayRightClearanceX, y: doorwayTransitY },
-			{ x: targetPoint.x, y: doorwayTransitY },
-			targetPoint
-		];
-	}
-	// The quartermaster room is entered through the spine door below the training
-	// divider. Cross the room below the counter to the source-derived right
-	// clearance and rise to the semantic keyboard staging row.
-	const stagedApproach = guildHallQuartermasterSelectedStagedApproach();
-	if (semanticApproach) {
-		const stagingPoint = guildHallQuartermasterInteractionStagingPoint();
-		if (targetPoint.x !== stagingPoint.x || targetPoint.y !== stagingPoint.y) {
-			throw new Error(
-				`Guild Hall Quartermaster semantic staging target mismatch: ${JSON.stringify({
-					targetPoint,
-					stagingPoint
-				})}`
-			);
-		}
-		const doorwayTransitY = guildHallQuartermasterDoorwayTransitY();
-		const doorwayRightClearanceX = guildHallQuartermasterDoorwayRightClearanceX();
-		// Stop at the doorway-right handoff. The actual settled y is the
-		// authoritative fixed-axis row for the next leg; forcing the nominal
-		// below-counter row here can require an unreachable correction after the
-		// doorway y has already settled within the unchanged route reach.
-		return [
-			currentPoint,
-			{ x: currentPoint.x, y: doorwayTransitY },
-			{ x: doorwayRightClearanceX, y: doorwayTransitY }
-		];
-	}
-	if (targetPoint.x !== stagedApproach.x || targetPoint.y !== stagedApproach.targetY) {
-		throw new Error(
-			`Guild Hall Quartermaster target is not the selected staged approach: ${JSON.stringify({
-				targetPoint,
-				stagedApproach
-			})}`
-		);
-	}
-	return [
-		currentPoint,
-		{ x: currentPoint.x, y: belowCounterY },
-		{ x: rightClearanceX, y: belowCounterY },
-		{ x: rightClearanceX, y: stagedApproach.stagingY },
-		{ x: targetPoint.x, y: stagedApproach.stagingY },
-		targetPoint
-	];
-}
-
-function guildHallQuartermasterSemanticHorizontalRoutePoints(
-	doorwayRightHandoff: Point
-): [Point, Point] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const counter = layout.propCollisions.quartermasterCounter;
-	const rightClearanceX =
-		counter.x + counter.width + PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE + 1;
-	const expandedCounterBottom = counter.y + counter.height + PLAYER_COLLISION_RADIUS;
-	// The doorway route's actual y is authoritative. It is already below the
-	// expanded counter, so the fixed-axis crossing must preserve that y rather
-	// than invent a symmetric ±18 orthogonal residue envelope.
-	expect(doorwayRightHandoff.y).toBeGreaterThan(expandedCounterBottom);
-	return [doorwayRightHandoff, { x: rightClearanceX, y: doorwayRightHandoff.y }];
-}
-
-function guildHallQuartermasterSemanticVerticalRoutePoints(
-	horizontalHandoff: Point,
-	targetPoint: Point
-): [Point, Point] {
-	const stagingPoint = guildHallQuartermasterInteractionStagingPoint();
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const counter = layout.propCollisions.quartermasterCounter;
-	const expandedCounterRight = counter.x + counter.width + PLAYER_COLLISION_RADIUS;
-	expect(targetPoint).toEqual(stagingPoint);
-	expect(Math.abs(horizontalHandoff.x - stagingPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(horizontalHandoff.x).toBeGreaterThan(expandedCounterRight);
-	// Preserve the actual horizontal handoff x during the final vertical leg;
-	// the source-derived x=903 target is a clearance anchor, while the live
-	// endpoint is the authoritative continuation point.
-	return [horizontalHandoff, { x: horizontalHandoff.x, y: stagingPoint.y }];
-}
-
-function guildHallQuartermasterReturnCorridorRoutePoints(
-	verticalHandoff: Point,
-	targetPoint: Point
-): Point[] {
-	const doorwayTransitY = guildHallQuartermasterDoorwayTransitY();
-	const doorwayRightClearanceX = guildHallQuartermasterDoorwayRightClearanceX();
-	return [
-		verticalHandoff,
-		{ x: doorwayRightClearanceX, y: verticalHandoff.y },
-		{ x: doorwayRightClearanceX, y: doorwayTransitY },
-		{ x: targetPoint.x, y: doorwayTransitY },
-		targetPoint
-	];
-}
-
-function assertGuildHallQuartermasterReturnAxisRouteContract(
-	points: readonly [Point, Point],
-	result: BrowserRouteResult,
-	axis: Axis,
-	label: string
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const counter = layout.propCollisions.quartermasterCounter;
-	const npc = layout.npcApproaches.quartermaster.npc;
-	const trainingQuartermasterDivider = layout.walls.find(
-		({ id }) => id === 'guild-hall-training-quartermaster-divider'
-	);
-	const quartermasterSpineSouth = layout.walls.find(
-		({ id }) => id === 'guild-hall-quartermaster-spine-south'
-	);
-	if (!trainingQuartermasterDivider || !quartermasterSpineSouth) {
-		throw new Error('Guild Hall Quartermaster return source geometry is missing');
-	}
-	const from = points[0]!;
-	const target = points[1]!;
-	const diagnostics = result.diagnostics ?? [];
-
-	expect(result.status, `${label} status`).toBe('done');
-	expect(result.mapId, `${label} map`).toBe('guild-hall');
-	expect(result.activeKey ?? null, `${label} active key`).toBeNull();
-	expect(result.axis, `${label} final axis`).toBeNull();
-	expect(result.target, `${label} final target`).toBeNull();
-	expect(result.invalidDiagnostics ?? [], `${label} invalid diagnostics`).toEqual([]);
-	expect(result.diagnosticAxes ?? [], `${label} diagnostic axes`).toEqual(
-		diagnostics.map(() => axis)
-	);
-
-	for (const [index, diagnostic] of diagnostics.entries()) {
-		expect(diagnostic.mapId, `${label} diagnostic ${index} map`).toBe('guild-hall');
-		expect(diagnostic.blocked, `${label} diagnostic ${index} blocked`).toBe(false);
-		const fixedAxis = axis === 'x' ? 'y' : 'x';
-		expect(
-			diagnostic.previousPosition[fixedAxis],
-			`${label} diagnostic ${index} fixed previous`
-		).toBe(from[fixedAxis]);
-		expect(
-			diagnostic.requestedPosition[fixedAxis],
-			`${label} diagnostic ${index} fixed requested`
-		).toBe(from[fixedAxis]);
-		expect(
-			diagnostic.resolvedPosition[fixedAxis],
-			`${label} diagnostic ${index} fixed resolved`
-		).toBe(from[fixedAxis]);
-		assertGuildHallTerminalDiagnosticProgress(diagnostic, axis, target);
-		for (const obstacle of [counter, trainingQuartermasterDivider, quartermasterSpineSouth]) {
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					diagnostic.previousPosition,
-					diagnostic.requestedPosition,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${label} diagnostic ${index} crossed a source obstacle`
-			).toBe(false);
-		}
-		expect(
-			routeSegmentIntersectsCircle(
-				diagnostic.previousPosition,
-				diagnostic.requestedPosition,
-				npc,
-				PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
-			),
-			`${label} diagnostic ${index} crossed Quartermaster NPC`
-		).toBe(false);
-	}
-	const finalAxisValue = result.position?.[axis] ?? Number.NaN;
-	expect(
-		Math.abs(target[axis] - finalAxisValue),
-		`${label} final ${axis} distance improves`
-	).toBeLessThan(Math.abs(target[axis] - from[axis]));
-	if (axis === 'x') {
-		expect(target.y).toBe(from.y);
-		expect(result.position?.y).toBe(from.y);
-		expect(Math.abs((result.position?.x ?? Number.NaN) - target.x)).toBeLessThanOrEqual(
-			AXIS_REACH_TOLERANCE
-		);
-	} else {
-		expect(target.x).toBe(from.x);
-		expect(result.position?.x).toBe(from.x);
-		expect(Math.abs((result.position?.y ?? Number.NaN) - target.y)).toBeLessThanOrEqual(
-			AXIS_REACH_TOLERANCE
-		);
-	}
-}
-
-function assertGuildHallQuartermasterReturnCorridorGeometry(
-	points: readonly Point[],
-	label: string
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const npc = layout.npcApproaches.quartermaster.npc;
-	const obstacles = [
-		...Object.values(layout.propCollisions),
-		...layout.walls.filter(({ id }) => id === 'guild-hall-training-quartermaster-divider'),
-		...layout.walls.filter(({ id }) => id === 'guild-hall-quartermaster-spine-south')
-	];
-	for (let index = 1; index < points.length; index += 1) {
-		const from = points[index - 1]!;
-		const to = points[index]!;
-		for (const obstacle of obstacles) {
-			expect(
-				routeSegmentIntersectsExpandedRect(from, to, obstacle, PLAYER_COLLISION_RADIUS),
-				`${label} crossed a source obstacle`
-			).toBe(false);
-		}
-		expect(
-			routeSegmentIntersectsCircle(
-				from,
-				to,
-				npc,
-				PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
-			),
-			`${label} crossed Quartermaster NPC`
-		).toBe(false);
-	}
-}
 
 function axisAlignedSegmentIntersectsExpandedRect(
 	from: Point,
@@ -5372,3004 +1542,6 @@ function routeSegmentIntersectsCircle(
 		axisAlignedSegmentIntersectsCircle(from, axisTurn, center, radius) ||
 		axisAlignedSegmentIntersectsCircle(axisTurn, to, center, radius)
 	);
-}
-
-function endpointBoxIsDisjointFromExpandedRect(
-	point: Point,
-	rect: { x: number; y: number; width: number; height: number },
-	padding: number
-): boolean {
-	const endpointLeft = point.x - AXIS_REACH_TOLERANCE;
-	const endpointRight = point.x + AXIS_REACH_TOLERANCE;
-	const endpointTop = point.y - AXIS_REACH_TOLERANCE;
-	const endpointBottom = point.y + AXIS_REACH_TOLERANCE;
-	const obstacleLeft = rect.x - padding;
-	const obstacleRight = rect.x + rect.width + padding;
-	const obstacleTop = rect.y - padding;
-	const obstacleBottom = rect.y + rect.height + padding;
-
-	// Rectangle collision is inclusive at the boundary. The endpoint box is safe
-	// when its x or y interval is strictly disjoint from the expanded obstacle;
-	// this is the 2D contract for live route residue rather than an x-only aisle
-	// assumption.
-	return (
-		endpointRight < obstacleLeft ||
-		endpointLeft > obstacleRight ||
-		endpointBottom < obstacleTop ||
-		endpointTop > obstacleBottom
-	);
-}
-
-function endpointXEnvelopeIsDisjointFromExpandedRect(
-	point: Point,
-	rect: { x: number; y: number; width: number; height: number },
-	padding: number
-): boolean {
-	const endpointLeft = point.x - AXIS_REACH_TOLERANCE;
-	const endpointRight = point.x + AXIS_REACH_TOLERANCE;
-	const obstacleLeft = rect.x - padding;
-	const obstacleRight = rect.x + rect.width + padding;
-	const obstacleTop = rect.y - padding;
-	const obstacleBottom = rect.y + rect.height + padding;
-
-	// Doorway crossings hold y fixed. Their legal endpoint residue is therefore
-	// only the unchanged x reach; applying a hypothetical ±18 y residue here
-	// would reject the authored 40px player-safe opening.
-	return (
-		endpointRight < obstacleLeft ||
-		endpointLeft > obstacleRight ||
-		point.y < obstacleTop ||
-		point.y > obstacleBottom
-	);
-}
-
-function endpointYEnvelopeIsDisjointFromExpandedRect(
-	point: Point,
-	rect: { x: number; y: number; width: number; height: number },
-	padding: number
-): boolean {
-	const endpointTop = point.y - AXIS_REACH_TOLERANCE;
-	const endpointBottom = point.y + AXIS_REACH_TOLERANCE;
-	const obstacleLeft = rect.x - padding;
-	const obstacleRight = rect.x + rect.width + padding;
-	const obstacleTop = rect.y - padding;
-	const obstacleBottom = rect.y + rect.height + padding;
-
-	// Fixed-axis vertical transit holds x at the actual settled coordinate. Its
-	// legal endpoint residue is therefore only the unchanged y reach; applying a
-	// hypothetical ±18 x residue would reject a source-clear side passage.
-	return (
-		point.x < obstacleLeft ||
-		point.x > obstacleRight ||
-		endpointBottom < obstacleTop ||
-		endpointTop > obstacleBottom
-	);
-}
-
-function routeSegmentIntersectsExpandedRectAtReachEnvelope(
-	from: Point,
-	to: Point,
-	rect: { x: number; y: number; width: number; height: number },
-	padding: number
-): boolean {
-	if (from.x === to.x) {
-		for (let offsetX = -AXIS_REACH_TOLERANCE; offsetX <= AXIS_REACH_TOLERANCE; offsetX += 1) {
-			for (const fromOffsetY of [-AXIS_REACH_TOLERANCE, AXIS_REACH_TOLERANCE]) {
-				for (const toOffsetY of [-AXIS_REACH_TOLERANCE, AXIS_REACH_TOLERANCE]) {
-					if (
-						routeSegmentIntersectsExpandedRect(
-							{ x: from.x + offsetX, y: from.y + fromOffsetY },
-							{ x: to.x + offsetX, y: to.y + toOffsetY },
-							rect,
-							padding
-						)
-					) {
-						return true;
-					}
-				}
-			}
-		}
-		return false;
-	}
-	if (from.y === to.y) {
-		for (let offsetY = -AXIS_REACH_TOLERANCE; offsetY <= AXIS_REACH_TOLERANCE; offsetY += 1) {
-			for (const fromOffsetX of [-AXIS_REACH_TOLERANCE, AXIS_REACH_TOLERANCE]) {
-				for (const toOffsetX of [-AXIS_REACH_TOLERANCE, AXIS_REACH_TOLERANCE]) {
-					if (
-						routeSegmentIntersectsExpandedRect(
-							{ x: from.x + fromOffsetX, y: from.y + offsetY },
-							{ x: to.x + toOffsetX, y: to.y + offsetY },
-							rect,
-							padding
-						)
-					) {
-						return true;
-					}
-				}
-			}
-		}
-		return false;
-	}
-	throw new Error(`Route envelope must remain axis-aligned: ${JSON.stringify({ from, to })}`);
-}
-
-function assertTask6InteriorRouteEnvelope(
-	mapId: 'guild-hall' | 'item-shop',
-	points: readonly Point[],
-	label: string,
-	options: {
-		readonly skipInitialTerminalDeparture?: boolean;
-		readonly skipInitialAsymmetricDoorwayCrossing?: boolean;
-		readonly skipInitialAsymmetricFixedAxisTransit?: boolean;
-	} = {}
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS[mapId];
-	const firstTransitSegment =
-		options.skipInitialTerminalDeparture ||
-		options.skipInitialAsymmetricDoorwayCrossing ||
-		options.skipInitialAsymmetricFixedAxisTransit
-			? 2
-			: 1;
-	for (let index = firstTransitSegment; index < points.length; index += 1) {
-		const from = points[index - 1]!;
-		const to = points[index]!;
-		for (const wall of layout.walls) {
-			expect(
-				routeSegmentIntersectsExpandedRectAtReachEnvelope(from, to, wall, PLAYER_COLLISION_RADIUS),
-				`${label} crossed ${wall.id} within the ±${AXIS_REACH_TOLERANCE} endpoint envelope: ${JSON.stringify({ from, to })}`
-			).toBe(false);
-		}
-		for (const propCollision of Object.values(layout.propCollisions)) {
-			expect(
-				routeSegmentIntersectsExpandedRectAtReachEnvelope(
-					from,
-					to,
-					propCollision,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${label} crossed a prop collision within the ±${AXIS_REACH_TOLERANCE} endpoint envelope: ${JSON.stringify({ from, to, propCollision })}`
-			).toBe(false);
-		}
-	}
-}
-
-function assertGuildHallAisleHandoffContract(
-	points: readonly Point[],
-	targetPoint: Point,
-	spec: GuildHallAisleSpec
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const wall = guildHallAisleWall(spec);
-	const handoff = guildHallAisleHandoffPoint(targetPoint, spec);
-	const expandedLeft = wall.x - PLAYER_COLLISION_RADIUS;
-	expect(points.at(-1)).toEqual(handoff);
-	expect(handoff.x + AXIS_REACH_TOLERANCE).toBeLessThan(
-		expandedLeft - INTERIOR_ROUTE_SETTLE_TOLERANCE
-	);
-	expect(layoutRectContainsPoint(layout.rooms[spec.roomKey], handoff)).toBe(true);
-}
-
-function assertGuildHallRecordsAisleHandoffContract(points: readonly Point[], targetPoint: Point) {
-	assertGuildHallAisleHandoffContract(points, targetPoint, GUILD_HALL_RECORDS_AISLE_SPEC);
-}
-
-function assertGuildHallTerminalDepartureRouteContract(
-	points: readonly Point[],
-	label: string,
-	spec: GuildHallAisleSpec = GUILD_HALL_RECORDS_AISLE_SPEC
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const wall = guildHallAisleWall(spec);
-	const [terminalPoint, departurePoint] = points;
-	const safeY = guildHallAisleSafeAboveY(wall, spec.safeAboveInset);
-	expect(terminalPoint).toBeDefined();
-	expect(departurePoint).toEqual({ x: terminalPoint?.x, y: safeY });
-	expect(departurePoint?.y).toBeLessThan(terminalPoint?.y ?? safeY);
-	// The first leg departs directly from a terminal checkpoint, so prove the
-	// actual segment is clear before applying the full envelope to transit.
-	for (const obstacle of [...layout.walls, ...Object.values(layout.propCollisions)]) {
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				terminalPoint!,
-				departurePoint!,
-				obstacle,
-				PLAYER_COLLISION_RADIUS
-			),
-			`${label} terminal departure crossed ${JSON.stringify(obstacle)}: ${JSON.stringify({ terminalPoint, departurePoint })}`
-		).toBe(false);
-	}
-	for (let index = 2; index < points.length; index += 1) {
-		const from = points[index - 1]!;
-		const to = points[index]!;
-		expect(
-			routeSegmentIntersectsExpandedRectAtReachEnvelope(from, to, wall, PLAYER_COLLISION_RADIUS),
-			`${label} crossed ${wall.id} within the ±${AXIS_REACH_TOLERANCE} endpoint envelope: ${JSON.stringify({ from, to })}`
-		).toBe(false);
-	}
-}
-
-function assertGuildHallRecordsRoomHandoffContract(points: readonly Point[]) {
-	assertGuildHallTerminalDepartureRouteContract(
-		points,
-		'records-hall-room',
-		GUILD_HALL_RECORDS_AISLE_SPEC
-	);
-}
-
-function assertGuildHallTerminalCheckpointContract(point: Point, authoredCheckpoint: Point) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	expect(Math.abs(point.x - authoredCheckpoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(point.y - authoredCheckpoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	for (const obstacle of [...layout.walls, ...Object.values(layout.propCollisions)]) {
-		expect(
-			expandedLayoutRectContainsPoint(obstacle, point, PLAYER_COLLISION_RADIUS),
-			`terminal checkpoint entered ${JSON.stringify(obstacle)}: ${JSON.stringify({ point, authoredCheckpoint })}`
-		).toBe(false);
-	}
-}
-
-function assertGuildHallTerminalDiagnosticProgress(
-	diagnostic: PlayerMovementDiagnostic,
-	axis: Axis,
-	checkpoint: Point
-): void {
-	expect(diagnostic.mapId).toBe('guild-hall');
-	expect(diagnostic.blocked).toBe(false);
-	const targetValue = checkpoint[axis];
-	const previousValue = diagnostic.previousPosition[axis];
-	const resolvedValue = diagnostic.resolvedPosition[axis];
-	const direction = Math.sign(targetValue - previousValue);
-	expect(direction).not.toBe(0);
-	expect(Math.sign(resolvedValue - previousValue)).toBe(direction);
-	const distanceDecreased =
-		Math.abs(targetValue - resolvedValue) < Math.abs(targetValue - previousValue);
-	const crossedTarget = direction > 0 ? resolvedValue >= targetValue : resolvedValue <= targetValue;
-	// A real frame can cross an authored coordinate by more than the final reach
-	// band. The unchanged route runner owns the bounded correction; this diagnostic
-	// only needs to make directional progress or cross toward the target. The final
-	// terminal assertion below remains responsible for the unchanged ±18 band.
-	expect(distanceDecreased || crossedTarget).toBe(true);
-}
-
-async function convergeGuildHallTerminalCheckpointWithTrustedKeyboard(
-	page: Page,
-	startPoint: Point,
-	checkpoint: Point
-): Promise<Point> {
-	const wall = guildHallAisleWall(GUILD_HALL_RECORDS_AISLE_SPEC);
-	const horizontalDistance = Math.abs(checkpoint.x - startPoint.x);
-	const verticalDistance = Math.abs(checkpoint.y - startPoint.y);
-	const expectedAxes: Axis[] = [];
-	if (horizontalDistance > AXIS_SETTLE_TOLERANCE) expectedAxes.push('x');
-	if (verticalDistance > AXIS_SETTLE_TOLERANCE) expectedAxes.push('y');
-	const result = await runBrowserRoute(page, [startPoint, checkpoint], AXIS_SETTLE_TOLERANCE);
-	const actualPoint = result.position;
-	const diagnostics = result.diagnostics ?? [];
-	const diagnosticAxes = result.diagnosticAxes ?? [];
-	const axisHistory = result.axisHistory ?? [];
-	const movementCount = result.movementCount ?? 0;
-	const movementOccurred =
-		movementCount > 0 ||
-		diagnostics.length > 0 ||
-		diagnosticAxes.length > 0 ||
-		axisHistory.length > 0;
-	expect(result.status).toBe('done');
-	expect(result.mapId).toBe('guild-hall');
-	expect(result.activeKey).toBeNull();
-	expect(actualPoint).not.toBeNull();
-	if (!actualPoint) {
-		throw new Error(
-			`Guild Hall terminal checkpoint convergence returned incomplete route evidence: ${JSON.stringify(
-				{
-					startPoint,
-					checkpoint,
-					result: describeBrowserRouteResult(result, result.token)
-				}
-			)}`
-		);
-	}
-	// Both branches must end at a live, collision-free point in the unchanged
-	// authored checkpoint band. A route whose start is already within the
-	// existing settle tolerance legitimately needs no input or movement event.
-	assertGuildHallTerminalCheckpointContract(actualPoint, checkpoint);
-	expect(result.pointIndex).toBe(2);
-	expect(result.axis).toBeNull();
-	expect(result.target).toBeNull();
-	expect(axisHistory).toEqual(expectedAxes);
-	expect(diagnostics.length).toBe(movementCount);
-	expect(diagnosticAxes).toHaveLength(diagnostics.length);
-	if (!movementOccurred) {
-		// Characterized zero-input branch: route completion itself is the evidence;
-		// no diagnostic, axis history, or movement count is required.
-		expect(expectedAxes).toEqual([]);
-		expect(result.lastDiagnostic).toBeNull();
-		expect(diagnostics).toEqual([]);
-		expect(diagnosticAxes).toEqual([]);
-		expect(movementCount).toBe(0);
-	} else {
-		const diagnostic = result.lastDiagnostic;
-		expect(expectedAxes.length).toBeGreaterThan(0);
-		expect(diagnostic).not.toBeNull();
-		expect(diagnostic?.blocked).toBe(false);
-		expect(diagnostic?.mapId).toBe('guild-hall');
-		expect(diagnostics.length).toBeGreaterThan(0);
-		for (const [index, routeDiagnostic] of diagnostics.entries()) {
-			const axis = diagnosticAxes[index]!;
-			expect(expectedAxes).toContain(axis);
-			assertGuildHallTerminalDiagnosticProgress(routeDiagnostic, axis, checkpoint);
-		}
-	}
-	expect(
-		routeSegmentIntersectsExpandedRect(startPoint, actualPoint, wall, PLAYER_COLLISION_RADIUS)
-	).toBe(false);
-	return actualPoint;
-}
-
-function assertGuildHallCommonHallRoomHandoffContract(
-	points: readonly Point[],
-	targetPoint: Point
-) {
-	assertGuildHallTerminalDepartureRouteContract(
-		points,
-		'common-hall-room',
-		GUILD_HALL_COMMON_AISLE_SPEC
-	);
-	expect(points.at(-1)).toEqual(
-		guildHallAisleHandoffPoint(targetPoint, GUILD_HALL_COMMON_AISLE_SPEC)
-	);
-}
-
-function assertGuildHallQuartermasterSemanticStagingContract(stagingPoint: Point) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const counter = layout.propCollisions.quartermasterCounter;
-	const npc = layout.npcApproaches.quartermaster.npc;
-	const trainingQuartermasterDivider = layout.walls.find(
-		({ id }) => id === 'guild-hall-training-quartermaster-divider'
-	);
-	if (!trainingQuartermasterDivider) {
-		throw new Error('Guild Hall training-quartermaster divider source is missing');
-	}
-	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const rightClearanceX =
-		counter.x + counter.width + PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE + 1;
-	const expectedStagingY = counter.y - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1;
-
-	expect(stagingPoint).toEqual({ x: rightClearanceX, y: expectedStagingY });
-	for (let offsetX = -AXIS_REACH_TOLERANCE; offsetX <= AXIS_REACH_TOLERANCE; offsetX += 1) {
-		for (let offsetY = -AXIS_REACH_TOLERANCE; offsetY <= AXIS_REACH_TOLERANCE; offsetY += 1) {
-			const settledPoint = {
-				x: stagingPoint.x + offsetX,
-				y: stagingPoint.y + offsetY
-			};
-			expect(settledPoint.x).toBeGreaterThan(counter.x + counter.width + PLAYER_COLLISION_RADIUS);
-			expect(settledPoint.y).toBeLessThan(counter.y - PLAYER_COLLISION_RADIUS);
-			expect(settledPoint.y).toBeGreaterThan(
-				trainingQuartermasterDivider.y +
-					trainingQuartermasterDivider.height +
-					PLAYER_COLLISION_RADIUS
-			);
-			expect(expandedLayoutRectContainsPoint(counter, settledPoint, PLAYER_COLLISION_RADIUS)).toBe(
-				false
-			);
-			expect(
-				expandedLayoutRectContainsPoint(
-					trainingQuartermasterDivider,
-					settledPoint,
-					PLAYER_COLLISION_RADIUS
-				)
-			).toBe(false);
-			expect((settledPoint.x - npc.x) ** 2 + (settledPoint.y - npc.y) ** 2).toBeGreaterThan(
-				npcCollisionRadius ** 2
-			);
-		}
-	}
-
-	for (let offsetY = -AXIS_REACH_TOLERANCE; offsetY <= AXIS_REACH_TOLERANCE; offsetY += 1) {
-		const settledY = stagingPoint.y + offsetY;
-		const settledPoint = { x: stagingPoint.x, y: settledY };
-		const verticalDistance = Math.abs(settledY - npc.y);
-		const interactionEntryX =
-			npc.x + Math.floor(Math.sqrt(interactionRadius ** 2 - verticalDistance ** 2));
-		const interactionEntry = { x: interactionEntryX, y: settledY };
-		const collisionEntryX =
-			verticalDistance < npcCollisionRadius
-				? npc.x + Math.floor(Math.sqrt(npcCollisionRadius ** 2 - verticalDistance ** 2))
-				: npc.x;
-		const interactionEntryDistanceSquared =
-			(interactionEntry.x - npc.x) ** 2 + (interactionEntry.y - npc.y) ** 2;
-
-		// Moving left from the right clearance enters the live interaction radius
-		// before it can reach the NPC collision circle or the counter.
-		expect(interactionEntryX).toBeGreaterThan(collisionEntryX);
-		expect(interactionEntryDistanceSquared).toBeLessThanOrEqual(interactionRadius ** 2);
-		expect(interactionEntryDistanceSquared).toBeGreaterThan(npcCollisionRadius ** 2);
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				settledPoint,
-				interactionEntry,
-				counter,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsCircle(settledPoint, interactionEntry, npc, npcCollisionRadius)
-		).toBe(false);
-	}
-}
-
-function assertGuildHallQuartermasterSemanticHorizontalRouteContract(
-	points: readonly Point[],
-	result: BrowserRouteResult
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const counter = layout.propCollisions.quartermasterCounter;
-	const npc = layout.npcApproaches.quartermaster.npc;
-	const trainingQuartermasterDivider = layout.walls.find(
-		({ id }) => id === 'guild-hall-training-quartermaster-divider'
-	);
-	if (!trainingQuartermasterDivider) {
-		throw new Error('Guild Hall training-quartermaster divider source is missing');
-	}
-	const from = points[0]!;
-	const target = points.at(-1)!;
-	const rightClearanceX =
-		counter.x + counter.width + PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE + 1;
-	const expandedCounterBottom = counter.y + counter.height + PLAYER_COLLISION_RADIUS;
-	const diagnostics = result.diagnostics ?? [];
-	const diagnosticAxes = result.diagnosticAxes ?? [];
-
-	expect(points).toHaveLength(2);
-	expect(target).toEqual({ x: rightClearanceX, y: from.y });
-	expect(from.y).toBeGreaterThan(expandedCounterBottom);
-	expect(result.status).toBe('done');
-	expect(result.mapId).toBe('guild-hall');
-	expect(result.activeKey).toBeNull();
-	expect(result.position).not.toBeNull();
-	expect(diagnosticAxes).toHaveLength(diagnostics.length);
-	for (const [index, diagnostic] of diagnostics.entries()) {
-		expect(diagnosticAxes[index]).toBe('x');
-		expect(diagnostic.mapId).toBe('guild-hall');
-		expect(diagnostic.blocked).toBe(false);
-		expect(diagnostic.previousPosition.y).toBe(from.y);
-		expect(diagnostic.requestedPosition.y).toBe(from.y);
-		expect(diagnostic.resolvedPosition.y).toBe(from.y);
-		expect(
-			expandedLayoutRectContainsPoint(counter, diagnostic.resolvedPosition, PLAYER_COLLISION_RADIUS)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				diagnostic.previousPosition,
-				diagnostic.requestedPosition,
-				counter,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-	}
-	expect(routeSegmentIntersectsExpandedRect(from, target, counter, PLAYER_COLLISION_RADIUS)).toBe(
-		false
-	);
-	expect(
-		endpointXEnvelopeIsDisjointFromExpandedRect(target, counter, PLAYER_COLLISION_RADIUS)
-	).toBe(true);
-	expect(
-		routeSegmentIntersectsExpandedRect(
-			from,
-			target,
-			trainingQuartermasterDivider,
-			PLAYER_COLLISION_RADIUS
-		)
-	).toBe(false);
-	expect(
-		routeSegmentIntersectsCircle(
-			from,
-			target,
-			npc,
-			PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
-		)
-	).toBe(false);
-	expect(result.position).not.toBeNull();
-	if (!result.position) return;
-	expect(result.position.y).toBe(from.y);
-	expect(Math.abs(result.position.x - rightClearanceX)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(expandedLayoutRectContainsPoint(counter, result.position, PLAYER_COLLISION_RADIUS)).toBe(
-		false
-	);
-}
-
-function assertGuildHallQuartermasterSemanticVerticalRouteContract(
-	points: readonly Point[],
-	result: BrowserRouteResult,
-	targetPoint: Point
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const counter = layout.propCollisions.quartermasterCounter;
-	const npc = layout.npcApproaches.quartermaster.npc;
-	const trainingQuartermasterDivider = layout.walls.find(
-		({ id }) => id === 'guild-hall-training-quartermaster-divider'
-	);
-	const quartermasterSpineSouth = layout.walls.find(
-		({ id }) => id === 'guild-hall-quartermaster-spine-south'
-	);
-	if (!trainingQuartermasterDivider || !quartermasterSpineSouth) {
-		throw new Error('Guild Hall Quartermaster vertical source geometry is missing');
-	}
-	const from = points[0]!;
-	const target = points.at(-1)!;
-	const stagingPoint = guildHallQuartermasterInteractionStagingPoint();
-	const expandedCounterRight = counter.x + counter.width + PLAYER_COLLISION_RADIUS;
-	const diagnostics = result.diagnostics ?? [];
-	const diagnosticAxes = result.diagnosticAxes ?? [];
-
-	expect(points).toHaveLength(2);
-	expect(targetPoint).toEqual(stagingPoint);
-	expect(target).toEqual({ x: from.x, y: stagingPoint.y });
-	expect(from.x).toBeGreaterThan(expandedCounterRight);
-	expect(Math.abs(from.x - stagingPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(result.status).toBe('done');
-	expect(result.mapId).toBe('guild-hall');
-	expect(result.activeKey).toBeNull();
-	expect(result.position).not.toBeNull();
-	expect(diagnosticAxes).toHaveLength(diagnostics.length);
-	for (const [index, diagnostic] of diagnostics.entries()) {
-		expect(diagnosticAxes[index]).toBe('y');
-		expect(diagnostic.mapId).toBe('guild-hall');
-		expect(diagnostic.blocked).toBe(false);
-		expect(diagnostic.previousPosition.x).toBe(from.x);
-		expect(diagnostic.requestedPosition.x).toBe(from.x);
-		expect(diagnostic.resolvedPosition.x).toBe(from.x);
-		for (const obstacle of [counter, trainingQuartermasterDivider, quartermasterSpineSouth]) {
-			expect(
-				expandedLayoutRectContainsPoint(
-					obstacle,
-					diagnostic.resolvedPosition,
-					PLAYER_COLLISION_RADIUS
-				)
-			).toBe(false);
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					diagnostic.previousPosition,
-					diagnostic.requestedPosition,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				)
-			).toBe(false);
-		}
-		expect(
-			routeSegmentIntersectsCircle(
-				diagnostic.previousPosition,
-				diagnostic.requestedPosition,
-				npc,
-				PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
-			)
-		).toBe(false);
-	}
-	for (const obstacle of [counter, trainingQuartermasterDivider, quartermasterSpineSouth]) {
-		expect(
-			routeSegmentIntersectsExpandedRect(from, target, obstacle, PLAYER_COLLISION_RADIUS)
-		).toBe(false);
-	}
-	expect(
-		routeSegmentIntersectsCircle(
-			from,
-			target,
-			npc,
-			PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
-		)
-	).toBe(false);
-	if (!result.position) return;
-	expect(result.position.x).toBe(from.x);
-	expect(Math.abs(result.position.y - stagingPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(expandedLayoutRectContainsPoint(counter, result.position, PLAYER_COLLISION_RADIUS)).toBe(
-		false
-	);
-}
-
-function assertGuildHallQuartermasterCorridorContract(
-	points: readonly Point[],
-	targetPoint: Point,
-	returning: boolean,
-	semanticApproach = false
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const counter = layout.propCollisions.quartermasterCounter;
-	const npc = layout.npcApproaches.quartermaster.npc;
-	const trainingQuartermasterDivider = layout.walls.find(
-		({ id }) => id === 'guild-hall-training-quartermaster-divider'
-	);
-	const quartermasterSpineSouth = layout.walls.find(
-		({ id }) => id === 'guild-hall-quartermaster-spine-south'
-	);
-	if (!trainingQuartermasterDivider) {
-		throw new Error('Guild Hall training-quartermaster divider source is missing');
-	}
-	if (!quartermasterSpineSouth) {
-		throw new Error('Guild Hall quartermaster spine south source is missing');
-	}
-	const rightClearanceX =
-		counter.x + counter.width + PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE + 1;
-	const belowCounterY =
-		counter.y + counter.height + PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE + 1;
-	expect(belowCounterY - AXIS_REACH_TOLERANCE).toBeGreaterThan(
-		counter.y + counter.height + PLAYER_COLLISION_RADIUS
-	);
-	expect(rightClearanceX - AXIS_REACH_TOLERANCE).toBeGreaterThan(
-		counter.x + counter.width + PLAYER_COLLISION_RADIUS
-	);
-
-	if (semanticApproach) {
-		expect(points.at(-1)?.x).toBe(guildHallQuartermasterDoorwayRightClearanceX());
-		expect(points.at(-1)?.y).toBe(guildHallQuartermasterDoorwayTransitY());
-	} else {
-		expect(points.at(-1)).toEqual(targetPoint);
-	}
-	if (returning) {
-		const doorwayTransitY = guildHallQuartermasterDoorwayTransitY();
-		const doorwayRightClearanceX = guildHallQuartermasterDoorwayRightClearanceX();
-		const quartermasterToSpine = layout.doors.quartermasterToSpine;
-		expect(points).toHaveLength(7);
-		expect(points[1]?.x).toBe(rightClearanceX);
-		expect(points[1]?.y).toBe(points[0]?.y);
-		expect(points[2]?.x).toBe(rightClearanceX);
-		expect(points[2]?.y).toBe(belowCounterY);
-		expect(points[3]?.x).toBe(doorwayRightClearanceX);
-		expect(points[3]?.y).toBe(belowCounterY);
-		expect(points[4]?.x).toBe(doorwayRightClearanceX);
-		expect(points[4]?.y).toBe(doorwayTransitY);
-		expect(points[5]?.x).toBe(targetPoint.x);
-		expect(points[5]?.y).toBe(doorwayTransitY);
-		const trainingQuartermasterDivider = layout.walls.find(
-			({ id }) => id === 'guild-hall-training-quartermaster-divider'
-		);
-		if (!trainingQuartermasterDivider) {
-			throw new Error('Guild Hall training-quartermaster divider source is missing');
-		}
-		const expandedDividerBottom =
-			trainingQuartermasterDivider.y +
-			trainingQuartermasterDivider.height +
-			PLAYER_COLLISION_RADIUS;
-		const expandedCounterTop = counter.y - PLAYER_COLLISION_RADIUS;
-		expect(points[0]!.y).toBeGreaterThan(expandedDividerBottom);
-		expect(points[0]!.y).toBeLessThan(expandedCounterTop);
-		expect(points[1]!.x - AXIS_REACH_TOLERANCE).toBeGreaterThan(
-			counter.x + counter.width + PLAYER_COLLISION_RADIUS
-		);
-		expect(points[2]!.y - AXIS_REACH_TOLERANCE).toBeGreaterThan(
-			counter.y + counter.height + PLAYER_COLLISION_RADIUS
-		);
-		// The first leg leaves the live post-dialogue NPC circle on its actual row;
-		// only the following fixed-x leg descends through the counter-side aisle.
-		expect(
-			routeSegmentIntersectsExpandedRect(points[0]!, points[1]!, counter, PLAYER_COLLISION_RADIUS)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				points[0]!,
-				points[1]!,
-				trainingQuartermasterDivider,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsCircle(
-				points[0]!,
-				points[1]!,
-				npc,
-				PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsExpandedRect(points[1]!, points[2]!, counter, PLAYER_COLLISION_RADIUS)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				points[1]!,
-				points[2]!,
-				trainingQuartermasterDivider,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsCircle(
-				points[1]!,
-				points[2]!,
-				npc,
-				PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			layoutRectContainsPoint(layout.rooms.quartermasterRoom, {
-				x: points[1]!.x,
-				y: points[1]!.y
-			})
-		).toBe(true);
-		expect(
-			layoutRectContainsPoint(layout.corridors.mainSpine, {
-				x: targetPoint.x,
-				y: doorwayTransitY
-			})
-		).toBe(true);
-		expect(
-			layoutRectContainsPoint(quartermasterToSpine, {
-				x: quartermasterToSpine.x + quartermasterToSpine.width / 2,
-				y: doorwayTransitY
-			})
-		).toBe(true);
-		// The entire possible endpoint envelope stays above the expanded south
-		// spine wall, including the horizontal doorway crossing.
-		for (let offsetX = -AXIS_REACH_TOLERANCE; offsetX <= AXIS_REACH_TOLERANCE; offsetX += 1) {
-			for (let offsetY = -AXIS_REACH_TOLERANCE; offsetY <= AXIS_REACH_TOLERANCE; offsetY += 1) {
-				for (const x of [rightClearanceX, targetPoint.x]) {
-					expect(
-						expandedLayoutRectContainsPoint(
-							quartermasterSpineSouth,
-							{ x: x + offsetX, y: doorwayTransitY + offsetY },
-							PLAYER_COLLISION_RADIUS
-						)
-					).toBe(false);
-				}
-			}
-		}
-		for (let offsetY = -AXIS_REACH_TOLERANCE; offsetY <= AXIS_REACH_TOLERANCE; offsetY += 1) {
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					{ x: rightClearanceX, y: doorwayTransitY + offsetY },
-					{ x: targetPoint.x, y: doorwayTransitY + offsetY },
-					quartermasterSpineSouth,
-					PLAYER_COLLISION_RADIUS
-				)
-			).toBe(false);
-		}
-		expect(layoutRectContainsPoint(layout.corridors.mainSpine, targetPoint)).toBe(true);
-	} else if (semanticApproach) {
-		const stagingPoint = guildHallQuartermasterInteractionStagingPoint();
-		const doorwayTransitY = guildHallQuartermasterDoorwayTransitY();
-		const doorwayRightClearanceX = guildHallQuartermasterDoorwayRightClearanceX();
-		expect(targetPoint).toEqual(stagingPoint);
-		expect(points).toHaveLength(3);
-		expect(points[1]?.x).toBe(points[0]?.x);
-		expect(points[1]?.y).toBe(doorwayTransitY);
-		expect(points[2]?.x).toBe(doorwayRightClearanceX);
-		expect(points[2]?.y).toBe(doorwayTransitY);
-		expect(layoutRectContainsPoint(layout.rooms.quartermasterRoom, stagingPoint)).toBe(true);
-		assertGuildHallQuartermasterSemanticStagingContract(stagingPoint);
-	} else {
-		const stagedApproach = guildHallQuartermasterSelectedStagedApproach();
-		expect(targetPoint).toEqual({ x: stagedApproach.x, y: stagedApproach.targetY });
-		expect(points[1]?.x).toBe(points[0]?.x);
-		expect(points[1]?.y).toBe(belowCounterY);
-		expect(points[2]?.x).toBe(rightClearanceX);
-		expect(points[2]?.y).toBe(belowCounterY);
-		expect(points[3]?.x).toBe(rightClearanceX);
-		expect(points[3]?.y).toBe(stagedApproach.stagingY);
-		expect(points[4]?.x).toBe(targetPoint.x);
-		expect(points[4]?.y).toBe(stagedApproach.stagingY);
-		expect(layoutRectContainsPoint(layout.rooms.quartermasterRoom, targetPoint)).toBe(true);
-		expect(points.some((point) => point.y === targetPoint.y)).toBe(true);
-		expect(
-			layoutRectContainsPoint(layout.rooms.quartermasterRoom, {
-				x: rightClearanceX,
-				y: stagedApproach.stagingY
-			})
-		).toBe(true);
-		expect(
-			layoutRectContainsPoint(layout.corridors.mainSpine, {
-				x: points[1]?.x ?? Number.NaN,
-				y: belowCounterY
-			})
-		).toBe(true);
-		expect(
-			guildHallQuartermasterFinalVerticalCorrectionIsSafe(
-				stagedApproach.x,
-				stagedApproach.stagingY,
-				stagedApproach.targetY
-			)
-		).toBe(true);
-	}
-
-	for (let index = 1; index < points.length; index += 1) {
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				points[index - 1]!,
-				points[index]!,
-				counter,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsCircle(
-				points[index - 1]!,
-				points[index]!,
-				npc,
-				PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				points[index - 1]!,
-				points[index]!,
-				trainingQuartermasterDivider,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		if (returning) {
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					points[index - 1]!,
-					points[index]!,
-					quartermasterSpineSouth,
-					PLAYER_COLLISION_RADIUS
-				)
-			).toBe(false);
-		}
-	}
-}
-
-function assertInteriorNpcCheckpointContract(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep,
-	checkpoint: Point
-) {
-	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
-
-	if (interior.mapId === 'guild-hall' && step.interaction?.speaker === 'Borak') {
-		const guildHallLayout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-		const guildMasterApproach = guildHallLayout.npcApproaches.guildMaster.approach;
-		const guildMasterNpc = guildHallLayout.npcApproaches.guildMaster.npc;
-		const guildMasterDesk = guildHallLayout.propCollisions.guildMasterDesk;
-		const expandedDeskBottom = guildMasterDesk.y + guildMasterDesk.height + PLAYER_COLLISION_RADIUS;
-		const minimumSafeTargetY = expandedDeskBottom + NPC_APPROACH_SETTLE_TOLERANCE + 1;
-		const maximumSafeTargetY = Math.floor(
-			guildMasterNpc.y +
-				Math.sqrt(interactionRadius ** 2 - NPC_APPROACH_SETTLE_TOLERANCE ** 2) -
-				NPC_APPROACH_SETTLE_TOLERANCE
-		);
-		const settleOffsets = [-NPC_APPROACH_SETTLE_TOLERANCE, NPC_APPROACH_SETTLE_TOLERANCE];
-
-		expect(step.point).toEqual(guildMasterApproach);
-		expect({ minimumSafeTargetY, maximumSafeTargetY }).toEqual({
-			minimumSafeTargetY: 185,
-			maximumSafeTargetY: 187
-		});
-		expect(checkpoint).toEqual({ x: guildMasterApproach.x, y: 186 });
-		for (let targetY = minimumSafeTargetY; targetY <= maximumSafeTargetY; targetY += 1) {
-			for (const offsetX of settleOffsets) {
-				for (const offsetY of settleOffsets) {
-					const settledPoint = {
-						x: guildMasterApproach.x + offsetX,
-						y: targetY + offsetY
-					};
-					expect(
-						expandedLayoutRectContainsPoint(guildMasterDesk, settledPoint, PLAYER_COLLISION_RADIUS)
-					).toBe(false);
-					expect(
-						Math.hypot(settledPoint.x - guildMasterNpc.x, settledPoint.y - guildMasterNpc.y)
-					).toBeGreaterThan(PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS);
-					expect(
-						Math.hypot(settledPoint.x - guildMasterNpc.x, settledPoint.y - guildMasterNpc.y)
-					).toBeLessThanOrEqual(interactionRadius);
-				}
-			}
-		}
-		return;
-	}
-
-	if (interior.mapId === 'guild-hall' && step.interaction?.speaker === 'Lodge Keeper') {
-		const guildHallLayout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-		const quartermasterCounter = guildHallLayout.propCollisions.quartermasterCounter;
-		const quartermasterApproach = guildHallLayout.npcApproaches.quartermaster.approach;
-		const quartermasterNpc = guildHallLayout.npcApproaches.quartermaster.npc;
-		const settleOffsets = [-NPC_APPROACH_SETTLE_TOLERANCE, NPC_APPROACH_SETTLE_TOLERANCE];
-		const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
-		const trainingQuartermasterDivider = guildHallLayout.walls.find(
-			({ id }) => id === 'guild-hall-training-quartermaster-divider'
-		);
-		if (!trainingQuartermasterDivider) {
-			throw new Error('Guild Hall training-quartermaster divider source is missing');
-		}
-		const stableApproach = guildHallQuartermasterStagedApproachRows();
-		const selectedStagedApproach = guildHallQuartermasterSelectedStagedApproach();
-
-		expect(step.point).toEqual(quartermasterApproach);
-		expect({
-			minimumStableY: stableApproach.minimumStableY,
-			maximumStableY: stableApproach.maximumStableY,
-			minimumFinalTravel: stableApproach.minimumFinalTravel,
-			rowCount: stableApproach.rows.length,
-			candidateCount: stableApproach.candidates.length,
-			firstRow: stableApproach.rows[0],
-			middleRow: stableApproach.rows[Math.floor(stableApproach.rows.length / 2)],
-			lastRow: stableApproach.rows.at(-1)
-		}).toEqual({
-			minimumStableY: 497,
-			maximumStableY: 527,
-			minimumFinalTravel: 5,
-			rowCount: 78,
-			candidateCount: 741,
-			firstRow: { stagingY: 516, targetY: 511, bands: [{ min: 846, max: 855 }] },
-			middleRow: { stagingY: 524, targetY: 514, bands: [{ min: 848, max: 856 }] },
-			lastRow: { stagingY: 527, targetY: 522, bands: [{ min: 849, max: 858 }] }
-		});
-		expect(checkpoint).toEqual({ x: 849, y: 522 });
-		expect(checkpoint).toEqual({
-			x: selectedStagedApproach.x,
-			y: selectedStagedApproach.targetY
-		});
-		expect(selectedStagedApproach).toEqual({ stagingY: 527, targetY: 522, x: 849 });
-		expect(layoutRectContainsPoint(guildHallLayout.rooms.quartermasterRoom, checkpoint)).toBe(true);
-		const stagingPoint = { x: selectedStagedApproach.x, y: selectedStagedApproach.stagingY };
-		expect(layoutRectContainsPoint(guildHallLayout.rooms.quartermasterRoom, stagingPoint)).toBe(
-			true
-		);
-		expect(
-			guildHallQuartermasterHorizontalCorrectionIsSafe(
-				selectedStagedApproach.x,
-				selectedStagedApproach.stagingY
-			)
-		).toBe(true);
-		expect(
-			guildHallQuartermasterFinalVerticalCorrectionIsSafe(
-				selectedStagedApproach.x,
-				selectedStagedApproach.stagingY,
-				selectedStagedApproach.targetY
-			)
-		).toBe(true);
-		expect(
-			expandedLayoutRectContainsPoint(quartermasterCounter, stagingPoint, PLAYER_COLLISION_RADIUS)
-		).toBe(false);
-		expect(
-			expandedLayoutRectContainsPoint(
-				trainingQuartermasterDivider,
-				stagingPoint,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			Math.hypot(stagingPoint.x - quartermasterNpc.x, stagingPoint.y - quartermasterNpc.y)
-		).toBeGreaterThan(PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS);
-		for (const offsetX of settleOffsets) {
-			for (const offsetY of settleOffsets) {
-				const settledPoint = {
-					x: checkpoint.x + offsetX,
-					y: checkpoint.y + offsetY
-				};
-				const distance = Math.hypot(
-					settledPoint.x - quartermasterNpc.x,
-					settledPoint.y - quartermasterNpc.y
-				);
-				expect(
-					expandedLayoutRectContainsPoint(
-						quartermasterCounter,
-						settledPoint,
-						PLAYER_COLLISION_RADIUS
-					)
-				).toBe(false);
-				expect(
-					expandedLayoutRectContainsPoint(
-						trainingQuartermasterDivider,
-						settledPoint,
-						PLAYER_COLLISION_RADIUS
-					)
-				).toBe(false);
-				expect(distance).toBeGreaterThan(PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS);
-				expect(distance).toBeLessThanOrEqual(interactionRadius);
-			}
-		}
-		return;
-	}
-
-	if (interior.mapId === 'item-shop' && step.interaction?.speaker === 'Mira') {
-		const itemShopLayout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-		const miraApproach = itemShopLayout.npcApproaches.mira.approach;
-		const miraNpc = itemShopLayout.npcApproaches.mira.npc;
-		const miraCounter = itemShopLayout.propCollisions.miraCounter;
-		const expandedCounterBottom = miraCounter.y + miraCounter.height + PLAYER_COLLISION_RADIUS;
-		const minimumSafeTargetY = expandedCounterBottom + NPC_APPROACH_SETTLE_TOLERANCE + 1;
-		const maximumSafeTargetY = Math.floor(
-			miraNpc.y +
-				Math.sqrt(interactionRadius ** 2 - NPC_APPROACH_SETTLE_TOLERANCE ** 2) -
-				NPC_APPROACH_SETTLE_TOLERANCE
-		);
-		const settleOffsets = [-NPC_APPROACH_SETTLE_TOLERANCE, NPC_APPROACH_SETTLE_TOLERANCE];
-
-		expect({ minimumSafeTargetY, maximumSafeTargetY }).toEqual({
-			minimumSafeTargetY: 361,
-			maximumSafeTargetY: 363
-		});
-		expect(checkpoint).toEqual({ x: miraApproach.x, y: miraApproach.y + 2 });
-		expect(checkpoint.y).toBe(Math.floor((minimumSafeTargetY + maximumSafeTargetY) / 2));
-		for (let targetY = minimumSafeTargetY; targetY <= maximumSafeTargetY; targetY += 1) {
-			for (const offsetX of settleOffsets) {
-				for (const offsetY of settleOffsets) {
-					const settledPoint = {
-						x: miraApproach.x + offsetX,
-						y: targetY + offsetY
-					};
-					expect(
-						expandedLayoutRectContainsPoint(miraCounter, settledPoint, PLAYER_COLLISION_RADIUS)
-					).toBe(false);
-					expect(
-						Math.hypot(settledPoint.x - miraNpc.x, settledPoint.y - miraNpc.y)
-					).toBeLessThanOrEqual(interactionRadius);
-				}
-			}
-		}
-	}
-}
-
-function itemShopDoorwayTransitY(
-	northWallId: 'item-shop-stockroom-divider-north' | 'item-shop-office-divider-north',
-	southWallId: 'item-shop-stockroom-divider-south' | 'item-shop-office-divider-south',
-	doorId: 'stockroom' | 'office'
-): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const northWall = layout.walls.find(({ id }) => id === northWallId);
-	const southWall = layout.walls.find(({ id }) => id === southWallId);
-	const door = layout.doors[doorId];
-	if (!northWall || !southWall) {
-		throw new Error(`Item Shop ${doorId} divider source is missing`);
-	}
-	const minimumSafeY =
-		northWall.y + northWall.height + PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE + 1;
-	const maximumSafeY = southWall.y - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1;
-	const transitY = Math.floor((minimumSafeY + maximumSafeY) / 2);
-	expect({ minimumSafeY, maximumSafeY, transitY }).toEqual({
-		minimumSafeY: 143,
-		maximumSafeY: 145,
-		transitY: 144
-	});
-	expect(layoutRectContainsPoint(door, { x: door.x + door.width / 2, y: transitY })).toBe(true);
-	for (let offset = -AXIS_REACH_TOLERANCE; offset <= AXIS_REACH_TOLERANCE; offset += 1) {
-		expect(transitY + offset).toBeGreaterThan(
-			northWall.y + northWall.height + PLAYER_COLLISION_RADIUS
-		);
-		expect(transitY + offset).toBeLessThan(southWall.y - PLAYER_COLLISION_RADIUS);
-	}
-	return transitY;
-}
-
-function itemShopDoorwayOpenBand(doorway: 'stockroom' | 'office') {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const northWall = layout.walls.find(({ id }) => id === `item-shop-${doorway}-divider-north`);
-	const southWall = layout.walls.find(({ id }) => id === `item-shop-${doorway}-divider-south`);
-	const door = layout.doors[doorway];
-	if (!northWall || !southWall || !door) {
-		throw new Error(`Item Shop ${doorway} doorway source is missing`);
-	}
-	const minimumOpenY = northWall.y + northWall.height + PLAYER_COLLISION_RADIUS;
-	const maximumOpenY = southWall.y - PLAYER_COLLISION_RADIUS;
-	const authoredOpenBandHeight = maximumOpenY - minimumOpenY;
-	// The source doors are 64px high. After the unchanged player radius is
-	// expanded around the two 48px divider walls, the actual player-center band
-	// remains 40px wide; no route reach residue is applied to its orthogonal y.
-	expect({ minimumOpenY, maximumOpenY, authoredOpenBandHeight }).toEqual({
-		minimumOpenY: 124,
-		maximumOpenY: 164,
-		authoredOpenBandHeight: 40
-	});
-	expect(minimumOpenY).toBeGreaterThanOrEqual(door.y);
-	expect(maximumOpenY).toBeLessThanOrEqual(door.y + door.height);
-	return {
-		northWall,
-		southWall,
-		door,
-		minimumOpenY,
-		maximumOpenY
-	};
-}
-
-function itemShopDoorwayNavigationBand(doorway: 'stockroom' | 'office') {
-	const navigationCellSize = itemShopMap.navigationGrid?.cellSizePx;
-	if (!navigationCellSize) {
-		throw new Error('Item Shop navigation cell size source is missing');
-	}
-	const { minimumOpenY, maximumOpenY } = itemShopDoorwayOpenBand(doorway);
-	const settleTolerance = Math.max(1, Math.floor(navigationCellSize / 4));
-	const minimumOpenRow = Math.ceil(minimumOpenY / navigationCellSize);
-	const maximumOpenRow = Math.floor(maximumOpenY / navigationCellSize) - 1;
-	const transitY = (maximumOpenRow + 1) * navigationCellSize - AXIS_REACH_TOLERANCE - 1;
-	expect({
-		navigationCellSize,
-		settleTolerance,
-		transitY,
-		minimumOpenRow,
-		maximumOpenRow
-	}).toEqual({
-		navigationCellSize: 16,
-		settleTolerance: 4,
-		transitY: 141,
-		minimumOpenRow: 8,
-		maximumOpenRow: 9
-	});
-	return {
-		navigationCellSize,
-		settleTolerance,
-		transitY,
-		minimumOpenRow,
-		maximumOpenRow
-	};
-}
-
-function isItemShopDoorwayPointInOpenNavigationRow(
-	point: Point,
-	minimumOpenRow: number,
-	maximumOpenRow: number,
-	navigationCellSize: number,
-	band: { minimumOpenY: number; maximumOpenY: number }
-): boolean {
-	const row = Math.floor(point.y / navigationCellSize);
-	return (
-		row >= minimumOpenRow &&
-		row <= maximumOpenRow &&
-		point.y > band.minimumOpenY &&
-		point.y < band.maximumOpenY
-	);
-}
-
-function itemShopStockroomVerticalSafeX(): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const dividers = layout.walls.filter(({ id }) =>
-		['item-shop-stockroom-divider-north', 'item-shop-stockroom-divider-south'].includes(id)
-	);
-	if (dividers.length !== 2) {
-		throw new Error('Item Shop stockroom divider sources are incomplete');
-	}
-	const expandedLeft = Math.min(...dividers.map(({ x }) => x)) - PLAYER_COLLISION_RADIUS;
-	const safeX = expandedLeft - AXIS_REACH_TOLERANCE - 1;
-	// Enter the stockroom before the vertical convergence. This source-derived
-	// x keeps the entire unchanged ±18 vertical endpoint envelope west of both
-	// expanded divider rectangles.
-	expect({ expandedLeft, safeX }).toEqual({ expandedLeft: 308, safeX: 289 });
-	for (const divider of dividers) {
-		expect(safeX + AXIS_REACH_TOLERANCE).toBeLessThan(divider.x - PLAYER_COLLISION_RADIUS);
-	}
-	expect(layoutRectContainsPoint(layout.rooms.stockroom, { x: safeX, y: 160 })).toBe(true);
-	return safeX;
-}
-
-function itemShopStockroomEntrySafeXBand(): { minimumX: number; maximumX: number } {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const officeDividerSouth = layout.walls.find(({ id }) => id === 'item-shop-office-divider-south');
-	if (!officeDividerSouth) {
-		throw new Error('Item Shop office-divider-south source is missing');
-	}
-	const npc = layout.npcApproaches.mira.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const minimumX = npc.x + npcCollisionRadius + 1;
-	const maximumX = officeDividerSouth.x - PLAYER_COLLISION_RADIUS;
-	// The vertical handoff passes above Mira and through the service corridor. The
-	// lower bound clears Mira's combined collision; the exclusive upper bound keeps
-	// the player circle strictly west of the office divider's expanded left edge.
-	expect({ minimumX, maximumX }).toEqual({ minimumX: 446, maximumX: 468 });
-	expect(minimumX).toBeLessThan(maximumX);
-	return { minimumX, maximumX };
-}
-
-function assertItemShopStockroomEntryBandContract(
-	startPoint: Point,
-	result: CaveDoorwayBandResult,
-	label: string
-): Point {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const npc = layout.npcApproaches.mira.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const { minimumX, maximumX } = itemShopStockroomEntrySafeXBand();
-	const obstacles = [...layout.walls, ...Object.values(layout.propCollisions)];
-
-	expect(Number.isFinite(startPoint.x), `${label} start x`).toBe(true);
-	expect(Number.isFinite(startPoint.y), `${label} start y`).toBe(true);
-	expect(layoutRectContainsPoint(layout.rooms.salesFloor, startPoint), `${label} start room`).toBe(
-		true
-	);
-	for (const obstacle of obstacles) {
-		expect(
-			expandedLayoutRectContainsPoint(obstacle, startPoint, PLAYER_COLLISION_RADIUS),
-			`${label} start entered ${'id' in obstacle ? obstacle.id : 'prop collision'}`
-		).toBe(false);
-	}
-	expect(
-		routeSegmentIntersectsCircle(startPoint, startPoint, npc, npcCollisionRadius),
-		`${label} start crossed Mira`
-	).toBe(false);
-
-	expect(result.status, `${label} status`).toBe('done');
-	expect(result.mapId, `${label} map`).toBe('item-shop');
-	expect(result.invalidDiagnostics, `${label} invalid diagnostics`).toEqual([]);
-	expect(result.activeKeys, `${label} active keys`).toEqual([]);
-	expect(result.released, `${label} released`).toBe(true);
-	expect(result.position, `${label} final position`).not.toBeNull();
-	if (!result.position) throw new Error(`${label}: band handoff returned no final position`);
-	expect(result.position.y, `${label} fixed y`).toBe(startPoint.y);
-	expect(result.position.x, `${label} final x lower bound`).toBeGreaterThanOrEqual(minimumX);
-	expect(result.position.x, `${label} final x upper bound`).toBeLessThan(maximumX);
-
-	const expectedDirection = startPoint.x < minimumX ? 1 : startPoint.x >= maximumX ? -1 : 0;
-	const expectedReleasedKey =
-		expectedDirection > 0 ? ['ArrowRight'] : expectedDirection < 0 ? ['ArrowLeft'] : [];
-	expect(result.releasedKeys, `${label} released keys`).toEqual(expectedReleasedKey);
-	const diagnostics = result.diagnostics;
-	if (expectedDirection === 0) {
-		expect(diagnostics, `${label} in-band diagnostics`).toEqual([]);
-		expect(result.lastDiagnostic, `${label} in-band last diagnostic`).toBeNull();
-		expect(result.position, `${label} in-band position`).toEqual(startPoint);
-		return result.position;
-	}
-
-	expect(diagnostics.length, `${label} diagnostic count`).toBeGreaterThan(0);
-	let previousResolvedX = startPoint.x;
-	for (const [index, diagnostic] of diagnostics.entries()) {
-		const diagnosticLabel = `${label} diagnostic ${index}`;
-		expect(diagnostic.mapId, `${diagnosticLabel} map`).toBe('item-shop');
-		expect(diagnostic.blocked, `${diagnosticLabel} blocked`).toBe(false);
-		expect(diagnostic.previousPosition.x, `${diagnosticLabel} previous x continuity`).toBe(
-			previousResolvedX
-		);
-		for (const value of [
-			diagnostic.previousPosition.x,
-			diagnostic.previousPosition.y,
-			diagnostic.requestedPosition.x,
-			diagnostic.requestedPosition.y,
-			diagnostic.resolvedPosition.x,
-			diagnostic.resolvedPosition.y
-		]) {
-			expect(Number.isFinite(value), `${diagnosticLabel} finite coordinate`).toBe(true);
-		}
-		expect(diagnostic.previousPosition.y, `${diagnosticLabel} previous y`).toBe(startPoint.y);
-		expect(diagnostic.requestedPosition.y, `${diagnosticLabel} requested y`).toBe(startPoint.y);
-		expect(diagnostic.resolvedPosition.y, `${diagnosticLabel} resolved y`).toBe(startPoint.y);
-		expect(
-			(diagnostic.resolvedPosition.x - diagnostic.previousPosition.x) * expectedDirection,
-			`${diagnosticLabel} strict x monotonicity`
-		).toBeGreaterThan(0);
-		expect(
-			diagnostic.resolvedPosition.x,
-			`${diagnosticLabel} in-band x lower bound`
-		).toBeGreaterThanOrEqual(minimumX);
-		for (const obstacle of obstacles) {
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					diagnostic.previousPosition,
-					diagnostic.resolvedPosition,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${diagnosticLabel} swept ${'id' in obstacle ? obstacle.id : 'prop collision'}`
-			).toBe(false);
-			expect(
-				expandedLayoutRectContainsPoint(
-					obstacle,
-					diagnostic.resolvedPosition,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${diagnosticLabel} endpoint ${'id' in obstacle ? obstacle.id : 'prop collision'}`
-			).toBe(false);
-		}
-		expect(
-			routeSegmentIntersectsCircle(
-				diagnostic.previousPosition,
-				diagnostic.resolvedPosition,
-				npc,
-				npcCollisionRadius
-			),
-			`${diagnosticLabel} swept Mira`
-		).toBe(false);
-		previousResolvedX = diagnostic.resolvedPosition.x;
-	}
-	expect(result.lastDiagnostic, `${label} last diagnostic`).toEqual(diagnostics.at(-1));
-	expect(result.position, `${label} diagnostic endpoint`).toEqual(
-		diagnostics.at(-1)!.resolvedPosition
-	);
-	for (const obstacle of obstacles) {
-		expect(
-			expandedLayoutRectContainsPoint(obstacle, result.position, PLAYER_COLLISION_RADIUS),
-			`${label} final ${'id' in obstacle ? obstacle.id : 'prop collision'}`
-		).toBe(false);
-	}
-	expect(
-		routeSegmentIntersectsCircle(result.position, result.position, npc, npcCollisionRadius),
-		`${label} final Mira clearance`
-	).toBe(false);
-	return result.position;
-}
-
-function itemShopStockroomOfficeDividerSafeX(): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const officeDividerSouth = layout.walls.find(({ id }) => id === 'item-shop-office-divider-south');
-	if (!officeDividerSouth) {
-		throw new Error('Item Shop office-divider-south source is missing');
-	}
-	const expandedLeft = officeDividerSouth.x - PLAYER_COLLISION_RADIUS;
-	const safeX = expandedLeft - AXIS_REACH_TOLERANCE - INTERIOR_ROUTE_SETTLE_TOLERANCE - 1;
-	// This source-derived x remains owned by the service-return-west doorway
-	// handoff; stockroom-entry uses its live x band above instead of this route
-	// correction.
-	expect(safeX + AXIS_REACH_TOLERANCE + INTERIOR_ROUTE_SETTLE_TOLERANCE).toBeLessThan(expandedLeft);
-	return safeX;
-}
-
-function itemShopStockroomEntryRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const npc = layout.npcApproaches.mira.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const { minimumX, maximumX } = itemShopStockroomEntrySafeXBand();
-	const transitY = itemShopDoorwayTransitY(
-		'item-shop-stockroom-divider-north',
-		'item-shop-stockroom-divider-south',
-		'stockroom'
-	);
-	const verticalDestination = { x: currentPoint.x, y: transitY };
-	const doorwayDestination = { x: targetPoint.x, y: transitY };
-	const points = [currentPoint, verticalDestination, doorwayDestination, targetPoint];
-
-	expect(targetPoint).toEqual({ x: 448, y: 160 });
-	expect(currentPoint.x).toBeGreaterThanOrEqual(minimumX);
-	expect(currentPoint.x).toBeLessThan(maximumX);
-	expect(layoutRectContainsPoint(layout.rooms.salesFloor, currentPoint)).toBe(true);
-	expect(layoutRectContainsPoint(layout.corridors.serviceCorridor, verticalDestination)).toBe(true);
-	expect(layoutRectContainsPoint(layout.corridors.serviceCorridor, doorwayDestination)).toBe(true);
-
-	const obstacles = [...layout.walls, ...Object.values(layout.propCollisions)];
-	for (let index = 1; index < points.length; index += 1) {
-		const from = points[index - 1]!;
-		const to = points[index]!;
-		expect(
-			from.x === to.x || from.y === to.y,
-			`Item Shop stockroom-entry route must remain axis-aligned: ${JSON.stringify({ from, to })}`
-		).toBe(true);
-		for (const obstacle of obstacles) {
-			expect(
-				routeSegmentIntersectsExpandedRect(from, to, obstacle, PLAYER_COLLISION_RADIUS),
-				`Item Shop stockroom-entry route crossed ${JSON.stringify(obstacle)}: ${JSON.stringify({ from, to })}`
-			).toBe(false);
-		}
-		expect(
-			routeSegmentIntersectsCircle(from, to, npc, npcCollisionRadius),
-			`Item Shop stockroom-entry route crossed Mira: ${JSON.stringify({ from, to, npc })}`
-		).toBe(false);
-	}
-	// The first leg is an actual fixed-x transit. Its endpoint envelope is y-only;
-	// applying a hypothetical ±18 x residue would reject the source-clear band.
-	for (const obstacle of obstacles) {
-		expect(
-			endpointYEnvelopeIsDisjointFromExpandedRect(
-				verticalDestination,
-				obstacle,
-				PLAYER_COLLISION_RADIUS
-			),
-			`Item Shop stockroom-entry fixed-x endpoint entered an expanded y envelope: ${JSON.stringify({ verticalDestination, obstacle })}`
-		).toBe(true);
-	}
-	return points;
-}
-
-function itemShopStockroomEntryInitialFixedAxisDiagnostics(
-	diagnostics: readonly PlayerMovementDiagnostic[],
-	diagnosticAxes: readonly ('x' | 'y')[],
-	from: Point
-): PlayerMovementDiagnostic[] {
-	const initialPhase: PlayerMovementDiagnostic[] = [];
-	for (const [index, diagnostic] of diagnostics.entries()) {
-		if (
-			diagnosticAxes[index] !== 'y' ||
-			diagnostic.previousPosition.x !== from.x ||
-			diagnostic.requestedPosition.x !== from.x ||
-			diagnostic.resolvedPosition.x !== from.x ||
-			diagnostic.resolvedPosition.y >= diagnostic.previousPosition.y
-		) {
-			break;
-		}
-		initialPhase.push(diagnostic);
-	}
-	return initialPhase;
-}
-
-function assertItemShopStockroomEntryRouteContract(
-	points: readonly Point[],
-	result: BrowserRouteResult
-): Point {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const npc = layout.npcApproaches.mira.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const { minimumX, maximumX } = itemShopStockroomEntrySafeXBand();
-	const transitY = itemShopDoorwayTransitY(
-		'item-shop-stockroom-divider-north',
-		'item-shop-stockroom-divider-south',
-		'stockroom'
-	);
-	const from = points[0]!;
-	const verticalDestination = points[1]!;
-	const doorwayDestination = points[2]!;
-	const targetPoint = points.at(-1)!;
-	const obstacles = [...layout.walls, ...Object.values(layout.propCollisions)];
-
-	expect(points).toHaveLength(4);
-	expect(targetPoint).toEqual({ x: 448, y: 160 });
-	expect(from.x).toBeGreaterThanOrEqual(minimumX);
-	expect(from.x).toBeLessThan(maximumX);
-	expect(verticalDestination).toEqual({ x: from.x, y: transitY });
-	expect(doorwayDestination).toEqual({ x: targetPoint.x, y: transitY });
-	expect(layoutRectContainsPoint(layout.rooms.salesFloor, from)).toBe(true);
-	expect(layoutRectContainsPoint(layout.corridors.serviceCorridor, verticalDestination)).toBe(true);
-	expect(layoutRectContainsPoint(layout.corridors.serviceCorridor, doorwayDestination)).toBe(true);
-
-	expect(result.status).toBe('done');
-	expect(result.mapId).toBe('item-shop');
-	expect(result.activeKey ?? null).toBeNull();
-	expect(result.axis).toBeNull();
-	expect(result.target).toBeNull();
-	expect(result.invalidDiagnostics ?? []).toEqual([]);
-	expect(result.pointIndex).toBe(points.length);
-	expect(result.position).not.toBeNull();
-	if (!result.position) {
-		throw new Error(
-			`Item Shop stockroom-entry route returned no live endpoint: ${describeBrowserRouteResult(result, result.token)}`
-		);
-	}
-	const actualPoint = result.position;
-	expect(Math.abs(actualPoint.x - targetPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(actualPoint.y - targetPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(actualPoint.x).toBeGreaterThanOrEqual(minimumX - AXIS_REACH_TOLERANCE);
-	expect(actualPoint.x).toBeLessThan(maximumX + AXIS_REACH_TOLERANCE);
-
-	const diagnostics = result.diagnostics ?? [];
-	const diagnosticAxes = result.diagnosticAxes ?? [];
-	expect(diagnosticAxes).toHaveLength(diagnostics.length);
-	const initialFixedAxisDiagnostics = itemShopStockroomEntryInitialFixedAxisDiagnostics(
-		diagnostics,
-		diagnosticAxes,
-		from
-	);
-	expect(initialFixedAxisDiagnostics.length).toBeGreaterThan(0);
-	expect(initialFixedAxisDiagnostics.at(-1)!.resolvedPosition.y).toBeLessThan(from.y);
-	for (const diagnostic of diagnostics) {
-		expect(diagnostic.mapId).toBe('item-shop');
-		expect(diagnostic.blocked).toBe(false);
-		for (const obstacle of obstacles) {
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					diagnostic.previousPosition,
-					diagnostic.requestedPosition,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				),
-				`Item Shop stockroom-entry diagnostic swept ${JSON.stringify(obstacle)}: ${JSON.stringify(diagnostic)}`
-			).toBe(false);
-			expect(
-				expandedLayoutRectContainsPoint(
-					obstacle,
-					diagnostic.resolvedPosition,
-					PLAYER_COLLISION_RADIUS
-				),
-				`Item Shop stockroom-entry diagnostic entered ${JSON.stringify(obstacle)}: ${JSON.stringify(diagnostic)}`
-			).toBe(false);
-		}
-		expect(
-			routeSegmentIntersectsCircle(
-				diagnostic.previousPosition,
-				diagnostic.requestedPosition,
-				npc,
-				npcCollisionRadius
-			),
-			`Item Shop stockroom-entry diagnostic crossed Mira: ${JSON.stringify(diagnostic)}`
-		).toBe(false);
-	}
-	for (const [index, diagnostic] of initialFixedAxisDiagnostics.entries()) {
-		expect(
-			diagnostic.resolvedPosition.y,
-			`Item Shop stockroom-entry initial fixed-x northward diagnostic ${index}`
-		).toBeLessThan(diagnostic.previousPosition.y);
-	}
-	for (const obstacle of obstacles) {
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				from,
-				verticalDestination,
-				obstacle,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			endpointYEnvelopeIsDisjointFromExpandedRect(
-				verticalDestination,
-				obstacle,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(true);
-	}
-	for (let index = 1; index < points.length; index += 1) {
-		expect(
-			routeSegmentIntersectsCircle(points[index - 1]!, points[index]!, npc, npcCollisionRadius)
-		).toBe(false);
-	}
-	expect(routeSegmentIntersectsCircle(actualPoint, actualPoint, npc, npcCollisionRadius)).toBe(
-		false
-	);
-	for (const obstacle of obstacles) {
-		expect(expandedLayoutRectContainsPoint(obstacle, actualPoint, PLAYER_COLLISION_RADIUS)).toBe(
-			false
-		);
-	}
-	return actualPoint;
-}
-
-function itemShopStockroomTerminalRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const { minimumOpenY, maximumOpenY } = itemShopDoorwayOpenBand('stockroom');
-	const stockroomSafeX = itemShopStockroomVerticalSafeX();
-	const points = [
-		currentPoint,
-		{ x: stockroomSafeX, y: currentPoint.y },
-		{ x: stockroomSafeX, y: targetPoint.y },
-		targetPoint
-	];
-
-	// The doorway crossing preserves its actual authored y. First move farther
-	// into the stockroom, then converge vertically at a source-derived x whose
-	// full unchanged ±18 envelope clears both divider rectangles before the
-	// authored stockroom checkpoint is reached.
-	expect(targetPoint).toEqual({ x: 288, y: 192 });
-	expect(currentPoint.y).toBeGreaterThan(minimumOpenY);
-	expect(currentPoint.y).toBeLessThan(maximumOpenY);
-	expect(layoutRectContainsPoint(layout.corridors.serviceCorridor, currentPoint)).toBe(true);
-	expect(layoutRectContainsPoint(layout.rooms.stockroom, points[1]!)).toBe(true);
-	expect(layoutRectContainsPoint(layout.rooms.stockroom, points[2]!)).toBe(true);
-	for (const divider of layout.walls.filter(({ id }) =>
-		['item-shop-stockroom-divider-north', 'item-shop-stockroom-divider-south'].includes(id)
-	)) {
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				currentPoint,
-				points[1]!,
-				divider,
-				PLAYER_COLLISION_RADIUS
-			),
-			`Item Shop stockroom doorway crossed ${divider.id} at actual y: ${JSON.stringify({ currentPoint, divider })}`
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsExpandedRectAtReachEnvelope(
-				points[1]!,
-				points[2]!,
-				divider,
-				PLAYER_COLLISION_RADIUS
-			),
-			`Item Shop stockroom vertical convergence crossed ${divider.id}: ${JSON.stringify({ from: points[1], to: points[2], divider })}`
-		).toBe(false);
-	}
-	for (const obstacle of [...layout.walls, ...Object.values(layout.propCollisions)]) {
-		expect(
-			routeSegmentIntersectsExpandedRectAtReachEnvelope(
-				points[2]!,
-				targetPoint,
-				obstacle,
-				PLAYER_COLLISION_RADIUS
-			),
-			`Item Shop stockroom terminal leg crossed authored collision: ${JSON.stringify({ from: points[2], to: targetPoint, obstacle })}`
-		).toBe(false);
-	}
-
-	return points;
-}
-
-function assertItemShopStockroomTerminalRouteContract(
-	points: readonly Point[],
-	result: BrowserRouteResult,
-	targetPoint: Point
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const dividers = layout.walls.filter(({ id }) =>
-		['item-shop-stockroom-divider-north', 'item-shop-stockroom-divider-south'].includes(id)
-	);
-	const diagnostics = result.diagnostics ?? [];
-	const diagnosticAxes = result.diagnosticAxes ?? [];
-	const verticalDiagnostics = diagnostics.filter((_, index) => diagnosticAxes[index] === 'y');
-	expect(points.at(-1)).toEqual(targetPoint);
-	expect(result.status).toBe('done');
-	expect(result.mapId).toBe('item-shop');
-	expect(result.activeKey).toBeNull();
-	if (verticalDiagnostics.length === 0) {
-		// A route may already be inside the unchanged settle band when it reaches
-		// the vertical target, so no y movement diagnostic is emitted. Preserve
-		// that characterized zero-movement branch instead of requiring telemetry
-		// for an input that never occurred.
-		expect(diagnosticAxes).not.toContain('y');
-		for (const diagnostic of diagnostics) {
-			expect(diagnostic.mapId).toBe('item-shop');
-			expect(diagnostic.blocked).toBe(false);
-		}
-	} else {
-		for (const diagnostic of verticalDiagnostics) {
-			expect(diagnostic.mapId).toBe('item-shop');
-			expect(diagnostic.blocked).toBe(false);
-			expect(diagnostic.previousPosition.x).toBe(diagnostic.requestedPosition.x);
-			expect(diagnostic.requestedPosition.x).toBe(diagnostic.resolvedPosition.x);
-			expect(diagnostic.resolvedPosition.x + PLAYER_COLLISION_RADIUS).toBeLessThan(
-				Math.min(...dividers.map(({ x }) => x))
-			);
-			for (const divider of dividers) {
-				expect(
-					expandedLayoutRectContainsPoint(
-						divider,
-						diagnostic.resolvedPosition,
-						PLAYER_COLLISION_RADIUS
-					),
-					`Item Shop stockroom vertical diagnostic entered ${divider.id}: ${JSON.stringify(diagnostic)}`
-				).toBe(false);
-				expect(
-					routeSegmentIntersectsExpandedRect(
-						diagnostic.previousPosition,
-						diagnostic.requestedPosition,
-						divider,
-						PLAYER_COLLISION_RADIUS
-					),
-					`Item Shop stockroom vertical diagnostic swept ${divider.id}: ${JSON.stringify(diagnostic)}`
-				).toBe(false);
-			}
-		}
-	}
-	const actualPoint = result.position;
-	expect(actualPoint).not.toBeNull();
-	if (!actualPoint) {
-		throw new Error('Item Shop stockroom terminal route returned no final position');
-	}
-	expect(Math.abs(actualPoint.x - targetPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(actualPoint.y - targetPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	for (const obstacle of [...layout.walls, ...Object.values(layout.propCollisions)]) {
-		expect(
-			expandedLayoutRectContainsPoint(obstacle, actualPoint, PLAYER_COLLISION_RADIUS),
-			`Item Shop stockroom terminal entered authored collision: ${JSON.stringify({ actualPoint, obstacle })}`
-		).toBe(false);
-	}
-}
-
-async function convergeItemShopDoorwayToOpenBand(
-	page: Page,
-	startPoint: Point,
-	doorway: 'stockroom' | 'office'
-): Promise<Point> {
-	const { minimumOpenY, maximumOpenY } = itemShopDoorwayOpenBand(doorway);
-	const navigationBand = itemShopDoorwayNavigationBand(doorway);
-	const alreadyInOpenNavigationRow = isItemShopDoorwayPointInOpenNavigationRow(
-		startPoint,
-		navigationBand.minimumOpenRow,
-		navigationBand.maximumOpenRow,
-		navigationBand.navigationCellSize,
-		{ minimumOpenY, maximumOpenY }
-	);
-	if (!alreadyInOpenNavigationRow) {
-		const result = await runBrowserRoute(
-			page,
-			[
-				startPoint,
-				{
-					x: startPoint.x,
-					y: navigationBand.transitY
-				}
-			],
-			navigationBand.settleTolerance,
-			navigationBand.settleTolerance
-		);
-		return assertItemShopDoorwayConvergenceContract(
-			startPoint,
-			result,
-			navigationBand,
-			{ minimumOpenY, maximumOpenY },
-			`Item Shop ${doorway} doorway convergence`
-		);
-	}
-	const evidence = await currentHudPlayerEvidence(page, 'item-shop');
-	const actualPoint = evidence.selectedPoint;
-	expect(evidence.state?.mapId).toBe('item-shop');
-	expect(actualPoint.y).toBeGreaterThan(minimumOpenY);
-	expect(actualPoint.y).toBeLessThan(maximumOpenY);
-	const actualRow = Math.floor(actualPoint.y / navigationBand.navigationCellSize);
-	expect(actualRow).toBeGreaterThanOrEqual(navigationBand.minimumOpenRow);
-	expect(actualRow).toBeLessThanOrEqual(navigationBand.maximumOpenRow);
-	return actualPoint;
-}
-
-function assertItemShopDoorwayConvergenceContract(
-	startPoint: Point,
-	result: BrowserRouteResult,
-	navigationBand: ReturnType<typeof itemShopDoorwayNavigationBand>,
-	band: { minimumOpenY: number; maximumOpenY: number },
-	label: string
-): Point {
-	const { navigationCellSize, transitY, minimumOpenRow, maximumOpenRow } = navigationBand;
-	expect(
-		transitY + AXIS_REACH_TOLERANCE + 1,
-		`${label} target reach must remain inside the final open row`
-	).toBe((maximumOpenRow + 1) * navigationCellSize);
-	expect(result.status, `${label} status`).toBe('done');
-	expect(result.mapId, `${label} map`).toBe('item-shop');
-	expect(result.activeKey, `${label} active key`).toBeNull();
-	expect(result.invalidDiagnostics ?? [], `${label} invalid diagnostics`).toEqual([]);
-	const diagnostics = result.diagnostics ?? [];
-	const diagnosticAxes = result.diagnosticAxes ?? [];
-	expect(diagnostics.length, `${label} diagnostic count`).toBeGreaterThan(0);
-	expect(diagnosticAxes, `${label} diagnostic axes`).toHaveLength(diagnostics.length);
-	for (const [index, diagnostic] of diagnostics.entries()) {
-		expect(diagnosticAxes[index], `${label} diagnostic ${index} axis`).toBe('y');
-		expect(diagnostic.mapId, `${label} diagnostic ${index} map`).toBe('item-shop');
-		expect(diagnostic.blocked, `${label} diagnostic ${index} blocked`).toBe(false);
-		expect(diagnostic.previousPosition.x, `${label} diagnostic ${index} previous x`).toBe(
-			startPoint.x
-		);
-		expect(diagnostic.requestedPosition.x, `${label} diagnostic ${index} requested x`).toBe(
-			startPoint.x
-		);
-		expect(diagnostic.resolvedPosition.x, `${label} diagnostic ${index} resolved x`).toBe(
-			startPoint.x
-		);
-	}
-	const actualPoint = result.position;
-	expect(actualPoint, `${label} final position`).not.toBeNull();
-	if (!actualPoint) {
-		throw new Error(`${label} returned no final position`);
-	}
-	expect(actualPoint.x, `${label} final x`).toBe(startPoint.x);
-	expect(Math.abs(actualPoint.y - transitY), `${label} final open-band reach`).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-	expect(actualPoint.y, `${label} final y lower boundary`).toBeGreaterThan(band.minimumOpenY);
-	expect(actualPoint.y, `${label} final y upper boundary`).toBeLessThan(band.maximumOpenY);
-	const actualRow = Math.floor(actualPoint.y / navigationCellSize);
-	expect(actualRow, `${label} final minimum open row`).toBeGreaterThanOrEqual(minimumOpenRow);
-	expect(actualRow, `${label} final maximum open row`).toBeLessThanOrEqual(maximumOpenRow);
-	return actualPoint;
-}
-
-function itemShopDoorwayCrossingRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point,
-	doorway: 'stockroom' | 'office'
-): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const { minimumOpenY, maximumOpenY } = itemShopDoorwayOpenBand(doorway);
-	if (doorway === 'office') {
-		const navigationCellSize = itemShopMap.navigationGrid?.cellSizePx;
-		if (!navigationCellSize) throw new Error('Item Shop navigation cell size source is missing');
-		const officeDesk = layout.propCollisions.officeDesk;
-		const officeDeskBlockedColumnX =
-			Math.floor((officeDesk.x - PLAYER_COLLISION_RADIUS) / navigationCellSize) *
-			navigationCellSize;
-		const officeLaneX = officeDeskBlockedColumnX - AXIS_REACH_TOLERANCE - 1;
-		if (targetPoint.x < currentPoint.x && targetPoint.y === currentPoint.y) {
-			expect(currentPoint.y).toBeGreaterThan(minimumOpenY);
-			expect(currentPoint.y).toBeLessThan(maximumOpenY);
-			return [currentPoint, { x: targetPoint.x, y: currentPoint.y }, targetPoint];
-		}
-		if (targetPoint.x < currentPoint.x) {
-			const safeRoomY = layout.rooms.office.y + layout.rooms.office.height - navigationCellSize * 2;
-			const transitY = itemShopDoorwayTransitY(
-				'item-shop-office-divider-north',
-				'item-shop-office-divider-south',
-				'office'
-			);
-			expect(targetPoint).toEqual({ x: 448, y: 160 });
-			expect({ officeLaneX, safeRoomY, transitY }).toEqual({
-				officeLaneX: 541,
-				safeRoomY: 192,
-				transitY: 144
-			});
-			expect(currentPoint.x).toBeGreaterThan(
-				officeDesk.x + officeDesk.width + PLAYER_COLLISION_RADIUS
-			);
-			return [
-				currentPoint,
-				{ x: currentPoint.x, y: safeRoomY },
-				{ x: officeLaneX, y: safeRoomY },
-				{ x: officeLaneX, y: transitY },
-				{ x: targetPoint.x, y: transitY },
-				targetPoint
-			];
-		}
-		const points = [
-			currentPoint,
-			{ x: officeLaneX, y: currentPoint.y },
-			{ x: officeLaneX, y: targetPoint.y },
-			targetPoint
-		];
-		expect(targetPoint).toEqual({ x: 736, y: 192 });
-		expect(officeLaneX).toBe(541);
-		expect(officeLaneX + AXIS_REACH_TOLERANCE).toBeLessThan(officeDeskBlockedColumnX);
-		expect(layoutRectContainsPoint(layout.rooms.office, points[1]!)).toBe(true);
-		expect(layoutRectContainsPoint(layout.rooms.office, points[2]!)).toBe(true);
-		for (let index = 1; index < points.length; index += 1) {
-			const from = points[index - 1]!;
-			const to = points[index]!;
-			expect(from.x === to.x || from.y === to.y).toBe(true);
-			for (const obstacle of [...layout.walls, ...Object.values(layout.propCollisions)]) {
-				expect(
-					routeSegmentIntersectsExpandedRect(from, to, obstacle, PLAYER_COLLISION_RADIUS),
-					`Item Shop office doorway route crossed ${JSON.stringify({ from, to, obstacle })}`
-				).toBe(false);
-			}
-		}
-		return points;
-	}
-	const points = [currentPoint, { x: targetPoint.x, y: currentPoint.y }, targetPoint];
-	expect(currentPoint.y).toBeGreaterThan(minimumOpenY);
-	expect(currentPoint.y).toBeLessThan(maximumOpenY);
-	expect(points[1]?.y).toBe(currentPoint.y);
-	return points;
-}
-
-function assertFixedAxisRouteContract(
-	points: readonly Point[],
-	result: BrowserRouteResult,
-	axis: 'x' | 'y',
-	obstacles: readonly { x: number; y: number; width: number; height: number }[],
-	label: string,
-	expectedMapId = 'item-shop'
-) {
-	const from = points[0]!;
-	const axisDestination = points[1]!;
-	const fixedCoordinate = axis === 'x' ? 'y' : 'x';
-	expect(from[fixedCoordinate]).toBe(axisDestination[fixedCoordinate]);
-	expect(result.status).toBe('done');
-	expect(result.mapId).toBe(expectedMapId);
-	expect(result.activeKey).toBeNull();
-	const diagnostics = result.diagnostics ?? [];
-	const diagnosticAxes = result.diagnosticAxes ?? [];
-	const fixedAxisDiagnostics = diagnostics.filter((_, index) => diagnosticAxes[index] === axis);
-	const actualPoint = result.position;
-	expect(actualPoint).not.toBeNull();
-	if (!actualPoint) {
-		throw new Error(`${label} returned no final position`);
-	}
-	expect(Number.isFinite(from.x) && Number.isFinite(from.y)).toBe(true);
-	expect(Number.isFinite(actualPoint.x) && Number.isFinite(actualPoint.y)).toBe(true);
-	expect(diagnosticAxes).toHaveLength(diagnostics.length);
-	expect(Math.abs(actualPoint.x - points.at(-1)!.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(actualPoint.y - points.at(-1)!.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	if (fixedAxisDiagnostics.length === 0) {
-		// A fixed-axis target can already be inside the unchanged settle/reach band.
-		// In that case no input was issued for this axis: validate the actual live
-		// point and its zero-length sweep, rather than a hypothetical segment to the
-		// requested coordinate that the browser never traversed.
-		expect(Math.abs(axisDestination[axis] - from[axis])).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-		expect(diagnosticAxes).not.toContain(axis);
-		expect(actualPoint[axis]).toBe(from[axis]);
-		for (const diagnostic of diagnostics) {
-			expect(diagnostic.mapId).toBe(expectedMapId);
-			expect(diagnostic.blocked).toBe(false);
-		}
-		for (const obstacle of obstacles) {
-			expect(
-				expandedLayoutRectContainsPoint(obstacle, from, PLAYER_COLLISION_RADIUS),
-				`${label} zero-movement start entered an expanded collision: ${JSON.stringify({ from, obstacle })}`
-			).toBe(false);
-			expect(
-				routeSegmentIntersectsExpandedRect(from, from, obstacle, PLAYER_COLLISION_RADIUS),
-				`${label} zero-movement sweep entered an expanded collision: ${JSON.stringify({ from, obstacle })}`
-			).toBe(false);
-		}
-		return;
-	}
-	for (const diagnostic of fixedAxisDiagnostics) {
-		expect(diagnostic.mapId).toBe(expectedMapId);
-		expect(
-			diagnostic.blocked,
-			`${label} fixed-axis leg was blocked: ${JSON.stringify({ points, diagnostic })}`
-		).toBe(false);
-		// A fixed-axis input preserves its orthogonal coordinate exactly. Do not
-		// invent the route runner's ±18 reach residue on that locked axis.
-		expect(diagnostic.previousPosition[fixedCoordinate]).toBe(from[fixedCoordinate]);
-		expect(diagnostic.requestedPosition[fixedCoordinate]).toBe(from[fixedCoordinate]);
-		expect(diagnostic.resolvedPosition[fixedCoordinate]).toBe(from[fixedCoordinate]);
-		for (const obstacle of obstacles) {
-			expect(
-				expandedLayoutRectContainsPoint(
-					obstacle,
-					diagnostic.resolvedPosition,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${label} entered an expanded collision: ${JSON.stringify({ diagnostic, obstacle })}`
-			).toBe(false);
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					diagnostic.previousPosition,
-					diagnostic.requestedPosition,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${label} diagnostic swept an expanded collision: ${JSON.stringify({ diagnostic, obstacle })}`
-			).toBe(false);
-		}
-	}
-	for (const obstacle of obstacles) {
-		expect(
-			routeSegmentIntersectsExpandedRect(from, axisDestination, obstacle, PLAYER_COLLISION_RADIUS),
-			`${label} crossed an expanded collision at the actual fixed axis: ${JSON.stringify({ from, axisDestination, obstacle })}`
-		).toBe(false);
-		expect(
-			axis === 'x'
-				? endpointXEnvelopeIsDisjointFromExpandedRect(
-						axisDestination,
-						obstacle,
-						PLAYER_COLLISION_RADIUS
-					)
-				: endpointYEnvelopeIsDisjointFromExpandedRect(
-						axisDestination,
-						obstacle,
-						PLAYER_COLLISION_RADIUS
-					),
-			`${label} destination ${axis} envelope entered an expanded collision: ${JSON.stringify({ axisDestination, obstacle })}`
-		).toBe(true);
-	}
-}
-
-function guildHallTrainingDoorwayOpenBand() {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const trainingSpineNorth = layout.walls.find(
-		({ id }) => id === 'guild-hall-training-spine-north'
-	);
-	const trainingEquipment = layout.propCollisions.trainingEquipment;
-	if (!trainingSpineNorth || !trainingEquipment) {
-		throw new Error('Guild Hall training doorway source geometry is missing');
-	}
-	const expandedWallBottom =
-		trainingSpineNorth.y + trainingSpineNorth.height + PLAYER_COLLISION_RADIUS;
-	const gridCellSizePx = guildHallMap.navigationGrid?.cellSizePx;
-	if (gridCellSizePx === undefined) {
-		throw new Error('Guild Hall navigation grid source is missing');
-	}
-	const minimumOpenY = (Math.floor(expandedWallBottom / gridCellSizePx) + 1) * gridCellSizePx;
-	const maximumOpenY = trainingEquipment.y - PLAYER_COLLISION_RADIUS;
-	expect({ expandedWallBottom, minimumOpenY, maximumOpenY }).toEqual({
-		expandedWallBottom: 332,
-		minimumOpenY: 336,
-		maximumOpenY: 356
-	});
-	expect(minimumOpenY).toBeGreaterThan(expandedWallBottom);
-	expect(minimumOpenY).toBeLessThan(maximumOpenY);
-	return { minimumOpenY, maximumOpenY, trainingSpineNorth, trainingEquipment };
-}
-
-function guildHallTrainingDoorwayConvergenceTarget(
-	minimumOpenY: number,
-	maximumOpenY: number
-): number {
-	return minimumOpenY + Math.floor((maximumOpenY - minimumOpenY) / 2);
-}
-
-function assertGuildHallTrainingDoorwayBandConvergenceContract(
-	startPoint: Point,
-	result: BrowserRouteResult,
-	label: string
-): Point {
-	const { minimumOpenY, maximumOpenY, trainingSpineNorth, trainingEquipment } =
-		guildHallTrainingDoorwayOpenBand();
-	const obstacles = [
-		...VILLAGE_INTERIOR_LAYOUTS['guild-hall'].walls,
-		...Object.values(VILLAGE_INTERIOR_LAYOUTS['guild-hall'].propCollisions)
-	];
-	const diagnostics = result.diagnostics ?? [];
-	expect(diagnostics.length, `${label} diagnostic count`).toBeGreaterThan(0);
-	expect(result.status, `${label} status`).toBe('done');
-	expect(result.mapId, `${label} map`).toBe('guild-hall');
-	expect(result.activeKey, `${label} active key`).toBeNull();
-	for (const [index, diagnostic] of diagnostics.entries()) {
-		expect(diagnostic.mapId, `${label} diagnostic ${index} map`).toBe('guild-hall');
-		expect(diagnostic.blocked, `${label} diagnostic ${index} blocked`).toBe(false);
-		expect(diagnostic.previousPosition.x, `${label} diagnostic ${index} fixed x`).toBe(
-			startPoint.x
-		);
-		expect(diagnostic.requestedPosition.x, `${label} diagnostic ${index} fixed x`).toBe(
-			startPoint.x
-		);
-		expect(diagnostic.resolvedPosition.x, `${label} diagnostic ${index} fixed x`).toBe(
-			startPoint.x
-		);
-		for (const obstacle of obstacles) {
-			expect(
-				expandedLayoutRectContainsPoint(
-					obstacle,
-					diagnostic.resolvedPosition,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${label} diagnostic ${index} entered ${'id' in obstacle ? obstacle.id : 'prop collision'}`
-			).toBe(false);
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					diagnostic.previousPosition,
-					diagnostic.requestedPosition,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				),
-				`${label} diagnostic ${index} swept ${'id' in obstacle ? obstacle.id : 'prop collision'}`
-			).toBe(false);
-		}
-	}
-	const actualPoint = result.position;
-	expect(actualPoint, `${label} final position`).not.toBeNull();
-	if (!actualPoint) throw new Error(`${label} returned no final position`);
-	expect(actualPoint.x, `${label} fixed x`).toBe(startPoint.x);
-	expect(actualPoint.y, `${label} open-band lower bound`).toBeGreaterThan(minimumOpenY);
-	expect(actualPoint.y, `${label} open-band upper bound`).toBeLessThan(maximumOpenY);
-	for (const obstacle of [trainingSpineNorth, trainingEquipment]) {
-		expect(
-			expandedLayoutRectContainsPoint(obstacle, actualPoint, PLAYER_COLLISION_RADIUS),
-			`${label} final point entered ${'id' in obstacle ? obstacle.id : 'training equipment'}`
-		).toBe(false);
-	}
-	return actualPoint;
-}
-
-function assertItemShopDoorwayHorizontalRouteContract(
-	points: readonly Point[],
-	result: BrowserRouteResult,
-	doorway: 'stockroom' | 'office'
-) {
-	const { northWall, southWall, minimumOpenY, maximumOpenY } = itemShopDoorwayOpenBand(doorway);
-	const from = points[0]!;
-	expect(from.y).toBeGreaterThan(minimumOpenY);
-	expect(from.y).toBeLessThan(maximumOpenY);
-	if (doorway === 'office' && points.length !== 2) {
-		if (points.length === 4) {
-			expect(points[1]!.y).toBe(from.y);
-			expect(points[2]!.x).toBe(points[1]!.x);
-			expect(points[2]!.y).toBe(points[3]!.y);
-		} else {
-			expect(points).toHaveLength(6);
-		}
-		expect(result.status).toBe('done');
-		expect(result.mapId).toBe('item-shop');
-		expect(result.activeKey).toBeNull();
-		expect(result.invalidDiagnostics ?? []).toEqual([]);
-		expect(result.position).not.toBeNull();
-		if (!result.position) throw new Error('Item Shop office doorway returned no final position');
-		expect(Math.abs(result.position.x - points.at(-1)!.x)).toBeLessThanOrEqual(
-			AXIS_REACH_TOLERANCE
-		);
-		expect(Math.abs(result.position.y - points.at(-1)!.y)).toBeLessThanOrEqual(
-			AXIS_REACH_TOLERANCE
-		);
-		for (const diagnostic of result.diagnostics ?? []) {
-			expect(diagnostic.mapId).toBe('item-shop');
-			expect(diagnostic.blocked).toBe(false);
-		}
-		return;
-	}
-	assertFixedAxisRouteContract(
-		points,
-		result,
-		'x',
-		[northWall, southWall],
-		`Item Shop ${doorway} doorway`
-	);
-}
-
-function assertItemShopSpawnReturnCorridorSideAisleRouteContract(
-	points: readonly Point[],
-	result: BrowserRouteResult
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const counter = layout.propCollisions.miraCounter;
-	const eastDisplay = layout.propCollisions.eastDisplay;
-	const from = points[0]!;
-	const sideAisleEntry = points[1]!;
-	const destination = points[2]!;
-	const expandedRight = counter.x + counter.width + PLAYER_COLLISION_RADIUS;
-	expect(points).toHaveLength(3);
-	expect(from.x).toBeGreaterThan(expandedRight);
-	expect(sideAisleEntry).toEqual({ x: itemShopEastDisplaySideAisleX(), y: from.y });
-	expect(destination).toEqual({
-		x: sideAisleEntry.x,
-		y: itemShopSalesFloorHorizontalTransitY()
-	});
-	for (let index = 1; index < points.length; index += 1) {
-		for (const obstacle of [counter, eastDisplay]) {
-			expect(
-				routeSegmentIntersectsExpandedRectAtReachEnvelope(
-					points[index - 1]!,
-					points[index]!,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				)
-			).toBe(false);
-		}
-	}
-	expect(result.status).toBe('done');
-	expect(result.mapId).toBe('item-shop');
-	expect(result.activeKey).toBeNull();
-	expect(result.invalidDiagnostics ?? []).toEqual([]);
-	expect(result.position).not.toBeNull();
-	if (!result.position) throw new Error('Item Shop spawn-return side aisle returned no point');
-	expect(Math.abs(result.position.x - destination.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(result.position.y - destination.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-}
-
-function assertItemShopSpawnReturnCorridorHorizontalRouteContract(
-	points: readonly Point[],
-	result: BrowserRouteResult
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const counter = layout.propCollisions.miraCounter;
-	const eastDisplay = layout.propCollisions.eastDisplay;
-	const from = points[0]!;
-	const horizontalDestination = points[1]!;
-	const targetPoint = points.at(-1)!;
-	const diagnostics = result.diagnostics ?? [];
-	const diagnosticAxes = result.diagnosticAxes ?? [];
-	expect(points).toHaveLength(3);
-	expect(targetPoint).toEqual({ x: 640, y: 544 });
-	expect(horizontalDestination.y).toBe(from.y);
-	expect(horizontalDestination.x).toBe(targetPoint.x);
-	expect(result.status).toBe('done');
-	expect(result.mapId).toBe('item-shop');
-	expect(result.activeKey).toBeNull();
-	expect(result.axis).toBeNull();
-	expect(result.target).toBeNull();
-	expect(result.pointIndex).toBe(3);
-	expect(diagnosticAxes).toHaveLength(diagnostics.length);
-	for (const [index, diagnostic] of diagnostics.entries()) {
-		expect(diagnostic.mapId).toBe('item-shop');
-		expect(diagnostic.blocked).toBe(false);
-		for (const obstacle of [counter, eastDisplay]) {
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					diagnostic.previousPosition,
-					diagnostic.requestedPosition,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				),
-				`Item Shop spawn-return-corridor horizontal diagnostic swept an obstacle: ${JSON.stringify({ index, diagnostic, obstacle })}`
-			).toBe(false);
-			expect(
-				expandedLayoutRectContainsPoint(
-					obstacle,
-					diagnostic.resolvedPosition,
-					PLAYER_COLLISION_RADIUS
-				),
-				`Item Shop spawn-return-corridor horizontal diagnostic entered an obstacle: ${JSON.stringify({ index, diagnostic, obstacle })}`
-			).toBe(false);
-		}
-	}
-	for (let index = 1; index < points.length; index += 1) {
-		for (const obstacle of [counter, eastDisplay]) {
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					points[index - 1]!,
-					points[index]!,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				),
-				`Item Shop spawn-return-corridor horizontal segment crossed an obstacle: ${JSON.stringify({ from: points[index - 1], to: points[index], obstacle })}`
-			).toBe(false);
-		}
-	}
-	const actualPoint = result.position;
-	expect(actualPoint).not.toBeNull();
-	if (!actualPoint) {
-		throw new Error('Item Shop spawn-return-corridor horizontal route returned no final position');
-	}
-	expect(Math.abs(actualPoint.x - targetPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(actualPoint.y - targetPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	for (const obstacle of [counter, eastDisplay]) {
-		expect(
-			expandedLayoutRectContainsPoint(obstacle, actualPoint, PLAYER_COLLISION_RADIUS),
-			`Item Shop spawn-return-corridor horizontal endpoint entered an obstacle: ${JSON.stringify({ actualPoint, targetPoint, obstacle })}`
-		).toBe(false);
-	}
-}
-
-function assertItemShopServiceReturnWestVerticalRouteContract(
-	points: readonly Point[],
-	result: BrowserRouteResult
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const officeDividerSouth = layout.walls.find(({ id }) => id === 'item-shop-office-divider-south');
-	if (!officeDividerSouth) {
-		throw new Error('Item Shop office-divider-south source is missing');
-	}
-	const verticalFrom = points[0]!;
-	const verticalDestination = points[1]!;
-	const actualPoint = result.position;
-	// This is a fixed-x departure from the already-proven office doorway band.
-	// Keep the real player circle west of the divider and constrain only the
-	// destination y residue; a hypothetical ±18 x residue would reject the
-	// source-clear side passage.
-	expect(verticalFrom.x + PLAYER_COLLISION_RADIUS).toBeLessThan(officeDividerSouth.x);
-	expect(verticalDestination.x).toBe(verticalFrom.x);
-	expect(verticalDestination.y).toBe(300);
-	expect(actualPoint).not.toBeNull();
-	if (!actualPoint) {
-		throw new Error('Item Shop service-return-west route returned no final position');
-	}
-	expect(actualPoint.x + PLAYER_COLLISION_RADIUS).toBeLessThan(officeDividerSouth.x);
-	expect(
-		expandedLayoutRectContainsPoint(officeDividerSouth, actualPoint, PLAYER_COLLISION_RADIUS)
-	).toBe(false);
-	expect(
-		routeSegmentIntersectsExpandedRect(
-			verticalFrom,
-			verticalDestination,
-			officeDividerSouth,
-			PLAYER_COLLISION_RADIUS
-		)
-	).toBe(false);
-	assertFixedAxisRouteContract(
-		points,
-		result,
-		'y',
-		[officeDividerSouth],
-		'Item Shop service-return-west doorway departure'
-	);
-}
-
-function assertItemShopServiceReturnWestHorizontalRouteContract(
-	points: readonly Point[],
-	result: BrowserRouteResult
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const npc = layout.npcApproaches.mira.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const targetPoint = points.at(-1)!;
-	const diagnostics = result.diagnostics ?? [];
-	const diagnosticAxes = result.diagnosticAxes ?? [];
-	expect(points.length).toBeGreaterThanOrEqual(2);
-	expect(targetPoint).toEqual({ x: 448, y: 300 });
-	for (let index = 1; index < points.length; index += 1) {
-		expect(
-			points[index - 1]!.x === points[index]!.x || points[index - 1]!.y === points[index]!.y,
-			`Item Shop service-return-west horizontal route must remain axis-aligned: ${JSON.stringify({ from: points[index - 1], to: points[index] })}`
-		).toBe(true);
-	}
-	expect(result.status).toBe('done');
-	expect(result.mapId).toBe('item-shop');
-	expect(result.activeKey).toBeNull();
-	expect(result.axis).toBeNull();
-	expect(result.target).toBeNull();
-	expect(result.pointIndex).toBe(points.length);
-	expect(diagnosticAxes).toHaveLength(diagnostics.length);
-	for (const [index, diagnostic] of diagnostics.entries()) {
-		expect(diagnostic.mapId).toBe('item-shop');
-		expect(diagnostic.blocked).toBe(false);
-		for (const obstacle of [...layout.walls, ...Object.values(layout.propCollisions)]) {
-			expect(
-				routeSegmentIntersectsExpandedRect(
-					diagnostic.previousPosition,
-					diagnostic.requestedPosition,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				),
-				`Item Shop service-return-west horizontal diagnostic ${index} swept ${JSON.stringify(obstacle)}: ${JSON.stringify(diagnostic)}`
-			).toBe(false);
-			expect(
-				expandedLayoutRectContainsPoint(
-					obstacle,
-					diagnostic.resolvedPosition,
-					PLAYER_COLLISION_RADIUS
-				),
-				`Item Shop service-return-west horizontal diagnostic ${index} entered ${JSON.stringify(obstacle)}: ${JSON.stringify(diagnostic)}`
-			).toBe(false);
-		}
-		expect(
-			routeSegmentIntersectsCircle(
-				diagnostic.previousPosition,
-				diagnostic.requestedPosition,
-				npc,
-				npcCollisionRadius
-			),
-			`Item Shop service-return-west horizontal diagnostic ${index} crossed Mira: ${JSON.stringify(diagnostic)}`
-		).toBe(false);
-	}
-	for (const obstacle of [...layout.walls, ...Object.values(layout.propCollisions)]) {
-		expect(
-			points.every((point, index) => {
-				if (index === 0) return true;
-				return !routeSegmentIntersectsExpandedRectAtReachEnvelope(
-					points[index - 1]!,
-					point,
-					obstacle,
-					PLAYER_COLLISION_RADIUS
-				);
-			}),
-			`Item Shop service-return-west horizontal route crossed ${JSON.stringify(obstacle)}: ${JSON.stringify({ points })}`
-		).toBe(false);
-	}
-	for (let index = 1; index < points.length; index += 1) {
-		expect(
-			points[index - 1]!.x === points[index]!.x || points[index - 1]!.y === points[index]!.y
-		).toBe(true);
-		expect(
-			routeSegmentIntersectsCircle(points[index - 1]!, points[index]!, npc, npcCollisionRadius),
-			`Item Shop service-return-west horizontal route crossed Mira: ${JSON.stringify({
-				from: points[index - 1],
-				to: points[index]
-			})}`
-		).toBe(false);
-	}
-	const actualPoint = result.position;
-	expect(actualPoint).not.toBeNull();
-	if (!actualPoint) {
-		throw new Error('Item Shop service-return-west horizontal route returned no final position');
-	}
-	expect(Math.abs(actualPoint.x - targetPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(actualPoint.y - targetPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	for (const obstacle of [...layout.walls, ...Object.values(layout.propCollisions)]) {
-		expect(
-			expandedLayoutRectContainsPoint(obstacle, actualPoint, PLAYER_COLLISION_RADIUS),
-			`Item Shop service-return-west horizontal endpoint entered ${JSON.stringify(obstacle)}: ${JSON.stringify({ actualPoint, targetPoint })}`
-		).toBe(false);
-	}
-}
-
-function assertItemShopServiceReturnWestTerminalContract(
-	result: BrowserRouteResult,
-	targetPoint: Point
-): Point {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const npc = layout.npcApproaches.mira.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const actualPoint = result.position;
-	expect(result.status).toBe('done');
-	expect(result.mapId).toBe('item-shop');
-	expect(result.activeKey).toBeNull();
-	expect(result.axis).toBeNull();
-	expect(result.target).toBeNull();
-	expect(result.pointIndex).toBe(2);
-	expect(actualPoint).not.toBeNull();
-	if (!actualPoint) {
-		throw new Error('Item Shop service-return-west terminal route returned no final position');
-	}
-	expect(Number.isFinite(actualPoint.x) && Number.isFinite(actualPoint.y)).toBe(true);
-	expect(Math.abs(actualPoint.x - targetPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(actualPoint.y - targetPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	const diagnostics = result.diagnostics ?? [];
-	const diagnosticAxes = result.diagnosticAxes ?? [];
-	expect(diagnosticAxes).toHaveLength(diagnostics.length);
-	for (const diagnostic of diagnostics) {
-		expect(diagnostic.mapId).toBe('item-shop');
-		expect(diagnostic.blocked).toBe(false);
-	}
-	for (const obstacle of [...layout.walls, ...Object.values(layout.propCollisions)]) {
-		expect(
-			expandedLayoutRectContainsPoint(obstacle, actualPoint, PLAYER_COLLISION_RADIUS),
-			`Item Shop service-return-west terminal entered ${JSON.stringify(obstacle)}: ${JSON.stringify({ actualPoint, targetPoint })}`
-		).toBe(false);
-	}
-	expect(
-		routeSegmentIntersectsCircle(actualPoint, actualPoint, npc, npcCollisionRadius),
-		`Item Shop service-return-west terminal entered Mira collision: ${JSON.stringify({ actualPoint, targetPoint })}`
-	).toBe(false);
-	return actualPoint;
-}
-
-function itemShopSpawnReturnCorridorRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point
-): {
-	sideAisle: [Point, Point, Point];
-	horizontal: [Point, Point, Point];
-} {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const counter = layout.propCollisions.miraCounter;
-	const sideAisleEntry = { x: itemShopEastDisplaySideAisleX(), y: currentPoint.y };
-	const sideAisleDestination = {
-		x: sideAisleEntry.x,
-		y: itemShopSalesFloorHorizontalTransitY()
-	};
-	const horizontalDestination = { x: targetPoint.x, y: sideAisleDestination.y };
-	const sideAisle: [Point, Point, Point] = [currentPoint, sideAisleEntry, sideAisleDestination];
-	const horizontal: [Point, Point, Point] = [
-		sideAisleDestination,
-		horizontalDestination,
-		targetPoint
-	];
-	const expandedRight = counter.x + counter.width + PLAYER_COLLISION_RADIUS;
-	expect(targetPoint).toEqual({ x: 640, y: 544 });
-	// Leave the east-display column on its source-derived side aisle before
-	// descending to the first navigation row that remains clear after reach residue.
-	expect(currentPoint.x).toBeGreaterThan(expandedRight);
-	return { sideAisle, horizontal };
-}
-
-function itemShopSpawnReturnCorridorHorizontalRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point
-): Point[] {
-	const horizontalDestination = { x: targetPoint.x, y: currentPoint.y };
-	const points = [currentPoint, horizontalDestination, targetPoint];
-	expect(targetPoint).toEqual({ x: 640, y: 544 });
-	expect(horizontalDestination.y).toBe(currentPoint.y);
-	expect(horizontalDestination.x).toBe(targetPoint.x);
-	return points;
-}
-
-function itemShopStockroomReturnDoorwayRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point
-): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const { minimumOpenY, maximumOpenY } = itemShopDoorwayOpenBand('stockroom');
-	const points = itemShopDoorwayCrossingRoutePoints(currentPoint, targetPoint, 'stockroom');
-	expect(targetPoint).toEqual({ x: 448, y: 160 });
-	expect(currentPoint.y).toBeGreaterThan(minimumOpenY);
-	expect(currentPoint.y).toBeLessThan(maximumOpenY);
-	expect(layoutRectContainsPoint(layout.rooms.stockroom, currentPoint)).toBe(true);
-	expect(layoutRectContainsPoint(layout.corridors.serviceCorridor, points[1]!)).toBe(true);
-	return points;
-}
-
-function itemShopServiceCorridorWestCheckpoint(requestedPoint: Point): Point {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const npc = layout.npcApproaches.mira.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const navigationGrid = itemShopMap.navigationGrid;
-	if (!navigationGrid) throw new Error('Item Shop navigation grid source is missing');
-	const { maximumX } = itemShopStockroomEntrySafeXBand();
-	const blockedColumnX =
-		Math.floor(maximumX / navigationGrid.cellSizePx) * navigationGrid.cellSizePx;
-	const safeSideX = blockedColumnX - INTERIOR_ROUTE_SETTLE_TOLERANCE - 1;
-	const serviceToSalesDoor = layout.doors.serviceToSales;
-	const targetPoint = { x: safeSideX, y: requestedPoint.y };
-	expect(targetPoint.x).toBeGreaterThanOrEqual(serviceToSalesDoor.x);
-	expect(targetPoint.x).toBeLessThanOrEqual(serviceToSalesDoor.x + serviceToSalesDoor.width);
-	expect(layoutRectContainsPoint(layout.rooms.salesFloor, targetPoint)).toBe(true);
-	expect(safeSideX + INTERIOR_ROUTE_SETTLE_TOLERANCE).toBeLessThan(blockedColumnX);
-	expect(isWalkable(navigationGrid, safeSideX, requestedPoint.y)).toBe(true);
-	for (const offsetX of [-INTERIOR_ROUTE_SETTLE_TOLERANCE, INTERIOR_ROUTE_SETTLE_TOLERANCE]) {
-		for (const offsetY of [-INTERIOR_ROUTE_SETTLE_TOLERANCE, INTERIOR_ROUTE_SETTLE_TOLERANCE]) {
-			const settledPoint = {
-				x: targetPoint.x + offsetX,
-				y: targetPoint.y + offsetY
-			};
-			const dx = settledPoint.x - npc.x;
-			const dy = settledPoint.y - npc.y;
-			expect(dx * dx + dy * dy).toBeGreaterThan(npcCollisionRadius ** 2);
-			for (const propCollision of Object.values(layout.propCollisions)) {
-				expect(
-					expandedLayoutRectContainsPoint(propCollision, settledPoint, PLAYER_COLLISION_RADIUS)
-				).toBe(false);
-			}
-		}
-	}
-	return targetPoint;
-}
-
-function itemShopServiceCorridorWestBandTolerance(targetPoint: Point): number {
-	const { minimumX, maximumX } = itemShopStockroomEntrySafeXBand();
-	const tolerance = Math.min(
-		INTERIOR_ROUTE_SETTLE_TOLERANCE,
-		targetPoint.x - minimumX,
-		maximumX - targetPoint.x - 1
-	);
-	expect(tolerance).toBeGreaterThan(0);
-	return tolerance;
-}
-
-function itemShopMiraSemanticStagingPoint(): Point {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const counter = layout.propCollisions.miraCounter;
-	const npc = layout.npcApproaches.mira.npc;
-	const interactionRadius = PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const serviceWestLowerDivider = layout.walls.find(
-		({ id }) => id === 'item-shop-service-west-lower-divider'
-	);
-	if (!serviceWestLowerDivider) {
-		throw new Error('Item Shop service west lower divider source is missing');
-	}
-	const leftClearanceX = counter.x - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1;
-	const minimumDividerSafeY =
-		serviceWestLowerDivider.y +
-		serviceWestLowerDivider.height +
-		PLAYER_COLLISION_RADIUS +
-		AXIS_REACH_TOLERANCE +
-		1;
-	const minimumInteractionSafeY = npc.y - interactionRadius + AXIS_REACH_TOLERANCE;
-	const minimumSafeY = Math.max(minimumDividerSafeY, minimumInteractionSafeY);
-	const maximumSafeY = counter.y - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1;
-	const stagingY = Math.floor((minimumSafeY + maximumSafeY) / 2);
-	const stagingPoint = { x: leftClearanceX, y: stagingY };
-
-	expect({ minimumDividerSafeY, minimumInteractionSafeY, minimumSafeY, maximumSafeY }).toEqual({
-		minimumDividerSafeY: 287,
-		minimumInteractionSafeY: 290,
-		minimumSafeY: 290,
-		maximumSafeY: 305
-	});
-	expect(stagingPoint).toEqual({ x: 193, y: 297 });
-	expect(layoutRectContainsPoint(layout.rooms.salesFloor, stagingPoint)).toBe(true);
-	expect(stagingPoint.x + AXIS_REACH_TOLERANCE).toBeLessThan(counter.x - PLAYER_COLLISION_RADIUS);
-	expect(stagingPoint.y - AXIS_REACH_TOLERANCE).toBeGreaterThan(
-		serviceWestLowerDivider.y + serviceWestLowerDivider.height + PLAYER_COLLISION_RADIUS
-	);
-	expect(stagingPoint.y + AXIS_REACH_TOLERANCE).toBeLessThan(counter.y - PLAYER_COLLISION_RADIUS);
-	for (let offsetX = -AXIS_REACH_TOLERANCE; offsetX <= AXIS_REACH_TOLERANCE; offsetX += 1) {
-		for (let offsetY = -AXIS_REACH_TOLERANCE; offsetY <= AXIS_REACH_TOLERANCE; offsetY += 1) {
-			const settledPoint = {
-				x: stagingPoint.x + offsetX,
-				y: stagingPoint.y + offsetY
-			};
-			expect(expandedLayoutRectContainsPoint(counter, settledPoint, PLAYER_COLLISION_RADIUS)).toBe(
-				false
-			);
-			expect(
-				expandedLayoutRectContainsPoint(
-					serviceWestLowerDivider,
-					settledPoint,
-					PLAYER_COLLISION_RADIUS
-				)
-			).toBe(false);
-			const dx = settledPoint.x - npc.x;
-			const dy = settledPoint.y - npc.y;
-			expect(dx * dx + dy * dy).toBeGreaterThan(npcCollisionRadius ** 2);
-		}
-	}
-
-	// From every legal staging-row residue, moving right enters the interaction
-	// circle before it could reach Mira's combined collision circle.
-	for (let offsetY = -AXIS_REACH_TOLERANCE; offsetY <= AXIS_REACH_TOLERANCE; offsetY += 1) {
-		const settledY = stagingPoint.y + offsetY;
-		const verticalDistance = Math.abs(settledY - npc.y);
-		expect(verticalDistance).toBeLessThanOrEqual(interactionRadius);
-		const interactionReachX = Math.floor(Math.sqrt(interactionRadius ** 2 - verticalDistance ** 2));
-		const interactionEntryX = npc.x - interactionReachX;
-		const collisionEntryX =
-			verticalDistance < npcCollisionRadius
-				? npc.x - Math.floor(Math.sqrt(npcCollisionRadius ** 2 - verticalDistance ** 2))
-				: npc.x;
-		const interactionEntry = { x: interactionEntryX, y: settledY };
-		const interactionEntryDistanceSquared =
-			(interactionEntry.x - npc.x) ** 2 + (interactionEntry.y - npc.y) ** 2;
-		expect(interactionEntryX).toBeLessThan(collisionEntryX);
-		expect(interactionEntryDistanceSquared).toBeLessThanOrEqual(interactionRadius ** 2);
-		expect(interactionEntryDistanceSquared).toBeGreaterThan(npcCollisionRadius ** 2);
-		expect(
-			routeSegmentIntersectsCircle(
-				{ x: stagingPoint.x + AXIS_REACH_TOLERANCE, y: settledY },
-				interactionEntry,
-				npc,
-				npcCollisionRadius
-			)
-		).toBe(false);
-	}
-	return stagingPoint;
-}
-
-function itemShopSalesFloorHorizontalTransitY(): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const navigationCellSize = itemShopMap.navigationGrid?.cellSizePx;
-	if (!navigationCellSize) throw new Error('Item Shop navigation cell size source is missing');
-	const westDisplay = layout.propCollisions.westDisplay;
-	const eastDisplay = layout.propCollisions.eastDisplay;
-	const expandedDisplayBottom = westDisplay.y + westDisplay.height + PLAYER_COLLISION_RADIUS;
-	expect(eastDisplay.y + eastDisplay.height + PLAYER_COLLISION_RADIUS).toBe(expandedDisplayBottom);
-	const firstClearNavigationRowY =
-		Math.ceil(expandedDisplayBottom / navigationCellSize) * navigationCellSize;
-	const transitY = firstClearNavigationRowY + AXIS_REACH_TOLERANCE + 1;
-	expect({ firstClearNavigationRowY, transitY }).toEqual({
-		firstClearNavigationRowY: 528,
-		transitY: 547
-	});
-	return transitY;
-}
-
-function itemShopEastDisplaySideAisleX(): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const navigationCellSize = itemShopMap.navigationGrid?.cellSizePx;
-	if (!navigationCellSize) throw new Error('Item Shop navigation cell size source is missing');
-	const eastDisplay = layout.propCollisions.eastDisplay;
-	const expandedDisplayRight = eastDisplay.x + eastDisplay.width + PLAYER_COLLISION_RADIUS;
-	const firstClearNavigationColumnX =
-		Math.ceil(expandedDisplayRight / navigationCellSize) * navigationCellSize;
-	const sideAisleX = firstClearNavigationColumnX + AXIS_REACH_TOLERANCE + 1;
-	expect({ firstClearNavigationColumnX, sideAisleX }).toEqual({
-		firstClearNavigationColumnX: 704,
-		sideAisleX: 723
-	});
-	return sideAisleX;
-}
-
-function itemShopEastDisplayWestAisleX(): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const eastDisplay = layout.propCollisions.eastDisplay;
-	const expandedDisplayLeft = eastDisplay.x - PLAYER_COLLISION_RADIUS;
-	const aisleX = expandedDisplayLeft - AXIS_REACH_TOLERANCE - INTERIOR_ROUTE_SETTLE_TOLERANCE - 1;
-	expect({ expandedDisplayLeft, aisleX }).toEqual({ expandedDisplayLeft: 612, aisleX: 589 });
-	return aisleX;
-}
-
-function itemShopWestDisplayEastAisleX(): number {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const westDisplay = layout.propCollisions.westDisplay;
-	const expandedDisplayRight = westDisplay.x + westDisplay.width + PLAYER_COLLISION_RADIUS;
-	const aisleX = expandedDisplayRight + AXIS_REACH_TOLERANCE + INTERIOR_ROUTE_SETTLE_TOLERANCE + 1;
-	expect({ expandedDisplayRight, aisleX }).toEqual({ expandedDisplayRight: 220, aisleX: 243 });
-	return aisleX;
-}
-
-function itemShopMiraRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const counter = layout.propCollisions.miraCounter;
-	const npc = layout.npcApproaches.mira.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const leftClearanceX = counter.x - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1;
-	const displayOuterX = 96;
-	const salesFloorBelowDisplaysY = itemShopSalesFloorHorizontalTransitY();
-	const stagingPoint = itemShopMiraSemanticStagingPoint();
-	const points = [
-		currentPoint,
-		{ x: currentPoint.x, y: salesFloorBelowDisplaysY },
-		{ x: displayOuterX, y: salesFloorBelowDisplaysY },
-		{ x: displayOuterX, y: stagingPoint.y },
-		targetPoint
-	];
-	expect(targetPoint).toEqual(stagingPoint);
-	expect(targetPoint.x).toBe(leftClearanceX);
-	expect(targetPoint.y).toBe(stagingPoint.y);
-	expect(displayOuterX + AXIS_REACH_TOLERANCE).toBeLessThan(layout.propCollisions.westDisplay.x);
-	expect(salesFloorBelowDisplaysY - AXIS_REACH_TOLERANCE).toBeGreaterThan(
-		layout.propCollisions.westDisplay.y +
-			layout.propCollisions.westDisplay.height +
-			PLAYER_COLLISION_RADIUS
-	);
-	expect(layoutRectContainsPoint(layout.rooms.salesFloor, targetPoint)).toBe(true);
-	for (let index = 1; index < points.length; index += 1) {
-		const from = points[index - 1]!;
-		const to = points[index]!;
-		expect(
-			from.x === to.x || from.y === to.y,
-			`Item Shop Mira route must remain axis-aligned: ${JSON.stringify({ from, to })}`
-		).toBe(true);
-		for (const wall of layout.walls) {
-			expect(
-				routeSegmentIntersectsExpandedRect(from, to, wall, PLAYER_COLLISION_RADIUS),
-				`Item Shop Mira route crossed ${wall.id}: ${JSON.stringify({ from, to })}`
-			).toBe(false);
-		}
-		for (const propCollision of Object.values(layout.propCollisions)) {
-			expect(
-				routeSegmentIntersectsExpandedRect(from, to, propCollision, PLAYER_COLLISION_RADIUS),
-				`Item Shop Mira route crossed a prop collision: ${JSON.stringify({ from, to, propCollision })}`
-			).toBe(false);
-		}
-		expect(
-			routeSegmentIntersectsCircle(from, to, npc, npcCollisionRadius),
-			`Item Shop Mira route crossed Mira's combined collision: ${JSON.stringify({ from, to, npc })}`
-		).toBe(false);
-	}
-	return points;
-}
-
-function itemShopMiraCrossAisleRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const safeX = itemShopWestDisplayEastAisleX();
-	const westDisplay = layout.propCollisions.westDisplay;
-	const points = [
-		currentPoint,
-		{ x: safeX, y: currentPoint.y },
-		{ x: targetPoint.x, y: currentPoint.y },
-		targetPoint
-	];
-
-	// Move through the source-derived east-side lane so the ±18 endpoint envelope
-	// stays clear of the west display before the outward cross-aisle route.
-	expect(targetPoint).toEqual({ x: 416, y: 448 });
-	expect(safeX - AXIS_REACH_TOLERANCE - INTERIOR_ROUTE_SETTLE_TOLERANCE).toBeGreaterThan(
-		westDisplay.x + westDisplay.width + PLAYER_COLLISION_RADIUS
-	);
-	for (let index = 1; index < points.length; index += 1) {
-		const from = points[index - 1]!;
-		const to = points[index]!;
-		expect(
-			from.x === to.x || from.y === to.y,
-			`Item Shop Mira cross-aisle route must remain axis-aligned: ${JSON.stringify({ from, to })}`
-		).toBe(true);
-	}
-	for (const obstacle of [...layout.walls, ...Object.values(layout.propCollisions)]) {
-		expect(
-			routeSegmentIntersectsExpandedRect(points[0]!, points[1]!, obstacle, PLAYER_COLLISION_RADIUS),
-			`Item Shop Mira cross-aisle clearance crossed an authored obstacle: ${JSON.stringify({ from: points[0], to: points[1], obstacle })}`
-		).toBe(false);
-		expect(
-			endpointXEnvelopeIsDisjointFromExpandedRect(points[1]!, obstacle, PLAYER_COLLISION_RADIUS),
-			`Item Shop Mira cross-aisle clearance endpoint entered an expanded obstacle: ${JSON.stringify({ endpoint: points[1], obstacle })}`
-		).toBe(true);
-	}
-	return points;
-}
-
-function itemShopMiraReturnRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const counter = layout.propCollisions.miraCounter;
-	const npc = layout.npcApproaches.mira.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const leftClearanceX = counter.x - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1;
-	const displayOuterX = 96;
-	const salesFloorBelowDisplaysY = itemShopSalesFloorHorizontalTransitY();
-	const stagingPoint = itemShopMiraSemanticStagingPoint();
-	const points = [
-		currentPoint,
-		{ x: displayOuterX, y: currentPoint.y },
-		{ x: displayOuterX, y: salesFloorBelowDisplaysY },
-		{ x: targetPoint.x, y: salesFloorBelowDisplaysY },
-		targetPoint
-	];
-
-	// Preserve the live post-interaction y while moving away from Mira, then
-	// descend beside the display and cross the open sales floor.
-	expect(Math.abs(currentPoint.y - stagingPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(points[1]?.x).toBe(displayOuterX);
-	expect(points[2]?.x).toBe(displayOuterX);
-	expect(layoutRectContainsPoint(layout.rooms.salesFloor, targetPoint)).toBe(true);
-	expect(displayOuterX + AXIS_REACH_TOLERANCE).toBeLessThan(layout.propCollisions.westDisplay.x);
-	expect(salesFloorBelowDisplaysY - AXIS_REACH_TOLERANCE).toBeGreaterThan(
-		layout.propCollisions.westDisplay.y +
-			layout.propCollisions.westDisplay.height +
-			PLAYER_COLLISION_RADIUS
-	);
-	expect(leftClearanceX + AXIS_REACH_TOLERANCE).toBeLessThan(counter.x - PLAYER_COLLISION_RADIUS);
-	for (let index = 1; index < points.length; index += 1) {
-		const from = points[index - 1]!;
-		const to = points[index]!;
-		expect(
-			from.x === to.x || from.y === to.y,
-			`Item Shop Mira return route must remain axis-aligned: ${JSON.stringify({ from, to })}`
-		).toBe(true);
-		for (const wall of layout.walls) {
-			expect(
-				routeSegmentIntersectsExpandedRect(from, to, wall, PLAYER_COLLISION_RADIUS),
-				`Item Shop Mira return route crossed ${wall.id}: ${JSON.stringify({ from, to })}`
-			).toBe(false);
-		}
-		for (const propCollision of Object.values(layout.propCollisions)) {
-			expect(
-				routeSegmentIntersectsExpandedRect(from, to, propCollision, PLAYER_COLLISION_RADIUS),
-				`Item Shop Mira return route crossed a prop collision: ${JSON.stringify({ from, to, propCollision })}`
-			).toBe(false);
-		}
-		expect(
-			routeSegmentIntersectsCircle(from, to, npc, npcCollisionRadius),
-			`Item Shop Mira return route crossed Mira's combined collision: ${JSON.stringify({ from, to, npc })}`
-		).toBe(false);
-	}
-	return points;
-}
-
-function itemShopServiceCorridorWestRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const npc = layout.npcApproaches.mira.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const points = [
-		currentPoint,
-		...(currentPoint.y === targetPoint.y ? [] : [{ x: currentPoint.x, y: targetPoint.y }]),
-		targetPoint
-	];
-	for (let index = 1; index < points.length; index += 1) {
-		const from = points[index - 1]!;
-		const to = points[index]!;
-		expect(
-			from.x === to.x || from.y === to.y,
-			`Item Shop service corridor west route must remain axis-aligned: ${JSON.stringify({ from, to })}`
-		).toBe(true);
-		for (const wall of layout.walls) {
-			expect(
-				routeSegmentIntersectsExpandedRect(from, to, wall, PLAYER_COLLISION_RADIUS),
-				`Item Shop route crossed ${wall.id}: ${JSON.stringify({ from, to })}`
-			).toBe(false);
-		}
-		for (const propCollision of Object.values(layout.propCollisions)) {
-			expect(
-				routeSegmentIntersectsExpandedRect(from, to, propCollision, PLAYER_COLLISION_RADIUS),
-				`Item Shop route crossed a prop collision: ${JSON.stringify({ from, to, propCollision })}`
-			).toBe(false);
-		}
-		if (index === 1 && from.x === to.x) {
-			// The service-corridor handoff starts from the actual settled x of the
-			// preceding north route. That settled point is exact live evidence;
-			// retain the Y reach envelope only for the planned destination, where
-			// the runner may still settle within its unchanged tolerance.
-			for (const obstacle of [...layout.walls, ...Object.values(layout.propCollisions)]) {
-				for (const endpoint of [to]) {
-					expect(
-						endpointYEnvelopeIsDisjointFromExpandedRect(
-							endpoint,
-							obstacle,
-							PLAYER_COLLISION_RADIUS
-						),
-						`Item Shop service corridor west fixed-x endpoint entered an expanded collision envelope: ${JSON.stringify({ endpoint, obstacle })}`
-					).toBe(true);
-				}
-			}
-		}
-		expect(
-			routeSegmentIntersectsCircle(from, to, npc, npcCollisionRadius),
-			`Item Shop route crossed Mira's combined collision: ${JSON.stringify({ from, to, npc })}`
-		).toBe(false);
-	}
-	return points;
-}
-
-function itemShopServiceCorridorSouthRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const safeX = itemShopEastDisplayWestAisleX();
-	const salesFloorBelowDisplaysY = itemShopSalesFloorHorizontalTransitY();
-	const obstacles = [...layout.walls, ...Object.values(layout.propCollisions)];
-	const points = [
-		currentPoint,
-		{ x: safeX, y: currentPoint.y },
-		{ x: safeX, y: salesFloorBelowDisplaysY },
-		{ x: targetPoint.x, y: salesFloorBelowDisplaysY },
-		targetPoint
-	];
-
-	// Cross through the source-derived west-side lane so every remaining segment's
-	// ±18 endpoint envelope stays clear below or beside the east display.
-	expect(targetPoint).toEqual({ x: 640, y: 544 });
-	expect(safeX + AXIS_REACH_TOLERANCE).toBeLessThan(
-		layout.propCollisions.eastDisplay.x - PLAYER_COLLISION_RADIUS
-	);
-	expect(salesFloorBelowDisplaysY - AXIS_REACH_TOLERANCE).toBeGreaterThan(
-		layout.propCollisions.eastDisplay.y +
-			layout.propCollisions.eastDisplay.height +
-			PLAYER_COLLISION_RADIUS
-	);
-
-	for (let index = 1; index < points.length; index += 1) {
-		const from = points[index - 1]!;
-		const to = points[index]!;
-		expect(
-			from.x === to.x || from.y === to.y,
-			`Item Shop service corridor south route must remain axis-aligned: ${JSON.stringify({ from, to })}`
-		).toBe(true);
-	}
-	for (const obstacle of obstacles) {
-		expect(
-			routeSegmentIntersectsExpandedRect(points[0]!, points[1]!, obstacle, PLAYER_COLLISION_RADIUS),
-			`Item Shop service-corridor-south clearance crossed an authored obstacle: ${JSON.stringify({ from: points[0], to: points[1], obstacle })}`
-		).toBe(false);
-		expect(
-			endpointXEnvelopeIsDisjointFromExpandedRect(points[1]!, obstacle, PLAYER_COLLISION_RADIUS),
-			`Item Shop service-corridor-south clearance endpoint entered an expanded obstacle: ${JSON.stringify({ endpoint: points[1], obstacle })}`
-		).toBe(true);
-	}
-	return points;
-}
-
-function itemShopServiceCorridorNorthRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const counter = layout.propCollisions.miraCounter;
-	const eastDisplay = layout.propCollisions.eastDisplay;
-	const npc = layout.npcApproaches.mira.npc;
-	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const expandedRight = counter.x + counter.width + PLAYER_COLLISION_RADIUS;
-	const safeX = itemShopEastDisplaySideAisleX();
-	const salesFloorBelowDisplaysY = itemShopSalesFloorHorizontalTransitY();
-	// The preceding real endpoint can be inside the authored x=640 checkpoint
-	// band. Move below the east display first, then use its clear side aisle for
-	// the north leg; the route's unchanged endpoint envelope must clear both the
-	// baked rack and Mira's counter.
-	expect(safeX).toBe(723);
-	expect(salesFloorBelowDisplaysY).toBe(547);
-	expect(safeX - AXIS_REACH_TOLERANCE).toBeGreaterThan(
-		eastDisplay.x + eastDisplay.width + PLAYER_COLLISION_RADIUS
-	);
-	expect(safeX - AXIS_REACH_TOLERANCE).toBeGreaterThan(expandedRight);
-	expect(layoutRectContainsPoint(layout.rooms.salesFloor, { x: safeX, y: targetPoint.y })).toBe(
-		true
-	);
-	const points = [
-		currentPoint,
-		{ x: currentPoint.x, y: salesFloorBelowDisplaysY },
-		{ x: safeX, y: salesFloorBelowDisplaysY },
-		{ x: safeX, y: targetPoint.y },
-		targetPoint
-	];
-	for (let index = 1; index < points.length; index += 1) {
-		const from = points[index - 1]!;
-		const to = points[index]!;
-		const initialFixedAxisTransit = index === 1 && from.x === to.x;
-		expect(
-			from.x === to.x || from.y === to.y,
-			`Item Shop service north route must remain axis-aligned: ${JSON.stringify({ from, to })}`
-		).toBe(true);
-		for (const obstacle of [counter, eastDisplay]) {
-			expect(
-				initialFixedAxisTransit
-					? routeSegmentIntersectsExpandedRect(from, to, obstacle, PLAYER_COLLISION_RADIUS)
-					: routeSegmentIntersectsExpandedRectAtReachEnvelope(
-							from,
-							to,
-							obstacle,
-							PLAYER_COLLISION_RADIUS
-						),
-				`Item Shop service north route crossed an authored obstacle: ${JSON.stringify({ from, to, obstacle })}`
-			).toBe(false);
-		}
-		expect(
-			routeSegmentIntersectsCircle(from, to, npc, npcCollisionRadius),
-			`Item Shop service north route crossed Mira's collision: ${JSON.stringify({ from, to, npc })}`
-		).toBe(false);
-	}
-	return points;
-}
-
-function itemShopServiceReturnSouthRoutePoints(currentPoint: Point, targetPoint: Point): Point[] {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const counter = layout.propCollisions.miraCounter;
-	const expandedRight = counter.x + counter.width + PLAYER_COLLISION_RADIUS;
-	const safeX = expandedRight + AXIS_REACH_TOLERANCE + INTERIOR_ROUTE_SETTLE_TOLERANCE + 1;
-	const points = [
-		currentPoint,
-		{ x: safeX, y: currentPoint.y },
-		{ x: safeX, y: targetPoint.y },
-		targetPoint
-	];
-	const obstacles = [...layout.walls, ...Object.values(layout.propCollisions)];
-
-	// Preserve the live y residue above Mira's counter while moving east. This
-	// fixed-y and vertical handoffs use their actual locked axes; the symmetric
-	// oracle starts after these source-derived clearance legs.
-	expect(targetPoint).toEqual({ x: 640, y: 300 });
-	expect(safeX - AXIS_REACH_TOLERANCE - INTERIOR_ROUTE_SETTLE_TOLERANCE).toBeGreaterThan(
-		expandedRight
-	);
-	expect(layoutRectContainsPoint(layout.rooms.salesFloor, points[1]!)).toBe(true);
-	expect(layoutRectContainsPoint(layout.rooms.salesFloor, points[2]!)).toBe(true);
-	for (const obstacle of obstacles) {
-		expect(
-			routeSegmentIntersectsExpandedRect(points[0]!, points[1]!, obstacle, PLAYER_COLLISION_RADIUS),
-			`Item Shop service-return-south east handoff crossed ${JSON.stringify(obstacle)}: ${JSON.stringify({ from: points[0], to: points[1] })}`
-		).toBe(false);
-		expect(
-			endpointXEnvelopeIsDisjointFromExpandedRect(points[1]!, obstacle, PLAYER_COLLISION_RADIUS),
-			`Item Shop service-return-south east handoff endpoint entered ${JSON.stringify(obstacle)}: ${JSON.stringify({ endpoint: points[1], obstacle })}`
-		).toBe(true);
-		expect(
-			routeSegmentIntersectsExpandedRect(points[1]!, points[2]!, obstacle, PLAYER_COLLISION_RADIUS),
-			`Item Shop service-return-south vertical handoff crossed ${JSON.stringify(obstacle)}: ${JSON.stringify({ from: points[1], to: points[2] })}`
-		).toBe(false);
-		expect(
-			endpointYEnvelopeIsDisjointFromExpandedRect(points[2]!, obstacle, PLAYER_COLLISION_RADIUS),
-			`Item Shop service-return-south vertical endpoint entered ${JSON.stringify(obstacle)}: ${JSON.stringify({ endpoint: points[2], obstacle })}`
-		).toBe(true);
-	}
-	return points;
-}
-
-function itemShopMiraServiceReturnWestDoorwayRoutePoints(currentPoint: Point): Point[] {
-	const safeX = itemShopStockroomOfficeDividerSafeX();
-	const points = itemShopDoorwayCrossingRoutePoints(
-		currentPoint,
-		{ x: safeX, y: currentPoint.y },
-		'office'
-	).slice(0, 2);
-
-	// The service-corridor endpoint is already on the west side of the office
-	// divider. Reuse the authored office doorway helper for the fixed-y westward
-	// handoff, rather than sending a generic route directly down beside the
-	// divider and applying a false symmetric y residue to its doorway opening.
-	expect(points).toEqual([currentPoint, { x: safeX, y: currentPoint.y }]);
-	return points;
-}
-
-function itemShopMiraServiceReturnWestExitRoutePoints(
-	currentPoint: Point,
-	targetPoint: Point
-): { vertical: [Point, Point]; horizontal: [Point, Point] } {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const officeDividerSouth = layout.walls.find(({ id }) => id === 'item-shop-office-divider-south');
-	if (!officeDividerSouth) {
-		throw new Error('Item Shop office-divider-south source is missing');
-	}
-	const expandedLeft = officeDividerSouth.x - PLAYER_COLLISION_RADIUS;
-	const verticalDestination = { x: currentPoint.x, y: targetPoint.y };
-
-	// The fixed-y doorway leg above returns the authoritative live x. The real
-	// player circle must be west of the divider before descending; the vertical
-	// leg applies the asymmetric fixed-axis contract below.
-	expect(targetPoint).toEqual({ x: 448, y: 300 });
-	expect(currentPoint.x + PLAYER_COLLISION_RADIUS).toBeLessThan(officeDividerSouth.x);
-	expect(currentPoint.x).toBeLessThan(expandedLeft);
-	expect(layoutRectContainsPoint(layout.corridors.serviceCorridor, currentPoint)).toBe(true);
-	return {
-		vertical: [currentPoint, verticalDestination],
-		horizontal: [verticalDestination, targetPoint]
-	};
 }
 
 async function waitForHudPosition(page: Page, mapId: string, point: Point) {
@@ -8486,397 +1658,11 @@ function trustedNpcDirectionToward(from: Point, npc: Point): TrustedNpcDirection
 	return deltaY < 0 ? 'ArrowUp' : 'ArrowDown';
 }
 
-function trustedNpcSemanticApproachForStep(
-	interior: InteriorGrayboxCase,
-	step: InteriorGrayboxStep,
-	checkpoint: Point
-): TrustedNpcSemanticApproach | null {
-	if (!step.interaction) return null;
-	const layout = VILLAGE_INTERIOR_LAYOUTS[interior.mapId as keyof typeof VILLAGE_INTERIOR_LAYOUTS];
-	const bindings = (INTERIOR_NPC_APPROACH_BINDINGS[
-		interior.mapId as keyof typeof INTERIOR_NPC_APPROACH_BINDINGS
-	] ?? {}) as Readonly<Record<string, InteriorNpcApproachBinding>>;
-	const binding = bindings[step.interaction.speaker];
-	if (!layout || !binding) {
-		throw new Error(
-			`Missing trusted NPC source binding: ${interior.mapId}:${step.interaction.speaker}`
-		);
-	}
-	const npcApproach = (
-		layout.npcApproaches as Readonly<
-			Record<string, { readonly npc: Point; readonly approach: Point }>
-		>
-	)[binding.approachKey];
-	if (!npcApproach) {
-		throw new Error(
-			`Missing trusted NPC source approach ${binding.approachKey}: ${interior.mapId}:${step.interaction.speaker}`
-		);
-	}
-	const propCollision = binding.propCollisionKey
-		? (
-				layout.propCollisions as Readonly<
-					Record<
-						string,
-						{
-							readonly x: number;
-							readonly y: number;
-							readonly width: number;
-							readonly height: number;
-						}
-					>
-				>
-			)[binding.propCollisionKey]
-		: undefined;
-	if (binding.propCollisionKey && !propCollision) {
-		throw new Error(
-			`Missing trusted NPC source prop collision ${binding.propCollisionKey}: ${interior.mapId}:${step.interaction.speaker}`
-		);
-	}
-	expect(step.point).toEqual(npcApproach.approach);
-	const stagingPoint =
-		interior.mapId === 'guild-hall' && step.interaction.speaker === 'Borak'
-			? guildHallGuildMasterInteractionStagingPoint()
-			: interior.mapId === 'guild-hall' && step.interaction.speaker === 'Lodge Keeper'
-				? guildHallQuartermasterInteractionStagingPoint()
-				: isItemShopMiraStep(interior, step)
-					? itemShopMiraSemanticStagingPoint()
-					: interior.mapId === 'villager-house-1' && step.interaction.speaker === 'Lynn'
-						? villagerHouse1LynnStagingPoint()
-						: checkpoint;
-	return {
-		mapId: interior.mapId,
-		speaker: step.interaction.speaker,
-		stagingPoint,
-		npc: { x: npcApproach.npc.x, y: npcApproach.npc.y },
-		propCollision: propCollision
-			? {
-					x: propCollision.x,
-					y: propCollision.y,
-					width: propCollision.width,
-					height: propCollision.height
-				}
-			: undefined
-	};
-}
-
-async function runGuildMasterSemanticDiagonal(
-	page: Page,
-	beforeEvidence: MapAwarePlayerEvidence,
-	interactionYBand: { min: number; maxExclusive: number },
-	label: string
-): Promise<GuildMasterSemanticDiagonalResult> {
-	const token = `guild-master-semantic-diagonal-${Date.now()}`;
-	expect(beforeEvidence.state?.mapId).toBe('guild-hall');
-	const yDirection =
-		beforeEvidence.selectedPoint.y < interactionYBand.min
-			? 1
-			: beforeEvidence.selectedPoint.y >= interactionYBand.maxExclusive
-				? -1
-				: 0;
-	const started = await page.evaluate(
-		(plan) =>
-			(window as GlieseProbeWindow).__glieseRouteRunner?.startGuildMasterSemanticDiagonal(plan) ??
-			null,
-		{
-			token,
-			expectedMapId: 'guild-hall',
-			minY: interactionYBand.min,
-			maxYExclusive: interactionYBand.maxExclusive,
-			xDirection: -1 as const
-		}
-	);
-	if (!started) throw new Error(`${label}: semantic diagonal runner unavailable`);
-	if (started.status === 'error') {
-		throw new Error(`${label}: ${JSON.stringify(started)}`);
-	}
-	try {
-		await page.waitForFunction(
-			(requestedToken) => {
-				const state = (
-					window as GlieseProbeWindow
-				).__glieseRouteRunner?.getGuildMasterSemanticDiagonal(requestedToken);
-				return state?.status === 'done' || state?.status === 'error';
-			},
-			token,
-			{ timeout: ROUTE_NO_PROGRESS_WATCHDOG_MS }
-		);
-	} catch (error) {
-		const timedOutState = await page.evaluate(
-			(requestedToken) =>
-				(window as GlieseProbeWindow).__glieseRouteRunner?.getGuildMasterSemanticDiagonal(
-					requestedToken
-				) ?? null,
-			token
-		);
-		const canceledState = await page.evaluate(
-			(requestedToken) =>
-				(window as GlieseProbeWindow).__glieseRouteRunner?.cancelGuildMasterSemanticDiagonal(
-					requestedToken,
-					'semantic diagonal wait interrupted'
-				) ?? null,
-			token
-		);
-		throw new Error(
-			`${label}: semantic diagonal wait interrupted; state=${JSON.stringify(timedOutState)}; cleanup=${JSON.stringify(canceledState)}`,
-			{ cause: error }
-		);
-	}
-	const result = await page.evaluate(
-		(requestedToken) =>
-			(window as GlieseProbeWindow).__glieseRouteRunner?.getGuildMasterSemanticDiagonal(
-				requestedToken
-			) ?? null,
-		token
-	);
-	if (!result) throw new Error(`${label}: semantic diagonal returned no state`);
-	expect(result.token).toBe(token);
-	expect(result.mapId).toBe('guild-hall');
-	expect(result.released).toBe(true);
-	expect(result.activeKeys).toEqual([]);
-	expect(result.position).not.toBeNull();
-	const expectedReleasedKeys =
-		yDirection === 1
-			? ['ArrowLeft', 'ArrowDown']
-			: yDirection === -1
-				? ['ArrowLeft', 'ArrowUp']
-				: [];
-	expect(result.releasedKeys).toEqual(expectedReleasedKeys);
-	expect(
-		expandedLayoutRectContainsPoint(
-			VILLAGE_INTERIOR_LAYOUTS['guild-hall'].propCollisions.guildMasterDesk,
-			result.position!,
-			PLAYER_COLLISION_RADIUS
-		)
-	).toBe(false);
-	expect(result.position!.y).toBeGreaterThanOrEqual(interactionYBand.min);
-	expect(result.position!.y).toBeLessThan(interactionYBand.maxExclusive);
-	for (const [index, diagnostic] of result.diagnostics.entries()) {
-		expect(diagnostic.mapId, `${label} diagnostic ${index} map`).toBe('guild-hall');
-		expect(diagnostic.blocked, `${label} diagnostic ${index} blocked`).toBe(false);
-		expect(diagnostic.resolvedPosition.x).toBeLessThan(diagnostic.previousPosition.x);
-		expect(
-			yDirection === 1
-				? diagnostic.resolvedPosition.y > diagnostic.previousPosition.y
-				: diagnostic.resolvedPosition.y < diagnostic.previousPosition.y
-		).toBe(true);
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				diagnostic.previousPosition,
-				diagnostic.resolvedPosition,
-				VILLAGE_INTERIOR_LAYOUTS['guild-hall'].propCollisions.guildMasterDesk,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			yDirection === 1
-				? diagnostic.resolvedPosition.y < interactionYBand.maxExclusive
-				: yDirection === -1
-					? diagnostic.resolvedPosition.y >= interactionYBand.min
-					: diagnostic.resolvedPosition.y >= interactionYBand.min &&
-						diagnostic.resolvedPosition.y < interactionYBand.maxExclusive
-		).toBe(true);
-	}
-	return result;
-}
-
-function assertGuildHallLobbyReturnFinalRouteContract(
-	points: readonly [Point, Point, Point],
-	result: BrowserRouteResult,
-	targetPoint: Point,
-	label: string
-): Point {
-	/*
-	 * The terminal route assertions intentionally remain outside the semantic
-	 * diagnostic loop: the semantic phase may emit more than one valid frame
-	 * before entering its strict y band.
-	 */
-	expect(points[1], `${label} fixed-x handoff`).toEqual({ x: points[0]!.x, y: targetPoint.y });
-	expect(points[2], `${label} authored final point`).toEqual(targetPoint);
-	expect(result.status, `${label} status`).toBe('done');
-	expect(result.mapId, `${label} map`).toBe('guild-hall');
-	expect(result.activeKey ?? null, `${label} active key`).toBeNull();
-	expect(result.position, `${label} final position`).not.toBeNull();
-	if (!result.position) {
-		throw new Error(`${label}: final route returned no position`);
-	}
-	assertGuildHallTerminalCheckpointContract(result.position, targetPoint);
-	return result.position;
-}
-
-async function runFixedXAxisBandSteering(
-	page: Page,
-	request: FixedXAxisBandSteeringRequest,
-	label: string
-): Promise<CaveDoorwayBandResult> {
-	const token = `${request.tokenPrefix}-${Date.now()}-${routeTokenSequence++}`;
-	const started = await page.evaluate(
-		(plan) => (window as GlieseProbeWindow).__glieseRouteRunner?.startCaveDoorwayBand(plan) ?? null,
-		{
-			token,
-			expectedMapId: request.expectedMapId,
-			minX: request.minX,
-			maxXExclusive: request.maxXExclusive,
-			expectedY: request.expectedY
-		}
-	);
-	if (!started) throw new Error(`${label}: fixed-x band runner unavailable`);
-	if (started.status === 'error') {
-		throw new Error(`${label}: ${JSON.stringify(started)}`);
-	}
-	try {
-		await page.waitForFunction(
-			(requestedToken) => {
-				const state = (window as GlieseProbeWindow).__glieseRouteRunner?.getCaveDoorwayBand(
-					requestedToken
-				);
-				return state?.status === 'done' || state?.status === 'error';
-			},
-			token,
-			{ timeout: ROUTE_NO_PROGRESS_WATCHDOG_MS }
-		);
-	} catch (error) {
-		const timedOutState = await page.evaluate(
-			(requestedToken) =>
-				(window as GlieseProbeWindow).__glieseRouteRunner?.getCaveDoorwayBand(requestedToken) ??
-				null,
-			token
-		);
-		const canceledState = await page.evaluate(
-			(requestedToken) =>
-				(window as GlieseProbeWindow).__glieseRouteRunner?.cancelCaveDoorwayBand(
-					requestedToken,
-					'fixed-x band wait interrupted'
-				) ?? null,
-			token
-		);
-		throw new Error(
-			`${label}: fixed-x band wait interrupted; state=${JSON.stringify(timedOutState)}; cleanup=${JSON.stringify(canceledState)}`,
-			{ cause: error }
-		);
-	}
-	const result = await page.evaluate(
-		(requestedToken) =>
-			(window as GlieseProbeWindow).__glieseRouteRunner?.getCaveDoorwayBand(requestedToken) ?? null,
-		token
-	);
-	if (!result) throw new Error(`${label}: fixed-x band returned no state`);
-	if (result.status === 'error') {
-		throw new Error(`${label}: ${JSON.stringify(result)}`);
-	}
-	expect(result.token, `${label} token`).toBe(token);
-	expect(result.status, `${label} status`).toBe('done');
-	expect(result.mapId, `${label} map`).toBe(request.expectedMapId);
-	expect(result.released, `${label} released`).toBe(true);
-	expect(result.activeKeys, `${label} active keys`).toEqual([]);
-	expect(result.position, `${label} final position`).not.toBeNull();
-	if (!result.position) throw new Error(`${label}: fixed-x band returned no final point`);
-	expect(result.position.y, `${label} fixed y`).toBe(request.expectedY);
-	expect(result.position.x, `${label} band lower bound`).toBeGreaterThanOrEqual(request.minX);
-	expect(result.position.x, `${label} band upper bound`).toBeLessThan(request.maxXExclusive);
-	const expectedDirection =
-		request.initialPoint.x < request.minX
-			? 1
-			: request.initialPoint.x >= request.maxXExclusive
-				? -1
-				: 0;
-	expect(result.releasedKeys, `${label} released keys`).toEqual(
-		expectedDirection > 0 ? ['ArrowRight'] : expectedDirection < 0 ? ['ArrowLeft'] : []
-	);
-	let previousResolvedX = request.initialPoint.x;
-	for (const [index, diagnostic] of result.diagnostics.entries()) {
-		expect(diagnostic.mapId, `${label} diagnostic ${index} map`).toBe(request.expectedMapId);
-		expect(diagnostic.blocked, `${label} diagnostic ${index} blocked`).toBe(false);
-		expect(diagnostic.previousPosition.x, `${label} diagnostic ${index} continuity`).toBe(
-			previousResolvedX
-		);
-		expect(diagnostic.previousPosition.y, `${label} diagnostic ${index} previous y`).toBe(
-			request.expectedY
-		);
-		expect(diagnostic.requestedPosition.y, `${label} diagnostic ${index} requested y`).toBe(
-			request.expectedY
-		);
-		expect(diagnostic.resolvedPosition.y, `${label} diagnostic ${index} resolved y`).toBe(
-			request.expectedY
-		);
-		expect(
-			(diagnostic.resolvedPosition.x - diagnostic.previousPosition.x) * expectedDirection,
-			`${label} diagnostic ${index} monotonic x`
-		).toBeGreaterThan(0);
-		previousResolvedX = diagnostic.resolvedPosition.x;
-	}
-	return result;
-}
-
-async function runItemShopStockroomEntryBandSteering(
-	page: Page,
-	beforeEvidence: MapAwarePlayerEvidence,
-	label: string
-): Promise<Point> {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['item-shop'];
-	const { selectedPoint } = beforeEvidence;
-	const { minimumX, maximumX } = itemShopStockroomEntrySafeXBand();
-	expect(beforeEvidence.state?.ready, `${label} ready`).toBe(true);
-	expect(beforeEvidence.state?.mapId, `${label} map`).toBe('item-shop');
-	expect(Number.isFinite(selectedPoint.x), `${label} current x`).toBe(true);
-	expect(Number.isFinite(selectedPoint.y), `${label} current y`).toBe(true);
-	expect(
-		layoutRectContainsPoint(layout.rooms.salesFloor, selectedPoint),
-		`${label} sales floor`
-	).toBe(true);
-
-	const result = await runFixedXAxisBandSteering(
-		page,
-		{
-			expectedMapId: 'item-shop',
-			minX: minimumX,
-			maxXExclusive: maximumX,
-			expectedY: selectedPoint.y,
-			initialPoint: selectedPoint,
-			tokenPrefix: 'item-shop-stockroom-entry-band'
-		},
-		label
-	);
-	return assertItemShopStockroomEntryBandContract(selectedPoint, result, label);
-}
-
-async function pulseGuildMasterIntoInteractionBand(page: Page, startPoint: Point): Promise<Point> {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-	const desk = layout.propCollisions.guildMasterDesk;
-	const expandedDeskLeft = desk.x - PLAYER_COLLISION_RADIUS;
-	const leftClearanceX = desk.x - PLAYER_COLLISION_RADIUS - AXIS_REACH_TOLERANCE - 1;
-	const interactionYBand = guildHallGuildMasterInteractionYBand();
-	const stagingPoint = guildHallGuildMasterInteractionStagingPoint();
-
-	// The route runner may legally finish the preceding axis at any point inside
-	// its unchanged ±18 reach band. Keep that endpoint on the source-derived left
-	// side of the desk before using vertical real-input pulses.
-	expect(leftClearanceX + AXIS_REACH_TOLERANCE).toBeLessThan(expandedDeskLeft);
-	expect(startPoint.x).toBeLessThan(expandedDeskLeft);
-	expect(Math.abs(startPoint.x - stagingPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-
-	const currentEvidence = await currentHudPlayerEvidence(page, 'guild-hall');
-	const isInInteractionBand = (point: Point) =>
-		point.y >= interactionYBand.min && point.y < interactionYBand.maxExclusive;
-	const semanticDiagonal = await runGuildMasterSemanticDiagonal(
-		page,
-		currentEvidence,
-		interactionYBand,
-		'Guild Master diagonal staging pulse'
-	);
-	expect(semanticDiagonal.status).toBe('done');
-	const currentPoint = semanticDiagonal.position!;
-	expect(isInInteractionBand(currentPoint)).toBe(true);
-
-	assertGuildHallGuildMasterInteractionBand(stagingPoint);
-	const semanticEvidence = await currentHudPlayerEvidence(page, 'guild-hall');
-	return assertGuildHallGuildMasterStagingContract(page, stagingPoint, semanticEvidence);
-}
-
 async function approachNpcWithTrustedKeyboard(
 	page: Page,
 	approach: TrustedNpcSemanticApproach
 ): Promise<Point> {
-	let stagingEvidence = await currentHudPlayerEvidence(page, approach.mapId);
+	const stagingEvidence = await currentHudPlayerEvidence(page, approach.mapId);
 	expect(Math.abs(stagingEvidence.selectedPoint.x - approach.stagingPoint.x)).toBeLessThanOrEqual(
 		AXIS_REACH_TOLERANCE
 	);
@@ -8886,102 +1672,84 @@ async function approachNpcWithTrustedKeyboard(
 	const interactionRadius =
 		PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + NPC_PACK_COLLISION_RADIUS;
 	const npcCollisionRadius = PLAYER_COLLISION_RADIUS + NPC_PACK_COLLISION_RADIUS;
-	const guildMasterSemanticApproach =
-		approach.mapId === 'guild-hall' && approach.speaker === 'Borak';
-	let minimumMovementAt = stagingEvidence.movementAt;
+	const minimumMovementAt = stagingEvidence.movementAt;
+	const attemptStart = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
+	);
 	let rangeObserved: boolean;
-	let blockedBeforeRange = false;
+	let blockedBeforeRange: boolean;
 
-	if (guildMasterSemanticApproach) {
-		const stagingPoint = guildHallGuildMasterInteractionStagingPoint();
-		const stagedPoint = await pulseGuildMasterIntoInteractionBand(
-			page,
-			stagingEvidence.selectedPoint
-		);
-		stagingEvidence = await currentHudPlayerEvidence(page, approach.mapId);
-		minimumMovementAt = stagingEvidence.movementAt;
-
-		// Once the real-input pulse has placed the player in the source-derived
-		// vertical band, the unchanged in-page route runner can traverse the open
-		// row to the NPC's x coordinate without crossing either collision envelope.
-		const horizontalTarget = { x: approach.npc.x, y: stagedPoint.y };
-		const horizontalResult = await runBrowserRoute(
-			page,
-			[stagedPoint, horizontalTarget],
-			NPC_APPROACH_SETTLE_TOLERANCE
-		);
-		expect(horizontalResult.status).toBe('done');
-		expect(horizontalResult.mapId).toBe(approach.mapId);
-		expect(horizontalResult.activeKey).toBeNull();
-		expect(horizontalResult.axis).toBeNull();
-		expect(horizontalResult.target).toBeNull();
-		expect(horizontalResult.pointIndex).toBe(2);
-		expect(horizontalResult.axisHistory).toEqual(['x']);
-		expect(horizontalResult.diagnostics?.length).toBeGreaterThan(0);
-		for (const diagnostic of horizontalResult.diagnostics ?? []) {
-			expect(diagnostic.mapId).toBe(approach.mapId);
-			expect(diagnostic.blocked).toBe(false);
-		}
-		expect(horizontalResult.position).not.toBeNull();
-		if (!horizontalResult.position) {
-			throw new Error(
-				`Guild Master horizontal semantic route returned no live point: ${describeBrowserRouteResult(horizontalResult, horizontalResult.token)}`
-			);
-		}
-		const horizontalPoint = horizontalResult.position;
-		assertGuildHallGuildMasterInteractionBand(stagingPoint, horizontalPoint);
-		expect(Math.abs(horizontalPoint.x - approach.npc.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-		expect(
-			routeSegmentIntersectsExpandedRect(
-				stagedPoint,
-				horizontalPoint,
-				VILLAGE_INTERIOR_LAYOUTS['guild-hall'].propCollisions.guildMasterDesk,
-				PLAYER_COLLISION_RADIUS
-			)
-		).toBe(false);
-		expect(
-			routeSegmentIntersectsCircle(stagedPoint, horizontalPoint, approach.npc, npcCollisionRadius)
-		).toBe(false);
-		rangeObserved = true;
-	} else {
-		const direction = trustedNpcDirectionToward(stagingEvidence.selectedPoint, approach.npc);
-		await page.locator('canvas').click();
-		await page.keyboard.down(direction);
-		try {
-			const rangeHandle = await page.waitForFunction(
-				({ requestedMapId, requestedNpc, requestedRadius, minimumMovementAt: minimumAt }) => {
-					const probeWindow = window as GlieseProbeWindow;
-					const state = probeWindow.__glieseLastHudState;
-					const diagnostic = probeWindow.__glieseLastMovementDiagnostic;
-					const movementAt = probeWindow.__glieseLastMovementAt ?? 0;
-					if (
-						state?.mapId !== requestedMapId ||
-						diagnostic?.mapId !== requestedMapId ||
-						movementAt <= minimumAt
-					) {
-						return false;
-					}
-					const resolved = diagnostic.resolvedPosition;
-					if (!Number.isFinite(resolved.x) || !Number.isFinite(resolved.y)) return false;
-					const distance = Math.hypot(resolved.x - requestedNpc.x, resolved.y - requestedNpc.y);
-					if (diagnostic.blocked && distance > requestedRadius) return 'blocked';
-					if (distance <= requestedRadius) return 'range';
+	const direction = trustedNpcDirectionToward(stagingEvidence.selectedPoint, approach.npc);
+	await page.locator('canvas').click();
+	await page.keyboard.down(direction);
+	try {
+		const rangeHandle = await page.waitForFunction(
+			({
+				requestedMapId,
+				requestedNpc,
+				requestedRadius,
+				minimumMovementAt: minimumAt,
+				diagnosticsStart,
+				pinnedWindow
+			}) => {
+				const probeWindow = window as GlieseProbeWindow;
+				const state = probeWindow.__glieseLastHudState;
+				const diagnostic = probeWindow.__glieseLastMovementDiagnostic;
+				const movementAt = probeWindow.__glieseLastMovementAt ?? 0;
+				if (
+					state?.mapId !== requestedMapId ||
+					diagnostic?.mapId !== requestedMapId ||
+					movementAt <= minimumAt
+				) {
 					return false;
-				},
-				{
-					requestedMapId: approach.mapId,
-					requestedNpc: approach.npc,
-					requestedRadius: interactionRadius,
-					minimumMovementAt
-				},
-				{ timeout: 30_000 }
-			);
-			const rangeOutcome = (await rangeHandle.jsonValue()) as 'blocked' | 'range';
-			rangeObserved = rangeOutcome === 'range';
-			blockedBeforeRange = rangeOutcome === 'blocked';
-		} finally {
-			await page.keyboard.up(direction);
-		}
+				}
+				const resolved = diagnostic.resolvedPosition;
+				if (!Number.isFinite(resolved.x) || !Number.isFinite(resolved.y)) return false;
+				const distance = Math.hypot(resolved.x - requestedNpc.x, resolved.y - requestedNpc.y);
+				if (distance <= requestedRadius) return 'range';
+				// A lone blocked diagnostic is not terminal: that frame's step can
+				// be rejected whole while the next smaller step advances (same
+				// rule the counter-settle window uses). Only a run of blocked
+				// attempts pinned at one position outside range means the walk
+				// can never reach the speaker.
+				const recent = (probeWindow.__glieseMovementDiagnostics ?? [])
+					.slice(diagnosticsStart)
+					.slice(-pinnedWindow);
+				const firstRecent = recent[0];
+				if (
+					firstRecent &&
+					recent.length === pinnedWindow &&
+					recent.every(
+						(attempt) =>
+							attempt.mapId === requestedMapId &&
+							attempt.blocked === true &&
+							attempt.resolvedPosition.x === firstRecent.resolvedPosition.x &&
+							attempt.resolvedPosition.y === firstRecent.resolvedPosition.y &&
+							Math.hypot(
+								attempt.resolvedPosition.x - requestedNpc.x,
+								attempt.resolvedPosition.y - requestedNpc.y
+							) > requestedRadius
+					)
+				) {
+					return 'blocked';
+				}
+				return false;
+			},
+			{
+				requestedMapId: approach.mapId,
+				requestedNpc: approach.npc,
+				requestedRadius: interactionRadius,
+				minimumMovementAt,
+				diagnosticsStart: attemptStart,
+				pinnedWindow: APPROACH_PINNED_ATTEMPTS
+			},
+			{ timeout: 30_000 }
+		);
+		const rangeOutcome = (await rangeHandle.jsonValue()) as 'blocked' | 'range';
+		rangeObserved = rangeOutcome === 'range';
+		blockedBeforeRange = rangeOutcome === 'blocked';
+	} finally {
+		await page.keyboard.up(direction);
 	}
 	if (blockedBeforeRange) {
 		const evidence = await currentHudPlayerEvidence(page, approach.mapId);
@@ -9012,16 +1780,6 @@ async function approachNpcWithTrustedKeyboard(
 	}
 	const diagnostic = evidence.diagnostic;
 	expect(diagnostic?.mapId).toBe(approach.mapId);
-	if (guildMasterSemanticApproach) {
-		const desk = VILLAGE_INTERIOR_LAYOUTS['guild-hall'].propCollisions.guildMasterDesk;
-		expect(diagnostic?.blocked).toBe(false);
-		expect(approach.npc.y - livePoint.y).toBeGreaterThan(npcCollisionRadius);
-		expect(livePoint.y).toBeLessThan(desk.y - PLAYER_COLLISION_RADIUS);
-		assertGuildHallGuildMasterInteractionBand(
-			guildHallGuildMasterInteractionStagingPoint(),
-			livePoint
-		);
-	}
 	for (const position of [
 		diagnostic?.previousPosition,
 		diagnostic?.requestedPosition,
@@ -9158,1025 +1916,6 @@ async function interactWithInteriorNpc(page: Page, interaction: InteriorGrayboxI
 
 	await dialogue.getByRole('button', { name: 'Close' }).first().click();
 	await expect(dialogue).toHaveCount(0);
-}
-
-async function completeGuildMasterQuest(page: Page) {
-	await page.waitForFunction(
-		() =>
-			(window as GlieseProbeWindow).__glieseLastHudState?.status?.includes('Borak nearby') === true,
-		undefined,
-		{ timeout: 30_000 }
-	);
-	await page.locator('canvas').click();
-	await page.keyboard.press('e', { delay: 50 });
-	const dialogue = page.getByRole('dialog', { name: 'Borak' });
-	await expect(dialogue).toBeVisible();
-	await expect(dialogue.locator('.jrpg-dialogue-line')).toContainText(
-		/eastern ruins are stirring/i
-	);
-	await dialogue.getByRole('button', { name: 'Next' }).click();
-	await dialogue.getByRole('button', { name: 'Next' }).click();
-	await dialogue.getByRole('button', { name: 'Quest' }).click();
-	await dialogue.getByRole('button', { name: 'Thin Village Slimes' }).click();
-	await expect(dialogue.locator('.jrpg-dialogue-line')).toContainText(
-		/Defeat slimes near the village/i
-	);
-	await dialogue.getByRole('button', { name: 'Accept' }).click();
-	await expect(dialogue).toHaveCount(0);
-	// The seeded overworld clears make this side quest complete at acceptance. Consume
-	// the authored Guild Notice before the next real keyboard route can begin.
-	await expect(page.getByRole('dialog', { name: 'Guild Notice' })).toBeVisible();
-	expect(await dismissQueuedQuestCompletionNotice(page)).toBe(true);
-}
-
-async function traverseInteriorForJourney(
-	page: Page,
-	interior: InteriorGrayboxCase,
-	options: {
-		completeGuildMasterQuest?: boolean;
-		afterEnter?: () => Promise<void>;
-		afterStep?: (step: InteriorGrayboxStep, point: Point) => Promise<Point | void>;
-	} = {},
-	onRoute?: (label: string, result: BrowserRouteResult) => void
-): Promise<Point> {
-	await enterInteriorWithTrustedKeyboard(page, interior);
-	await options.afterEnter?.();
-	let currentPoint = interior.spawn;
-	let leavingInteraction = false;
-	for (const [stepIndex, step] of interior.steps.entries()) {
-		const shrineWestPreparationReturnAisleStep = isShrineWestPreparationReturnAisleStep(
-			interior,
-			step
-		);
-		const shrineWestPreparationRoomStep = isShrineWestPreparationRoomStep(interior, step);
-		const shrineWestDoorAisleStep = isShrineWestDoorAisleStep(interior, step);
-		const shrineEastDoorStagingStep = isShrineEastDoorStagingStep(interior, step);
-		const shrineWestPreparationAisleStep = isShrineWestPreparationAisleStep(interior, step);
-		const shrineEastRoomAisleStep = isShrineEastRoomAisleStep(interior, step);
-		const shrineSanctumFocalReturnStep =
-			interior.mapId === 'shrine-of-aurora-interior' && step.label === 'sanctum-focal-return';
-		const shrineAisleX =
-			shrineWestPreparationAisleStep || shrineWestPreparationReturnAisleStep
-				? shrineWestPreparationSafeAisleX()
-				: shrineWestDoorAisleStep
-					? shrineWestDoorStagingAisleX()
-					: shrineEastDoorStagingStep
-						? shrineEastDoorStagingAisleX()
-						: shrineEastRoomAisleStep
-							? shrineEastRoomAisleX()
-							: null;
-		// Every interacted NPC uses its authored approach checkpoint, followed by one
-		// source-derived trusted keyboard approach when the nearby status is absent.
-		const checkpoint =
-			interior.mapId === 'villager-house-1'
-				? villagerHouse1DoorwayRouteTarget(currentPoint, step.point)
-				: shrineAisleX !== null
-					? { x: shrineAisleX, y: step.point.y }
-					: isGuildHallGuildMasterStep(interior, step)
-						? guildHallGuildMasterCheckpoint()
-						: isGuildHallQuartermasterStep(interior, step)
-							? guildHallQuartermasterCheckpoint()
-							: isItemShopServiceCorridorWestStep(interior, step)
-								? itemShopServiceCorridorWestCheckpoint(step.point)
-								: step.interaction?.speaker === 'Mira' && interior.mapId === 'item-shop'
-									? { x: step.point.x, y: step.point.y + 2 }
-									: step.point;
-		assertInteriorNpcCheckpointContract(interior, step, checkpoint);
-		const semanticApproach = trustedNpcSemanticApproachForStep(interior, step, checkpoint);
-		const quartermasterSemanticStep =
-			isGuildHallQuartermasterStep(interior, step) && semanticApproach !== null;
-		const quartermasterReturnStep = isGuildHallQuartermasterReturnStep(
-			interior,
-			step,
-			leavingInteraction
-		);
-		const guildHallLobbyReturnStep = isGuildHallLobbyReturnStep(interior, step);
-		const routeTarget =
-			semanticApproach?.stagingPoint ??
-			(isGuildHallCommonHallWestStep(interior, step)
-				? guildHallCommonHallWestRouteTarget(checkpoint)
-				: checkpoint);
-		const terminalDepartureStep =
-			isGuildHallRecordsRoomStep(interior, step) ||
-			isGuildHallGuildMasterNorthStep(interior, step) ||
-			isGuildHallCommonHallRoomStep(interior, step);
-		if (terminalDepartureStep) {
-			const terminalStep = interior.steps[stepIndex - 1];
-			expect(terminalStep?.label).toBe(
-				isGuildHallRecordsRoomStep(interior, step)
-					? 'records-hall-west'
-					: isGuildHallGuildMasterNorthStep(interior, step)
-						? 'guild-master-spine'
-						: 'common-hall-west'
-			);
-			assertGuildHallTerminalCheckpointContract(currentPoint, terminalStep!.point);
-		}
-		const doorwayKind = itemShopAsymmetricDoorwayKind(interior, step);
-		const spawnReturnCorridorStep = isItemShopSpawnReturnCorridorStep(interior, step);
-		const spawnReturnStep = isItemShopSpawnReturnStep(interior, step);
-		const stockroomEntryStep = isItemShopStockroomDoorwayStep(interior, step);
-		const stockroomTerminalStep = isItemShopStockroomTerminalStep(interior, step);
-		const serviceReturnWestStep = isItemShopMiraServiceReturnWestStep(interior, step);
-		const serviceReturnSouthStep = isItemShopServiceReturnSouthStep(interior, step);
-		const serviceCorridorSouthStep =
-			interior.mapId === 'item-shop' && step.label === 'service-corridor-south';
-		const serviceCorridorWestStep = isItemShopServiceCorridorWestStep(interior, step);
-		const serviceCorridorNorthStep = isItemShopServiceCorridorNorthStep(interior, step);
-		const villagerHouse1LynnStep = isVillagerHouse1LynnStep(interior, step);
-		const villagerHouse2TomaStep = isVillagerHouse2TomaStep(interior, step);
-		const itemShopMiraCrossAisleStep = isItemShopMiraCrossAisleStep(interior, step);
-		const guildHallHorizontalFixedAxisStep = isGuildHallHorizontalFixedAxisStep(interior, step);
-		if (currentPoint.x !== routeTarget.x || currentPoint.y !== routeTarget.y) {
-			if (doorwayKind) {
-				currentPoint = await convergeItemShopDoorwayToOpenBand(page, currentPoint, doorwayKind);
-			}
-			if (serviceReturnWestStep) {
-				currentPoint = await convergeItemShopDoorwayToOpenBand(page, currentPoint, 'office');
-				const doorwayRoutePoints = itemShopMiraServiceReturnWestDoorwayRoutePoints(currentPoint);
-				const doorwayRouteResult = await runBrowserRoute(
-					page,
-					doorwayRoutePoints,
-					INTERIOR_ROUTE_SETTLE_TOLERANCE
-				);
-				onRoute?.(`${interior.mapId}:${step.label}:office-doorway`, doorwayRouteResult);
-				if (!doorwayRouteResult.position) {
-					throw new Error(
-						`Item Shop office doorway handoff returned no final position: ${describeBrowserRouteResult(
-							doorwayRouteResult,
-							doorwayRouteResult.token
-						)}`
-					);
-				}
-				assertItemShopDoorwayHorizontalRouteContract(
-					doorwayRoutePoints,
-					doorwayRouteResult,
-					'office'
-				);
-				currentPoint = doorwayRouteResult.position;
-			}
-			const spawnReturnCorridorPlan = spawnReturnCorridorStep
-				? itemShopSpawnReturnCorridorRoutePoints(currentPoint, checkpoint)
-				: null;
-			const serviceReturnWestPlan = serviceReturnWestStep
-				? itemShopMiraServiceReturnWestExitRoutePoints(currentPoint, checkpoint)
-				: null;
-			if (stockroomEntryStep) {
-				expect(interior.steps[stepIndex - 1]?.label).toBe('service-corridor-west');
-				const beforeEvidence = await currentHudPlayerEvidence(page, 'item-shop');
-				expect(beforeEvidence.selectedPoint).toEqual(currentPoint);
-				currentPoint = await runItemShopStockroomEntryBandSteering(
-					page,
-					beforeEvidence,
-					`${interior.mapId}:${step.label}:band-handoff`
-				);
-			}
-			const routePoints = isGuildHallGuildMasterStep(interior, step)
-				? guildHallGuildMasterRoutePoints(currentPoint, routeTarget, semanticApproach !== null)
-				: isGuildHallGuildMasterReturnStep(interior, step, leavingInteraction)
-					? guildHallGuildMasterRoutePoints(currentPoint, checkpoint, false, true)
-					: isGuildHallQuartermasterStep(interior, step)
-						? guildHallQuartermasterRoutePoints(
-								currentPoint,
-								routeTarget,
-								leavingInteraction,
-								semanticApproach !== null
-							)
-						: isGuildHallQuartermasterReturnStep(interior, step, leavingInteraction)
-							? guildHallQuartermasterRoutePoints(currentPoint, checkpoint, true)
-							: isItemShopMiraStep(interior, step)
-								? itemShopMiraRoutePoints(currentPoint, routeTarget)
-								: isItemShopMiraReturnStep(interior, step, leavingInteraction)
-									? itemShopMiraReturnRoutePoints(currentPoint, checkpoint)
-									: itemShopMiraCrossAisleStep
-										? itemShopMiraCrossAisleRoutePoints(currentPoint, checkpoint)
-										: isItemShopOutwardApproachStep(interior, step)
-											? itemShopOutwardRoutePoints(currentPoint, checkpoint)
-											: serviceCorridorSouthStep
-												? itemShopServiceCorridorSouthRoutePoints(currentPoint, checkpoint)
-												: isItemShopServiceCorridorNorthStep(interior, step)
-													? itemShopServiceCorridorNorthRoutePoints(currentPoint, checkpoint)
-													: isItemShopServiceCorridorWestStep(interior, step)
-														? itemShopServiceCorridorWestRoutePoints(currentPoint, routeTarget)
-														: serviceReturnSouthStep
-															? itemShopServiceReturnSouthRoutePoints(currentPoint, checkpoint)
-															: serviceReturnWestStep
-																? serviceReturnWestPlan!.vertical
-																: villagerHouse1LynnStep
-																	? villagerHouse1LynnRoutePoints(currentPoint, routeTarget)
-																	: villagerHouse2TomaStep
-																		? villagerHouse2TomaRoutePoints(currentPoint, routeTarget)
-																		: shrineWestDoorAisleStep
-																			? shrineWestDoorAisleRoutePoints(currentPoint, step.point)
-																			: shrineEastDoorStagingStep
-																				? shrineEastDoorStagingRoutePoints(currentPoint, step.point)
-																				: shrineEastRoomAisleStep
-																					? shrineEastRoomAisleRoutePoints(currentPoint, step.point)
-																					: shrineSanctumFocalReturnStep
-																						? shrineSanctumFocalReturnRoutePoints(
-																								currentPoint,
-																								step.point
-																							)
-																						: shrineWestPreparationAisleStep
-																							? shrineWestPreparationAisleRoutePoints(
-																									currentPoint,
-																									step.point
-																								)
-																							: shrineWestPreparationRoomStep
-																								? shrineWestPreparationRoomRoutePoints(
-																										currentPoint,
-																										step.point
-																									)
-																								: shrineWestPreparationReturnAisleStep
-																									? shrineWestPreparationReturnAisleRoutePoints(
-																											currentPoint,
-																											step.point
-																										)
-																									: isItemShopStockroomReturnDoorwayStep(
-																												interior,
-																												step
-																										  )
-																										? itemShopStockroomReturnDoorwayRoutePoints(
-																												currentPoint,
-																												checkpoint
-																											)
-																										: isItemShopStockroomTerminalStep(
-																													interior,
-																													step
-																											  )
-																											? itemShopStockroomTerminalRoutePoints(
-																													currentPoint,
-																													checkpoint
-																												)
-																											: stockroomEntryStep
-																												? itemShopStockroomEntryRoutePoints(
-																														currentPoint,
-																														checkpoint
-																													)
-																												: isItemShopOfficeDoorwayStep(
-																															interior,
-																															step
-																													  )
-																													? itemShopDoorwayCrossingRoutePoints(
-																															currentPoint,
-																															checkpoint,
-																															'office'
-																														)
-																													: spawnReturnCorridorStep
-																														? [
-																																...spawnReturnCorridorPlan!
-																																	.sideAisle,
-																																...spawnReturnCorridorPlan!.horizontal.slice(
-																																	1
-																																)
-																															]
-																														: guildHallHorizontalFixedAxisStep
-																															? [
-																																	currentPoint,
-																																	{
-																																		x: checkpoint.x,
-																																		y: currentPoint.y
-																																	}
-																																]
-																															: isGuildHallRecordsRoomStep(
-																																		interior,
-																																		step
-																																  )
-																																? guildHallRecordsRoomRoutePoints(
-																																		currentPoint,
-																																		checkpoint
-																																	)
-																																: isGuildHallCommonHallSouthStep(
-																																			interior,
-																																			step
-																																	  )
-																																	? guildHallCommonHallSouthRoutePoints(
-																																			currentPoint,
-																																			checkpoint
-																																		)
-																																	: isGuildHallGuildMasterSpineStep(
-																																				interior,
-																																				step
-																																		  )
-																																		? guildHallGuildMasterSpineRoutePoints(
-																																				currentPoint,
-																																				checkpoint
-																																			)
-																																		: isGuildHallGuildMasterNorthStep(
-																																					interior,
-																																					step
-																																			  )
-																																			? guildHallGuildMasterNorthRoutePoints(
-																																					currentPoint,
-																																					checkpoint
-																																				)
-																																			: isGuildHallCommonHallRoomStep(
-																																						interior,
-																																						step
-																																				  )
-																																				? guildHallCommonHallRoomAisleRoutePoints(
-																																						currentPoint,
-																																						checkpoint
-																																					)
-																																				: isGuildHallRecordsAisleHandoffStep(
-																																							interior,
-																																							step
-																																					  )
-																																					? guildHallRecordsAisleRoutePoints(
-																																							currentPoint,
-																																							checkpoint
-																																						)
-																																					: guildHallLobbyReturnStep
-																																						? [
-																																								currentPoint,
-																																								{
-																																									x: currentPoint.x,
-																																									y: checkpoint.y
-																																								},
-																																								checkpoint
-																																							]
-																																						: leavingInteraction
-																																							? [
-																																									currentPoint,
-																																									{
-																																										x: checkpoint.x,
-																																										y: currentPoint.y
-																																									},
-																																									checkpoint
-																																								]
-																																							: interiorRoutePoints(
-																																									currentPoint,
-																																									checkpoint
-																																								);
-			if (spawnReturnStep) {
-				const [from, to] = routePoints;
-				expect(to).toEqual({ x: from!.x, y: checkpoint.y });
-				for (const obstacle of [
-					...VILLAGE_INTERIOR_LAYOUTS['item-shop'].walls,
-					...Object.values(VILLAGE_INTERIOR_LAYOUTS['item-shop'].propCollisions)
-				]) {
-					expect(
-						routeSegmentIntersectsExpandedRect(from!, to!, obstacle, PLAYER_COLLISION_RADIUS)
-					).toBe(false);
-				}
-			}
-			if (
-				(interior.mapId === 'guild-hall' || interior.mapId === 'item-shop') &&
-				!quartermasterSemanticStep &&
-				!guildHallHorizontalFixedAxisStep &&
-				doorwayKind !== 'office'
-			) {
-				// Quartermaster return points 0->1 and 1->2 are the dedicated
-				// fixed-axis/asymmetric egress legs. Their live diagnostics and
-				// source geometry are asserted below; start the generic symmetric
-				// endpoint-envelope audit at point 2 for the remaining corridor.
-				const envelopeRoutePoints = quartermasterReturnStep
-					? routePoints.slice(2)
-					: serviceReturnSouthStep
-						? routePoints.slice(2)
-						: serviceCorridorSouthStep
-							? routePoints.slice(1)
-							: itemShopMiraCrossAisleStep
-								? routePoints.slice(1)
-								: routePoints;
-				const serviceCorridorWestHasInitialFixedXAxisTransit =
-					serviceCorridorWestStep &&
-					routePoints.length > 2 &&
-					routePoints[0]!.x === routePoints[1]!.x;
-				const serviceCorridorNorthHasInitialFixedYAxisTransit =
-					serviceCorridorNorthStep &&
-					routePoints.length > 2 &&
-					routePoints[0]!.x === routePoints[1]!.x;
-				const stockroomEntryHasInitialFixedYAxisTransit =
-					stockroomEntryStep && routePoints.length > 2 && routePoints[0]!.x === routePoints[1]!.x;
-				assertTask6InteriorRouteEnvelope(
-					interior.mapId,
-					envelopeRoutePoints,
-					`${interior.mapId}:${step.label}`,
-					terminalDepartureStep
-						? { skipInitialTerminalDeparture: true }
-						: doorwayKind
-							? { skipInitialAsymmetricDoorwayCrossing: true }
-							: spawnReturnCorridorStep
-								? { skipInitialAsymmetricFixedAxisTransit: true }
-								: spawnReturnStep
-									? { skipInitialAsymmetricFixedAxisTransit: true }
-									: serviceReturnWestStep
-										? { skipInitialAsymmetricFixedAxisTransit: true }
-										: isItemShopMiraReturnStep(interior, step, leavingInteraction)
-											? { skipInitialAsymmetricFixedAxisTransit: true }
-											: stockroomEntryHasInitialFixedYAxisTransit
-												? { skipInitialAsymmetricFixedAxisTransit: true }
-												: serviceCorridorWestHasInitialFixedXAxisTransit
-													? { skipInitialAsymmetricFixedAxisTransit: true }
-													: serviceCorridorNorthHasInitialFixedYAxisTransit
-														? { skipInitialAsymmetricFixedAxisTransit: true }
-														: undefined
-				);
-				if (serviceReturnWestStep) {
-					const plan = serviceReturnWestPlan;
-					if (!plan) {
-						throw new Error('Item Shop service-return-west route plan was not created');
-					}
-					assertTask6InteriorRouteEnvelope(
-						'item-shop',
-						plan.horizontal,
-						`${interior.mapId}:${step.label}:horizontal`
-					);
-				}
-			}
-			if (isGuildHallRecordsAisleHandoffStep(interior, step)) {
-				assertGuildHallRecordsAisleHandoffContract(routePoints, checkpoint);
-			}
-			if (villagerHouse1LynnStep) {
-				assertVillagerHouse1LynnRouteGeometry(routePoints, routeTarget);
-			}
-			if (villagerHouse2TomaStep) {
-				assertVillagerHouse2TomaRouteGeometry(routePoints, routeTarget);
-			}
-			if (isGuildHallGuildMasterSpineStep(interior, step)) {
-				assertGuildHallGuildMasterSpineRouteContract(routePoints, checkpoint);
-			}
-			if (terminalDepartureStep) {
-				if (isGuildHallRecordsRoomStep(interior, step)) {
-					assertGuildHallRecordsRoomHandoffContract(routePoints);
-				} else if (isGuildHallCommonHallRoomStep(interior, step)) {
-					assertGuildHallCommonHallRoomHandoffContract(routePoints, checkpoint);
-				} else {
-					assertGuildHallTerminalDepartureRouteContract(
-						routePoints,
-						`${interior.mapId}:${step.label}`
-					);
-				}
-			}
-			if (
-				isGuildHallGuildMasterStep(interior, step) ||
-				isGuildHallGuildMasterReturnStep(interior, step, leavingInteraction) ||
-				isGuildHallQuartermasterStep(interior, step) ||
-				isGuildHallQuartermasterReturnStep(interior, step, leavingInteraction)
-			) {
-				if (isGuildHallGuildMasterStep(interior, step)) {
-					assertGuildHallGuildMasterRouteContract(
-						routePoints,
-						routeTarget,
-						semanticApproach !== null
-					);
-				} else if (isGuildHallGuildMasterReturnStep(interior, step, leavingInteraction)) {
-					assertGuildHallGuildMasterRouteContract(routePoints, checkpoint, false, true);
-				} else {
-					assertGuildHallQuartermasterCorridorContract(
-						routePoints,
-						routeTarget,
-						isGuildHallQuartermasterReturnStep(interior, step, leavingInteraction),
-						semanticApproach !== null
-					);
-				}
-			}
-			const routeSettleTolerance = step.interaction
-				? NPC_APPROACH_SETTLE_TOLERANCE
-				: INTERIOR_ROUTE_SETTLE_TOLERANCE;
-			if (quartermasterSemanticStep) {
-				const doorwayRouteResult = await runBrowserRoute(
-					page,
-					routePoints,
-					routeSettleTolerance,
-					undefined,
-					TIGHT_HANDOFF_REACH_TOLERANCE
-				);
-				onRoute?.(`${interior.mapId}:${step.label}:doorway`, doorwayRouteResult);
-				expect(doorwayRouteResult.position).not.toBeNull();
-				if (!doorwayRouteResult.position) {
-					throw new Error(
-						`Guild Hall Quartermaster doorway route returned no final position: ${describeBrowserRouteResult(
-							doorwayRouteResult,
-							doorwayRouteResult.token
-						)}`
-					);
-				}
-				currentPoint = doorwayRouteResult.position;
-
-				const horizontalRoutePoints =
-					guildHallQuartermasterSemanticHorizontalRoutePoints(currentPoint);
-				const horizontalRouteResult = await runBrowserRoute(
-					page,
-					horizontalRoutePoints,
-					routeSettleTolerance
-				);
-				onRoute?.(`${interior.mapId}:${step.label}:counter-row`, horizontalRouteResult);
-				expect(horizontalRouteResult.position).not.toBeNull();
-				if (!horizontalRouteResult.position) {
-					throw new Error(
-						`Guild Hall Quartermaster counter-row route returned no final position: ${describeBrowserRouteResult(
-							horizontalRouteResult,
-							horizontalRouteResult.token
-						)}`
-					);
-				}
-				assertGuildHallQuartermasterSemanticHorizontalRouteContract(
-					horizontalRoutePoints,
-					horizontalRouteResult
-				);
-				currentPoint = horizontalRouteResult.position;
-
-				const verticalRoutePoints = guildHallQuartermasterSemanticVerticalRoutePoints(
-					currentPoint,
-					routeTarget
-				);
-				const verticalRouteResult = await runBrowserRoute(
-					page,
-					verticalRoutePoints,
-					routeSettleTolerance
-				);
-				onRoute?.(`${interior.mapId}:${step.label}:semantic-staging`, verticalRouteResult);
-				expect(verticalRouteResult.position).not.toBeNull();
-				if (!verticalRouteResult.position) {
-					throw new Error(
-						`Guild Hall Quartermaster semantic staging route returned no final position: ${describeBrowserRouteResult(
-							verticalRouteResult,
-							verticalRouteResult.token
-						)}`
-					);
-				}
-				assertGuildHallQuartermasterSemanticVerticalRouteContract(
-					verticalRoutePoints,
-					verticalRouteResult,
-					routeTarget
-				);
-				currentPoint = verticalRouteResult.position;
-			} else if (quartermasterReturnStep) {
-				const horizontalRoutePoints: [Point, Point] = [currentPoint, routePoints[1]!];
-				const horizontalRouteResult = await runBrowserRoute(
-					page,
-					horizontalRoutePoints,
-					routeSettleTolerance
-				);
-				onRoute?.(`${interior.mapId}:${step.label}:egress-horizontal`, horizontalRouteResult);
-				expect(horizontalRouteResult.position).not.toBeNull();
-				if (!horizontalRouteResult.position) {
-					throw new Error(
-						`Guild Hall Quartermaster horizontal egress returned no final position: ${describeBrowserRouteResult(
-							horizontalRouteResult,
-							horizontalRouteResult.token
-						)}`
-					);
-				}
-				assertGuildHallQuartermasterReturnAxisRouteContract(
-					horizontalRoutePoints,
-					horizontalRouteResult,
-					'x',
-					`${interior.mapId}:${step.label}:egress-horizontal`
-				);
-				currentPoint = horizontalRouteResult.position;
-
-				const verticalRoutePoints: [Point, Point] = [
-					currentPoint,
-					{ x: currentPoint.x, y: routePoints[2]!.y }
-				];
-				const verticalRouteResult = await runBrowserRoute(
-					page,
-					verticalRoutePoints,
-					routeSettleTolerance
-				);
-				onRoute?.(`${interior.mapId}:${step.label}:egress-vertical`, verticalRouteResult);
-				expect(verticalRouteResult.position).not.toBeNull();
-				if (!verticalRouteResult.position) {
-					throw new Error(
-						`Guild Hall Quartermaster vertical egress returned no final position: ${describeBrowserRouteResult(
-							verticalRouteResult,
-							verticalRouteResult.token
-						)}`
-					);
-				}
-				assertGuildHallQuartermasterReturnAxisRouteContract(
-					verticalRoutePoints,
-					verticalRouteResult,
-					'y',
-					`${interior.mapId}:${step.label}:egress-vertical`
-				);
-				currentPoint = verticalRouteResult.position;
-
-				const corridorRoutePoints = guildHallQuartermasterReturnCorridorRoutePoints(
-					currentPoint,
-					checkpoint
-				);
-				assertGuildHallQuartermasterReturnCorridorGeometry(
-					corridorRoutePoints,
-					`${interior.mapId}:${step.label}:corridor`
-				);
-				const corridorRouteResult = await runBrowserRoute(
-					page,
-					corridorRoutePoints,
-					routeSettleTolerance
-				);
-				onRoute?.(`${interior.mapId}:${step.label}:corridor`, corridorRouteResult);
-				expect(corridorRouteResult.status).toBe('done');
-				expect(corridorRouteResult.mapId).toBe('guild-hall');
-				expect(corridorRouteResult.activeKey ?? null).toBeNull();
-				expect(corridorRouteResult.position).not.toBeNull();
-				if (!corridorRouteResult.position) {
-					throw new Error(
-						`Guild Hall Quartermaster corridor returned no final position: ${describeBrowserRouteResult(
-							corridorRouteResult,
-							corridorRouteResult.token
-						)}`
-					);
-				}
-				currentPoint = corridorRouteResult.position;
-			} else if (guildHallLobbyReturnStep) {
-				const finalRoutePoints: [Point, Point, Point] = [
-					currentPoint,
-					{ x: currentPoint.x, y: checkpoint.y },
-					checkpoint
-				];
-				assertTask6InteriorRouteEnvelope(
-					'guild-hall',
-					finalRoutePoints,
-					`${interior.mapId}:${step.label}:terminal`
-				);
-				const finalRouteResult = await runBrowserRoute(
-					page,
-					finalRoutePoints,
-					routeSettleTolerance
-				);
-				onRoute?.(`${interior.mapId}:${step.label}:terminal`, finalRouteResult);
-				currentPoint = assertGuildHallLobbyReturnFinalRouteContract(
-					finalRoutePoints,
-					finalRouteResult,
-					checkpoint,
-					`${interior.mapId}:${step.label}:terminal`
-				);
-			} else if (stockroomEntryStep) {
-				const stockroomEntryRouteResult = await runBrowserRoute(
-					page,
-					routePoints,
-					routeSettleTolerance
-				);
-				onRoute?.(`${interior.mapId}:${step.label}`, stockroomEntryRouteResult);
-				expect(stockroomEntryRouteResult.position).not.toBeNull();
-				if (!stockroomEntryRouteResult.position) {
-					throw new Error(
-						`Item Shop stockroom-entry route returned no final position: ${describeBrowserRouteResult(
-							stockroomEntryRouteResult,
-							stockroomEntryRouteResult.token
-						)}`
-					);
-				}
-				assertItemShopStockroomEntryRouteContract(routePoints, stockroomEntryRouteResult);
-				currentPoint = stockroomEntryRouteResult.position;
-			} else if (stockroomTerminalStep) {
-				const stockroomTerminalRouteResult = await runBrowserRoute(
-					page,
-					routePoints,
-					routeSettleTolerance,
-					undefined,
-					TIGHT_HANDOFF_REACH_TOLERANCE
-				);
-				onRoute?.(`${interior.mapId}:${step.label}`, stockroomTerminalRouteResult);
-				expect(stockroomTerminalRouteResult.position).not.toBeNull();
-				if (!stockroomTerminalRouteResult.position) {
-					throw new Error(
-						`Item Shop stockroom terminal route returned no final position: ${describeBrowserRouteResult(
-							stockroomTerminalRouteResult,
-							stockroomTerminalRouteResult.token
-						)}`
-					);
-				}
-				assertItemShopStockroomTerminalRouteContract(
-					routePoints,
-					stockroomTerminalRouteResult,
-					checkpoint
-				);
-				currentPoint = stockroomTerminalRouteResult.position;
-			} else if (spawnReturnCorridorStep) {
-				const plan = spawnReturnCorridorPlan;
-				if (!plan) {
-					throw new Error('Item Shop spawn-return-corridor route plan was not created');
-				}
-				const sideAisleRouteResult = await runBrowserRoute(
-					page,
-					plan.sideAisle,
-					routeSettleTolerance
-				);
-				onRoute?.(`${interior.mapId}:${step.label}:side-aisle`, sideAisleRouteResult);
-				expect(sideAisleRouteResult.position).not.toBeNull();
-				if (!sideAisleRouteResult.position) {
-					throw new Error(
-						`Item Shop spawn-return-corridor side-aisle route returned no final position: ${describeBrowserRouteResult(sideAisleRouteResult, sideAisleRouteResult.token)}`
-					);
-				}
-				assertItemShopSpawnReturnCorridorSideAisleRouteContract(
-					plan.sideAisle,
-					sideAisleRouteResult
-				);
-				currentPoint = sideAisleRouteResult.position;
-
-				const horizontalRoutePoints = itemShopSpawnReturnCorridorHorizontalRoutePoints(
-					currentPoint,
-					checkpoint
-				);
-				const horizontalRouteResult = await runBrowserRoute(
-					page,
-					horizontalRoutePoints,
-					routeSettleTolerance
-				);
-				onRoute?.(`${interior.mapId}:${step.label}:horizontal`, horizontalRouteResult);
-				expect(horizontalRouteResult.position).not.toBeNull();
-				if (!horizontalRouteResult.position) {
-					throw new Error(
-						`Item Shop spawn-return-corridor horizontal route returned no final position: ${describeBrowserRouteResult(horizontalRouteResult, horizontalRouteResult.token)}`
-					);
-				}
-				assertItemShopSpawnReturnCorridorHorizontalRouteContract(
-					horizontalRoutePoints,
-					horizontalRouteResult
-				);
-				currentPoint = horizontalRouteResult.position;
-			} else if (doorwayKind) {
-				const fixedAxisRouteResult = await runBrowserRoute(
-					page,
-					routePoints,
-					routeSettleTolerance,
-					undefined,
-					TIGHT_HANDOFF_REACH_TOLERANCE
-				);
-				onRoute?.(`${interior.mapId}:${step.label}`, fixedAxisRouteResult);
-				expect(fixedAxisRouteResult.position).not.toBeNull();
-				if (!fixedAxisRouteResult.position) {
-					throw new Error(
-						`Item Shop fixed-axis route returned no final position: ${describeBrowserRouteResult(fixedAxisRouteResult, fixedAxisRouteResult.token)}`
-					);
-				}
-				assertItemShopDoorwayHorizontalRouteContract(
-					routePoints,
-					fixedAxisRouteResult,
-					doorwayKind
-				);
-				currentPoint = fixedAxisRouteResult.position;
-			} else if (serviceReturnWestStep) {
-				const plan = serviceReturnWestPlan;
-				if (!plan) {
-					throw new Error('Item Shop service-return-west route plan was not created');
-				}
-				const verticalRouteResult = await runBrowserRoute(
-					page,
-					plan.vertical,
-					routeSettleTolerance
-				);
-				onRoute?.(`${interior.mapId}:${step.label}:vertical`, verticalRouteResult);
-				expect(verticalRouteResult.position).not.toBeNull();
-				if (!verticalRouteResult.position) {
-					throw new Error(
-						`Item Shop service-return-west vertical route returned no final position: ${describeBrowserRouteResult(
-							verticalRouteResult,
-							verticalRouteResult.token
-						)}`
-					);
-				}
-				assertItemShopServiceReturnWestVerticalRouteContract(plan.vertical, verticalRouteResult);
-				currentPoint = verticalRouteResult.position;
-
-				const horizontalTarget = plan.horizontal[1];
-				const withinAuthoredTerminalBand =
-					Math.abs(currentPoint.x - horizontalTarget.x) <= AXIS_REACH_TOLERANCE &&
-					Math.abs(currentPoint.y - horizontalTarget.y) <= AXIS_REACH_TOLERANCE;
-				if (withinAuthoredTerminalBand) {
-					// The vertical route already produced a valid terminal point in the
-					// authored checkpoint band. Do not feed a diagonal micro-correction
-					// into the axis-aligned route-envelope oracle.
-					currentPoint = assertItemShopServiceReturnWestTerminalContract(
-						verticalRouteResult,
-						horizontalTarget
-					);
-				} else {
-					const horizontalRoutePoints: [Point, Point, Point] = [
-						currentPoint,
-						{ x: horizontalTarget.x, y: currentPoint.y },
-						horizontalTarget
-					];
-					assertTask6InteriorRouteEnvelope(
-						'item-shop',
-						horizontalRoutePoints,
-						`${interior.mapId}:${step.label}:horizontal`
-					);
-					const horizontalRouteResult = await runBrowserRoute(
-						page,
-						horizontalRoutePoints,
-						routeSettleTolerance
-					);
-					onRoute?.(`${interior.mapId}:${step.label}:horizontal`, horizontalRouteResult);
-					expect(horizontalRouteResult.position).not.toBeNull();
-					if (!horizontalRouteResult.position) {
-						throw new Error(
-							`Item Shop service-return-west horizontal route returned no final position: ${describeBrowserRouteResult(
-								horizontalRouteResult,
-								horizontalRouteResult.token
-							)}`
-						);
-					}
-					assertItemShopServiceReturnWestHorizontalRouteContract(
-						horizontalRoutePoints,
-						horizontalRouteResult
-					);
-					currentPoint = horizontalRouteResult.position;
-				}
-			} else if (guildHallHorizontalFixedAxisStep) {
-				const layout = VILLAGE_INTERIOR_LAYOUTS['guild-hall'];
-				const trainingHallBelowWallStep =
-					step.label === 'training-hall-room' || step.label === 'quartermaster-spine';
-				let fixedAxisStart = currentPoint;
-				if (trainingHallBelowWallStep) {
-					const { minimumOpenY, maximumOpenY } = guildHallTrainingDoorwayOpenBand();
-					if (!(currentPoint.y > minimumOpenY && currentPoint.y < maximumOpenY)) {
-						expect(currentPoint.y).toBeLessThanOrEqual(minimumOpenY);
-						const convergenceBandWidth = maximumOpenY - minimumOpenY;
-						const convergenceTargetY = guildHallTrainingDoorwayConvergenceTarget(
-							minimumOpenY,
-							maximumOpenY
-						);
-						const convergenceSettleTolerance = Math.max(1, Math.floor(convergenceBandWidth / 4));
-						expect(convergenceTargetY).toBeGreaterThan(minimumOpenY);
-						expect(convergenceTargetY).toBeLessThan(maximumOpenY);
-						expect(convergenceTargetY - convergenceSettleTolerance).toBeGreaterThan(minimumOpenY);
-						expect(convergenceTargetY + convergenceSettleTolerance).toBeLessThan(maximumOpenY);
-						const convergenceRoutePoints: [Point, Point] = [
-							currentPoint,
-							{ x: currentPoint.x, y: convergenceTargetY }
-						];
-						assertTask6InteriorRouteEnvelope(
-							'guild-hall',
-							convergenceRoutePoints,
-							`${interior.mapId}:${step.label}:training-band`
-						);
-						const convergenceResult = await runBrowserRoute(
-							page,
-							convergenceRoutePoints,
-							convergenceSettleTolerance,
-							convergenceSettleTolerance,
-							convergenceSettleTolerance
-						);
-						onRoute?.(`${interior.mapId}:${step.label}:training-band`, convergenceResult);
-						fixedAxisStart = assertGuildHallTrainingDoorwayBandConvergenceContract(
-							currentPoint,
-							convergenceResult,
-							`Guild Hall ${step.label} training-band`
-						);
-					}
-				}
-				const fixedAxisRoutePoints: [Point, Point] = [
-					fixedAxisStart,
-					{ x: checkpoint.x, y: fixedAxisStart.y }
-				];
-				const fixedAxisRouteResult = await runBrowserRoute(
-					page,
-					fixedAxisRoutePoints,
-					routeSettleTolerance
-				);
-				onRoute?.(`${interior.mapId}:${step.label}`, fixedAxisRouteResult);
-				expect(fixedAxisRouteResult.position).not.toBeNull();
-				if (!fixedAxisRouteResult.position) {
-					throw new Error(
-						`Guild Hall horizontal fixed-axis route returned no final position: ${describeBrowserRouteResult(
-							fixedAxisRouteResult,
-							fixedAxisRouteResult.token
-						)}`
-					);
-				}
-				assertFixedAxisRouteContract(
-					fixedAxisRoutePoints,
-					fixedAxisRouteResult,
-					'x',
-					[...layout.walls, ...Object.values(layout.propCollisions)],
-					`Guild Hall ${step.label}`,
-					'guild-hall'
-				);
-				currentPoint = fixedAxisRouteResult.position;
-			} else if (villagerHouse1LynnStep) {
-				const lynnRouteResult = await runBrowserRoute(page, routePoints, AXIS_SETTLE_TOLERANCE);
-				onRoute?.(`${interior.mapId}:${step.label}`, lynnRouteResult);
-				currentPoint = assertVillagerHouse1LynnRouteResult(routePoints, lynnRouteResult);
-			} else if (serviceCorridorWestStep) {
-				const bandTolerance = itemShopServiceCorridorWestBandTolerance(routeTarget);
-				const serviceCorridorWestResult = await runBrowserRoute(
-					page,
-					routePoints,
-					bandTolerance,
-					bandTolerance,
-					bandTolerance
-				);
-				onRoute?.(`${interior.mapId}:${step.label}`, serviceCorridorWestResult);
-				expect(serviceCorridorWestResult.position).not.toBeNull();
-				if (!serviceCorridorWestResult.position) {
-					throw new Error(
-						`Item Shop service-corridor-west route returned no final position: ${describeBrowserRouteResult(serviceCorridorWestResult, serviceCorridorWestResult.token)}`
-					);
-				}
-				const band = itemShopStockroomEntrySafeXBand();
-				expect(serviceCorridorWestResult.position.x).toBeGreaterThanOrEqual(band.minimumX);
-				expect(serviceCorridorWestResult.position.x).toBeLessThan(band.maximumX);
-				currentPoint = serviceCorridorWestResult.position;
-			} else if (villagerHouse2TomaStep) {
-				const tomaRouteResult = await runBrowserRoute(
-					page,
-					routePoints,
-					routeSettleTolerance,
-					routeSettleTolerance
-				);
-				onRoute?.(`${interior.mapId}:${step.label}`, tomaRouteResult);
-				currentPoint = assertVillagerHouse2TomaRouteResult(routePoints, tomaRouteResult);
-			} else {
-				currentPoint = await moveRoute(
-					page,
-					routePoints,
-					routeSettleTolerance,
-					undefined,
-					(result) => onRoute?.(`${interior.mapId}:${step.label}`, result),
-					step.reachTolerance
-				);
-			}
-			if (isGuildHallGuildMasterSpineStep(interior, step)) {
-				currentPoint = await convergeGuildHallTerminalCheckpointWithTrustedKeyboard(
-					page,
-					currentPoint,
-					checkpoint
-				);
-			} else if (isGuildHallGuildMasterNorthStep(interior, step)) {
-				currentPoint = await convergeGuildHallTerminalCheckpointWithTrustedKeyboard(
-					page,
-					currentPoint,
-					checkpoint
-				);
-			} else if (isGuildHallCommonHallRoomStep(interior, step)) {
-				const finalCheckpointRoutePoints = guildHallCommonHallRoomFinalCheckpointRoutePoints(
-					currentPoint,
-					checkpoint
-				);
-				assertTask6InteriorRouteEnvelope(
-					'guild-hall',
-					finalCheckpointRoutePoints,
-					`${interior.mapId}:${step.label}:authored-checkpoint`
-				);
-				currentPoint = await moveRoute(
-					page,
-					finalCheckpointRoutePoints,
-					INTERIOR_ROUTE_SETTLE_TOLERANCE,
-					undefined,
-					(result) => onRoute?.(`${interior.mapId}:${step.label}:authored-checkpoint`, result)
-				);
-			} else if (isGuildHallRecordsAisleHandoffStep(interior, step)) {
-				const finalCheckpointRoutePoints = guildHallRecordsAisleFinalCheckpointRoutePoints(
-					currentPoint,
-					checkpoint
-				);
-				assertTask6InteriorRouteEnvelope(
-					'guild-hall',
-					finalCheckpointRoutePoints,
-					`${interior.mapId}:${step.label}:authored-checkpoint`
-				);
-				currentPoint = await moveRoute(
-					page,
-					finalCheckpointRoutePoints,
-					INTERIOR_ROUTE_SETTLE_TOLERANCE,
-					undefined,
-					(result) => onRoute?.(`${interior.mapId}:${step.label}:authored-checkpoint`, result)
-				);
-			}
-		}
-		if (semanticApproach) {
-			expect(Math.abs(currentPoint.x - semanticApproach.stagingPoint.x)).toBeLessThanOrEqual(
-				AXIS_REACH_TOLERANCE
-			);
-			expect(Math.abs(currentPoint.y - semanticApproach.stagingPoint.y)).toBeLessThanOrEqual(
-				AXIS_REACH_TOLERANCE
-			);
-			currentPoint = await approachNpcWithTrustedKeyboard(page, semanticApproach);
-		} else {
-			await assertInteriorCheckpoint(page, interior, checkpoint);
-		}
-		if (step.interaction) {
-			const pointBeforeInteraction = currentPoint;
-			if (options.completeGuildMasterQuest && step.interaction.speaker === 'Borak') {
-				await completeGuildMasterQuest(page);
-			} else {
-				await interactWithInteriorNpc(page, step.interaction);
-			}
-			const postInteraction = await currentHudPlayerEvidence(page, interior.mapId);
-			if (semanticApproach) {
-				expect(
-					postInteraction.selectedPoint,
-					`${step.interaction.speaker} interaction moved the player: ${JSON.stringify({
-						pointBeforeInteraction,
-						...postInteraction
-					})}`
-				).toEqual(pointBeforeInteraction);
-			}
-			// Interaction closes only HUD/dialogue surfaces; carry the newest
-			// map-matched live point into the next interior route instead of the
-			// nominal checkpoint or an older movement result.
-			currentPoint = postInteraction.selectedPoint;
-		}
-		leavingInteraction = Boolean(step.interaction);
-		currentPoint = (await options.afterStep?.(step, currentPoint)) ?? currentPoint;
-	}
-	return exitInteriorWithTrustedKeyboard(page, interior);
 }
 
 async function saveInteriorCheckpointAndReload(
@@ -10333,9 +2072,20 @@ async function exitInteriorWithTrustedKeyboard(
 	expect(state?.mapId).toBe('overworld');
 	const player = state?.areaMap?.player;
 	expect({ x: player?.x, y: player?.y }).toEqual(interior.returnArrival);
-	const arrivalFacing = await page.evaluate(
-		() => (window as GlieseProbeWindow).__glieseLastPlayerFacing ?? null
-	);
+	// The HUD publishes during WorldScene.create() but the camera diagnostic
+	// only fires after the first render — reading it right after the HUD wait
+	// can still see the interior's snapshot. Wait for a snapshot that is
+	// actually stamped 'overworld' before asserting the arrival facing.
+	const arrivalFacing = await page
+		.waitForFunction(
+			() => {
+				const diagnostic = (window as GlieseProbeWindow).__glieseLastSceneCameraDiagnostic;
+				return diagnostic?.mapId === 'overworld' ? diagnostic.facing : false;
+			},
+			undefined,
+			{ timeout: 10_000 }
+		)
+		.then((handle) => handle.jsonValue());
 	expect(arrivalFacing).toBe('down');
 
 	await page.evaluate(() => {
@@ -10378,154 +2128,6 @@ async function exitInteriorWithTrustedKeyboard(
 	return { x: postWitness!.x!, y: postWitness!.y! };
 }
 
-test('first composed route collision preserves requested and resolved obstacle order', () => {
-	const obstacles = [
-		{ x: 20, y: 20, width: 4, height: 4 },
-		{ x: 40, y: -2, width: 4, height: 4 },
-		{ x: 70, y: -2, width: 4, height: 4 }
-	] as const;
-	const requestedCollision = firstIntersectingRouteObstacle(
-		{ x: 0, y: 0 },
-		{ x: 100, y: 0 },
-		obstacles,
-		0
-	);
-	const resolvedCollision = firstIntersectingRouteObstacle(
-		{ x: 60, y: 0 },
-		{ x: 100, y: 0 },
-		obstacles,
-		0
-	);
-
-	expect(firstIntersectingRouteObstacle({ x: 0, y: 0 }, { x: 10, y: 0 }, obstacles, 0)).toBeNull();
-	expect(requestedCollision).toBe(obstacles[1]);
-	expect(resolvedCollision).toBe(obstacles[2]);
-});
-
-test('scene state probe preserves minified dollar-prefixed identifiers', () => {
-	const rewritten = rewriteSceneStateProbeSource(
-		'this.setupEncounters(e),this.renderTransitions(e);$a=this.hasLivingEnemies();for(let $b of $c.transitions)'
-	);
-
-	expect(rewritten).toContain('this.setupEncounters(e),globalThis.__glieseSceneEncounterState=');
-	expect(rewritten).toContain(',this.renderTransitions(e)');
-	expect(rewritten).toContain('$a=this.hasLivingEnemies();');
-	expect(rewritten).toContain('hasLivingEnemies:$a,');
-	expect(rewritten).toContain('for(let $b of $c.transitions)');
-	expect(rewritten).not.toContain('hasLivingEnemies:a');
-
-	const standardIdentifiers = rewriteSceneStateProbeSource(
-		'this.setupEncounters(e),this.renderTransitions(e);living=this.hasLivingEnemies();for(let transition of map.transitions)'
-	);
-	expect(standardIdentifiers).toContain('hasLivingEnemies:living,');
-	expect(standardIdentifiers).toContain('for(let transition of map.transitions)');
-});
-
-test('camera probe marker accepts both minified call terminators', () => {
-	// Vite may emit the startFollow call with a `;` statement terminator or a
-	// `,` sequence-expression terminator depending on chunk grouping — the
-	// marker must match both or the facing/camera probes silently break.
-	for (const terminator of [';', ',']) {
-		const chunk = `this.cameras.main.startFollow(this.player,!0,a.cameraFollowLerp,a.cameraFollowLerp)${terminator}this.lastProbe=1`;
-		expect(WORLDSCENE_START_FOLLOW_MARKER.test(chunk)).toBe(true);
-	}
-	// Both lerp arguments (lerpX and lerpY) and a no-arg call are accepted.
-	expect(
-		WORLDSCENE_START_FOLLOW_MARKER.test(
-			'this.cameras.main.startFollow(this.player,!0,a.cameraFollowLerp,a.cameraFollowLerp);'
-		)
-	).toBe(true);
-	expect(
-		WORLDSCENE_START_FOLLOW_MARKER.test(
-			'this.cameras.main.startFollow(this.player,!0,a.cameraFollowLerp);'
-		)
-	).toBe(true);
-	// A different receiver or a call without cameraFollowLerp must not match.
-	expect(
-		WORLDSCENE_START_FOLLOW_MARKER.test('this.cameras.main.startFollow(this.npc,!0,a.x,a.x);')
-	).toBe(false);
-});
-
-test('Item Shop stockroom entry checks only its initial fixed-x northward phase', () => {
-	const routeStart = { x: 448, y: 301.60239999999817 };
-	const target = { x: 448, y: 160 };
-	const points = itemShopStockroomEntryRoutePoints(routeStart, target);
-	const initialNorthwardDiagnostic: PlayerMovementDiagnostic = {
-		mapId: 'item-shop',
-		previousPosition: routeStart,
-		requestedPosition: { x: 448, y: 138.83440000000107 },
-		resolvedPosition: { x: 448, y: 138.83440000000107 },
-		blocked: false
-	};
-	const finalSouthwardDiagnostic: PlayerMovementDiagnostic = {
-		mapId: 'item-shop',
-		previousPosition: initialNorthwardDiagnostic.resolvedPosition,
-		requestedPosition: { x: 448, y: 166.62400000000162 },
-		resolvedPosition: { x: 448, y: 166.62400000000162 },
-		blocked: false
-	};
-	const result: BrowserRouteResult = {
-		token: 'characterization-item-shop-stockroom-entry-two-phase',
-		mapId: 'item-shop',
-		status: 'done',
-		pointIndex: points.length,
-		axis: null,
-		position: finalSouthwardDiagnostic.resolvedPosition,
-		target: null,
-		lastDiagnostic: finalSouthwardDiagnostic,
-		axisHistory: ['y'],
-		diagnostics: [initialNorthwardDiagnostic, finalSouthwardDiagnostic],
-		invalidDiagnostics: [],
-		diagnosticAxes: ['y', 'y'],
-		activeKey: null
-	};
-
-	expect(() => assertItemShopStockroomEntryRouteContract(points, result)).not.toThrow();
-});
-
-function firstIntersectingRouteObstacle(
-	from: Point,
-	to: Point,
-	obstacles: readonly { x: number; y: number; width: number; height: number }[],
-	padding: number
-): { x: number; y: number; width: number; height: number } | null {
-	for (const obstacle of obstacles) {
-		if (routeSegmentIntersectsExpandedRect(from, to, obstacle, padding)) return obstacle;
-	}
-	return null;
-}
-
-const FALLBACK_THRESHOLD_MAIN_ROUTE = [
-	{ x: 512, y: 3_200 },
-	{ x: 2_304, y: 3_200 },
-	{ x: 2_400, y: 3_200 },
-	{ x: 2_400, y: 2_112 },
-	{ x: 1_728, y: 2_112 },
-	{ x: 1_728, y: 4_800 },
-	{ x: 2_048, y: 4_800 },
-	{ x: 2_048, y: 3_200 },
-	{ x: 4_096, y: 3_200 },
-	{ x: 4_096, y: 3_008 },
-	{ x: 4_096, y: 3_200 },
-	{ x: 5_824, y: 3_200 }
-] as const;
-
-test('Ruins Threshold core-stair staging leaves the trusted transition envelope clear', () => {
-	const transition = ruinsThresholdMap.transitions.find(({ id }) => id === 'threshold-to-core');
-	expect(transition).toMatchObject({ x: 5_888, y: 3_200 });
-	if (!transition) {
-		throw new Error('Missing Ruins Threshold core transition source');
-	}
-
-	const safeStaging = FALLBACK_THRESHOLD_MAIN_ROUTE.at(-1)!;
-	const unsafeStaging = { x: transition.x - 32, y: transition.y };
-	expect(safeStaging).toEqual({ x: transition.x - 64, y: transition.y });
-	expect(safeStaging.x + AXIS_REACH_TOLERANCE + PLAYER_TRANSITION_REACH).toBeLessThan(transition.x);
-	expect(unsafeStaging.x + AXIS_REACH_TOLERANCE + PLAYER_TRANSITION_REACH).toBeGreaterThanOrEqual(
-		transition.x
-	);
-});
-
 async function waitForMapBackgroundDiagnostic(
 	page: Page,
 	mapId: string,
@@ -10551,422 +2153,6 @@ async function waitForMapBackgroundDiagnostic(
 	return diagnostic;
 }
 
-function assertHeroHousePaintedDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'hero-house',
-		regionalBackgroundsEnabled: true,
-		packageId: 'hero-house-painted',
-		presentationMode: 'painted',
-		requiredBackgroundIds: ['hero-house-painted-base-image'],
-		selectedBackgroundIds: ['hero-house-painted-base-image'],
-		successfulBackgroundIds: ['hero-house-painted-base-image'],
-		selectedFallbackBlockerIds: [],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
-		collisionIds: [...HERO_HOUSE_COLLISION_IDS],
-		statefulObjectIds: [...HERO_HOUSE_STATEFUL_OBJECT_IDS]
-	});
-	expect(diagnostic.entries).toEqual([
-		expect.objectContaining({
-			id: 'hero-house-painted-base-image',
-			textureKey: 'hero-house-painted-base',
-			status: 'rendered',
-			expectedDimensions: { width: 704, height: 576 },
-			observedDimensions: { width: 704, height: 576 },
-			renderTransform: {
-				x: 352,
-				y: 288,
-				originX: 0.5,
-				originY: 0.5,
-				displayWidth: 704,
-				displayHeight: 576,
-				depth: -9
-			}
-		})
-	]);
-}
-
-function assertHeroHouseFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'hero-house',
-		regionalBackgroundsEnabled: true,
-		packageId: null,
-		presentationMode: 'fallback',
-		requiredBackgroundIds: ['hero-house-painted-base-image'],
-		selectedBackgroundIds: [],
-		successfulBackgroundIds: [],
-		selectedFallbackBlockerIds: [...HERO_HOUSE_FALLBACK_BLOCKER_IDS],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
-		collisionIds: [...HERO_HOUSE_COLLISION_IDS],
-		statefulObjectIds: [...HERO_HOUSE_STATEFUL_OBJECT_IDS]
-	});
-	expect(diagnostic.entries).toEqual([
-		expect.objectContaining({
-			id: 'hero-house-painted-base-image',
-			textureKey: 'hero-house-painted-base',
-			status: 'missing-texture',
-			expectedDimensions: { width: 704, height: 576 },
-			observedDimensions: null
-		})
-	]);
-}
-
-function assertGuildHallPaintedDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'guild-hall',
-		regionalBackgroundsEnabled: true,
-		packageId: 'guild-hall-painted',
-		presentationMode: 'painted',
-		requiredBackgroundIds: ['guild-hall-painted-base-image', 'guild-hall-painted-foreground-image'],
-		selectedBackgroundIds: ['guild-hall-painted-base-image', 'guild-hall-painted-foreground-image'],
-		successfulBackgroundIds: [
-			'guild-hall-painted-base-image',
-			'guild-hall-painted-foreground-image'
-		],
-		selectedFallbackBlockerIds: [],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
-		collisionIds: [...GUILD_HALL_COLLISION_IDS],
-		statefulObjectIds: [...GUILD_HALL_STATEFUL_OBJECT_IDS]
-	});
-	expect(diagnostic.entries).toEqual([
-		expect.objectContaining({
-			id: 'guild-hall-painted-base-image',
-			textureKey: 'guild-hall-painted-base',
-			plane: 'base',
-			status: 'rendered',
-			expectedDimensions: { width: 1024, height: 832 },
-			observedDimensions: { width: 1024, height: 832 },
-			renderTransform: {
-				x: 512,
-				y: 416,
-				originX: 0.5,
-				originY: 0.5,
-				displayWidth: 1024,
-				displayHeight: 832,
-				depth: -9
-			}
-		}),
-		expect.objectContaining({
-			id: 'guild-hall-painted-foreground-image',
-			textureKey: 'guild-hall-painted-foreground',
-			plane: 'foreground',
-			status: 'rendered',
-			expectedDimensions: { width: 1024, height: 832 },
-			observedDimensions: { width: 1024, height: 832 },
-			renderTransform: {
-				x: 512,
-				y: 416,
-				originX: 0.5,
-				originY: 0.5,
-				displayWidth: 1024,
-				displayHeight: 832,
-				depth: 100.0001
-			}
-		})
-	]);
-}
-
-function assertGuildHallFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'guild-hall',
-		regionalBackgroundsEnabled: true,
-		packageId: null,
-		presentationMode: 'fallback',
-		requiredBackgroundIds: ['guild-hall-painted-base-image', 'guild-hall-painted-foreground-image'],
-		selectedBackgroundIds: [],
-		successfulBackgroundIds: [],
-		selectedFallbackBlockerIds: [...GUILD_HALL_FALLBACK_BLOCKER_IDS],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
-		collisionIds: [...GUILD_HALL_COLLISION_IDS],
-		statefulObjectIds: [...GUILD_HALL_STATEFUL_OBJECT_IDS]
-	});
-	expect(diagnostic.entries).toEqual([
-		expect.objectContaining({
-			id: 'guild-hall-painted-base-image',
-			textureKey: 'guild-hall-painted-base',
-			plane: 'base',
-			status: 'missing-texture',
-			expectedDimensions: { width: 1024, height: 832 },
-			observedDimensions: null
-		}),
-		expect.objectContaining({
-			id: 'guild-hall-painted-foreground-image',
-			textureKey: 'guild-hall-painted-foreground',
-			plane: 'foreground',
-			status: 'rendered',
-			expectedDimensions: { width: 1024, height: 832 },
-			observedDimensions: { width: 1024, height: 832 }
-		})
-	]);
-}
-
-function assertItemShopPaintedDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'item-shop',
-		regionalBackgroundsEnabled: true,
-		packageId: 'item-shop-painted',
-		presentationMode: 'painted',
-		requiredBackgroundIds: ['item-shop-painted-base-image'],
-		selectedBackgroundIds: ['item-shop-painted-base-image'],
-		successfulBackgroundIds: ['item-shop-painted-base-image'],
-		selectedFallbackBlockerIds: [],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
-		collisionIds: [...ITEM_SHOP_COLLISION_IDS],
-		statefulObjectIds: [...ITEM_SHOP_STATEFUL_OBJECT_IDS]
-	});
-	expect(diagnostic.entries).toEqual([
-		expect.objectContaining({
-			id: 'item-shop-painted-base-image',
-			textureKey: 'item-shop-painted-base',
-			plane: 'base',
-			status: 'rendered',
-			expectedDimensions: { width: 832, height: 640 },
-			observedDimensions: { width: 832, height: 640 },
-			renderTransform: {
-				x: 416,
-				y: 320,
-				originX: 0.5,
-				originY: 0.5,
-				displayWidth: 832,
-				displayHeight: 640,
-				depth: -9
-			}
-		})
-	]);
-}
-
-function assertItemShopFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'item-shop',
-		regionalBackgroundsEnabled: true,
-		packageId: null,
-		presentationMode: 'fallback',
-		requiredBackgroundIds: ['item-shop-painted-base-image'],
-		selectedBackgroundIds: [],
-		successfulBackgroundIds: [],
-		selectedFallbackBlockerIds: [...ITEM_SHOP_FALLBACK_BLOCKER_IDS],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
-		collisionIds: [...ITEM_SHOP_COLLISION_IDS],
-		statefulObjectIds: [...ITEM_SHOP_STATEFUL_OBJECT_IDS]
-	});
-	expect(diagnostic.entries).toEqual([
-		expect.objectContaining({
-			id: 'item-shop-painted-base-image',
-			textureKey: 'item-shop-painted-base',
-			plane: 'base',
-			status: 'missing-texture',
-			expectedDimensions: { width: 832, height: 640 },
-			observedDimensions: null
-		})
-	]);
-}
-
-function assertVillagerHouse1PaintedDiagnostic(
-	diagnostic: RegionalBackgroundPlaneRenderDiagnostic
-) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'villager-house-1',
-		regionalBackgroundsEnabled: true,
-		packageId: 'villager-house-1-painted',
-		presentationMode: 'painted',
-		requiredBackgroundIds: ['villager-house-1-painted-base-image'],
-		selectedBackgroundIds: ['villager-house-1-painted-base-image'],
-		successfulBackgroundIds: ['villager-house-1-painted-base-image'],
-		selectedFallbackBlockerIds: [],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
-		collisionIds: [...VILLAGER_HOUSE_1_COLLISION_IDS],
-		statefulObjectIds: [...VILLAGER_HOUSE_1_STATEFUL_OBJECT_IDS]
-	});
-	expect(diagnostic.entries).toEqual([
-		expect.objectContaining({
-			id: 'villager-house-1-painted-base-image',
-			textureKey: 'villager-house-1-painted-base',
-			plane: 'base',
-			status: 'rendered',
-			expectedDimensions: { width: 1280, height: 832 },
-			observedDimensions: { width: 1280, height: 832 },
-			renderTransform: {
-				x: 640,
-				y: 416,
-				originX: 0.5,
-				originY: 0.5,
-				displayWidth: 1280,
-				displayHeight: 832,
-				depth: -9
-			}
-		})
-	]);
-}
-
-function assertVillagerHouse1FallbackDiagnostic(
-	diagnostic: RegionalBackgroundPlaneRenderDiagnostic
-) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'villager-house-1',
-		regionalBackgroundsEnabled: true,
-		packageId: null,
-		presentationMode: 'fallback',
-		requiredBackgroundIds: ['villager-house-1-painted-base-image'],
-		selectedBackgroundIds: [],
-		successfulBackgroundIds: [],
-		selectedFallbackBlockerIds: [...VILLAGER_HOUSE_1_FALLBACK_BLOCKER_IDS],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
-		collisionIds: [...VILLAGER_HOUSE_1_COLLISION_IDS],
-		statefulObjectIds: [...VILLAGER_HOUSE_1_STATEFUL_OBJECT_IDS]
-	});
-	expect(diagnostic.entries).toEqual([
-		expect.objectContaining({
-			id: 'villager-house-1-painted-base-image',
-			textureKey: 'villager-house-1-painted-base',
-			plane: 'base',
-			status: 'missing-texture',
-			expectedDimensions: { width: 1280, height: 832 },
-			observedDimensions: null
-		})
-	]);
-}
-
-function assertVillagerHouse2PaintedDiagnostic(
-	diagnostic: RegionalBackgroundPlaneRenderDiagnostic
-) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'villager-house-2',
-		regionalBackgroundsEnabled: true,
-		packageId: 'villager-house-2-painted',
-		presentationMode: 'painted',
-		requiredBackgroundIds: ['villager-house-2-painted-base-image'],
-		selectedBackgroundIds: ['villager-house-2-painted-base-image'],
-		successfulBackgroundIds: ['villager-house-2-painted-base-image'],
-		selectedFallbackBlockerIds: [],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
-		collisionIds: [...VILLAGER_HOUSE_2_COLLISION_IDS],
-		statefulObjectIds: [...VILLAGER_HOUSE_2_STATEFUL_OBJECT_IDS]
-	});
-	expect(diagnostic.entries).toEqual([
-		expect.objectContaining({
-			id: 'villager-house-2-painted-base-image',
-			textureKey: 'villager-house-2-painted-base',
-			plane: 'base',
-			status: 'rendered',
-			expectedDimensions: { width: 1280, height: 768 },
-			observedDimensions: { width: 1280, height: 768 },
-			renderTransform: {
-				x: 640,
-				y: 384,
-				originX: 0.5,
-				originY: 0.5,
-				displayWidth: 1280,
-				displayHeight: 768,
-				depth: -9
-			}
-		})
-	]);
-}
-
-function assertVillagerHouse2FallbackDiagnostic(
-	diagnostic: RegionalBackgroundPlaneRenderDiagnostic
-) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'villager-house-2',
-		regionalBackgroundsEnabled: true,
-		packageId: null,
-		presentationMode: 'fallback',
-		requiredBackgroundIds: ['villager-house-2-painted-base-image'],
-		selectedBackgroundIds: [],
-		successfulBackgroundIds: [],
-		selectedFallbackBlockerIds: [...VILLAGER_HOUSE_2_FALLBACK_BLOCKER_IDS],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
-		collisionIds: [...VILLAGER_HOUSE_2_COLLISION_IDS],
-		statefulObjectIds: [...VILLAGER_HOUSE_2_STATEFUL_OBJECT_IDS]
-	});
-	expect(diagnostic.entries).toEqual([
-		expect.objectContaining({
-			id: 'villager-house-2-painted-base-image',
-			textureKey: 'villager-house-2-painted-base',
-			plane: 'base',
-			status: 'missing-texture',
-			expectedDimensions: { width: 1280, height: 768 },
-			observedDimensions: null
-		})
-	]);
-}
-
-function assertVillagerHouse3PaintedDiagnostic(
-	diagnostic: RegionalBackgroundPlaneRenderDiagnostic
-) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'villager-house-3',
-		regionalBackgroundsEnabled: true,
-		packageId: 'villager-house-3-painted',
-		presentationMode: 'painted',
-		requiredBackgroundIds: ['villager-house-3-painted-base-image'],
-		selectedBackgroundIds: ['villager-house-3-painted-base-image'],
-		successfulBackgroundIds: ['villager-house-3-painted-base-image'],
-		selectedFallbackBlockerIds: [],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
-		collisionIds: [...VILLAGER_HOUSE_3_COLLISION_IDS],
-		statefulObjectIds: [...VILLAGER_HOUSE_3_STATEFUL_OBJECT_IDS]
-	});
-	expect(diagnostic.entries).toEqual([
-		expect.objectContaining({
-			id: 'villager-house-3-painted-base-image',
-			textureKey: 'villager-house-3-painted-base',
-			plane: 'base',
-			status: 'rendered',
-			expectedDimensions: { width: 1024, height: 704 },
-			observedDimensions: { width: 1024, height: 704 },
-			renderTransform: {
-				x: 512,
-				y: 352,
-				originX: 0.5,
-				originY: 0.5,
-				displayWidth: 1024,
-				displayHeight: 704,
-				depth: -9
-			}
-		})
-	]);
-}
-
-function assertVillagerHouse3FallbackDiagnostic(
-	diagnostic: RegionalBackgroundPlaneRenderDiagnostic
-) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'villager-house-3',
-		regionalBackgroundsEnabled: true,
-		packageId: null,
-		presentationMode: 'fallback',
-		requiredBackgroundIds: ['villager-house-3-painted-base-image'],
-		selectedBackgroundIds: [],
-		successfulBackgroundIds: [],
-		selectedFallbackBlockerIds: [...VILLAGER_HOUSE_3_FALLBACK_BLOCKER_IDS],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
-		collisionIds: [...VILLAGER_HOUSE_3_COLLISION_IDS],
-		statefulObjectIds: [...VILLAGER_HOUSE_3_STATEFUL_OBJECT_IDS]
-	});
-	expect(diagnostic.entries).toEqual([
-		expect.objectContaining({
-			id: 'villager-house-3-painted-base-image',
-			textureKey: 'villager-house-3-painted-base',
-			plane: 'base',
-			status: 'missing-texture',
-			expectedDimensions: { width: 1024, height: 704 },
-			observedDimensions: null
-		})
-	]);
-}
-
 function assertBlacksmithPaintedDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
 	expect(diagnostic).toMatchObject({
 		mapId: 'blacksmith-interior',
@@ -10977,8 +2163,6 @@ function assertBlacksmithPaintedDiagnostic(diagnostic: RegionalBackgroundPlaneRe
 		selectedBackgroundIds: ['blacksmith-interior-painted-base-image'],
 		successfulBackgroundIds: ['blacksmith-interior-painted-base-image'],
 		selectedFallbackBlockerIds: [],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
 		collisionIds: [...BLACKSMITH_COLLISION_IDS],
 		statefulObjectIds: [...BLACKSMITH_STATEFUL_OBJECT_IDS]
 	});
@@ -11013,8 +2197,6 @@ function assertBlacksmithFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneR
 		selectedBackgroundIds: [],
 		successfulBackgroundIds: [],
 		selectedFallbackBlockerIds: [...BLACKSMITH_FALLBACK_BLOCKER_IDS],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
 		collisionIds: [...BLACKSMITH_COLLISION_IDS],
 		statefulObjectIds: [...BLACKSMITH_STATEFUL_OBJECT_IDS]
 	});
@@ -11030,99 +2212,20 @@ function assertBlacksmithFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneR
 	]);
 }
 
-function assertShrinePaintedDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'shrine-of-aurora-interior',
-		regionalBackgroundsEnabled: true,
-		packageId: 'shrine-of-aurora-interior-painted',
-		presentationMode: 'painted',
-		requiredBackgroundIds: ['shrine-of-aurora-interior-painted-base-image'],
-		selectedBackgroundIds: ['shrine-of-aurora-interior-painted-base-image'],
-		successfulBackgroundIds: ['shrine-of-aurora-interior-painted-base-image'],
-		selectedFallbackBlockerIds: [],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
-		collisionIds: [...SHRINE_COLLISION_IDS],
-		statefulObjectIds: [...SHRINE_STATEFUL_OBJECT_IDS]
-	});
-	expect(diagnostic.entries).toEqual([
-		expect.objectContaining({
-			id: 'shrine-of-aurora-interior-painted-base-image',
-			textureKey: 'shrine-of-aurora-interior-painted-base',
-			plane: 'base',
-			status: 'rendered',
-			expectedDimensions: { width: 1024, height: 896 },
-			observedDimensions: { width: 1024, height: 896 },
-			renderTransform: {
-				x: 512,
-				y: 448,
-				originX: 0.5,
-				originY: 0.5,
-				displayWidth: 1024,
-				displayHeight: 896,
-				depth: -9
-			}
-		})
-	]);
-}
-
-function assertShrineFallbackDiagnostic(diagnostic: RegionalBackgroundPlaneRenderDiagnostic) {
-	expect(diagnostic).toMatchObject({
-		mapId: 'shrine-of-aurora-interior',
-		regionalBackgroundsEnabled: true,
-		packageId: null,
-		presentationMode: 'fallback',
-		requiredBackgroundIds: ['shrine-of-aurora-interior-painted-base-image'],
-		selectedBackgroundIds: [],
-		successfulBackgroundIds: [],
-		selectedFallbackBlockerIds: [...SHRINE_FALLBACK_BLOCKER_IDS],
-		selectedFallbackDecorIds: [],
-		selectedFallbackFenceIds: [],
-		collisionIds: [...SHRINE_COLLISION_IDS],
-		statefulObjectIds: [...SHRINE_STATEFUL_OBJECT_IDS]
-	});
-	expect(diagnostic.entries).toEqual([
-		expect.objectContaining({
-			id: 'shrine-of-aurora-interior-painted-base-image',
-			textureKey: 'shrine-of-aurora-interior-painted-base',
-			plane: 'base',
-			status: 'missing-texture',
-			expectedDimensions: { width: 1024, height: 896 },
-			observedDimensions: null
-		})
-	]);
-}
-
-async function saveHeroHouseCanvas(page: Page, name: string) {
-	return saveInteriorCanvas(page, HERO_HOUSE_RUNTIME_EVIDENCE_ROOT, 'hero-house', name);
-}
-
-async function saveGuildHallCanvas(page: Page, name: string) {
-	return saveInteriorCanvas(page, GUILD_HALL_RUNTIME_EVIDENCE_ROOT, 'guild-hall', name);
-}
-
-async function saveItemShopCanvas(page: Page, name: string) {
-	return saveInteriorCanvas(page, ITEM_SHOP_RUNTIME_EVIDENCE_ROOT, 'item-shop', name);
-}
-
-async function saveVillagerHouse1Canvas(page: Page, name: string) {
-	return saveInteriorCanvas(page, VILLAGER_HOUSE_1_RUNTIME_EVIDENCE_ROOT, 'villager-house-1', name);
-}
-
-async function saveVillagerHouse2Canvas(page: Page, name: string) {
-	return saveInteriorCanvas(page, VILLAGER_HOUSE_2_RUNTIME_EVIDENCE_ROOT, 'villager-house-2', name);
-}
-
-async function saveVillagerHouse3Canvas(page: Page, name: string) {
-	return saveInteriorCanvas(page, VILLAGER_HOUSE_3_RUNTIME_EVIDENCE_ROOT, 'villager-house-3', name);
+/**
+ * Blacksmith runtime evidence: isolated per-test output by default so a
+ * plain `bun run test:e2e` never overwrites the committed docs pack.
+ * `BLACKSMITH_EVIDENCE_DOCS=1` opts back into the committed dir for a
+ * deliberate refresh; `BLACKSMITH_EVIDENCE_ROOT` captures into a custom dir.
+ */
+function blacksmithEvidenceRoot(info: TestInfo) {
+	if (process.env.BLACKSMITH_EVIDENCE_ROOT) return process.env.BLACKSMITH_EVIDENCE_ROOT;
+	if (process.env.BLACKSMITH_EVIDENCE_DOCS === '1') return BLACKSMITH_RUNTIME_EVIDENCE_ROOT;
+	return info.outputPath('blacksmith-evidence');
 }
 
 async function saveBlacksmithCanvas(page: Page, name: string) {
-	return saveInteriorCanvas(page, BLACKSMITH_RUNTIME_EVIDENCE_ROOT, 'blacksmith-interior', name);
-}
-
-async function saveShrineCanvas(page: Page, name: string) {
-	return saveInteriorCanvas(page, SHRINE_RUNTIME_EVIDENCE_ROOT, 'shrine-of-aurora-interior', name);
+	return saveInteriorCanvas(page, blacksmithEvidenceRoot(test.info()), 'blacksmith-interior', name);
 }
 
 async function saveInteriorCanvas(page: Page, evidenceRoot: string, styleId: string, name: string) {
@@ -11145,5558 +2248,10 @@ async function saveInteriorCanvas(page: Page, evidenceRoot: string, styleId: str
 	}
 }
 
-function assertAllEightPaintedDiagnostic(
-	mapId: string,
-	diagnostic: RegionalBackgroundPlaneRenderDiagnostic
-) {
-	switch (mapId) {
-		case 'hero-house':
-			assertHeroHousePaintedDiagnostic(diagnostic);
-			return;
-		case 'guild-hall':
-			assertGuildHallPaintedDiagnostic(diagnostic);
-			return;
-		case 'item-shop':
-			assertItemShopPaintedDiagnostic(diagnostic);
-			return;
-		case 'blacksmith-interior':
-			assertBlacksmithPaintedDiagnostic(diagnostic);
-			return;
-		case 'villager-house-1':
-			assertVillagerHouse1PaintedDiagnostic(diagnostic);
-			return;
-		case 'villager-house-2':
-			assertVillagerHouse2PaintedDiagnostic(diagnostic);
-			return;
-		case 'villager-house-3':
-			assertVillagerHouse3PaintedDiagnostic(diagnostic);
-			return;
-		case 'shrine-of-aurora-interior':
-			assertShrinePaintedDiagnostic(diagnostic);
-			return;
-		default:
-			throw new Error(`Unknown all-eight painted diagnostic map: ${mapId}`);
-	}
-}
-
-function assertAllEightFallbackDiagnostic(
-	mapId: string,
-	diagnostic: RegionalBackgroundPlaneRenderDiagnostic
-) {
-	switch (mapId) {
-		case 'hero-house':
-			assertHeroHouseFallbackDiagnostic(diagnostic);
-			return;
-		case 'guild-hall':
-			assertGuildHallFallbackDiagnostic(diagnostic);
-			return;
-		case 'item-shop':
-			assertItemShopFallbackDiagnostic(diagnostic);
-			return;
-		case 'blacksmith-interior':
-			assertBlacksmithFallbackDiagnostic(diagnostic);
-			return;
-		case 'villager-house-1':
-			assertVillagerHouse1FallbackDiagnostic(diagnostic);
-			return;
-		case 'villager-house-2':
-			assertVillagerHouse2FallbackDiagnostic(diagnostic);
-			return;
-		case 'villager-house-3':
-			assertVillagerHouse3FallbackDiagnostic(diagnostic);
-			return;
-		case 'shrine-of-aurora-interior':
-			assertShrineFallbackDiagnostic(diagnostic);
-			return;
-		default:
-			throw new Error(`Unknown all-eight fallback diagnostic map: ${mapId}`);
-	}
-}
-
-async function assertAllEightCamera(page: Page, mapId: string) {
-	await page.waitForFunction(
-		() => {
-			const camera = (window as GlieseProbeWindow).__glieseActiveSceneCamera;
-			return (
-				typeof camera?.zoom === 'number' &&
-				typeof camera.worldView?.width === 'number' &&
-				typeof camera.worldView?.height === 'number'
-			);
-		},
-		undefined,
-		{ timeout: 30_000 }
-	);
-	const camera = await page.evaluate(() => {
-		const active = (window as GlieseProbeWindow).__glieseActiveSceneCamera;
-		return {
-			zoom: active?.zoom ?? null,
-			width: active?.worldView?.width ?? null,
-			height: active?.worldView?.height ?? null
-		};
-	});
-	expect(camera.zoom, `${mapId}: camera zoom`).toBe(1);
-	expect({ width: camera.width, height: camera.height }, `${mapId}: camera view`).toEqual({
-		width: 640,
-		height: 360
-	});
-}
-
-async function saveAllEightInteriorCanvas(page: Page, mapId: string, name: string) {
-	return saveInteriorCanvas(
-		page,
-		resolve(FINAL_INTERIOR_RUNTIME_EVIDENCE_ROOT, mapId),
-		`all-eight-${mapId}`,
-		name
-	);
-}
-
-async function writeAllEightOverworldSave(page: Page, interior: InteriorGrayboxCase, wallet = 30) {
-	const save = createSaveFixture({
-		mapId: 'overworld',
-		player: {
-			level: 1,
-			xp: 0,
-			hp: 20,
-			attack: 3,
-			x: interior.returnArrival.x,
-			y: interior.returnArrival.y,
-			facing: 'up'
-		},
-		wallet: { coins: wallet },
-		quests: allEightQuests(interior)
-	});
-	await page.evaluate(
-		({ key, save }) => {
-			window.localStorage.setItem(
-				key,
-				JSON.stringify({
-					version: 1,
-					slots: [
-						{
-							kind: 'autosave',
-							savedAt: new Date().toISOString(),
-							playtimeSeconds: 0,
-							state: save
-						},
-						null,
-						null
-					]
-				})
-			);
-		},
-		{ key: SAVES_STORAGE_KEY, save }
-	);
-}
-
-async function writeAllEightOverworldSaveFromCurrentInterior(
-	page: Page,
-	interior: InteriorGrayboxCase
-) {
-	await page.evaluate(
-		({ key, returnArrival }) => {
-			const encoded = window.localStorage.getItem(key);
-			if (!encoded)
-				throw new Error(`Missing persisted save while returning to the overworld: ${key}`);
-			const envelope = JSON.parse(encoded) as {
-				slots?: Array<null | { kind?: string; state?: Record<string, unknown> }>;
-			};
-			const autosave = envelope.slots?.[0];
-			if (!autosave?.state)
-				throw new Error('Missing autosave slot while returning to the overworld');
-			autosave.state = {
-				...autosave.state,
-				mapId: 'overworld',
-				player: {
-					...(autosave.state.player as Record<string, unknown>),
-					x: returnArrival.x,
-					y: returnArrival.y,
-					facing: 'up'
-				}
-			};
-			window.localStorage.setItem(key, JSON.stringify(envelope));
-		},
-		{ key: SAVES_STORAGE_KEY, returnArrival: interior.returnArrival }
-	);
-}
-
-async function resumeAllEightOverworldSave(page: Page, interior: InteriorGrayboxCase) {
-	await page.reload();
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await waitForHudPosition(page, 'overworld', interior.returnArrival);
-}
-
-function allEightRequiredBaseRoute(mapId: string): string {
-	return `**/game/assets/interiors/${mapId}/base.png`;
-}
-
-type AllEightPresentationMode = 'painted' | 'fallback';
-
-async function assertAllEightPresentation(
-	page: Page,
-	interior: InteriorGrayboxCase,
-	mode: AllEightPresentationMode,
-	previousMapDiagnosticCount = 0,
-	evidenceName?: string
-) {
-	const diagnostic = await waitForMapBackgroundDiagnostic(
-		page,
-		interior.mapId,
-		previousMapDiagnosticCount
-	);
-	if (mode === 'painted') assertAllEightPaintedDiagnostic(interior.mapId, diagnostic);
-	else assertAllEightFallbackDiagnostic(interior.mapId, diagnostic);
-	await assertAllEightCamera(page, interior.mapId);
-	if (evidenceName) await saveAllEightInteriorCanvas(page, interior.mapId, evidenceName);
-}
-
-async function runAllEightExistingInteriorPhase(
-	page: Page,
-	interior: InteriorGrayboxCase,
-	mode: AllEightPresentationMode
-) {
-	await traverseInteriorForJourney(
-		page,
-		interior,
-		{
-			afterEnter: async () =>
-				assertAllEightPresentation(page, interior, mode, 0, `${mode}-camera-640x360.png`),
-			afterStep: async (step, point) => {
-				if (step.label !== interior.persistAfterStep) return point;
-				const resumed = await saveInteriorCheckpointAndReload(page, interior.mapId, point);
-				const purchase = step.interaction?.purchase;
-				if (purchase) {
-					// The checkpoint must carry the step's own state delta: a
-					// position-only save check would miss a transaction lost on
-					// slot save/reload (the post-approval shop+save risk).
-					const persisted = await readManualSlotState(page);
-					expect(persisted.wallet?.coins).toBe(purchase.coinsAfter);
-					expect(persisted.inventory?.stacks).toEqual(
-						expect.arrayContaining([
-							expect.objectContaining({
-								itemId: purchase.itemId,
-								quantity: purchase.quantityAfter
-							})
-						])
-					);
-					const hud = await page.evaluate(
-						() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
-					);
-					expect(hud?.wallet?.coins).toBe(purchase.coinsAfter);
-					expect(hud?.inventory?.consumables).toEqual(
-						expect.arrayContaining([
-							expect.objectContaining({
-								itemId: purchase.itemId,
-								quantity: purchase.quantityAfter
-							})
-						])
-					);
-				}
-				await assertAllEightPresentation(page, interior, mode);
-				return resumed;
-			}
-		},
-		(label, result) => {
-			expect(result.mapId, label).toBe(interior.mapId);
-		}
-	);
-
-	const diagnosticCountBeforeReentry = await page.evaluate(
-		(requestedMapId) =>
-			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
-				({ mapId }) => mapId === requestedMapId
-			).length ?? 0,
-		interior.mapId
-	);
-	await enterInteriorWithTrustedKeyboard(page, interior);
-	await assertAllEightPresentation(page, interior, mode, diagnosticCountBeforeReentry);
-	const reentryPoint = await currentHudPlayerPoint(page, interior.mapId);
-	const resumed = await saveInteriorCheckpointAndReload(page, interior.mapId, reentryPoint);
-	await assertAllEightPresentation(page, interior, mode);
-	await assertInteriorCheckpoint(page, interior, resumed);
-	await exitInteriorWithTrustedKeyboard(page, interior);
-}
-
-async function runAllEightFallbackCriticalPhase(page: Page, interior: InteriorGrayboxCase) {
-	const criticalStep = interior.steps.find(({ interaction }) => !interaction);
-	if (!criticalStep) {
-		throw new Error(`Missing source-derived fallback checkpoint for ${interior.mapId}`);
-	}
-
-	await traverseInteriorForJourney(
-		page,
-		{
-			...interior,
-			steps: [
-				criticalStep,
-				{
-					label: 'fallback-spawn-return',
-					point: interior.spawn,
-					reachTolerance: TIGHT_HANDOFF_REACH_TOLERANCE
-				}
-			],
-			persistAfterStep: undefined
-		},
-		{
-			afterEnter: async () =>
-				assertAllEightPresentation(page, interior, 'fallback', 0, 'fallback-camera-640x360.png')
-		},
-		(label, result) => {
-			expect(result.mapId, label).toBe(interior.mapId);
-		}
-	);
-}
-
-async function openAllEightBlacksmithShop(page: Page, expectedCoins: number, buyIronCap: boolean) {
-	await page.waitForFunction(
-		() => (window as GlieseProbeWindow).__glieseLastHudState?.status === 'Oren nearby',
-		undefined,
-		{ timeout: 30_000 }
-	);
-	await page.locator('canvas').click();
-	await page.keyboard.press('e', { delay: 50 });
-	const dialogue = page.getByRole('dialog', { name: 'Oren' });
-	await expect(dialogue).toBeVisible();
-	await dialogue.getByRole('button', { name: 'Shop' }).click();
-	const shop = page.getByRole('dialog', { name: 'Sundrop Forge' });
-	await expect(shop).toBeVisible();
-	await expect(shop.getByLabel(`Coins: ${expectedCoins}`)).toBeVisible();
-	const ironCap = shop.getByTestId('shop-buy-grid').getByLabel('Iron Cap', { exact: true });
-	if (buyIronCap) {
-		await ironCap.dblclick();
-		await expect(shop.getByLabel('Coins: 65')).toBeVisible();
-	} else {
-		await ironCap.hover();
-		await expect(page.getByRole('tooltip')).toContainText('0 left');
-	}
-	await shop.getByRole('button', { name: 'Close' }).click();
-	await expect(shop).toHaveCount(0);
-	await expect(dialogue).toHaveCount(0);
-}
-
-async function runAllEightBlacksmithPhase(
-	page: Page,
-	interior: InteriorGrayboxCase,
-	mode: AllEightPresentationMode
-) {
-	const layout = VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'];
-	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'oren');
-	if (!oren) throw new Error('Oren fixture is missing from the all-eight route');
-	const forgePoint = { x: 240, y: 144 };
-	const storagePoint = { x: 336, y: 320 };
-	const armoryPoint = { x: 800, y: 304 };
-	const showroomPoint = { x: 800, y: 624 };
-	const orenApproachPoint = layout.npcApproaches.oren.approach;
-
-	await enterInteriorWithTrustedKeyboard(page, interior);
-	await assertAllEightPresentation(page, interior, mode, 0, `${mode}-camera-640x360.png`);
-
-	let currentPoint = interior.spawn;
-	if (mode === 'fallback') {
-		currentPoint = await moveRoute(page, [
-			currentPoint,
-			{ x: 448, y: 640 },
-			{ x: 800, y: 640 },
-			showroomPoint
-		]);
-		await assertInteriorCheckpoint(page, interior, showroomPoint);
-		await moveRoute(page, [currentPoint, { x: 800, y: 640 }, { x: 448, y: 640 }, interior.spawn]);
-		await assertInteriorCheckpoint(page, interior, interior.spawn);
-		await exitInteriorWithTrustedKeyboard(page, interior);
-		return;
-	}
-
-	currentPoint = await moveRoute(page, [
-		currentPoint,
-		{ x: 448, y: 640 },
-		{ x: 800, y: 640 },
-		{ x: 800, y: 400 },
-		{ x: 520, y: 400 },
-		{ x: 480, y: 208 },
-		{ x: 368, y: 208 },
-		{ x: 368, y: 144 },
-		forgePoint
-	]);
-	await assertInteriorCheckpoint(page, interior, forgePoint);
-
-	currentPoint = await moveRoute(page, [
-		currentPoint,
-		{ x: 240, y: 272 },
-		{ x: 336, y: 272 },
-		storagePoint
-	]);
-	await assertInteriorCheckpoint(page, interior, storagePoint);
-
-	currentPoint = await moveRoute(page, [
-		currentPoint,
-		{ x: 384, y: 320 },
-		{ x: 384, y: 208 },
-		{ x: 592, y: 208 },
-		{ x: BLACKSMITH_ARMORY_TRANSIT_X, y: 304 },
-		armoryPoint
-	]);
-	await assertInteriorCheckpoint(page, interior, armoryPoint);
-
-	currentPoint = await moveRoute(page, [
-		currentPoint,
-		{ x: 592, y: 208 },
-		{ x: 512, y: 208 },
-		{ x: 512, y: 416 },
-		{ x: 640, y: 416 },
-		{ x: 640, y: 624 },
-		showroomPoint
-	]);
-	await assertInteriorCheckpoint(page, interior, showroomPoint);
-
-	currentPoint = await moveRoute(page, [
-		currentPoint,
-		{ x: 240, y: 624 },
-		{ x: 240, y: 480 },
-		orenApproachPoint
-	]);
-	await assertInteriorCheckpoint(page, interior, orenApproachPoint);
-	await moveRoute(
-		page,
-		[currentPoint, { x: 240, y: 480 }, { x: 240, y: 400 }, blacksmithOrenInteractionStagingPoint],
-		INTERIOR_ROUTE_SETTLE_TOLERANCE,
-		undefined,
-		undefined,
-		TIGHT_HANDOFF_REACH_TOLERANCE
-	);
-	await approachNpcWithTrustedKeyboard(page, {
-		mapId: interior.mapId,
-		speaker: 'Oren',
-		stagingPoint: blacksmithOrenInteractionStagingPoint,
-		npc: { x: oren.x, y: oren.y },
-		propCollision: layout.propCollisions.serviceCounter
-	});
-	await openAllEightBlacksmithShop(page, mode === 'painted' ? 100 : 65, mode === 'painted');
-	currentPoint = await currentHudPlayerPoint(page, interior.mapId);
-
-	await saveInteriorCheckpointAndReload(page, interior.mapId, currentPoint);
-	if (mode === 'painted') {
-		const persisted = await readAutosaveState(page);
-		expect(persisted.wallet?.coins).toBe(65);
-		expect(persisted.shops?.stock?.['sundrop-forge']?.['iron-cap']).toBe(0);
-		expect(persisted.inventory?.equipment).toContain('iron-cap');
-	}
-	await assertAllEightPresentation(page, interior, mode);
-	await openAllEightBlacksmithShop(page, 65, false);
-	currentPoint = await currentHudPlayerPoint(page, interior.mapId);
-	await moveRoute(page, [currentPoint, { x: 240, y: 416 }, { x: 240, y: 576 }, interior.spawn]);
-	await assertInteriorCheckpoint(page, interior, interior.spawn);
-	await exitInteriorWithTrustedKeyboard(page, interior);
-
-	const diagnosticCountBeforeReentry = await page.evaluate(
-		(requestedMapId) =>
-			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
-				({ mapId }) => mapId === requestedMapId
-			).length ?? 0,
-		interior.mapId
-	);
-	await enterInteriorWithTrustedKeyboard(page, interior);
-	await assertAllEightPresentation(page, interior, mode, diagnosticCountBeforeReentry);
-	currentPoint = await currentHudPlayerPoint(page, interior.mapId);
-	await saveInteriorCheckpointAndReload(page, interior.mapId, currentPoint);
-	await assertAllEightPresentation(page, interior, mode);
-	const persistedAfterReentry = await readAutosaveState(page);
-	expect(persistedAfterReentry.wallet?.coins).toBe(65);
-	expect(persistedAfterReentry.shops?.stock?.['sundrop-forge']?.['iron-cap']).toBe(0);
-	await exitInteriorWithTrustedKeyboard(page, interior);
-}
-
-test('Guild Hall terminal checkpoint skips an in-band micro-correction', () => {
-	const liveResidue = { x: 410, y: 193 };
-	const authoredCheckpoint = { x: 400, y: 208 };
-	const finalRoute = guildHallRecordsAisleFinalCheckpointRoutePoints(
-		liveResidue,
-		authoredCheckpoint
-	);
-
-	// Both coordinates already satisfy the unchanged terminal reach contract. A
-	// generated x-then-y corner would skip x at the runner's settle tolerance,
-	// then drive y at x=410 through the records-spine wall.
-	expect(Math.abs(liveResidue.x - authoredCheckpoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(liveResidue.y - authoredCheckpoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(finalRoute).toEqual([liveResidue]);
-});
-
-test('validated route evidence records diagnostics without revalidating them', () => {
-	const invalidDiagnostic: PlayerMovementDiagnostic = {
-		mapId: 'guild-hall',
-		previousPosition: { x: 1, y: 2 },
-		requestedPosition: { x: 3, y: 2 },
-		resolvedPosition: { x: 1, y: 2 },
-		blocked: true
-	};
-	const result: BrowserRouteResult = {
-		token: 'characterization-evidence-only',
-		mapId: 'overworld',
-		status: 'done',
-		pointIndex: 1,
-		axis: null,
-		position: { x: 3, y: 2 },
-		target: null,
-		lastDiagnostic: invalidDiagnostic,
-		axisHistory: ['x'],
-		diagnostics: [invalidDiagnostic],
-		invalidDiagnostics: [invalidDiagnostic],
-		diagnosticAxes: ['x'],
-		activeKey: null
-	};
-
-	const evidence = collectJourneyRouteEvidence('evidence-only', result);
-	expect(evidence).toMatchObject({
-		label: 'evidence-only',
-		token: result.token,
-		status: 'done',
-		mapId: 'overworld',
-		diagnosticCount: 1,
-		diagnosticMapIds: ['guild-hall'],
-		invalidDiagnostics: [invalidDiagnostic]
-	});
-	expect(() => assertRouteDiagnosticsAreFaithful(result, 'validator characterization')).toThrow();
-});
-
-test('browser-local route correction paces an unblocked Guild Hall overshoot before reversing', async ({
-	page
-}) => {
-	await installRuntimeProbes(page);
-	await page.goto('/?movementDiagnostics=on&startMap=overworld');
-	await expect(page.locator('canvas')).toBeVisible();
-	await page.waitForFunction(() => {
-		const state = (window as GlieseProbeWindow).__glieseLastHudState;
-		return state?.ready === true && state.mapId === 'overworld';
-	});
-
-	const evidence = await page.evaluate(async () => {
-		const probeWindow = window as GlieseProbeWindow;
-		const runner = probeWindow.__glieseRouteRunner;
-		if (!runner) return null;
-
-		const keyEvents: string[] = [];
-		const onKeyEvent = (event: KeyboardEvent) => {
-			if (event.key.startsWith('Arrow')) {
-				keyEvents.push(`${event.type}:${event.key}`);
-			}
-		};
-		window.addEventListener('keydown', onKeyEvent);
-		window.addEventListener('keyup', onKeyEvent);
-
-		const setSyntheticPosition = (position: Point) => {
-			probeWindow.__glieseLastHudState = {
-				...(probeWindow.__glieseLastHudState ?? {}),
-				ready: true,
-				mapId: 'guild-hall',
-				areaMap: { player: { ...position } }
-			};
-			probeWindow.__glieseLastHudAt = 500;
-			probeWindow.__glieseLastMovementDiagnostic = undefined;
-			probeWindow.__glieseLastMovementAt = 0;
-		};
-		const dispatchDiagnostic = (previous: Point, resolved: Point) => {
-			window.dispatchEvent(
-				new CustomEvent<PlayerMovementDiagnostic>('gliese:player-movement-diagnostic', {
-					detail: {
-						mapId: 'guild-hall',
-						previousPosition: { ...previous },
-						requestedPosition: { ...resolved },
-						resolvedPosition: { ...resolved },
-						blocked: false
-					}
-				})
-			);
-		};
-		const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-		const waitTwoFrames = async () => {
-			await nextFrame();
-			await nextFrame();
-		};
-		const snapshot = (requestedToken: string) => {
-			const route = runner.get(requestedToken);
-			return { status: route?.status ?? null, activeKey: route?.activeKey ?? null };
-		};
-		const detailedSnapshot = (requestedToken: string) => {
-			const route = runner.get(requestedToken);
-			return {
-				...snapshot(requestedToken),
-				position: route?.position ? { ...route.position } : null,
-				correctionTaps: route?.correctionTaps ?? null,
-				diagnosticCount: route?.diagnostics?.length ?? null
-			};
-		};
-		const invalidIdleSnapshot = (requestedToken: string) => {
-			const route = runner.get(requestedToken);
-			return {
-				...detailedSnapshot(requestedToken),
-				invalidDiagnosticCount: route?.invalidDiagnostics?.length ?? null,
-				invalidDiagnosticMapId: route?.invalidDiagnostics?.[0]?.mapId ?? null
-			};
-		};
-		const events = () => keyEvents.join('|');
-
-		const startPoint = { x: 682.6112000000019, y: 168.06640000000007 };
-		const target = { x: 679, y: 111 };
-		const firstOvershoot = { x: startPoint.x, y: 129.4407999999995 };
-		const oppositeOvershoot = { x: startPoint.x, y: 90.81519999999895 };
-		const routePlan = (requestedToken: string) => ({
-			token: requestedToken,
-			points: [startPoint, target],
-			settleTolerance: 12,
-			reachTolerance: 18,
-			maxCorrectionTaps: 8,
-			blockedTolerance: 12
-		});
-		setSyntheticPosition(startPoint);
-		const token = `characterization-guild-hall-paced-correction-${Date.now()}`;
-		runner.start(routePlan(token));
-		const started = snapshot(token);
-		keyEvents.length = 0;
-
-		// This is the exact unblocked slow-frame pair from Guild Hall: the second
-		// diagnostic used to reverse immediately instead of releasing for a frame.
-		dispatchDiagnostic(startPoint, firstOvershoot);
-		dispatchDiagnostic(firstOvershoot, oppositeOvershoot);
-		const immediate = snapshot(token);
-		const immediateEvents = events();
-
-		await nextFrame();
-		const released = snapshot(token);
-		const idleBefore = detailedSnapshot(token);
-		const idleEventsBefore = events();
-		const alternatingOvershoots = Array.from({ length: 8 }, (_, index) =>
-			index % 2 === 0 ? [oppositeOvershoot, firstOvershoot] : [firstOvershoot, oppositeOvershoot]
-		);
-		for (const [previous, resolved] of alternatingOvershoots) {
-			dispatchDiagnostic(previous, resolved);
-		}
-		const idleAfter = detailedSnapshot(token);
-		const idleEventsAfter = events();
-		await nextFrame();
-		const paced = snapshot(token);
-		const pacedEvents = events();
-
-		// This event arrives after the guaranteed idle frame. It may schedule the
-		// next correction, but it must release the held key before reversing.
-		dispatchDiagnostic(oppositeOvershoot, firstOvershoot);
-		const secondImmediate = snapshot(token);
-		const secondImmediateEvents = events();
-		await waitTwoFrames();
-		dispatchDiagnostic(firstOvershoot, { x: firstOvershoot.x, y: target.y + 9 });
-		const done = snapshot(token);
-		const completedEvents = events();
-
-		const startPendingRoute = (suffix: string) => {
-			setSyntheticPosition(startPoint);
-			const requestedToken = `${token}-${suffix}`;
-			runner.start(routePlan(requestedToken));
-			keyEvents.length = 0;
-			dispatchDiagnostic(startPoint, oppositeOvershoot);
-			return requestedToken;
-		};
-
-		// An invalid diagnostic arriving while the second pacing frame is pending
-		// must remain authoritative and prevent a later valid terminal event from
-		// reporting a clean route.
-		const invalidIdleToken = startPendingRoute('invalid-idle');
-		await nextFrame();
-		window.dispatchEvent(
-			new CustomEvent<PlayerMovementDiagnostic>('gliese:player-movement-diagnostic', {
-				detail: {
-					mapId: 'item-shop',
-					previousPosition: { ...oppositeOvershoot },
-					requestedPosition: { ...oppositeOvershoot },
-					resolvedPosition: { ...oppositeOvershoot },
-					blocked: false
-				}
-			})
-		);
-		const invalidIdleBeforeTerminal = invalidIdleSnapshot(invalidIdleToken);
-		await nextFrame();
-		const invalidIdlePaced = snapshot(invalidIdleToken);
-		dispatchDiagnostic(oppositeOvershoot, target);
-		const invalidIdleAfter = invalidIdleSnapshot(invalidIdleToken);
-		const invalidIdleEvents = events();
-
-		// Explicit cancellation must remove both scheduled frames and leave no
-		// correction key for a later route.
-		const cancelToken = startPendingRoute('cancel');
-		runner.cancel(cancelToken, 'paced correction cancellation characterization');
-		const canceled = snapshot(cancelToken);
-		await waitTwoFrames();
-		const cancelAfter = snapshot(cancelToken);
-		const cancelEvents = events();
-
-		// Replacing a running route must cancel the old correction before the new
-		// route acquires its initial key; the stale opposite key must never appear.
-		startPendingRoute('replace');
-		const replacedToken = `${token}-replacement`;
-		setSyntheticPosition(startPoint);
-		runner.start(routePlan(replacedToken));
-		const replacementBeforeCancel = snapshot(replacedToken);
-		runner.cancel(replacedToken, 'paced correction replacement characterization cleanup');
-		const replacementCanceled = snapshot(replacedToken);
-		await waitTwoFrames();
-		const replacementAfter = snapshot(replacedToken);
-		const replacementEvents = events();
-
-		// pagehide follows the same fail path and must also release a pending
-		// correction before the two callbacks can run.
-		const pagehideToken = startPendingRoute('pagehide');
-		window.dispatchEvent(new Event('pagehide'));
-		await waitTwoFrames();
-		const pagehideAfter = snapshot(pagehideToken);
-		const pagehideEvents = events();
-		if (done.status === 'running')
-			runner.cancel(token, 'paced correction characterization cleanup');
-		window.removeEventListener('keydown', onKeyEvent);
-		window.removeEventListener('keyup', onKeyEvent);
-
-		return {
-			started,
-			immediate,
-			immediateEvents,
-			released,
-			idleBefore,
-			idleAfter,
-			idleEventsBefore,
-			idleEventsAfter,
-			paced,
-			pacedEvents,
-			secondImmediate,
-			secondImmediateEvents,
-			done,
-			completedEvents,
-			invalidIdleBeforeTerminal,
-			invalidIdlePaced,
-			invalidIdleAfter,
-			invalidIdleEvents,
-			canceled,
-			cancelAfter,
-			cancelEvents,
-			replacement: replacementBeforeCancel,
-			replacementAfter,
-			replacementCanceled,
-			replacementEvents,
-			pagehideAfter,
-			pagehideEvents
-		};
-	});
-
-	expect(evidence).toEqual({
-		started: { status: 'running', activeKey: 'ArrowUp' },
-		immediate: { status: 'running', activeKey: null },
-		immediateEvents: 'keyup:ArrowUp',
-		released: { status: 'running', activeKey: null },
-		idleBefore: {
-			status: 'running',
-			activeKey: null,
-			position: { x: 682.6112000000019, y: 90.81519999999895 },
-			correctionTaps: 1,
-			diagnosticCount: 2
-		},
-		idleAfter: {
-			status: 'running',
-			activeKey: null,
-			position: { x: 682.6112000000019, y: 90.81519999999895 },
-			correctionTaps: 1,
-			diagnosticCount: 2
-		},
-		idleEventsBefore: 'keyup:ArrowUp',
-		idleEventsAfter: 'keyup:ArrowUp',
-		paced: { status: 'running', activeKey: 'ArrowDown' },
-		pacedEvents: 'keyup:ArrowUp|keydown:ArrowDown',
-		// After the first paced reverse, further past-target residue settles
-		// (correctionTaps >= 1) instead of scheduling a second reverse. The
-		// first overshoot correction + idle pacing remain the contract under test.
-		secondImmediate: { status: 'done', activeKey: null },
-		secondImmediateEvents: 'keyup:ArrowUp|keydown:ArrowDown|keyup:ArrowDown',
-		done: { status: 'done', activeKey: null },
-		completedEvents: 'keyup:ArrowUp|keydown:ArrowDown|keyup:ArrowDown',
-		invalidIdleBeforeTerminal: {
-			status: 'running',
-			activeKey: null,
-			position: { x: 682.6112000000019, y: 90.81519999999895 },
-			correctionTaps: 1,
-			diagnosticCount: 1,
-			invalidDiagnosticCount: 1,
-			invalidDiagnosticMapId: 'item-shop'
-		},
-		invalidIdlePaced: { status: 'running', activeKey: 'ArrowDown' },
-		invalidIdleAfter: {
-			status: 'error',
-			activeKey: null,
-			position: { x: 679, y: 111 },
-			correctionTaps: 1,
-			diagnosticCount: 2,
-			invalidDiagnosticCount: 1,
-			invalidDiagnosticMapId: 'item-shop'
-		},
-		invalidIdleEvents: 'keyup:ArrowUp|keydown:ArrowDown|keyup:ArrowDown',
-		canceled: { status: 'error', activeKey: null },
-		cancelAfter: { status: 'error', activeKey: null },
-		cancelEvents: 'keyup:ArrowUp',
-		replacement: { status: 'running', activeKey: 'ArrowUp' },
-		replacementAfter: { status: 'error', activeKey: null },
-		replacementCanceled: { status: 'error', activeKey: null },
-		replacementEvents: 'keyup:ArrowUp|keydown:ArrowUp|keyup:ArrowUp',
-		pagehideAfter: { status: 'error', activeKey: null },
-		pagehideEvents: 'keyup:ArrowUp'
-	});
-});
-
-test('entry map boots with no game console errors', async ({ page }) => {
-	// Collect console errors emitted during boot. Phaser logs missing-texture and
-	// asset-load failures to console.error, so this catches a broken/missing asset
-	// from the entry-map enrichment (terrain tiles, decor packs, etc.).
-	const errors: string[] = [];
-	page.on('console', (msg) => {
-		if (msg.type() === 'error') errors.push(msg.text());
-	});
-
-	await startNewRunFromTitle(page);
-	// startNewRunFromTitle returns as soon as the canvas mounts, while BootScene
-	// is still preloading textures and audio. Wait for WorldScene's opening
-	// dialogue (emitted in WorldScene.create() only after BootScene's loader
-	// completes and runtime frames are registered), plus a bounded settle
-	// window for any late asset/decode 404.
-	await expect(page.getByRole('dialog')).toBeVisible({ timeout: 30_000 });
-	await page.waitForTimeout(1_000);
-
-	// Filter benign, game-unrelated noise (e.g. favicon / generic resource 404s and
-	// devtools chatter) so the assertion stays meaningful. We deliberately do NOT
-	// filter anything that mentions a game asset path, Phaser, texture, or frame
-	// failure — a real missing-texture from the enrichment must still fail here.
-	const benign = /favicon|\.ico\b/i;
-	const gameErrors = errors.filter((text) => !benign.test(text));
-
-	expect(gameErrors).toEqual([]);
-});
-
-test('game route boots', async ({ page }) => {
-	await startNewRunThroughOpening(page);
-
-	const viewport = page.viewportSize();
-	const minimap = page.getByTestId('hud-minimap');
-	const partyPanel = page.getByTestId('hud-party-panel');
-	const sideHud = page.getByTestId('hud-side-panel');
-	await expect(minimap).toBeVisible();
-	await expect(partyPanel).toBeVisible();
-	await expect(sideHud).toBeVisible();
-	// Location pill renders the live area name inside the minimap card.
-	await expect(minimap.getByText("Grik's House")).toBeVisible();
-
-	const minimapBox = await minimap.boundingBox();
-	const partyBox = await partyPanel.boundingBox();
-	const sideBox = await sideHud.boundingBox();
-	// Hero card top-left, minimap medallion + side HUD top-right.
-	expect(partyBox?.x).toBeLessThan(40);
-	expect(partyBox?.y).toBeLessThan(40);
-	expect(minimapBox?.y).toBeLessThan(40);
-	expect((minimapBox?.x ?? 0) + (minimapBox?.width ?? 0)).toBeGreaterThan(
-		(viewport?.width ?? 0) - 40
-	);
-	expect((sideBox?.x ?? 0) + (sideBox?.width ?? 0)).toBeGreaterThan((viewport?.width ?? 0) - 40);
-
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await expect(commandBox(page)).toBeVisible();
-	const commandBounds = await commandBox(page).boundingBox();
-	expect((commandBounds?.y ?? 0) + (commandBounds?.height ?? 0)).toBeLessThan(
-		(viewport?.height ?? 0) * 0.78
-	);
-});
-
-test('encounter opens battle scene and returns through battle summary', async ({ page }) => {
-	const save = createSaveFixture({
-		player: {
-			level: 1,
-			xp: 0,
-			hp: 200,
-			attack: 50,
-			x: 2_896,
-			y: 5_904,
-			facing: 'down'
-		}
-	});
-
-	await injectSave(page, save);
-	await continueFromTitle(page);
-
-	// The Heroic summary dialog is named by its outcome (Victory / Defeat);
-	// /battle summary/i keeps matching the pre-Heroic Arcane naming.
-	const battleSummary = page.getByRole('dialog', { name: /battle summary|victory|defeat/i });
-	await expect(battleSummary).toBeVisible({ timeout: 30_000 });
-	// Heroic summary renders foes defeated as the structured stat tile.
-	await expect(battleSummary.getByTestId('battle-stat-foes')).toContainText(/[1-9]/);
-	await battleSummary.getByRole('button', { name: /continue/i }).click();
-	await expect(battleSummary).toHaveCount(0);
-	await expect(fieldStatus(page)).toContainText('Returned from battle');
-});
-
-test('fleeing the boar king requires leaving and returning before re-engagement', async ({
-	page
-}) => {
-	test.setTimeout(45_000);
-	const home = anchorPoint('silverpine-boar-king');
-	const save = {
-		...createSaveFixture({
-			player: {
-				level: 1,
-				xp: 0,
-				hp: 20,
-				attack: 3,
-				x: home.x,
-				y: home.y + 60,
-				facing: 'up'
-			},
-			clearedEncounters: ['silverpine-wolves-falls', 'silverpine-wolves-terrace']
-		}),
-		quests: questStateAt('defeat-boar-king')
-	};
-	await seedSaveSlots(page, [{ state: save }]);
-	await page.addInitScript(() => {
-		localStorage.setItem(
-			'gliese.preferences.v1',
-			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
-		);
-		window.addEventListener('gliese:player-movement-diagnostic', (event) => {
-			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic = (
-				event as CustomEvent<PlayerMovementDiagnostic>
-			).detail;
-		});
-	});
-	await page.goto('/?movementDiagnostics=on');
-	const battle = page.getByRole('region', { name: 'Battle' });
-	await expect(battle).toBeVisible({ timeout: 15_000 });
-	await page.keyboard.down('ArrowDown');
-	await battle.getByRole('button', { name: 'Flee' }).click();
-	await expect(fieldStatus(page)).toContainText(/leave.+return/i, { timeout: 10_000 });
-	await page.keyboard.up('ArrowDown');
-	await page.waitForTimeout(5_500);
-	await expect(fieldStatus(page)).toContainText(/leave.+return/i);
-	await expect(battle).toHaveCount(0);
-
-	await page.evaluate((targetY) => {
-		function stopAtLane(event: Event) {
-			const movement = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
-			if (movement.resolvedPosition.y > targetY) return;
-			window.removeEventListener('gliese:player-movement-diagnostic', stopAtLane);
-			window.dispatchEvent(
-				new KeyboardEvent('keyup', {
-					key: 'ArrowUp',
-					code: 'ArrowUp',
-					keyCode: 38,
-					which: 38,
-					bubbles: true
-				})
-			);
-		}
-		window.addEventListener('gliese:player-movement-diagnostic', stopAtLane);
-	}, home.y + 16);
-	await page.keyboard.down('ArrowUp');
-	await page.waitForFunction(
-		(y) =>
-			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic?.resolvedPosition.y !==
-				undefined &&
-			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic!.resolvedPosition.y <= y + 16,
-		home.y,
-		{ timeout: 5_000 }
-	);
-	await page.keyboard.up('ArrowUp');
-	await page.keyboard.down('ArrowLeft');
-	await page.waitForFunction(
-		(x) =>
-			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic?.resolvedPosition.x !==
-				undefined &&
-			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic!.resolvedPosition.x <= x - 220,
-		home.x,
-		{ timeout: 5_000 }
-	);
-	await page.keyboard.up('ArrowLeft');
-	await expect(battle).toHaveCount(0);
-	await page.keyboard.down('ArrowRight');
-	await expect(battle.getByRole('button', { name: /Boar King/i })).toBeVisible({ timeout: 8_000 });
-	await page.keyboard.up('ArrowRight');
-});
-
-test('mobile HUD stacks without overlapping controls', async ({ page }) => {
-	await page.setViewportSize({ width: 390, height: 844 });
-	await startNewRunThroughOpening(page);
-
-	const viewport = page.viewportSize();
-	const menuButton = page.getByRole('button', { name: 'Menu' });
-	const minimap = page.getByTestId('hud-minimap');
-	const partyPanel = page.getByTestId('hud-party-panel');
-	const sideHud = page.getByTestId('hud-side-panel');
-	const fieldStatusMessage = fieldStatus(page);
-	await expect(menuButton).toBeVisible();
-	await expect(minimap).toBeVisible();
-	await expect(partyPanel).toBeVisible();
-	await expect(sideHud).toBeVisible();
-	await expect(fieldStatusMessage).toBeVisible();
-
-	const menuBox = await menuButton.boundingBox();
-	const minimapBox = await minimap.boundingBox();
-	const partyBox = await partyPanel.boundingBox();
-	const sideBox = await sideHud.boundingBox();
-	const fieldStatusBox = await fieldStatusMessage.boundingBox();
-	expect(menuBox).not.toBeNull();
-	expect(minimapBox).not.toBeNull();
-	expect(partyBox).not.toBeNull();
-	expect(sideBox).not.toBeNull();
-	expect(fieldStatusBox).not.toBeNull();
-	const partyRight = partyBox!.x + partyBox!.width;
-	// Hero card top-left with the Menu button clear of it top-right.
-	expect(partyRight).toBeLessThan(menuBox!.x - 8);
-	// Side HUD (minimap / quest / wallet) stacks below the hero card.
-	expect(sideBox!.y).toBeGreaterThan(partyBox!.y + partyBox!.height + 8);
-	expect((sideBox?.x ?? 0) + (sideBox?.width ?? 0)).toBeLessThanOrEqual((viewport?.width ?? 0) - 8);
-
-	// The opened 2-column command grid stays left of the side HUD.
-	await menuButton.click();
-	const gridBox = await commandBox(page).boundingBox();
-	expect(gridBox).not.toBeNull();
-	expect((gridBox?.x ?? 0) + (gridBox?.width ?? 0)).toBeLessThan(sideBox!.x - 8);
-
-	expect(fieldStatusBox!.width).toBeLessThan((viewport?.width ?? 0) * 0.75);
-});
-
-test('inventory overlay opens from the menu', async ({ page }) => {
-	await injectSave(page, createSaveFixture());
-	await continueFromTitle(page);
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
-
-	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
-	const inventorySlotGrid = inventoryDialog.getByTestId('inventory-slot-grid');
-	await expect(page.getByRole('heading', { name: 'Potions' })).toBeVisible();
-	await expect(inventoryDialog.getByTestId('inventory-slot')).toHaveCount(24);
-	await expect
-		.soft(
-			await inventorySlotGrid.evaluate(
-				(element) => getComputedStyle(element).gridTemplateColumns.split(' ').length
-			)
-		)
-		.toBe(6);
-	await expect
-		.soft(
-			await inventorySlotGrid.evaluate(
-				(element) => getComputedStyle(element).gridTemplateRows.split(' ').length
-			)
-		)
-		.toBe(4);
-	await expect(inventoryDialog.getByLabel('Field Potion')).toBeVisible();
-	const fieldPotionSlot = inventoryDialog.getByLabel('Field Potion');
-	await expect(fieldPotionSlot.getByRole('img', { name: 'Field Potion' })).toBeVisible();
-	await expect(fieldPotionSlot.getByText('Restores 8 HP.')).toHaveCount(0);
-	await expect(fieldPotionSlot.getByRole('button', { name: 'Use' })).toHaveCount(0);
-
-	await page.getByRole('tab', { name: 'Gear' }).click();
-	await expect(inventoryDialog.getByTestId('inventory-slot')).toHaveCount(24);
-	const trainingSwordSlot = inventoryDialog
-		.getByTestId('inventory-slot-grid')
-		.getByLabel('Training Sword');
-	await expect(trainingSwordSlot).toBeVisible();
-	await expect(trainingSwordSlot.getByRole('img', { name: 'Training Sword' })).toBeVisible();
-	await expect(trainingSwordSlot.getByRole('button', { name: /Equip|Equipped/ })).toHaveCount(0);
-	await expect(trainingSwordSlot.getByText('Equipped')).toBeVisible();
-});
-
-test('area map opens from the menu and closes back to field HUD', async ({ page }) => {
-	await startNewRunThroughOpening(page);
-
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Map' }).click();
-
-	const mapDialog = page.getByRole('dialog', { name: /map$/i });
-	await expect(mapDialog).toBeVisible();
-	await expect(mapDialog.getByTestId('area-map-svg')).toBeVisible();
-	await expect(mapDialog.getByTestId('area-map-player')).toBeVisible();
-
-	await mapDialog.getByRole('button', { name: 'Close' }).click();
-	await expect(mapDialog).toHaveCount(0);
-	await expect(commandBox(page)).toBeVisible();
-	await page.keyboard.press('Escape');
-	await expect(commandBox(page)).toHaveCount(0);
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await expect(fieldStatus(page)).toBeVisible();
-});
-
-const openFieldPosition = { x: 4_336, y: 7_856, facing: 'down' };
-
-async function tabFocusMenu(page: Page) {
-	const menu = page.getByRole('button', { name: 'Menu' });
-	for (let attempt = 0; attempt < 10; attempt += 1) {
-		if (await menu.evaluate((element) => element === document.activeElement)) return;
-		await page.keyboard.press('Tab');
-	}
-}
-
-type ActivationProbe = {
-	menuClicks: number;
-	commandClicks: number;
-	windowKeys: string[];
-	interactions: number;
-};
-
-async function installActivationProbe(page: Page) {
-	await page.evaluate(() => {
-		const probe: ActivationProbe = {
-			menuClicks: 0,
-			commandClicks: 0,
-			windowKeys: [],
-			interactions: 0
-		};
-		(window as unknown as { __glieseKeyProbe: ActivationProbe }).__glieseKeyProbe = probe;
-		const menu = document.querySelector<HTMLButtonElement>(
-			'button[aria-controls="game-command-panel"]'
-		);
-		menu?.addEventListener('click', () => {
-			probe.menuClicks += 1;
-		});
-		document.addEventListener('click', (event) => {
-			const target = event.target as HTMLElement | null;
-			if (target?.closest('[role="region"][aria-label="Command"]')) probe.commandClicks += 1;
-		});
-		window.addEventListener('keydown', (event) => {
-			if (event.key === 'Enter' || event.key === ' ') {
-				probe.windowKeys.push(`keydown:${event.key}`);
-			}
-		});
-		window.addEventListener('keyup', (event) => {
-			if (event.key === 'Enter' || event.key === ' ') {
-				probe.windowKeys.push(`keyup:${event.key}`);
-			}
-		});
-		window.addEventListener('gliese:hud-state', (event) => {
-			const detail = (event as CustomEvent).detail as
-				| { dialogue?: unknown; status?: unknown }
-				| undefined;
-			if (detail?.dialogue || detail?.status) probe.interactions += 1;
-		});
-	});
-}
-
-function readActivationProbe(page: Page): Promise<ActivationProbe> {
-	return page.evaluate(
-		() => (window as unknown as { __glieseKeyProbe: ActivationProbe }).__glieseKeyProbe
-	);
-}
-
-test('trusted Enter activates the focused field Menu and command tiles without world interaction', async ({
-	page
-}) => {
-	await injectSave(
-		page,
-		createSaveFixture({
-			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
-		})
-	);
-	await continueFromTitle(page);
-	await installActivationProbe(page);
-
-	const menu = page.getByRole('button', { name: 'Menu' });
-	const command = commandBox(page);
-	const traveler = page.getByRole('dialog', { name: 'Traveler' });
-	await tabFocusMenu(page);
-	await expect(menu).toBeFocused();
-
-	await page.keyboard.press('Enter');
-	let probe = await readActivationProbe(page);
-	expect(probe.menuClicks).toBe(1);
-	expect(probe.windowKeys).toEqual([]);
-	await expect(command).toBeVisible();
-	await expect(traveler).toHaveCount(0);
-
-	await command.getByRole('button', { name: 'Map' }).focus();
-	await page.keyboard.press('Enter');
-	probe = await readActivationProbe(page);
-	expect(probe.commandClicks).toBe(1);
-	expect(probe.windowKeys).toEqual([]);
-	const mapDialog = page.getByRole('dialog', { name: /map$/i });
-	await expect(mapDialog).toBeVisible();
-	await expect(traveler).toHaveCount(0);
-
-	await page.keyboard.press('Escape');
-	await expect(command).toBeVisible();
-	await page.keyboard.press('Escape');
-	await expect(command).toHaveCount(0);
-	await expect(page.locator('.game-stage')).toBeFocused();
-	// World interaction fetches story dialogue asynchronously; wait a bounded
-	// window before asserting no stray key, interaction, or dialog fired.
-	await page.waitForTimeout(250);
-
-	probe = await readActivationProbe(page);
-	expect(probe.menuClicks).toBe(1);
-	expect(probe.commandClicks).toBe(1);
-	expect(probe.windowKeys).toEqual([]);
-	expect(probe.interactions).toBe(0);
-	await expect(traveler).toHaveCount(0);
-});
-
-test('trusted Space activates the focused field Menu without world interaction', async ({
-	page
-}) => {
-	await injectSave(
-		page,
-		createSaveFixture({
-			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
-		})
-	);
-	await continueFromTitle(page);
-	await installActivationProbe(page);
-
-	const menu = page.getByRole('button', { name: 'Menu' });
-	const command = commandBox(page);
-	const traveler = page.getByRole('dialog', { name: 'Traveler' });
-	await tabFocusMenu(page);
-	await expect(menu).toBeFocused();
-
-	await page.keyboard.press('Space');
-	let probe = await readActivationProbe(page);
-	expect(probe.menuClicks).toBe(1);
-	expect(probe.windowKeys).toEqual([]);
-	await expect(command).toBeVisible();
-	await expect(traveler).toHaveCount(0);
-
-	await page.keyboard.press('Escape');
-	await expect(command).toHaveCount(0);
-	await expect(page.locator('.game-stage')).toBeFocused();
-	// Same as above: give any leaked interaction + async story fetch time to
-	// surface before asserting the negative.
-	await page.waitForTimeout(250);
-
-	probe = await readActivationProbe(page);
-	expect(probe.menuClicks).toBe(1);
-	expect(probe.windowKeys).toEqual([]);
-	expect(probe.interactions).toBe(0);
-	await expect(traveler).toHaveCount(0);
-});
-
-test('trusted Enter activates a focused command tile opened by pointer exactly once', async ({
-	page
-}) => {
-	await injectSave(
-		page,
-		createSaveFixture({
-			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
-		})
-	);
-	await continueFromTitle(page);
-	await installActivationProbe(page);
-
-	const menu = page.getByRole('button', { name: 'Menu' });
-	await menu.click();
-	const command = commandBox(page);
-	await expect(command).toBeVisible();
-	let probe = await readActivationProbe(page);
-	expect(probe.menuClicks).toBe(1);
-
-	const mapTile = command.getByRole('button', { name: 'Map', exact: true });
-	await mapTile.focus();
-	await page.keyboard.press('Enter');
-
-	probe = await readActivationProbe(page);
-	expect(probe.commandClicks).toBe(1);
-	expect(probe.windowKeys).toEqual([]);
-	const mapDialog = page.getByRole('dialog', { name: /map$/i });
-	await expect(mapDialog).toBeVisible();
-	await expect(page.getByRole('dialog', { name: 'Traveler' })).toHaveCount(0);
-	expect(probe.interactions).toBe(0);
-});
-
-test('Escape ladder returns through Command one level at a time', async ({ page }) => {
-	await injectSave(
-		page,
-		createSaveFixture({
-			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
-		})
-	);
-	await continueFromTitle(page);
-
-	const menu = page.getByRole('button', { name: 'Menu' });
-	const command = commandBox(page);
-
-	await page.keyboard.press('Escape');
-	await expect(command).toBeVisible();
-	await expect(command.getByRole('button', { name: 'Bag' })).toBeFocused();
-
-	await page.keyboard.press('ArrowRight');
-	await expect(command.getByRole('button', { name: 'Gear' })).toBeFocused();
-	await page.keyboard.press('Enter');
-	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
-	await expect(inventoryDialog).toBeVisible();
-	await expect(inventoryDialog.getByRole('tab', { name: 'Gear' })).toHaveAttribute(
-		'aria-selected',
-		'true'
-	);
-
-	await page.keyboard.press('Escape');
-	await expect(inventoryDialog).toHaveCount(0);
-	await expect(command).toBeVisible();
-	await expect(command.getByRole('button', { name: 'Gear' })).toBeFocused();
-
-	await page.keyboard.press('Escape');
-	await expect(command).toHaveCount(0);
-	await expect(menu).not.toBeFocused();
-	await expect(page.locator('.game-stage')).toBeFocused();
-
-	await page.keyboard.press('Space');
-	await expect(command).toHaveCount(0);
-});
-
-test('a pointer-picked command tile owns the return focus in a keyboard-opened Command', async ({
-	page
-}) => {
-	await injectSave(
-		page,
-		createSaveFixture({
-			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
-		})
-	);
-	await continueFromTitle(page);
-
-	const command = commandBox(page);
-	await page.keyboard.press('Escape');
-	await expect(command).toBeVisible();
-
-	const bagTile = command.getByRole('button', { name: 'Bag', exact: true });
-	await bagTile.focus();
-	const mapTile = command.getByRole('button', { name: 'Map', exact: true });
-	await mapTile.dispatchEvent('click');
-
-	const mapDialog = page.getByRole('dialog', { name: /map$/i });
-	await expect(mapDialog).toBeVisible();
-	await page.keyboard.press('Escape');
-	await expect(mapDialog).toHaveCount(0);
-
-	await expect(command).toBeVisible();
-	await expect(mapTile).toBeFocused();
-});
-
-test('E on genuinely empty ground opens no dialogue and publishes no status', async ({ page }) => {
-	await injectSave(
-		page,
-		createSaveFixture({
-			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
-		})
-	);
-	await continueFromTitle(page);
-
-	const statusBefore = await fieldStatus(page).textContent();
-	await page.keyboard.press('e');
-	// Wait a bounded window so an unintended async dialogue fetch or status
-	// publish has time to surface before asserting absence.
-	await page.waitForTimeout(250);
-
-	await expect(page.getByRole('dialog')).toHaveCount(0);
-	await expect(fieldStatus(page)).toHaveText(statusBefore ?? '');
-});
-
-const southGateApproach = { x: 5_392, y: 8_688, facing: 'down' };
-
-test('E facing the south-road sealed gate reports the way barred without a dialogue', async ({
-	page
-}) => {
-	await injectSave(
-		page,
-		createSaveFixture({
-			player: { level: 1, xp: 0, hp: 20, attack: 3, ...southGateApproach }
-		})
-	);
-	await continueFromTitle(page);
-
-	await page.keyboard.press('e');
-	await expect(fieldStatus(page)).toContainText(/barred/i);
-	await page.waitForTimeout(250);
-
-	await expect(page.getByRole('dialog')).toHaveCount(0);
-});
-
-test('language preference shows Japanese chrome and keeps Japanese selected', async ({ page }) => {
-	await startNewRunThroughOpening(page);
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-
-	// Japanese is chosen on the Heroic System surface (segmented control).
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await page.getByRole('button', { name: 'System', exact: true }).click();
-	const systemDialog = page.getByRole('dialog', { name: /display & text/i });
-	await expect(systemDialog).toBeVisible();
-	// Selecting 日本語 re-renders the chrome (and this dialog's name) in Japanese.
-	await systemDialog.getByRole('button', { name: '日本語' }).click();
-	const japaneseDialog = page.getByRole('dialog', { name: '表示とテキスト' });
-	await expect(japaneseDialog.getByRole('button', { name: '日本語' })).toHaveAttribute(
-		'aria-pressed',
-		'true'
-	);
-	await japaneseDialog.getByRole('button', { name: '閉じる' }).click();
-	await expect(japaneseDialog).toHaveCount(0);
-
-	// The command chrome flips to Japanese; the bag opens on the Potions rail.
-	await commandBox(page, 'コマンド').getByRole('button', { name: 'バッグ' }).click();
-
-	const inventoryDialog = page.getByRole('dialog', { name: '持ち物' });
-	await expect(inventoryDialog).toBeVisible();
-	await expect(inventoryDialog.getByRole('heading', { name: 'ポーション' })).toBeVisible();
-	await expect(inventoryDialog.getByRole('tab', { name: 'ポーション', exact: true })).toBeVisible();
-	await inventoryDialog.getByRole('button', { name: '閉じる' }).click();
-
-	await commandBox(page, 'コマンド').getByRole('button', { name: 'システム' }).click();
-	await expect(
-		page.getByRole('dialog', { name: '表示とテキスト' }).getByRole('button', { name: '日本語' })
-	).toHaveAttribute('aria-pressed', 'true');
-});
-
-test('full hp potions explain why they cannot be consumed', async ({ page }) => {
-	await injectSave(page, createSaveFixture());
-	await continueFromTitle(page);
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
-
-	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
-	const fieldPotionSlot = inventoryDialog
-		.getByTestId('inventory-slot-grid')
-		.getByLabel('Field Potion');
-	await expect(fieldPotionSlot).toBeVisible();
-	await expect(fieldPotionSlot.getByRole('button', { name: 'Use' })).toHaveCount(0);
-	// Selecting the potion shows its description in the detail panel.
-	await fieldPotionSlot.click();
-	await expect(page.getByTestId('inventory-detail')).toContainText('Restores 8 HP.');
-	await fieldPotionSlot.dblclick();
-	await inventoryDialog.getByRole('button', { name: 'Close' }).click();
-	await page.keyboard.press('Escape');
-	// The status pill only renders while the command grid is closed (Task 4).
-	await expect(fieldStatus(page)).toContainText('HP already full');
-});
-
-test('double-clicking unequipped equipment equips it from inventory', async ({ page }) => {
-	const save = createSaveFixture({
-		inventory: {
-			stacks: [{ itemId: 'field-potion', quantity: 1 }],
-			equipment: ['training-sword', 'iron-cap']
-		}
-	});
-
-	await injectSave(page, save);
-	await continueFromTitle(page);
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
-
-	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
-	await page.getByRole('tab', { name: 'Gear' }).click();
-	const ironCapSlot = inventoryDialog.getByTestId('inventory-slot-grid').getByLabel('Iron Cap');
-	await expect(ironCapSlot.getByRole('img', { name: 'Iron Cap' })).toBeVisible();
-	await expect(ironCapSlot.getByText('head')).toBeVisible();
-	await ironCapSlot.dblclick();
-	await expect(ironCapSlot.getByText('Equipped')).toBeVisible();
-});
-
-test('shop overlay opens near a merchant and supports buying and selling', async ({ page }) => {
-	const save = createSaveFixture({
-		mapId: 'item-shop',
-		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 416, y: 360, facing: 'up' }
-	});
-
-	await page.addInitScript(
-		(payload: SaveInitPayload) => {
-			const probeWindow = window as GlieseProbeWindow;
-			probeWindow.__glieseLastHudState = undefined;
-			window.addEventListener('gliese:hud-state', (event) => {
-				probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
-			});
-			window.localStorage.setItem(
-				payload.key,
-				JSON.stringify({
-					version: 1,
-					slots: [
-						{
-							kind: 'autosave',
-							savedAt: new Date().toISOString(),
-							playtimeSeconds: 0,
-							state: JSON.parse(payload.encoded)
-						},
-						null,
-						null
-					]
-				})
-			);
-		},
-		{ encoded: JSON.stringify(save), key: SAVES_STORAGE_KEY }
-	);
-	await continueFromTitle(page);
-	await page.waitForFunction(() => {
-		const state = (window as GlieseProbeWindow).__glieseLastHudState;
-
-		return state?.nearbyShop?.shopId === 'miras-item-shop' || state?.status?.startsWith('Mira:');
-	});
-	// The Heroic command grid has no Shop tile: talk to Mira and enter the
-	// shop through the dialogue action.
-	await page.locator('canvas').click();
-	await page.keyboard.press('e', { delay: 50 });
-	const miraDialog = page.getByRole('dialog', { name: 'Mira' });
-	await expect(miraDialog).toBeVisible();
-	await miraDialog.getByRole('button', { name: 'Shop' }).click();
-
-	await expect(page.getByRole('heading', { name: "Mira's Herb Hut" })).toBeVisible();
-	await expect(page.getByLabel('Coins: 30')).toBeVisible();
-	const buyGrid = page.getByTestId('shop-buy-grid');
-	await expect
-		.soft(
-			await buyGrid.evaluate(
-				(element) => getComputedStyle(element).gridTemplateColumns.split(' ').length
-			)
-		)
-		.toBe(4);
-	const fieldPotionBuyTile = buyGrid.getByLabel('Field Potion', { exact: true });
-	await expect(fieldPotionBuyTile.getByRole('img', { name: 'Field Potion' })).toBeVisible();
-	await expect(fieldPotionBuyTile.getByText('Restores 8 HP.')).toHaveCount(0);
-	await expect(fieldPotionBuyTile.getByRole('button', { name: 'Buy' })).toHaveCount(0);
-	await fieldPotionBuyTile.hover();
-	await expect(page.getByRole('tooltip')).toContainText('Restores 8 HP.');
-
-	await fieldPotionBuyTile.dblclick();
-	await expect(page.getByLabel('Coins: 20')).toBeVisible();
-
-	await page.getByRole('tab', { name: 'Sell' }).click();
-	const sellGrid = page.getByTestId('shop-sell-grid');
-	await expect
-		.soft(
-			await sellGrid.evaluate(
-				(element) => getComputedStyle(element).gridTemplateColumns.split(' ').length
-			)
-		)
-		.toBe(4);
-	const fieldPotionSellTile = sellGrid.getByLabel('Field Potion', { exact: true });
-	await expect(fieldPotionSellTile.getByRole('img', { name: 'Field Potion' })).toBeVisible();
-	await expect(fieldPotionSellTile.getByText('Restores 8 HP.')).toHaveCount(0);
-	await expect(fieldPotionSellTile.getByRole('button', { name: 'Sell' })).toHaveCount(0);
-	await fieldPotionSellTile.hover();
-	await expect(page.getByRole('tooltip')).toContainText('Restores 8 HP.');
-	await fieldPotionSellTile.dblclick();
-	await expect(page.getByLabel('Coins: 25')).toBeVisible();
-});
-
-test('interact key shop purchase appears in inventory', async ({ page }) => {
-	const save = createSaveFixture({
-		mapId: 'item-shop',
-		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 416, y: 360, facing: 'up' }
-	});
-
-	await page.addInitScript(
-		(payload: SaveInitPayload) => {
-			const probeWindow = window as GlieseProbeWindow;
-			probeWindow.__glieseLastHudState = undefined;
-			window.addEventListener('gliese:hud-state', (event) => {
-				probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
-			});
-			window.localStorage.setItem(
-				payload.key,
-				JSON.stringify({
-					version: 1,
-					slots: [
-						{
-							kind: 'autosave',
-							savedAt: new Date().toISOString(),
-							playtimeSeconds: 0,
-							state: JSON.parse(payload.encoded)
-						},
-						null,
-						null
-					]
-				})
-			);
-		},
-		{ encoded: JSON.stringify(save), key: SAVES_STORAGE_KEY }
-	);
-	// Instant reveal keeps the confirm grammar deterministic: the single line
-	// renders complete, so one confirm advances into the choice treatment.
-	await page.addInitScript(() =>
-		window.localStorage.setItem(
-			'gliese.preferences.v1',
-			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
-		)
-	);
-	await continueFromTitle(page);
-	await page.waitForFunction(() => {
-		const state = (window as GlieseProbeWindow).__glieseLastHudState;
-
-		return state?.nearbyShop?.shopId === 'miras-item-shop' || state?.status?.startsWith('Mira:');
-	});
-
-	await page.locator('canvas').click();
-	await page.keyboard.press('e', { delay: 50 });
-
-	const miraDialog = page.getByRole('dialog', { name: 'Mira' });
-	await expect(miraDialog).toBeVisible();
-	await miraDialog.getByRole('button', { name: 'Next' }).click();
-	await miraDialog.getByRole('button', { name: 'Shop' }).click();
-
-	const shopDialog = page.getByRole('dialog', { name: "Mira's Herb Hut" });
-	await expect(shopDialog).toBeVisible();
-	await shopDialog
-		.getByTestId('shop-buy-grid')
-		.getByLabel('Field Potion', { exact: true })
-		.dblclick();
-	await expect(shopDialog.getByLabel('Coins: 20')).toBeVisible();
-	await shopDialog.getByRole('button', { name: 'Close' }).click();
-
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
-
-	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
-	const fieldPotionSlot = inventoryDialog.getByLabel('Field Potion');
-	await expect(inventoryDialog.getByTestId('inventory-slot')).toHaveCount(24);
-	await expect(fieldPotionSlot).toBeVisible();
-	await expect(fieldPotionSlot.getByText('x2')).toBeVisible();
-});
-
-test('HPA-839 Mira salve economy, potion prices, and tooltip clearance', async ({ page }) => {
-	test.setTimeout(300_000);
-
-	type PassLocale = 'en' | 'ja' | 'zh-Hant';
-	type PassCopy = {
-		// The dialogue panel's accessible name is the story speaker string —
-		// 'Mira' in every locale — while the shop dialog takes the localized
-		// shop name.
-		miraName: string;
-		shopName: string;
-		shopChoice: string;
-		nextChoice: string;
-		closeName: string;
-		salveName: string;
-		fieldPotionName: string;
-		greaterPotionName: string;
-		coins: (n: number) => string;
-	};
-	const passCopy: Record<PassLocale, PassCopy> = {
-		en: {
-			miraName: 'Mira',
-			shopName: "Mira's Herb Hut",
-			shopChoice: 'Shop',
-			nextChoice: 'Next',
-			closeName: 'Close',
-			salveName: 'Sunleaf Salve',
-			fieldPotionName: 'Field Potion',
-			greaterPotionName: 'Greater Field Potion',
-			coins: (n) => `Coins: ${n}`
-		},
-		ja: {
-			miraName: 'Mira',
-			shopName: 'ミラの薬草小屋',
-			shopChoice: '店',
-			nextChoice: '次へ',
-			closeName: '閉じる',
-			salveName: '陽葉軟膏',
-			fieldPotionName: 'フィールドポーション',
-			greaterPotionName: '上級フィールドポーション',
-			coins: (n) => `コイン: ${n}`
-		},
-		'zh-Hant': {
-			miraName: 'Mira',
-			shopName: '米拉的採藥小屋',
-			shopChoice: '商店',
-			nextChoice: '下一步',
-			closeName: '關閉',
-			salveName: '日葉藥膏',
-			fieldPotionName: '野外藥水',
-			greaterPotionName: '強效野外藥水',
-			coins: (n) => `金幣：${n}`
-		}
-	};
-
-	// hp 10 < max 20 so the drink-a-salve step has headroom to heal 6.
-	const miraSeed = () =>
-		createSaveFixture({
-			mapId: 'item-shop',
-			player: { level: 1, xp: 0, hp: 10, attack: 3, x: 416, y: 360, facing: 'up' },
-			wallet: { coins: 30 }
-		});
-	const miraEnvelope = () =>
-		JSON.stringify({
-			version: 1,
-			slots: [
-				{
-					kind: 'autosave',
-					savedAt: '2026-09-04T12:00:00.000Z',
-					playtimeSeconds: 0,
-					state: miraSeed()
-				},
-				null,
-				null
-			]
-		});
-
-	await seedSaveSlots(page, [{ state: miraSeed() }]);
-	await installHudStateListener(page);
-	// Seeded preferences must not clobber a locale chosen later: later passes
-	// rewrite the preference before reload, and only the first write wins.
-	await page.addInitScript(() => {
-		if (!window.localStorage.getItem('gliese.preferences.v1')) {
-			window.localStorage.setItem(
-				'gliese.preferences.v1',
-				JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
-			);
-		}
-	});
-	await continueFromTitle(page);
-	const readHud = () => readHudState(page);
-	const waitAtMira = () =>
-		page.waitForFunction(
-			() =>
-				(window as GlieseProbeWindow).__glieseLastHudState?.nearbyShop?.shopId ===
-				'miras-item-shop',
-			undefined,
-			{ timeout: 15_000 }
-		);
-	await waitAtMira();
-
-	const openMiraShop = async (copy: PassCopy) => {
-		const miraDialog = await pressInteractUntilDialog(page, copy.miraName);
-		// Mira's greeting lines end on the shop/close choice row; advance Next
-		// lines until the Shop choice is actually rendered.
-		for (let press = 0; press < 6; press += 1) {
-			const shopChoice = miraDialog.getByRole('button', { name: copy.shopChoice, exact: true });
-			if (await shopChoice.isVisible().catch(() => false)) {
-				await shopChoice.click();
-				return;
-			}
-			await miraDialog.getByRole('button', { name: copy.nextChoice }).click();
-		}
-		throw new Error('Mira dialogue never offered the Shop choice');
-	};
-
-	// Measures the rendered tooltip, the selected item's Buy/Sell action, the
-	// stock column and the dialog frame, then hit-tests the action's center.
-	// Text clipping is measured too: a control can sit fully on-screen while a
-	// localized label still overflows its box.
-	const measureShopLayout = () =>
-		page.evaluate(() => {
-			const rect = (selector: string) => {
-				const el = document.querySelector<HTMLElement>(selector);
-				if (!el) return null;
-				const r = el.getBoundingClientRect();
-				return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
-			};
-			const textOverflows = (selector: string) => {
-				const el = document.querySelector<HTMLElement>(selector);
-				if (!el) return null;
-				return el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
-			};
-			const actionEl = document.querySelector<HTMLElement>('.shop-detail-action');
-			let actionHit = false;
-			if (actionEl) {
-				const r = actionEl.getBoundingClientRect();
-				const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-				actionHit = hit === actionEl || actionEl.contains(hit);
-			}
-			return {
-				tooltip: rect('.shop-tooltip'),
-				action: rect('.shop-detail-action'),
-				main: rect('.shop-main'),
-				dialog: rect('.shop-screen'),
-				actionHit,
-				actionTextOverflows: textOverflows('.shop-detail-action'),
-				detailNameOverflows: textOverflows('.shop-detail-name'),
-				tooltipNameOverflows: textOverflows('.shop-tooltip-name'),
-				viewport: { width: window.innerWidth, height: window.innerHeight }
-			};
-		});
-
-	type ShopLayout = Awaited<ReturnType<typeof measureShopLayout>>;
-
-	const expectTooltipClear = (m: ShopLayout) => {
-		expect(m.tooltip, 'tooltip rendered').not.toBeNull();
-		expect(m.action, 'selected detail action rendered').not.toBeNull();
-		expect(m.main).not.toBeNull();
-		expect(m.dialog, 'shop dialog rendered').not.toBeNull();
-		const tooltip = m.tooltip!;
-		const action = m.action!;
-		const main = m.main!;
-		const dialog = m.dialog!;
-		// The tooltip is clamped inside the stock column and on-screen.
-		expect(tooltip.left).toBeGreaterThanOrEqual(main.left - 1);
-		expect(tooltip.right).toBeLessThanOrEqual(main.right + 1);
-		expect(tooltip.top).toBeGreaterThanOrEqual(main.top - 1);
-		expect(tooltip.bottom).toBeLessThanOrEqual(main.bottom + 1);
-		expect(tooltip.left).toBeGreaterThanOrEqual(0);
-		expect(tooltip.right).toBeLessThanOrEqual(m.viewport.width);
-		expect(tooltip.bottom).toBeLessThanOrEqual(m.viewport.height);
-		// HPA-839 regression: the tooltip must not cover the Buy/Sell action.
-		const overlaps = !(
-			tooltip.right <= action.left ||
-			tooltip.left >= action.right ||
-			tooltip.bottom <= action.top ||
-			tooltip.top >= action.bottom
-		);
-		expect(overlaps, 'tooltip must not cover the Buy/Sell action').toBe(false);
-		expect(m.actionHit, 'Buy/Sell action hit-testable').toBe(true);
-		// The action's complete bounds must sit inside the dialog and on-screen —
-		// a partially clipped/offscreen action passes a center-only hit test.
-		expect(action.left, 'action left edge inside dialog').toBeGreaterThanOrEqual(dialog.left - 1);
-		expect(action.right, 'action right edge inside dialog').toBeLessThanOrEqual(dialog.right + 1);
-		expect(action.top, 'action top edge inside dialog').toBeGreaterThanOrEqual(dialog.top - 1);
-		expect(action.bottom, 'action bottom edge inside dialog').toBeLessThanOrEqual(
-			dialog.bottom + 1
-		);
-		expect(action.left).toBeGreaterThanOrEqual(0);
-		expect(action.right).toBeLessThanOrEqual(m.viewport.width);
-		expect(action.top).toBeGreaterThanOrEqual(0);
-		expect(action.bottom).toBeLessThanOrEqual(m.viewport.height);
-		// Localized labels must not silently clip inside their boxes.
-		expect(m.actionTextOverflows, 'action label text clipped').toBe(false);
-		expect(m.detailNameOverflows, 'detail item name clipped').toBe(false);
-		expect(m.tooltipNameOverflows, 'tooltip item name clipped').toBe(false);
-	};
-
-	// Moves DOM focus through the shop dialog the way a real keyboard does:
-	// arrows rove the data-focus lattice (the pad path), while the Buy/Sell
-	// tab rail roves arrows between its tabs by design — Tab is the genuine
-	// keyboard exit off the rail into the stock panel. Bounded: a small
-	// dialog resolves in a dozen presses.
-	const focusedElement = () => page.evaluateHandle(() => document.activeElement);
-	const waitForFocusChange = (previous: JSHandle) =>
-		page
-			.waitForFunction((prev) => document.activeElement !== prev, previous, { timeout: 400 })
-			.catch(() => undefined);
-	const keyboardFocusTo = async (focusId: string) => {
-		for (let step = 0; step < 16; step += 1) {
-			const state = await page.evaluate((id) => {
-				const active = document.activeElement;
-				if (active?.getAttribute('data-focus-id') === id) return { done: true as const };
-				const axis = (el: Element | null, attr: string) =>
-					Number(el?.getAttribute(attr) ?? Number.NaN);
-				const target = document.querySelector(`[data-focus-id="${id}"]`);
-				return {
-					done: false as const,
-					activeId: active?.getAttribute('data-focus-id') ?? null,
-					activeInDialog: active?.closest('[role="dialog"]') !== null,
-					activeIsTab: active?.getAttribute('role') === 'tab',
-					targetIsTab: target?.getAttribute('role') === 'tab',
-					targetExists: target !== null,
-					dRow: axis(target, 'data-focus-row') - axis(active, 'data-focus-row'),
-					dCol: axis(target, 'data-focus-column') - axis(active, 'data-focus-column')
-				};
-			}, focusId);
-			if (state.done) return;
-			expect(state.targetExists, `focus target ${focusId} rendered`).toBe(true);
-			const previous = await focusedElement();
-			// Inside the dialog but off-lattice (rail Close) or on a tab whose
-			// target sits off the rail: Tab walks DOM order into the panel —
-			// an arrow would rove the rail or snap to the first lattice node.
-			const key =
-				(state.activeId === null && state.activeInDialog) ||
-				(state.activeIsTab && !state.targetIsTab)
-					? 'Tab'
-					: state.dRow !== 0
-						? state.dRow > 0
-							? 'ArrowDown'
-							: 'ArrowUp'
-						: state.dCol !== 0
-							? state.dCol > 0
-								? 'ArrowRight'
-								: 'ArrowLeft'
-							: 'ArrowDown';
-			await page.keyboard.press(key);
-			await waitForFocusChange(previous);
-			await previous.dispose();
-		}
-		throw new Error(`keyboard focus did not reach ${focusId}`);
-	};
-
-	// ---- Pass 1: full economy + geometry at 1280×720 (en) ----
-	const en = passCopy.en;
-	await openMiraShop(en);
-	const shop = page.getByRole('dialog', { name: en.shopName });
-	await expect(shop).toBeVisible();
-	await expect(shop.getByLabel('Coins: 30')).toBeVisible();
-	const buyGrid = shop.getByTestId('shop-buy-grid');
-	// The herb shop's own prices: salve 6, Field Potion 10, Greater 18.
-	await expect(
-		buyGrid.getByLabel(en.salveName, { exact: true }).locator('.shop-tile-price')
-	).toHaveText('6');
-	await expect(
-		buyGrid.getByLabel(en.fieldPotionName, { exact: true }).locator('.shop-tile-price')
-	).toHaveText('10');
-	await expect(
-		buyGrid.getByLabel(en.greaterPotionName, { exact: true }).locator('.shop-tile-price')
-	).toHaveText('18');
-
-	// Select the salve so the detail action exists, then hover/focus other
-	// tiles: the tooltip must stay inside the stock column and clear of it.
-	await buyGrid.getByLabel(en.salveName, { exact: true }).click();
-	await expect(shop.locator('.shop-detail-action')).toBeVisible();
-	await buyGrid.getByLabel(en.greaterPotionName, { exact: true }).hover();
-	await expect(shop.locator('.shop-tooltip')).toBeVisible();
-	let layout = await measureShopLayout();
-	expectTooltipClear(layout);
-	await expectUnclipped(shop.locator('.shop-detail-action'));
-	await hpa839Shot(page, 'mira-shop-1280x720-en-tooltip.png');
-	await buyGrid.getByLabel(en.fieldPotionName, { exact: true }).focus();
-	await expect(shop.locator('.shop-tooltip')).toContainText(en.fieldPotionName);
-	layout = await measureShopLayout();
-	expectTooltipClear(layout);
-	await expectUnclipped(shop.locator('.shop-detail-action'));
-	// Clicking the action twice proves it is hit-testable both times; each
-	// salve costs exactly 6 coins.
-	await shop.locator('.shop-detail-action').click();
-	await expect(shop.getByLabel('Coins: 24')).toBeVisible();
-	await shop.locator('.shop-detail-action').click();
-	await expect(shop.getByLabel('Coins: 18')).toBeVisible();
-	expect(
-		(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
-			?.quantity
-	).toBe(2);
-	await shop.getByRole('button', { name: 'Close' }).click();
-
-	// Drink one salve below max HP: exactly +6 (10 → 16).
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
-	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
-	const salveSlot = inventoryDialog.getByLabel(en.salveName, { exact: true });
-	await salveSlot.click();
-	await expect(inventoryDialog.getByTestId('inventory-detail')).toBeVisible();
-	await inventoryDialog.getByRole('button', { name: 'Drink' }).click();
-	await expect.poll(async () => (await readHud())?.hp).toBe(16);
-	expect(
-		(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
-			?.quantity
-	).toBe(1);
-	await inventoryDialog.getByRole('button', { name: 'Close' }).click();
-	await page.keyboard.press('Escape');
-
-	// Back into the shop: sell the remaining salve for exactly 3 coins.
-	await openMiraShop(en);
-	await expect(shop).toBeVisible();
-	await shop.getByRole('tab', { name: 'Sell' }).click();
-	const sellGrid = shop.getByTestId('shop-sell-grid');
-	const salveSellTile = sellGrid.getByLabel(en.salveName, { exact: true });
-	await expect(salveSellTile.locator('.shop-tile-price')).toHaveText('3');
-	await salveSellTile.click();
-	await expect(shop.locator('.shop-detail-action')).toBeVisible();
-	await sellGrid.getByLabel(en.fieldPotionName, { exact: true }).hover();
-	layout = await measureShopLayout();
-	expectTooltipClear(layout);
-	await expectUnclipped(shop.locator('.shop-detail-action'));
-	await shop.locator('.shop-detail-action').click();
-	await expect(shop.getByLabel('Coins: 21')).toBeVisible();
-	expect(
-		(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
-			?.quantity ?? 0
-	).toBe(0);
-	await shop.getByRole('button', { name: 'Close' }).click();
-
-	// ---- Passes 2-4: geometry + localization at 640×360 (en/ja/zh-Hant) ----
-	// Same page and same browser target as pass 1: resize the viewport,
-	// rewrite locale + a fresh seeded save, reload, and reopen the real shop.
-	await page.setViewportSize({ width: 640, height: 360 });
-	for (const locale of ['en', 'ja', 'zh-Hant'] as const) {
-		const copy = passCopy[locale];
-		await page.evaluate(
-			({ loc, envelope, prefsKey, savesKey }) => {
-				window.localStorage.setItem(
-					prefsKey,
-					JSON.stringify({
-						locale: loc,
-						textSpeed: 'instant',
-						motion: 'on',
-						promptMode: 'auto'
-					})
-				);
-				window.localStorage.setItem(savesKey, envelope);
-			},
-			{
-				loc: locale,
-				envelope: miraEnvelope(),
-				prefsKey: 'gliese.preferences.v1',
-				savesKey: SAVES_STORAGE_KEY
-			}
-		);
-		// Locale-agnostic continue: the Title/Load labels are localized, but the
-		// focus ids and save-slot testids are stable. waitAtMira doubles as the
-		// post-boot barrier — the seeded spot is already inside her shop.
-		await page.goto('/');
-		await page.locator('[data-focus-id="title-continue"]').click();
-		await page
-			.locator('[role="dialog"] [data-testid^="save-slot-"]:not([disabled])')
-			.first()
-			.click();
-		await waitAtMira();
-		await openMiraShop(copy);
-		const passShop = page.getByRole('dialog', { name: copy.shopName });
-		await expect(passShop).toBeVisible();
-		await expect(passShop.getByLabel(copy.coins(30))).toBeVisible();
-		const passBuyGrid = passShop.getByTestId('shop-buy-grid');
-		const salveTile = passBuyGrid.getByLabel(copy.salveName, { exact: true });
-		await expect(salveTile).toBeVisible();
-		await salveTile.click();
-		await expect(passShop.locator('.shop-detail-action')).toBeVisible();
-		await passBuyGrid.getByLabel(copy.greaterPotionName, { exact: true }).hover();
-		await expect(passShop.locator('.shop-tooltip')).toBeVisible();
-		layout = await measureShopLayout();
-		expectTooltipClear(layout);
-		await expectUnclipped(passShop.locator('.shop-detail-action'));
-		await hpa839Shot(page, `mira-shop-640x360-${locale}-tooltip.png`);
-		await passBuyGrid.getByLabel(copy.fieldPotionName, { exact: true }).focus();
-		layout = await measureShopLayout();
-		expectTooltipClear(layout);
-		await expectUnclipped(passShop.locator('.shop-detail-action'));
-		if (locale === 'en') {
-			// Compact keyboard economy: buy and sell at 640×360 entirely through
-			// the dialog's arrow/Enter lattice — never .focus()/.click() — with
-			// wallet + inventory assertions proving each activation landed.
-			const salveFocusId = await salveTile.getAttribute('data-focus-id');
-			expect(salveFocusId, 'salve tile carries a focus id').toBeTruthy();
-			await keyboardFocusTo(salveFocusId!);
-			await page.keyboard.press('Enter');
-			await expect(passShop.locator('.shop-detail-action')).toBeVisible();
-			await keyboardFocusTo('shop-detail-action');
-			await page.keyboard.press('Enter');
-			await expect(passShop.getByLabel('Coins: 24')).toBeVisible();
-			expect(
-				(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
-					?.quantity
-			).toBe(1);
-
-			// Compact Sell tab: arrow to the tab, Enter opens it, arrow to the
-			// salve sell tile and select it, then measure the sell layout with
-			// the tooltip shown by focusing a different sell tile.
-			await keyboardFocusTo('shop-tab-sell');
-			await page.keyboard.press('Enter');
-			const passSellGrid = passShop.getByTestId('shop-sell-grid');
-			await expect(passSellGrid).toBeVisible();
-			const salveSellTile = passSellGrid.getByLabel(copy.salveName, { exact: true });
-			const salveSellFocusId = await salveSellTile.getAttribute('data-focus-id');
-			expect(salveSellFocusId, 'salve sell tile carries a focus id').toBeTruthy();
-			await keyboardFocusTo(salveSellFocusId!);
-			await page.keyboard.press('Enter');
-			await expect(passShop.locator('.shop-detail-action')).toBeVisible();
-			const potionSellFocusId = await passSellGrid
-				.getByLabel(copy.fieldPotionName, { exact: true })
-				.getAttribute('data-focus-id');
-			expect(potionSellFocusId, 'potion sell tile carries a focus id').toBeTruthy();
-			await keyboardFocusTo(potionSellFocusId!);
-			await expect(passShop.locator('.shop-tooltip')).toBeVisible();
-			layout = await measureShopLayout();
-			expectTooltipClear(layout);
-			await expectUnclipped(passShop.locator('.shop-detail-action'));
-			await hpa839Shot(page, 'mira-shop-640x360-en-sell.png');
-			// Keyboard-activate the Sell action: +3 coins, salve count back to 0.
-			await keyboardFocusTo('shop-detail-action');
-			await page.keyboard.press('Enter');
-			await expect(passShop.getByLabel('Coins: 27')).toBeVisible();
-			expect(
-				(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
-					?.quantity ?? 0
-			).toBe(0);
-		}
-		await passShop.getByRole('button', { name: copy.closeName }).click();
-	}
-	await page.setViewportSize({ width: 1280, height: 720 });
-});
-
-test('all eight painted village interiors', async ({ page }) => {
-	test.setTimeout(3_600_000);
-	const firstInterior = ALL_EIGHT_PAINTED_INTERIOR_CASES[0];
-	if (!firstInterior) throw new Error('All-eight interior matrix is empty');
-
-	await installRuntimeProbes(page, { captureFacing: true });
-	await injectSave(
-		page,
-		createSaveFixture({
-			mapId: 'overworld',
-			player: {
-				level: 1,
-				xp: 0,
-				hp: 20,
-				attack: 3,
-				x: firstInterior.returnArrival.x,
-				y: firstInterior.returnArrival.y,
-				facing: 'up'
-			},
-			quests: allEightQuests(firstInterior)
-		})
-	);
-	await page.setViewportSize({ width: 640, height: 360 });
-	await page.goto('/?movementDiagnostics=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await waitForHudPosition(page, 'overworld', firstInterior.returnArrival);
-
-	for (const [index, interior] of ALL_EIGHT_PAINTED_INTERIOR_CASES.entries()) {
-		if (index > 0) {
-			await writeAllEightOverworldSave(
-				page,
-				interior,
-				interior.mapId === 'blacksmith-interior' ? 100 : 30
-			);
-			await resumeAllEightOverworldSave(page, interior);
-		}
-
-		await test.step(`${interior.mapId}: painted`, async () => {
-			if (interior.mapId === 'blacksmith-interior') {
-				await runAllEightBlacksmithPhase(page, interior, 'painted');
-			} else {
-				await runAllEightExistingInteriorPhase(page, interior, 'painted');
-			}
-		});
-
-		await test.step(`${interior.mapId}: fallback`, async () => {
-			const requiredBaseRoute = allEightRequiredBaseRoute(interior.mapId);
-			if (interior.mapId === 'blacksmith-interior') {
-				// Preserve Oren's purchased finite stock while moving the persisted
-				// checkpoint back to the overworld for the missing-base replay.
-				await writeAllEightOverworldSaveFromCurrentInterior(page, interior);
-			} else {
-				await writeAllEightOverworldSave(page, interior);
-			}
-			await page.route(requiredBaseRoute, (route) => route.abort());
-			try {
-				await resumeAllEightOverworldSave(page, interior);
-				if (interior.mapId === 'blacksmith-interior') {
-					await runAllEightBlacksmithPhase(page, interior, 'fallback');
-				} else {
-					await runAllEightFallbackCriticalPhase(page, interior);
-				}
-			} finally {
-				await page.unroute(requiredBaseRoute);
-			}
-		});
-	}
-});
-
-test('Blacksmith graybox entrance', async ({ page }) => {
-	test.setTimeout(180_000);
-	const blacksmith: InteriorGrayboxCase = {
-		mapId: 'blacksmith-interior',
-		...overworldDoor('blacksmith-interior'),
-		spawn: { x: 448, y: 576 },
-		exit: { x: 448, y: 688 },
-		steps: []
-	};
-
-	await installRuntimeProbes(page, { captureFacing: true });
-	await injectSave(
-		page,
-		createSaveFixture({
-			mapId: 'overworld',
-			player: {
-				level: 1,
-				xp: 0,
-				hp: 20,
-				attack: 3,
-				x: blacksmith.returnArrival.x,
-				y: blacksmith.returnArrival.y,
-				facing: 'up'
-			}
-		})
-	);
-	await page.goto('/?movementDiagnostics=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await waitForHudPosition(page, 'overworld', blacksmith.returnArrival);
-
-	await enterInteriorWithTrustedKeyboard(page, blacksmith);
-	await waitForExactHudPosition(page, 'blacksmith-interior', blacksmith.spawn);
-	await exitInteriorWithTrustedKeyboard(page, blacksmith);
-});
-
-// A `blocked` diagnostic means one requested frame step did not fully fit and
-// was clamped to the furthest free point, not that the player cannot advance.
-// A stop is only real once a bounded window of fresh attempts all resolve to
-// one unchanged position.
-const COUNTER_SETTLE_ATTEMPTS = 10;
-
-function settledBlockedWindow(input: {
-	mapId: string;
-	counterBottom: number;
-	maxY: number;
-	windowSize: number;
-	startIndex: number;
-	attempts?: PlayerMovementDiagnostic[];
-}): PlayerMovementDiagnostic[] | false {
-	const diagnostics =
-		input.attempts ?? (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
-	const fresh = diagnostics.slice(input.startIndex);
-	if (fresh.length < input.windowSize) return false;
-	const recent = fresh.slice(-input.windowSize);
-	const first = recent[0];
-	if (
-		first.mapId !== input.mapId ||
-		first.blocked !== true ||
-		first.resolvedPosition.y <= input.counterBottom ||
-		first.resolvedPosition.y >= input.maxY
-	) {
-		return false;
-	}
-	const settled = recent.every(
-		(attempt) =>
-			attempt.mapId === input.mapId &&
-			attempt.blocked === true &&
-			attempt.resolvedPosition.x === first.resolvedPosition.x &&
-			attempt.resolvedPosition.y === first.resolvedPosition.y
-	);
-	return settled ? recent : false;
-}
-
-test('blocked movement window rejects a transient block and accepts a sustained stop', () => {
-	const attempt = (y: number, blocked: boolean): PlayerMovementDiagnostic => ({
-		mapId: 'blacksmith-interior',
-		previousPosition: { x: 448, y: blocked ? y : y + 4 },
-		requestedPosition: { x: 448, y: y - 4 },
-		resolvedPosition: { x: 448, y },
-		blocked
-	});
-	const check = (attempts: PlayerMovementDiagnostic[], startIndex = 0) =>
-		settledBlockedWindow({
-			mapId: 'blacksmith-interior',
-			counterBottom: 456,
-			maxY: 480,
-			windowSize: COUNTER_SETTLE_ATTEMPTS,
-			startIndex,
-			attempts
-		});
-	// In-bounds unblocked frames, so only the blocked-window rule can accept them.
-	const advancing = Array.from({ length: COUNTER_SETTLE_ATTEMPTS }, (_, index) =>
-		attempt(478 - index, false)
-	);
-
-	// The old single-sample check accepted either of these transient blocks.
-	expect(check([...advancing, attempt(471, true)])).toBe(false);
-	expect(check([...advancing, attempt(471, true), attempt(467, false)])).toBe(false);
-	// Blocked frames that still drift are not a stop either.
-	const drifting = Array.from({ length: COUNTER_SETTLE_ATTEMPTS }, (_, index) =>
-		attempt(474 - index, true)
-	);
-	expect(check(drifting)).toBe(false);
-	// Blocked frames emitted before the hold started are not fresh attempts.
-	const sustained = Array.from({ length: COUNTER_SETTLE_ATTEMPTS }, () => attempt(466.59, true));
-	expect(check(sustained, sustained.length)).toBe(false);
-	expect(check([...sustained, ...advancing], sustained.length)).toBe(false);
-	expect(check([...advancing, ...sustained], advancing.length)).toEqual(sustained);
-});
-
-test('interior exit witness keeps the actual unblocked progress frame', () => {
-	const frame = (
-		previousY: number,
-		resolvedY: number,
-		blocked: boolean,
-		mapId = 'overworld'
-	): PlayerMovementDiagnostic => ({
-		mapId,
-		previousPosition: { x: 448, y: previousY },
-		requestedPosition: { x: 448, y: resolvedY },
-		resolvedPosition: { x: 448, y: resolvedY },
-		blocked
-	});
-	const witness = (attempts: PlayerMovementDiagnostic[], startIndex = 0) =>
-		unblockedSouthProgressWitness({ mapId: 'overworld', minimumY: 5_600, startIndex, attempts });
-
-	const progress = frame(5_600, 5_616, false);
-	expect(witness([progress, frame(5_616, 5_616, true), frame(5_616, 5_616, true)])).toBe(progress);
-	expect(witness([frame(5_600, 5_608, true)])).toBe(false);
-	expect(witness([frame(5_616, 5_616, false)])).toBe(false);
-	expect(witness([frame(5_600, 5_616, false, 'hero-house')])).toBe(false);
-	expect(witness([progress], 1)).toBe(false);
-	expect(witness([frame(5_584, 5_600, false), progress], 1)).toBe(progress);
-});
-
-test('Blacksmith Oren equipment shop', async ({ page }) => {
-	test.setTimeout(180_000);
-	const blacksmith: InteriorGrayboxCase = {
-		mapId: 'blacksmith-interior',
-		...overworldDoor('blacksmith-interior'),
-		spawn: { x: 448, y: 576 },
-		exit: { x: 448, y: 688 },
-		steps: []
-	};
-
-	await installRuntimeProbes(page, { captureFacing: true });
-	await injectSave(
-		page,
-		createSaveFixture({
-			mapId: 'overworld',
-			player: {
-				level: 1,
-				xp: 0,
-				hp: 20,
-				attack: 3,
-				x: blacksmith.returnArrival.x,
-				y: blacksmith.returnArrival.y,
-				facing: 'up'
-			},
-			wallet: { coins: 100 }
-		})
-	);
-	await page.goto('/?movementDiagnostics=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	await waitForHudPosition(page, 'overworld', blacksmith.returnArrival);
-
-	await enterInteriorWithTrustedKeyboard(page, blacksmith);
-	const layout = VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'];
-	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'oren');
-	if (!oren) throw new Error('Oren fixture is missing');
-	const counter = layout.propCollisions.serviceCounter;
-	const counterBottom = counter.y + counter.height;
-
-	// HPA-816: walk up the centre customer aisle from spawn and keep holding
-	// north until the service counter has stopped the player for a bounded window
-	// of emitted movement attempts at one unchanged position. A lone blocked
-	// diagnostic is not a stop: that frame's step can be rejected whole while the
-	// next smaller step advances. The pre-fix 18px counter core left the compiled
-	// grid's last walkable row at y=480 (64px from Oren), so y<480 also rejects
-	// that geometry even though the authored orenApproachPoint=(448,480) is
-	// reachable.
-	const movementStart = await page.evaluate(
-		() => (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
-	);
-	await page.locator('canvas').click();
-	await page.keyboard.down('w');
-	// Release the key in `finally` even when the bounded wait times out.
-	const settled = await page
-		.waitForFunction(
-			settledBlockedWindow,
-			{
-				mapId: blacksmith.mapId,
-				counterBottom,
-				maxY: 480,
-				windowSize: COUNTER_SETTLE_ATTEMPTS,
-				startIndex: movementStart
-			},
-			{ timeout: 30_000 }
-		)
-		.finally(() => page.keyboard.up('w'));
-	const settledWindow = (await settled.jsonValue()) as PlayerMovementDiagnostic[];
-
-	expect(settledWindow).toHaveLength(COUNTER_SETTLE_ATTEMPTS);
-	const stopPoint = settledWindow[0].resolvedPosition;
-	// The body may clip at most 5px into the painted counter.
-	expect(stopPoint.y).toBeGreaterThanOrEqual(counterBottom + PLAYER_COLLISION_RADIUS - 5);
-	expect(stopPoint.y).toBeLessThan(480);
-	expect(Math.abs(stopPoint.x - blacksmith.spawn.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.hypot(stopPoint.x - oren.x, stopPoint.y - oren.y)).toBeLessThanOrEqual(
-		PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + NPC_PACK_COLLISION_RADIUS
-	);
-
-	await page.locator('canvas').click();
-	await page.keyboard.press('e', { delay: 50 });
-
-	const dialogue = page.getByRole('dialog', { name: 'Oren' });
-	await expect(dialogue).toBeVisible();
-	await expect(dialogue).toContainText(
-		"Steel for those who can pay, advice for those who can't. Today, the advice is free."
-	);
-	await dialogue.getByRole('button', { name: 'Shop' }).click();
-
-	const shop = page.getByRole('dialog', { name: 'Sundrop Forge' });
-	await expect(shop).toBeVisible();
-	await expect(shop.getByLabel('Coins: 100')).toBeVisible();
-	await shop.getByTestId('shop-buy-grid').getByLabel('Iron Cap', { exact: true }).dblclick();
-	await expect(shop.getByLabel('Coins: 65')).toBeVisible();
-	await shop.getByRole('button', { name: 'Close' }).click();
-	await expect(shop).toHaveCount(0);
-
-	await saveThroughSaveScreen(page, 1);
-	const persisted = await readManualSlotState(page);
-	expect(persisted.wallet?.coins).toBe(65);
-	expect(persisted.shops?.stock?.['sundrop-forge']?.['iron-cap']).toBe(0);
-	expect(persisted.inventory?.equipment).toContain('iron-cap');
-
-	await page.reload();
-	await expect(page.locator('canvas')).toBeVisible();
-	await page.waitForFunction(
-		() => {
-			const state = (window as GlieseProbeWindow).__glieseLastHudState;
-			return state?.mapId === 'blacksmith-interior' && state.status === 'Oren nearby';
-		},
-		undefined,
-		{ timeout: 30_000 }
-	);
-	await page.locator('canvas').click();
-	await page.keyboard.press('e', { delay: 50 });
-	await expect(page.getByRole('dialog', { name: 'Oren' })).toBeVisible();
-	await page.getByRole('dialog', { name: 'Oren' }).getByRole('button', { name: 'Shop' }).click();
-	const resumedShop = page.getByRole('dialog', { name: 'Sundrop Forge' });
-	await expect(resumedShop).toBeVisible();
-	await expect(resumedShop.getByLabel('Coins: 65')).toBeVisible();
-	const resumedIronCap = resumedShop
-		.getByTestId('shop-buy-grid')
-		.getByLabel('Iron Cap', { exact: true });
-	await resumedIronCap.hover();
-	await expect(page.getByRole('tooltip')).toContainText('0 left');
-});
-
-test('proving morning keyboard journey reaches Oren through the painted forge lane', async ({
-	page
-}) => {
-	test.setTimeout(240_000);
-	await installRuntimeProbes(page, { captureSceneState: true });
-	// Instant text: at normal speed a reveal-skip Enter never changes the HUD
-	// dialogue payload, so every advanceDialogue press would eat the full
-	// 5s payload-change timeout before the next press.
-	await page.addInitScript(() => {
-		localStorage.setItem(
-			'gliese.preferences.v1',
-			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
-		);
-	});
-	await startNewRunFromTitle(page);
-
-	const readHud = () =>
-		page.evaluate(() => (window as GlieseProbeWindow).__glieseLastHudState ?? null);
-	const readPosition = () =>
-		page.evaluate(() => {
-			const probeWindow = window as GlieseProbeWindow;
-			const state = probeWindow.__glieseLastHudState;
-			const gate = probeWindow.__glieseTransitionGateState;
-			if (gate && gate.mapId === state?.mapId && gate.player) {
-				return { ...gate.player };
-			}
-			const player = state?.areaMap?.player;
-			return typeof player?.x === 'number' && typeof player.y === 'number'
-				? { x: player.x, y: player.y }
-				: null;
-		});
-	const holdUntil = async (
-		key: 'w' | 'a' | 's' | 'd',
-		stop:
-			| { kind: 'axis'; axis: 'x' | 'y'; direction: 'gte' | 'lte'; value: number }
-			| { kind: 'status'; value: string }
-			| { kind: 'map'; value: string },
-		timeoutMs = 15_000
-	) => {
-		// Axis stops arm the scene-side release probe before the key goes down:
-		// the rewritten chunk checks the resolved position inside update() and
-		// dispatches the keyup on the same frame that crosses the threshold, so
-		// a stalled frame can overshoot by at most its own step — CDP release
-		// latency and the poll interval no longer add pixels on top. Status/map
-		// stops have no axis to arm and keep the in-predicate release.
-		if (stop.kind === 'axis') {
-			await page.evaluate(
-				(armed) => {
-					(window as GlieseProbeWindow).__glieseAxisHold = armed;
-				},
-				{
-					axis: stop.axis,
-					direction: stop.direction,
-					value: stop.value,
-					key,
-					keyCode: key.toUpperCase().charCodeAt(0)
-				}
-			);
-		}
-		await page.keyboard.down(key);
-		try {
-			await page.waitForFunction(
-				({ requested, key, keyCode }) => {
-					const probeWindow = window as GlieseProbeWindow;
-					const state = probeWindow.__glieseLastHudState;
-					if (requested.kind === 'map') return state?.mapId === requested.value;
-					if (requested.kind === 'status') return state?.status === requested.value;
-					const gate = probeWindow.__glieseTransitionGateState;
-					const player = gate && gate.mapId === state?.mapId ? gate.player : state?.areaMap?.player;
-					if (typeof player?.x !== 'number' || typeof player.y !== 'number') return false;
-					const value = requested.axis === 'x' ? player.x : player.y;
-					const reached =
-						requested.direction === 'gte' ? value >= requested.value : value <= requested.value;
-					if (reached) {
-						// Release in this frame: a keyup over CDP lands a variable number of frames
-						// later, and at 240px/s every frame of delay is a few more pixels of overshoot.
-						const keyup = new KeyboardEvent('keyup', { bubbles: true, cancelable: true, key });
-						for (const field of ['keyCode', 'which'] as const) {
-							Object.defineProperty(keyup, field, { configurable: true, value: keyCode });
-						}
-						window.dispatchEvent(keyup);
-					}
-					return reached;
-				},
-				{ requested: stop, key, keyCode: key.toUpperCase().charCodeAt(0) },
-				// rAF polling starves under headless occlusion while the Phaser
-				// loop keeps stepping — interval polling keeps the key release
-				// inside the lane bands instead of overshooting into the walls
-				// the collision sim maps a few cells past each target.
-				{ timeout: timeoutMs, polling: 50 }
-			);
-		} catch (error) {
-			const hud = await readHud();
-			const position = await readPosition();
-			throw new Error(
-				`holdUntil(${JSON.stringify(stop)}) timed out holding '${key}' ` +
-					`at ${JSON.stringify(position)} on map ${hud?.mapId ?? '?'} ` +
-					`(status: ${hud?.status ?? '?'})`,
-				{ cause: error }
-			);
-		} finally {
-			if (stop.kind === 'axis') {
-				await page
-					.evaluate(() => {
-						(window as GlieseProbeWindow).__glieseAxisHold = null;
-					})
-					.catch(() => {});
-			}
-			await page.keyboard.up(key);
-		}
-	};
-	// Forward nudges for a hold that released short of the checkpoint band.
-	// Recovery can only move along the leg's progress axis — backing up would
-	// falsify the corridor trace (the violation check rejects >8px regression)
-	// — so a short landing is nudged forward with real presses, checked after
-	// each tap rather than re-held past the safe edge.
-	const tapAxisUntil = async (
-		key: 'w' | 'a' | 's' | 'd',
-		axis: 'x' | 'y',
-		direction: 'gte' | 'lte',
-		value: number,
-		maxTaps = 8
-	) => {
-		for (let tap = 0; tap < maxTaps; tap += 1) {
-			const position = await readPosition();
-			if (!position) return;
-			const current = position[axis];
-			if (direction === 'gte' ? current >= value : current <= value) return;
-			await page.keyboard.press(key, { delay: 45 });
-		}
-	};
-	// Relies on the instant text speed seeded above — a mid-reveal confirm only
-	// completes the typewriter and never republishes the dialogue payload.
-	// Each visible line is recorded as rendered so the HPA-839 Oren dialogue
-	// correction can be verified against the actual panel text. The keyboard
-	// journey drives Enter — the panel autofocuses on mount, so presses stay
-	// inside its keydown handler and never leak to Phaser's interact key.
-	const seenDialogueLines: string[] = [];
-	const advanceDialogue = async () => {
-		seenDialogueLines.push(...(await advanceConversationToEnd(page, 'enter')));
-	};
-
-	await page.waitForFunction(
-		() => (window as GlieseProbeWindow).__glieseLastHudState?.dialogue != null,
-		undefined,
-		{ timeout: 30_000 }
-	);
-	await advanceDialogue();
-	await expect.poll(async () => (await readHud())?.quests?.main?.objectiveId).toBe('talk-to-mott');
-	await expect.poll(async () => (await readHud())?.mapId).toBe('hero-house');
-
-	await page.locator('canvas').click();
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 228 });
-	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 160 });
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 336 });
-	await holdUntil('s', { kind: 'axis', axis: 'y', direction: 'gte', value: 352 });
-	await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 160 });
-	for (let attempt = 0; attempt < 6; attempt += 1) {
-		const status = (await readHud())?.status ?? '';
-		if (status === 'Old Mott nearby') break;
-		if (status === 'Tikka nearby') {
-			await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 352 }, 5_000);
-		} else {
-			await page.keyboard.down('a');
-			await page.waitForTimeout(250);
-			await page.keyboard.up('a');
-		}
-	}
-	await expect
-		.poll(async () => (await readHud())?.status, { timeout: 10_000 })
-		.toBe('Old Mott nearby');
-	await pressInteractUntilDialog(page, 'Old Mott');
-	await advanceDialogue();
-	// HPA-839: the amulet auto-equips when Mott's actual reward dialogue
-	// closes. The named status must render on the remounted FieldHud — the
-	// hidden HUD payload alone is not the acceptance signal.
-	await expect(fieldStatus(page)).toHaveText('Equipped Ancestral Amulet');
-	await hpa839Shot(page, 'mott-amulet-status.png');
-	const afterMott = await readHud();
-	expect(afterMott?.inventory?.equipped?.accessory).toBe('ancestral-amulet');
-	// The amulet's +2 max HP must not refill current HP; its +1 DEF is
-	// already live without opening Gear.
-	expect(afterMott?.maxHp).toBe(22);
-	expect(afterMott?.hp).toBe(20);
-	expect(afterMott?.defense).toBe(1);
-	await expect
-		.poll(async () => (await readHud())?.quests?.main?.objectiveId)
-		.toBe('collect-practice-spear');
-
-	await page.locator('canvas').click();
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 352 });
-	await holdUntil('s', { kind: 'map', value: 'overworld' }, 20_000);
-	await expect.poll(async () => (await readHud())?.mapId).toBe('overworld');
-
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Map' }).click();
-	const mapDialog = page.getByRole('dialog', { name: /map$/i });
-	await expect(mapDialog).toBeVisible();
-	const mapEvidence = await mapDialog.getByTestId('area-map-svg').evaluate((svgEl) => {
-		const [viewX = 0, viewY = 0, viewWidth = 0, viewHeight = 0] = (
-			svgEl.getAttribute('viewBox') ?? ''
-		)
-			.split(/\s+/)
-			.map(Number);
-		const markers = [...svgEl.querySelectorAll('[data-focus-id^="map-marker-"]')].map(
-			(markerEl) => {
-				const textEl = markerEl.querySelector('text');
-				const transform = markerEl.getAttribute('transform') ?? '';
-				const translate = transform.match(/translate\((-?[\d.]+)[ ,]+(-?[\d.]+)\)/);
-				const textBox = textEl?.getBBox();
-				return {
-					id: markerEl.getAttribute('data-focus-id'),
-					label: textEl?.textContent ?? null,
-					markerX: translate ? Number(translate[1]) : NaN,
-					markerY: translate ? Number(translate[2]) : NaN,
-					textLeft: textBox ? textBox.x : null,
-					textRight: textBox ? textBox.x + textBox.width : null,
-					textTop: textBox ? textBox.y : null,
-					textBottom: textBox ? textBox.y + textBox.height : null,
-					emphasis: markerEl.classList.contains('area-map-marker-emphasis')
-				};
-			}
-		);
-		return { viewX, viewY, viewWidth, viewHeight, markers };
-	});
-	expect(mapEvidence.viewWidth).toBeGreaterThan(0);
-	expect(mapEvidence.viewWidth).toBeLessThan(12_288);
-	const forgeMarker = mapEvidence.markers.find(
-		(marker) => marker.id === 'map-marker-overworld-to-blacksmith-interior'
-	);
-	expect(forgeMarker?.label).toBe('Sundrop Forge');
-	expect(forgeMarker?.emphasis).toBe(true);
-	expect(forgeMarker?.textLeft).not.toBeNull();
-	expect(forgeMarker!.markerX + forgeMarker!.textLeft!).toBeGreaterThanOrEqual(
-		mapEvidence.viewX - 1
-	);
-	expect(forgeMarker!.markerX + forgeMarker!.textRight!).toBeLessThanOrEqual(
-		mapEvidence.viewX + mapEvidence.viewWidth + 1
-	);
-	expect(forgeMarker!.markerY + forgeMarker!.textTop!).toBeGreaterThanOrEqual(
-		mapEvidence.viewY - 1
-	);
-	expect(forgeMarker!.markerY + forgeMarker!.textBottom!).toBeLessThanOrEqual(
-		mapEvidence.viewY + mapEvidence.viewHeight + 1
-	);
-	expect(new Set(mapEvidence.markers.map((marker) => marker.id))).toEqual(
-		new Set(['map-marker-overworld-to-hero-house', 'map-marker-overworld-to-blacksmith-interior'])
-	);
-	await mapDialog.getByRole('button', { name: 'Close' }).click();
-	await expect(mapDialog).toHaveCount(0);
-	await page.keyboard.press('Escape');
-
-	await page.locator('canvas').click();
-	await page.evaluate(() => {
-		(window as GlieseProbeWindow).__glieseJourneyTrace = [];
-	});
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 4508 });
-	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7288 });
-	const doorLane = await readPosition();
-	expect(doorLane?.x).toBeGreaterThanOrEqual(4_508);
-	expect(doorLane?.x).toBeLessThanOrEqual(4_576);
-	expect(doorLane?.y).toBeGreaterThanOrEqual(7_264);
-	expect(doorLane?.y).toBeLessThanOrEqual(7_296);
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 4640 });
-	const connectorTurn = await readPosition();
-	expect(connectorTurn?.x).toBeGreaterThanOrEqual(4_632);
-	expect(connectorTurn?.x).toBeLessThanOrEqual(4_704);
-	expect(connectorTurn?.y).toBeGreaterThanOrEqual(7_264);
-	expect(connectorTurn?.y).toBeLessThanOrEqual(7_296);
-	// Release at the corridor's safe edge, not the assert's: the connector is
-	// open below y=7152, so a stalled frame could carry the old 7190 stop past
-	// the walkable band outright. Every landing now stays inside [7154,7214].
-	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7214 });
-	const laneTop = await readPosition();
-	expect(laneTop?.x).toBeGreaterThanOrEqual(4_632);
-	expect(laneTop?.x).toBeLessThanOrEqual(4_704);
-	expect(laneTop?.y).toBeGreaterThanOrEqual(7_152);
-	expect(laneTop?.y).toBeLessThanOrEqual(7_216);
-	// Same idea on the top lane: releasing at 5150 could overshoot past x=5192,
-	// where the trace reads as "returned to top-lane" after south-turn opened.
-	// A landing short of 5136 is nudged forward — never backward.
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5132 });
-	const southBase = await readPosition();
-	if (southBase && southBase.x < 5_136) {
-		await tapAxisUntil('d', 'x', 'gte', 5_136);
-	}
-	const southTurn = await readPosition();
-	expect(southTurn?.x).toBeGreaterThanOrEqual(5_136);
-	expect(southTurn?.x).toBeLessThanOrEqual(5_192);
-	expect(southTurn?.y).toBeGreaterThanOrEqual(7_152);
-	expect(southTurn?.y).toBeLessThanOrEqual(7_216);
-	// The lower lane opens south past y=7300, so the old 7276 stop could be
-	// carried out of the corridor by one stalled frame. Landings now stay
-	// inside [7240,7300); a short one is nudged up into the assert band.
-	await holdUntil('s', { kind: 'axis', axis: 'y', direction: 'gte', value: 7240 });
-	const lowerBase = await readPosition();
-	if (lowerBase && lowerBase.y < 7_260) {
-		await tapAxisUntil('s', 'y', 'gte', 7_264);
-	}
-	const lowerLane = await readPosition();
-	expect(lowerLane?.x).toBeGreaterThanOrEqual(5_136);
-	expect(lowerLane?.x).toBeLessThanOrEqual(5_192);
-	expect(lowerLane?.y).toBeGreaterThanOrEqual(7_260);
-	expect(lowerLane?.y).toBeLessThanOrEqual(7_300);
-	// The lower lane's east edge is the corridor boundary itself (x 5468/5472,
-	// observed as a real assert failure at 5488), so the hold releases 28px
-	// early and nudges forward instead of trusting one stop to land in-band.
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5412 });
-	const underHutBase = await readPosition();
-	if (underHutBase && underHutBase.x < 5_440) {
-		await tapAxisUntil('d', 'x', 'gte', 5_440);
-	}
-	const underHut = await readPosition();
-	expect(underHut?.x).toBeGreaterThanOrEqual(5_440);
-	expect(underHut?.x).toBeLessThanOrEqual(5_472);
-	expect(underHut?.y).toBeGreaterThanOrEqual(7_260);
-	expect(underHut?.y).toBeLessThanOrEqual(7_300);
-	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7260 });
-	// The shoulder band borders the jog-east corridor leg: a release that
-	// overshoots into y 7224–7231 still sits inside the authored corridor, so
-	// nudging back to mid-band rescues the leg without weakening the assert.
-	// A held 's' could itself be carried past y=7272 into jog-north-only
-	// territory the trace rejects, so the nudge advances in checked taps.
-	const jogShoulderProbe = await readPosition();
-	if (jogShoulderProbe && jogShoulderProbe.y < 7_232) {
-		await tapAxisUntil('s', 'y', 'gte', 7_240);
-	}
-	const jogShoulder = await readPosition();
-	expect(jogShoulder?.x).toBeGreaterThanOrEqual(5_432);
-	expect(jogShoulder?.x).toBeLessThanOrEqual(5_472);
-	expect(jogShoulder?.y).toBeGreaterThanOrEqual(7_232);
-	expect(jogShoulder?.y).toBeLessThanOrEqual(7_272);
-	// The forge door only triggers within ~30px of (5648,7184) — walkable
-	// north ends at x≤5678 — so releasing at 5640 could overshoot past both
-	// the corridor edge (5688) and the door cone. Release inside the approach
-	// column instead and nudge up to the assert bound when short.
-	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5616 });
-	const forgeBase = await readPosition();
-	if (forgeBase && forgeBase.x < 5_640) {
-		await tapAxisUntil('d', 'x', 'gte', 5_640);
-	}
-	const forgeColumn = await readPosition();
-	expect(forgeColumn?.x).toBeGreaterThanOrEqual(5_640);
-	expect(forgeColumn?.y).toBeGreaterThanOrEqual(7_224);
-	expect(forgeColumn?.y).toBeLessThanOrEqual(7_272);
-	const approachPoint = await readPosition();
-	expect(approachPoint?.x).toBeGreaterThanOrEqual(5_616);
-	expect(approachPoint?.x).toBeLessThanOrEqual(5_688);
-	await holdUntil('w', { kind: 'map', value: 'blacksmith-interior' }, 20_000);
-	await expect.poll(async () => (await readHud())?.mapId).toBe('blacksmith-interior');
-	// The overworld route is complete on arrival — capture and attach it before
-	// any later check can fail, so a failed reward assertion still leaves the
-	// route evidence in the report.
-	const journeyTrace =
-		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseJourneyTrace ?? [])) ?? [];
-	const overworldTrace = journeyTrace.filter((point) => point.mapId === 'overworld');
-	await test.info().attach('overworld-journey-trace-raw', {
-		body: JSON.stringify(overworldTrace),
-		contentType: 'application/json'
-	});
-	const forgePoint = await readPosition();
-	expect(forgePoint?.x).toBeGreaterThanOrEqual(440);
-	expect(forgePoint?.x).toBeLessThanOrEqual(456);
-	expect(forgePoint?.y).toBeGreaterThanOrEqual(560);
-	expect(forgePoint?.y).toBeLessThanOrEqual(580);
-
-	await page.locator('canvas').click();
-	await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 200 });
-	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 404 });
-	await holdUntil('d', { kind: 'status', value: 'Oren nearby' }, 15_000);
-	await pressInteractUntilDialog(page, 'Oren');
-	await advanceDialogue();
-	// HPA-839: the corrected line must actually render — the old wording told
-	// Grik to equip the spear himself, which the auto-equip now does.
-	expect(
-		seenDialogueLines.some((line) => /spear in a bag has never killed anything/i.test(line)),
-		'Oren corrected line rendered'
-	).toBe(true);
-	expect(
-		seenDialogueLines.some((line) =>
-			/come home with coin, come back\. i keep better steel for real hunters/i.test(line)
-		),
-		'Oren better-steel hook rendered'
-	).toBe(true);
-	expect(
-		seenDialogueLines.some((line) => /open your pack/i.test(line)),
-		'no line still asks the player to equip manually'
-	).toBe(false);
-	// The spear auto-equips when the reward dialogue closes; the FieldHud
-	// status renders the equipped name, not just a hidden payload field.
-	await expect(fieldStatus(page)).toHaveText('Equipped Practice Spear');
-	await hpa839Shot(page, 'oren-spear-status.png');
-	await expect
-		.poll(async () => (await readHud())?.quests?.main?.objectiveId)
-		.toBe('collect-herb-pouch');
-	await expect
-		.poll(
-			async () =>
-				(await readHud())?.inventory?.equipment?.some(
-					(item) => item.itemId === 'practice-spear'
-				) === true
-		)
-		.toBe(true);
-	const afterOren = await readHud();
-	expect(afterOren?.inventory?.equipped?.weapon).toBe('practice-spear');
-	expect(afterOren?.inventory?.equipped?.accessory).toBe('ancestral-amulet');
-	// The stats the hero brings to the first wolves are live now: spear +1
-	// ATK (3→4), amulet +1 DEF, +2 max HP applied without refilling HP.
-	expect(afterOren?.attack).toBe(4);
-	expect(afterOren?.defense).toBe(1);
-	expect(afterOren?.maxHp).toBe(22);
-	expect(afterOren?.hp).toBe(20);
-	// The rendered hero card shows the same first-wolves numbers, so the
-	// visible HUD — not only the probe — reflects the equips.
-	const heroStats = await page
-		.getByTestId('hud-party-panel')
-		.locator('.hero-stats')
-		.first()
-		.evaluate((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim());
-	expect(heroStats).toContain('ATK 4');
-	expect(heroStats).toContain('DEF 1');
-	await expect(page.getByTestId('hud-party-panel').locator('.hero-meter-value').first()).toHaveText(
-		'20/22'
-	);
-
-	// The corridor trace is verified at the end of the test — after the Oren
-	// reward checks — so a route-flake failure cannot mask the reward result.
-	expect(overworldTrace.length).toBeGreaterThan(0);
-	const corridorLegs: {
-		name: string;
-		axis: 'x' | 'y';
-		dir: 1 | -1;
-		test: (point: { x: number; y: number }) => boolean;
-	}[] = [
-		{
-			name: 'door-apron',
-			axis: 'x',
-			dir: 1,
-			test: (point) => point.x >= 4_440 && point.x <= 4_576 && point.y >= 7_264 && point.y <= 7_344
-		},
-		{
-			name: 'door-lane',
-			axis: 'x',
-			dir: 1,
-			test: (point) => point.x >= 4_448 && point.x <= 4_696 && point.y >= 7_264 && point.y <= 7_296
-		},
-		{
-			name: 'connector',
-			axis: 'y',
-			dir: -1,
-			test: (point) => point.x >= 4_624 && point.x <= 4_704 && point.y >= 7_152 && point.y <= 7_296
-		},
-		{
-			name: 'top-lane',
-			axis: 'x',
-			dir: 1,
-			test: (point) => point.x >= 4_624 && point.x <= 5_216 && point.y >= 7_152 && point.y <= 7_216
-		},
-		{
-			name: 'south-turn',
-			axis: 'y',
-			dir: 1,
-			test: (point) => point.x >= 5_136 && point.x <= 5_192 && point.y >= 7_152 && point.y <= 7_288
-		},
-		{
-			name: 'lower-lane',
-			axis: 'x',
-			dir: 1,
-			test: (point) => point.x >= 5_136 && point.x <= 5_468 && point.y >= 7_256 && point.y <= 7_300
-		},
-		{
-			name: 'jog-north',
-			axis: 'y',
-			dir: -1,
-			test: (point) => point.x >= 5_432 && point.x <= 5_472 && point.y >= 7_232 && point.y <= 7_296
-		},
-		{
-			name: 'jog-east',
-			axis: 'x',
-			dir: 1,
-			test: (point) => point.x >= 5_432 && point.x <= 5_664 && point.y >= 7_224 && point.y <= 7_272
-		},
-		{
-			name: 'forge-approach',
-			axis: 'y',
-			dir: -1,
-			test: (point) => point.x >= 5_616 && point.x <= 5_688 && point.y >= 7_160 && point.y <= 7_272
-		}
-	];
-	const containingLegs = (point: { x: number; y: number }) =>
-		corridorLegs.flatMap((leg, legIndex) => (leg.test(point) ? [legIndex] : []));
-	const corridorViolation = (trace: typeof overworldTrace) => {
-		let furthestLeg = 0;
-		const legProgress = corridorLegs.map(() => Number.NEGATIVE_INFINITY);
-		for (const [index, point] of trace.entries()) {
-			const containing = containingLegs(point);
-			if (containing.length === 0) {
-				return `point ${index} (${point.x.toFixed(2)}, ${point.y.toFixed(2)}) outside the authored corridor`;
-			}
-			const reached = containing[containing.length - 1];
-			if (reached < furthestLeg) {
-				return `point ${index} (${point.x.toFixed(2)}, ${point.y.toFixed(2)}) returned to ${corridorLegs[reached].name} after ${corridorLegs[furthestLeg].name}`;
-			}
-			furthestLeg = reached;
-			const leg = corridorLegs[furthestLeg];
-			const progress = (leg.axis === 'x' ? point.x : point.y) * leg.dir;
-			if (progress < legProgress[furthestLeg] - 8) {
-				return `point ${index} (${point.x.toFixed(2)}, ${point.y.toFixed(2)}) regressed ${(legProgress[furthestLeg] - progress).toFixed(1)}px along ${leg.name}`;
-			}
-			legProgress[furthestLeg] = Math.max(legProgress[furthestLeg], progress);
-		}
-		if (furthestLeg !== corridorLegs.length - 1) {
-			return `trace never reached ${corridorLegs[corridorLegs.length - 1].name}`;
-		}
-		return null;
-	};
-	expect(corridorViolation(overworldTrace)).toBeNull();
-	const samplePoints = (
-		waypoints: readonly { x: number; y: number }[],
-		stepPx = 7
-	): typeof overworldTrace =>
-		waypoints.slice(1).flatMap((to, segment) => {
-			const from = waypoints[segment];
-			const steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / stepPx));
-			return Array.from({ length: steps }, (_, step) => ({
-				x: from.x + ((to.x - from.x) * (step + 1)) / steps,
-				y: from.y + ((to.y - from.y) * (step + 1)) / steps,
-				mapId: 'overworld'
-			}));
-		});
-	// The first top-lane sample before the south turn, wherever in the lane the run walked.
-	const detourIndex = overworldTrace.findIndex(
-		(point) => point.x >= 4_900 && point.x < 5_136 && point.y >= 7_152 && point.y <= 7_216
-	);
-	expect(detourIndex).toBeGreaterThanOrEqual(0);
-	const detouredTrace = [
-		...overworldTrace.slice(0, detourIndex),
-		{ x: 4_900, y: 7_215, mapId: 'overworld' },
-		{ x: 4_900, y: 7_245, mapId: 'overworld' },
-		{ x: 5_040, y: 7_245, mapId: 'overworld' },
-		{ x: 5_040, y: 7_190, mapId: 'overworld' },
-		...overworldTrace.slice(detourIndex)
-	];
-	expect(corridorViolation(detouredTrace)).toContain('outside the authored corridor');
-	let loopAnchorIndex = -1;
-	let loopAnchorDistance = Number.POSITIVE_INFINITY;
-	for (const [index, point] of overworldTrace.entries()) {
-		const distance = Math.hypot(point.x - 4_613.44, point.y - 7_305.4);
-		if (distance < loopAnchorDistance) {
-			loopAnchorDistance = distance;
-			loopAnchorIndex = index;
-		}
-	}
-	expect(loopAnchorIndex).toBeGreaterThanOrEqual(0);
-	const loopedTrace = [
-		...overworldTrace.slice(0, loopAnchorIndex + 1),
-		{ x: 4_613.44, y: 7_305.4, mapId: 'overworld' },
-		...samplePoints([
-			{ x: 4_613.44, y: 7_305.4 },
-			{ x: 4_598, y: 7_305.4 },
-			{ x: 4_598, y: 7_208 },
-			{ x: 4_636, y: 7_208 },
-			{ x: 4_636, y: 7_305.4 },
-			{ x: 4_613.44, y: 7_305.4 }
-		]),
-		...overworldTrace.slice(loopAnchorIndex + 1)
-	];
-	expect(corridorViolation(loopedTrace)).toContain('outside the authored corridor');
-	const connectorIndex = overworldTrace.findIndex(
-		(point) => point.x >= 4_624 && point.x <= 4_704 && point.y >= 7_152 && point.y <= 7_296
-	);
-	expect(connectorIndex).toBeGreaterThanOrEqual(0);
-	const connectorEntry = overworldTrace[connectorIndex];
-	const withinBandTrace = [
-		...overworldTrace.slice(0, connectorIndex + 1),
-		...samplePoints([
-			connectorEntry,
-			{ x: 4_644, y: connectorEntry.y },
-			{ x: 4_644, y: 7_224 },
-			{ x: 4_676, y: 7_224 },
-			{ x: 4_676, y: connectorEntry.y },
-			{ x: 4_644, y: connectorEntry.y },
-			connectorEntry
-		]),
-		...overworldTrace.slice(connectorIndex + 1)
-	];
-	expect(corridorViolation(withinBandTrace)).toContain('regressed');
-	const legRuns = corridorLegs.map((leg) => ({
-		name: leg.name,
-		points: [] as typeof overworldTrace
-	}));
-	let legCursor = 0;
-	for (const point of overworldTrace) {
-		legCursor = Math.max(legCursor, ...containingLegs(point));
-		legRuns[legCursor].points.push(point);
-	}
-	const legRanges = legRuns.map((run) => {
-		expect(run.points.length, `corridor leg "${run.name}" has no trace points`).toBeGreaterThan(0);
-		return {
-			leg: run.name,
-			points: run.points.length,
-			x: [
-				Math.min(...run.points.map((point) => point.x)),
-				Math.max(...run.points.map((point) => point.x))
-			],
-			y: [
-				Math.min(...run.points.map((point) => point.y)),
-				Math.max(...run.points.map((point) => point.y))
-			]
-		};
-	});
-	const forgeDoor = overworldMap.transitions.find(
-		(transition) => transition.id === 'overworld-to-blacksmith-interior'
-	)!;
-	const lastTracePoint = overworldTrace[overworldTrace.length - 1];
-	const lastDoorDistance = Math.hypot(
-		lastTracePoint.x - forgeDoor.x,
-		lastTracePoint.y - forgeDoor.y
-	);
-	expect(lastDoorDistance).toBeLessThanOrEqual(32);
-	const relatedDoors = new Set([forgeDoor.id, 'overworld-to-hero-house']);
-	const unrelatedDoors = overworldMap.transitions.filter(
-		(transition) => !relatedDoors.has(transition.id)
-	);
-	const doorClearance = (trace: typeof overworldTrace) =>
-		Math.min(
-			...trace.flatMap((point) =>
-				unrelatedDoors.map((door) => Math.hypot(point.x - door.x, point.y - door.y))
-			)
-		);
-	const minDoorClearance = doorClearance(overworldTrace);
-	expect(minDoorClearance).toBeGreaterThanOrEqual(48);
-	expect(doorClearance(detouredTrace)).toBeGreaterThanOrEqual(48);
-	expect(
-		Math.hypot(
-			detouredTrace[detouredTrace.length - 1].x - forgeDoor.x,
-			detouredTrace[detouredTrace.length - 1].y - forgeDoor.y
-		)
-	).toBeLessThanOrEqual(32);
-	expect(doorClearance(loopedTrace)).toBeGreaterThanOrEqual(48);
-	expect(
-		Math.hypot(
-			loopedTrace[loopedTrace.length - 1].x - forgeDoor.x,
-			loopedTrace[loopedTrace.length - 1].y - forgeDoor.y
-		)
-	).toBeLessThanOrEqual(32);
-	expect(doorClearance(withinBandTrace)).toBeGreaterThanOrEqual(48);
-	const traceEvidence = { legRanges, minDoorClearance, lastDoorDistance, trace: overworldTrace };
-	await test.info().attach('overworld-journey-trace', {
-		body: JSON.stringify(traceEvidence),
-		contentType: 'application/json'
-	});
-});
-
-test('HPA-839 Oren reward equips the practice spear and shows it on the field HUD', async ({
-	page
-}) => {
-	test.setTimeout(120_000);
-	// Real-game checkpoint one step from Oren — the same seeded-continue
-	// pattern the quest-log and shop tests use. The amulet is already worn
-	// (maxHp 22, DEF 1) exactly as Mott's reward left it; the long proving
-	// walk to the forge is covered by the journey test above.
-	const save = createSaveFixture({
-		mapId: 'blacksmith-interior',
-		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 448, y: 480, facing: 'up' },
-		inventory: {
-			stacks: [{ itemId: 'field-potion', quantity: 1 }],
-			equipment: ['ancestral-amulet']
-		},
-		equipment: {
-			weapon: null,
-			head: null,
-			body: null,
-			hands: null,
-			accessory: 'ancestral-amulet'
-		},
-		wallet: { coins: 0 },
-		quests: questStateAt('collect-practice-spear')
-	});
-	await seedSaveSlots(page, [{ state: save }]);
-	await installHudStateListener(page);
-	await page.addInitScript(() => {
-		window.localStorage.setItem(
-			'gliese.preferences.v1',
-			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
-		);
-	});
-	await continueFromTitle(page);
-	const readHud = () => readHudState(page);
-	await page.waitForFunction(
-		() => (window as GlieseProbeWindow).__glieseLastHudState?.status === 'Oren nearby',
-		undefined,
-		{ timeout: 15_000 }
-	);
-	await pressInteractUntilDialog(page, 'Oren');
-	// Advance the real reward dialogue, recording each rendered line: the
-	// corrected copy must appear and no line may still ask Grik to equip it.
-	const seenLines = await advanceConversationToEnd(page);
-	expect(
-		seenLines.some((line) => /spear in a bag has never killed anything/i.test(line)),
-		'Oren corrected line rendered'
-	).toBe(true);
-	expect(
-		seenLines.some((line) =>
-			/come home with coin, come back\. i keep better steel for real hunters/i.test(line)
-		),
-		'Oren better-steel hook rendered'
-	).toBe(true);
-	expect(
-		seenLines.some((line) => /open your pack/i.test(line)),
-		'no line still asks the player to equip manually'
-	).toBe(false);
-	await expect.poll(async () => (await readHud())?.dialogue ?? null).toBeNull();
-	// The spear auto-equips when the reward dialogue closes; the rendered
-	// FieldHud status shows the equipped name.
-	await expect(fieldStatus(page)).toHaveText('Equipped Practice Spear');
-	await hpa839Shot(page, 'checkpoint-oren-spear-status.png');
-	const afterOren = await readHud();
-	expect(afterOren?.inventory?.equipped?.weapon).toBe('practice-spear');
-	expect(afterOren?.inventory?.equipped?.accessory).toBe('ancestral-amulet');
-	// First-wolves numbers, live without opening Gear: spear +1 ATK (3→4),
-	// amulet +1 DEF, +2 max HP applied without refilling HP.
-	expect(afterOren?.attack).toBe(4);
-	expect(afterOren?.defense).toBe(1);
-	expect(afterOren?.maxHp).toBe(22);
-	expect(afterOren?.hp).toBe(20);
-	const heroStats = await page
-		.getByTestId('hud-party-panel')
-		.locator('.hero-stats')
-		.first()
-		.evaluate((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim());
-	expect(heroStats).toContain('ATK 4');
-	expect(heroStats).toContain('DEF 1');
-	await expect(page.getByTestId('hud-party-panel').locator('.hero-meter-value').first()).toHaveText(
-		'20/22'
-	);
-});
-
-test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async ({ page }) => {
-	test.setTimeout(120_000);
-	// The wildwood mouth pack is the proving day's first wolf fight: seeded at
-	// report-to-borak with the spear and amulet already worn exactly as Oren's
-	// and Mott's auto-equip left them, three potions in the bag.
-	const pack = anchorPoint('wildwood-wolves-mouth');
-	const save = createSaveFixture({
-		mapId: 'overworld',
-		player: { level: 1, xp: 0, hp: 20, attack: 3, x: pack.x, y: pack.y + 48, facing: 'up' },
-		inventory: {
-			stacks: [{ itemId: 'field-potion', quantity: 3 }],
-			equipment: ['ancestral-amulet', 'practice-spear']
-		},
-		equipment: {
-			weapon: 'practice-spear',
-			head: null,
-			body: null,
-			hands: null,
-			accessory: 'ancestral-amulet'
-		},
-		wallet: { coins: 0 },
-		quests: questStateAt('report-to-borak')
-	});
-	await seedSaveSlots(page, [{ state: save }]);
-	await installHudStateListener(page);
-	await page.addInitScript(() => {
-		window.localStorage.setItem(
-			'gliese.preferences.v1',
-			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
-		);
-		// The HUD feed keeps only the last four entries; accumulate every
-		// battle event so a short fight still proves each hit/hurt amount.
-		const probeWindow = window as GlieseProbeWindow;
-		probeWindow.__glieseBattleFeed = [];
-		window.addEventListener('gliese:hud-state', (event) => {
-			const feed = (event as CustomEvent<HudStateSnapshot>).detail?.battle?.active?.feed ?? [];
-			for (const entry of feed) {
-				if (!probeWindow.__glieseBattleFeed?.some((seen) => seen.id === entry.id)) {
-					probeWindow.__glieseBattleFeed?.push(entry);
-				}
-			}
-		});
-	});
-	await continueFromTitle(page);
-	const readHud = () => readHudState(page);
-	// Spawning inside the pack's aggro radius opens the real battle scene.
-	const battle = page.getByRole('region', { name: 'Battle' });
-	await expect(battle).toBeVisible({ timeout: 15_000 });
-	await expect.poll(async () => (await readHud())?.battle?.phase).toBe('active');
-	// Equipped stats must be live inside the fight, not only on the field
-	// hero card: spear ATK 4 and amulet DEF 1 drive the numbers below.
-	expect((await readHud())?.attack).toBe(4);
-	expect((await readHud())?.defense).toBe(1);
-	// resolveHit has no variance: hero ATK 4 vs wolf DEF 0 lands 4 per hit;
-	// wolf ATK 3 vs hero DEF 1 bites for exactly 2.
-	const seenFeed = async () =>
-		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseBattleFeed ?? [])) ?? [];
-	await expect
-		.poll(
-			async () => (await seenFeed()).some((entry) => entry.kind === 'hit' && entry.amount === 4),
-			{ timeout: 20_000 }
-		)
-		.toBe(true);
-	await expect
-		.poll(
-			async () => (await seenFeed()).some((entry) => entry.kind === 'hurt' && entry.amount === 2),
-			{ timeout: 20_000 }
-		)
-		.toBe(true);
-	await hpa839Shot(page, 'first-wolves-battle.png');
-});
-
-test('HPA-839 reporting the Boar King equips the hunter knife and persists it', async ({
-	page
-}) => {
-	test.setTimeout(240_000);
-	// Same real-game checkpoint the quest-log test uses: inside the guild hall,
-	// one step from Borak, with the Boar King trial already cleared so the
-	// report-boar-king branch awards the knife.
-	const save = createSaveFixture({
-		mapId: 'guild-hall',
-		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 800, y: 184, facing: 'up' },
-		inventory: {
-			stacks: [{ itemId: 'field-potion', quantity: 3 }],
-			equipment: ['ancestral-amulet', 'practice-spear']
-		},
-		equipment: {
-			weapon: 'practice-spear',
-			head: null,
-			body: null,
-			hands: null,
-			accessory: 'ancestral-amulet'
-		},
-		wallet: { coins: 30 },
-		quests: questStateAt('report-boar-king')
-	});
-	await seedSaveSlots(page, [{ state: save }]);
-	await installHudStateListener(page);
-	await page.addInitScript(() => {
-		window.localStorage.setItem(
-			'gliese.preferences.v1',
-			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
-		);
-	});
-	await continueFromTitle(page);
-	const readHud = () => readHudState(page);
-	await page.waitForFunction(
-		() => (window as GlieseProbeWindow).__glieseLastHudState?.status === 'Borak nearby',
-		undefined,
-		{ timeout: 15_000 }
-	);
-	await pressInteractUntilDialog(page, 'Borak');
-	// Advance the full naming ceremony; the knife handoff line must render.
-	const seenLines = await advanceConversationToEnd(page);
-	expect(
-		seenLines.some((line) => /first I ever carried/i.test(line)),
-		'Borak knife handoff line rendered'
-	).toBe(true);
-	await expect.poll(async () => (await readHud())?.dialogue ?? null).toBeNull();
-	// The +4 knife replaces the +1 spear automatically and the status pill
-	// shows the equipped name once the dialogue closes.
-	await expect(fieldStatus(page)).toHaveText("Equipped Hunter's Knife");
-	await hpa839Shot(page, 'borak-knife-status.png');
-	const awarded = await readHud();
-	expect(awarded?.inventory?.equipped?.weapon).toBe('hunters-knife');
-	expect(awarded?.inventory?.equipment?.map((item) => item.itemId)).toEqual(
-		expect.arrayContaining(['hunters-knife', 'practice-spear', 'ancestral-amulet'])
-	);
-	expect(awarded?.wallet?.coins).toBe(90); // 30 seeded + 60 report reward
-	expect(awarded?.attack).toBe(7); // 3 base + 4 knife
-
-	// Save through the real Save screen; the persisted slot keeps the knife
-	// worn and the spear merely owned.
-	await saveThroughSaveScreen(page, 1);
-	const savedEquipped = await readManualSlotState(page);
-	expect((savedEquipped.equipment as Record<string, string | null> | undefined)?.weapon).toBe(
-		'hunters-knife'
-	);
-	expect(savedEquipped.inventory.equipment).toEqual(
-		expect.arrayContaining(['hunters-knife', 'practice-spear'])
-	);
-
-	// Continue from that manual slot through the real load flow.
-	const loadManualSlot = async () => {
-		await page.goto('/');
-		await page.getByRole('button', { name: /Continue/i }).click();
-		const loadDialog = page.getByRole('dialog', { name: /load/i });
-		await expect(loadDialog).toBeVisible();
-		await loadDialog.getByTestId('save-slot-1').click();
-		await expect(page.locator('canvas')).toBeVisible();
-		await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
-		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible({ timeout: 15_000 });
-	};
-	await loadManualSlot();
-	await expect
-		.poll(async () => (await readHud())?.inventory?.equipped?.weapon)
-		.toBe('hunters-knife');
-	let hud = await readHud();
-	expect(hud?.inventory?.equipment?.map((item) => item.itemId)).toEqual(
-		expect.arrayContaining(['hunters-knife', 'practice-spear'])
-	);
-
-	// Manually unworn gear must stay unworn: unequip the knife, save, load,
-	// and the weapon slot must still be empty — loading never re-equips it.
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
-	const bagDialog = page.getByRole('dialog', { name: 'Inventory' });
-	await expect(bagDialog).toBeVisible();
-	await bagDialog.getByRole('button', { name: "Remove Hunter's Knife" }).click();
-	await expect.poll(async () => (await readHud())?.inventory?.equipped?.weapon).toBeNull();
-	await bagDialog.getByRole('button', { name: 'Close' }).click();
-	await page.keyboard.press('Escape');
-	await saveThroughSaveScreen(page, 1);
-	const savedUnworn = await readManualSlotState(page);
-	expect((savedUnworn.equipment as Record<string, string | null> | undefined)?.weapon).toBeNull();
-	expect(savedUnworn.inventory.equipment).toEqual(
-		expect.arrayContaining(['hunters-knife', 'practice-spear'])
-	);
-	await loadManualSlot();
-	await expect.poll(async () => (await readHud())?.inventory?.equipped?.weapon).toBeNull();
-	hud = await readHud();
-	expect(hud?.inventory?.equipment?.map((item) => item.itemId)).toEqual(
-		expect.arrayContaining(['hunters-knife', 'practice-spear'])
-	);
-});
-
-test('HPA-839 portrait forge tooltip stays on screen at 390x844', async ({ page }) => {
-	test.setTimeout(120_000);
-	// Post-spear checkpoint at the forge counter: Oren's always-branch offers
-	// the Shop choice. All four stock pieces are finite and wrap to a
-	// 3-tile first row plus one at 390px — exactly the case whose tooltip
-	// anchored below the stacked screen's fold.
-	const save = createSaveFixture({
-		mapId: 'blacksmith-interior',
-		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 448, y: 480, facing: 'up' },
-		wallet: { coins: 100 },
-		quests: questStateAt('collect-herb-pouch')
-	});
-	await seedSaveSlots(page, [{ state: save }]);
-	await installHudStateListener(page);
-	await page.addInitScript(() => {
-		window.localStorage.setItem(
-			'gliese.preferences.v1',
-			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
-		);
-	});
-	await continueFromTitle(page);
-	await page.setViewportSize({ width: 390, height: 844 });
-	await page.waitForFunction(
-		() => (window as GlieseProbeWindow).__glieseLastHudState?.status === 'Oren nearby',
-		undefined,
-		{ timeout: 15_000 }
-	);
-	const dialogue = await pressInteractUntilDialog(page, 'Oren');
-	await dialogue.getByRole('button', { name: 'Shop', exact: true }).click();
-	const shop = page.getByRole('dialog', { name: 'Sundrop Forge' });
-	await expect(shop).toBeVisible();
-	const buyGrid = shop.getByTestId('shop-buy-grid');
-	await expect(buyGrid.getByRole('button')).toHaveCount(4);
-
-	const measureTooltip = () =>
-		page.evaluate(() => {
-			const rect = (selector: string) => {
-				const el = document.querySelector<HTMLElement>(selector);
-				if (!el) return null;
-				const r = el.getBoundingClientRect();
-				return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
-			};
-			return {
-				tooltip: rect('.shop-tooltip'),
-				action: rect('.shop-detail-action'),
-				main: rect('.shop-main'),
-				screenScrollTop: document.querySelector<HTMLElement>('.shop-screen')?.scrollTop,
-				viewport: { width: window.innerWidth, height: window.innerHeight }
-			};
-		});
-	const expectTooltipInView = async () => {
-		const m = await measureTooltip();
-		expect(m.tooltip, 'tooltip rendered').not.toBeNull();
-		expect(m.main, 'stock column rendered').not.toBeNull();
-		// visibility:hidden keeps the layout box — assert the strip is painted
-		// before trusting the geometry.
-		await expect(shop.locator('.shop-tooltip')).toBeVisible();
-		const tooltip = m.tooltip!;
-		const main = m.main!;
-		// Regression: the strip pins inside the scrolling shop's viewport —
-		// never anchored at the bottom of a stock column that runs below it.
-		expect(tooltip.left).toBeGreaterThanOrEqual(main.left - 1);
-		expect(tooltip.right).toBeLessThanOrEqual(main.right + 1);
-		expect(tooltip.top).toBeGreaterThanOrEqual(0);
-		expect(tooltip.bottom).toBeLessThanOrEqual(m.viewport.height);
-		// Same measurement as the bounds: a hover that scrolled the shop would
-		// pass the checks above in the scrolled layout instead.
-		expect(m.screenScrollTop).toBe(0);
-		if (m.action) {
-			const overlaps = !(
-				tooltip.right <= m.action.left ||
-				tooltip.left >= m.action.right ||
-				tooltip.bottom <= m.action.top ||
-				tooltip.top >= m.action.bottom
-			);
-			expect(overlaps, 'tooltip must not cover the Buy action').toBe(false);
-		}
-	};
-
-	// The bug only shows at scrollTop 0: a real pointer hover on a tile's
-	// visible portion never scrolls, so the strip anchored at the stock
-	// column's bottom stays below the fold. (Clicking/focusing a tile would
-	// scroll it into view and mask the bug, so the detail action is armed
-	// with a synthetic click that leaves scroll position alone.)
-	const screenMetrics = await measureTooltip();
-	expect(screenMetrics.main!.bottom).toBeGreaterThan(screenMetrics.viewport.height);
-	expect(screenMetrics.screenScrollTop).toBe(0);
-	await buyGrid.getByLabel('Training Sword', { exact: true }).dispatchEvent('click');
-	await expect(shop.locator('.shop-detail-action')).toBeVisible();
-	const hover = async (name: string) => {
-		const tile = buyGrid.getByLabel(name, { exact: true });
-		const box = (await tile.boundingBox())!;
-		expect(box.y).toBeLessThan(844);
-		// Midpoint of the tile's visible slice — a real pointer rest there
-		// without scrolling.
-		await page.mouse.move(box.x + box.width / 2, (box.y + Math.min(box.y + box.height, 844)) / 2);
-	};
-	await hover('Iron Cap');
-	await expect(shop.locator('.shop-tooltip')).toContainText('Iron Cap');
-	await expectTooltipInView();
-	await hover('Grip Wraps');
-	await expect(shop.locator('.shop-tooltip')).toContainText('Grip Wraps');
-	await expectTooltipInView();
-});
-
-test('Blacksmith painted interior preserves baked composition and collision', async ({ page }) => {
-	test.setTimeout(600_000);
-	const blacksmith: InteriorGrayboxCase = {
-		mapId: 'blacksmith-interior',
-		...overworldDoor('blacksmith-interior'),
-		spawn: { x: 448, y: 576 },
-		exit: { x: 448, y: 688 },
-		steps: []
-	};
-	const layout = VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'];
-	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'oren');
-	if (!oren) throw new Error('Oren fixture is missing');
-	expect(blacksmith.spawn).toEqual(layout.spawn);
-	expect(blacksmith.exit).toEqual(layout.exit);
-	expect(oren).toMatchObject({
-		id: 'oren',
-		x: 448,
-		y: 416,
-		shopId: 'sundrop-forge'
-	});
-
-	const forgePoint = { x: 240, y: 144 };
-	const storagePoint = { x: 336, y: 320 };
-	const armoryPoint = { x: 800, y: 304 };
-	const showroomPoint = { x: 800, y: 624 };
-	const orenApproachPoint = layout.npcApproaches.oren.approach;
-	expect(layoutRectContainsPoint(layout.rooms.forgeFloor, forgePoint)).toBe(true);
-	expect(layoutRectContainsPoint(layout.rooms.forgeFloor, storagePoint)).toBe(true);
-	expect(layoutRectContainsPoint(layout.rooms.armoryDisplay, armoryPoint)).toBe(true);
-	expect(layoutRectContainsPoint(layout.rooms.showroom, showroomPoint)).toBe(true);
-	expect(orenApproachPoint).toEqual({ x: 448, y: 480 });
-	expect(
-		expandedLayoutRectContainsPoint(
-			layout.propCollisions.coalStorage,
-			storagePoint,
-			PLAYER_COLLISION_RADIUS
-		)
-	).toBe(false);
-
-	await installRuntimeProbes(page, { captureFacing: true });
-	await injectSave(
-		page,
-		createSaveFixture({
-			mapId: 'overworld',
-			player: {
-				level: 1,
-				xp: 0,
-				hp: 20,
-				attack: 3,
-				x: blacksmith.returnArrival.x,
-				y: blacksmith.returnArrival.y,
-				facing: 'up'
-			},
-			wallet: { coins: 100 }
-		})
-	);
-	await page.setViewportSize({ width: 640, height: 360 });
-	await page.goto('/?movementDiagnostics=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await waitForHudPosition(page, 'overworld', blacksmith.returnArrival);
-
-	await enterInteriorWithTrustedKeyboard(page, blacksmith);
-	assertBlacksmithPaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, blacksmith.mapId));
-	await saveBlacksmithCanvas(page, 'painted-camera-640x360.png');
-
-	let currentPoint = blacksmith.spawn;
-	currentPoint = await moveRoute(page, [
-		currentPoint,
-		{ x: 448, y: 640 },
-		{ x: 800, y: 640 },
-		{ x: 800, y: 400 },
-		{ x: 520, y: 400 },
-		{ x: 480, y: 208 },
-		{ x: 368, y: 208 },
-		{ x: 368, y: 144 },
-		forgePoint
-	]);
-	await assertInteriorCheckpoint(page, blacksmith, forgePoint);
-
-	currentPoint = await moveRoute(page, [
-		currentPoint,
-		{ x: 240, y: 272 },
-		{ x: 336, y: 272 },
-		storagePoint
-	]);
-	await assertInteriorCheckpoint(page, blacksmith, storagePoint);
-
-	currentPoint = await moveRoute(page, [
-		currentPoint,
-		{ x: 384, y: 320 },
-		{ x: 384, y: 208 },
-		{ x: 592, y: 208 },
-		{ x: BLACKSMITH_ARMORY_TRANSIT_X, y: 304 },
-		armoryPoint
-	]);
-	await assertInteriorCheckpoint(page, blacksmith, armoryPoint);
-
-	currentPoint = await moveRoute(page, [
-		currentPoint,
-		{ x: 592, y: 208 },
-		{ x: 512, y: 208 },
-		{ x: 512, y: 416 },
-		{ x: 640, y: 416 },
-		{ x: 640, y: 624 },
-		showroomPoint
-	]);
-	await assertInteriorCheckpoint(page, blacksmith, showroomPoint);
-
-	currentPoint = await moveRoute(page, [
-		currentPoint,
-		{ x: 240, y: 624 },
-		{ x: 240, y: 480 },
-		orenApproachPoint
-	]);
-	await assertInteriorCheckpoint(page, blacksmith, orenApproachPoint);
-	await moveRoute(
-		page,
-		[currentPoint, { x: 240, y: 480 }, { x: 240, y: 400 }, blacksmithOrenInteractionStagingPoint],
-		INTERIOR_ROUTE_SETTLE_TOLERANCE,
-		undefined,
-		undefined,
-		TIGHT_HANDOFF_REACH_TOLERANCE
-	);
-	await approachNpcWithTrustedKeyboard(page, {
-		mapId: blacksmith.mapId,
-		speaker: 'Oren',
-		stagingPoint: blacksmithOrenInteractionStagingPoint,
-		npc: { x: oren.x, y: oren.y },
-		propCollision: layout.propCollisions.serviceCounter
-	});
-	await interactWithInteriorNpc(page, {
-		speaker: 'Oren',
-		shopName: 'Sundrop Forge'
-	});
-	currentPoint = await currentHudPlayerPoint(page, blacksmith.mapId);
-
-	currentPoint = await saveInteriorCheckpointAndReload(page, blacksmith.mapId, currentPoint);
-	assertBlacksmithPaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, blacksmith.mapId));
-	await saveBlacksmithCanvas(page, 'painted-reentry-camera-640x360.png');
-
-	await moveRoute(page, [currentPoint, { x: 240, y: 416 }, { x: 240, y: 576 }, blacksmith.spawn]);
-	await assertInteriorCheckpoint(page, blacksmith, blacksmith.spawn);
-	await exitInteriorWithTrustedKeyboard(page, blacksmith);
-	const diagnosticCountBeforeReturn = await page.evaluate(
-		() =>
-			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
-				({ mapId }) => mapId === 'blacksmith-interior'
-			).length ?? 0
-	);
-	await enterInteriorWithTrustedKeyboard(page, blacksmith);
-	assertBlacksmithPaintedDiagnostic(
-		await waitForMapBackgroundDiagnostic(page, blacksmith.mapId, diagnosticCountBeforeReturn)
-	);
-	await saveBlacksmithCanvas(page, 'painted-exit-return-camera-640x360.png');
-
-	const reentrySavePoint = await currentHudPlayerPoint(page, blacksmith.mapId);
-	await saveThroughSaveScreen(page, 1);
-	const reentryPersisted = await readManualSlotState(page);
-	expect(reentryPersisted.mapId).toBe(blacksmith.mapId);
-	expect(Math.abs(reentryPersisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-	expect(Math.abs(reentryPersisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-
-	const missingBaseRoute = '**/game/assets/interiors/blacksmith-interior/base.png';
-	await page.route(missingBaseRoute, (route) => route.abort());
-	try {
-		await page.reload();
-		await expect(page.locator('canvas')).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-		await waitForHudPosition(page, blacksmith.mapId, reentrySavePoint);
-		assertBlacksmithFallbackDiagnostic(
-			await waitForMapBackgroundDiagnostic(page, blacksmith.mapId)
-		);
-		await saveBlacksmithCanvas(page, 'fallback-base-missing-camera-640x360.png');
-		await exitInteriorWithTrustedKeyboard(page, blacksmith);
-	} finally {
-		await page.unroute(missingBaseRoute);
-	}
-});
-
-test('Guild Hall painted interior', async ({ page }) => {
-	test.setTimeout(900_000);
-	const guildHall = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'guild-hall');
-	if (!guildHall) throw new Error('Guild Hall route constants are missing');
-
-	await installRuntimeProbes(page, { captureFacing: true });
-	await injectSave(
-		page,
-		createSaveFixture({
-			mapId: 'overworld',
-			player: {
-				level: 1,
-				xp: 0,
-				hp: 20,
-				attack: 3,
-				x: guildHall.returnArrival.x,
-				y: guildHall.returnArrival.y,
-				facing: 'up'
-			},
-			quests: createBoarKingQuestFixture()
-		})
-	);
-	await page.setViewportSize({ width: 640, height: 360 });
-	await page.goto('/?movementDiagnostics=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await waitForHudPosition(page, 'overworld', guildHall.returnArrival);
-
-	let persistedGuildPoint: Point | null = null;
-	await traverseInteriorForJourney(
-		page,
-		guildHall,
-		{
-			afterEnter: async () => {
-				assertGuildHallPaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, 'guild-hall'));
-				await saveGuildHallCanvas(page, 'painted-camera-640x360.png');
-			},
-			afterStep: async (step, point) => {
-				if (step.label !== guildHall.persistAfterStep) return point;
-				await saveGuildHallCanvas(page, 'painted-quartermaster-camera-640x360.png');
-				persistedGuildPoint = await saveInteriorCheckpointAndReload(page, guildHall.mapId, point);
-				return persistedGuildPoint;
-			}
-		},
-		(label, result) => {
-			expect(result.mapId, label).toBe('guild-hall');
-		}
-	);
-
-	const cameraSamples = await page.evaluate(
-		() =>
-			(window as GlieseProbeWindow).__glieseCameraSamples?.filter(
-				({ mapId }) => mapId === 'guild-hall'
-			) ?? []
-	);
-	expect(cameraSamples.length).toBeGreaterThan(0);
-	for (const sample of cameraSamples) {
-		expect({ width: sample.width, height: sample.height }).toEqual({
-			width: 640,
-			height: 360
-		});
-		expect(sample.right).toBe(sample.left + sample.width);
-		expect(sample.bottom).toBe(sample.top + sample.height);
-	}
-	expect(new Set(cameraSamples.map(({ left, top }) => `${left}:${top}`)).size).toBeGreaterThan(1);
-
-	const guildDiagnosticCountBeforeReentry = await page.evaluate(
-		() =>
-			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
-				({ mapId }) => mapId === 'guild-hall'
-			).length ?? 0
-	);
-	await enterInteriorWithTrustedKeyboard(page, guildHall);
-	assertGuildHallPaintedDiagnostic(
-		await waitForMapBackgroundDiagnostic(page, 'guild-hall', guildDiagnosticCountBeforeReentry)
-	);
-	await saveGuildHallCanvas(page, 'painted-reentry-camera-640x360.png');
-	const reentrySavePoint = await currentHudPlayerPoint(page, 'guild-hall');
-	await saveThroughSaveScreen(page, 1);
-	const reentryPersisted = await readManualSlotState(page);
-	expect(reentryPersisted.mapId).toBe('guild-hall');
-	expect(Math.abs(reentryPersisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-	expect(Math.abs(reentryPersisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-
-	const missingBaseRoute = '**/game/assets/interiors/guild-hall/base.png';
-	await page.route(missingBaseRoute, (route) => route.abort());
-	try {
-		await page.goto('/?movementDiagnostics=on');
-		await expect(page.locator('canvas')).toBeVisible();
-		await waitForHudPosition(page, 'guild-hall', reentrySavePoint);
-		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, 'guild-hall');
-		assertGuildHallFallbackDiagnostic(fallbackDiagnostic);
-		await saveGuildHallCanvas(page, 'fallback-base-missing-camera-640x360.png');
-	} finally {
-		await page.unroute(missingBaseRoute);
-	}
-});
-
-test('Item Shop painted interior', async ({ page }) => {
-	test.setTimeout(600_000);
-	const itemShop = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'item-shop');
-	if (!itemShop) throw new Error('Item Shop route constants are missing');
-
-	await installRuntimeProbes(page, { captureFacing: true });
-	await injectSave(
-		page,
-		createSaveFixture({
-			mapId: 'overworld',
-			player: {
-				level: 1,
-				xp: 0,
-				hp: 20,
-				attack: 3,
-				x: itemShop.returnArrival.x,
-				y: itemShop.returnArrival.y,
-				facing: 'up'
-			}
-		})
-	);
-	await page.setViewportSize({ width: 640, height: 360 });
-	await page.goto('/?movementDiagnostics=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await waitForHudPosition(page, 'overworld', itemShop.returnArrival);
-
-	await traverseInteriorForJourney(
-		page,
-		itemShop,
-		{
-			afterEnter: async () => {
-				assertItemShopPaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, 'item-shop'));
-				await saveItemShopCanvas(page, 'painted-camera-640x360.png');
-			},
-			afterStep: async (step, point) => {
-				if (step.label === 'ambient-customer') {
-					const hud = await page.evaluate(
-						() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
-					);
-					expect(hud?.nearbyShop).toBeNull();
-					expect(hud?.status ?? '').not.toContain('item-shop-customer');
-				}
-				if (step.label === 'mira-approach') {
-					await saveItemShopCanvas(page, 'painted-mira-camera-640x360.png');
-				}
-				if (step.label === 'office') {
-					return saveInteriorCheckpointAndReload(page, itemShop.mapId, point);
-				}
-				return point;
-			}
-		},
-		(label, result) => {
-			expect(result.mapId, label).toBe('item-shop');
-		}
-	);
-
-	const cameraSamples = await page.evaluate(
-		() =>
-			(window as GlieseProbeWindow).__glieseCameraSamples?.filter(
-				({ mapId }) => mapId === 'item-shop'
-			) ?? []
-	);
-	expect(cameraSamples.length).toBeGreaterThan(0);
-	for (const sample of cameraSamples) {
-		expect({ width: sample.width, height: sample.height }).toEqual({
-			width: 640,
-			height: 360
-		});
-		expect(sample.right).toBe(sample.left + sample.width);
-		expect(sample.bottom).toBe(sample.top + sample.height);
-	}
-	expect(new Set(cameraSamples.map(({ left, top }) => `${left}:${top}`)).size).toBeGreaterThan(1);
-	expect(
-		cameraSamples.some(
-			({ left, right, top, bottom }) => left <= 416 && right >= 416 && top <= 320 && bottom >= 320
-		)
-	).toBe(true);
-
-	const itemShopDiagnosticCountBeforeReentry = await page.evaluate(
-		() =>
-			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
-				({ mapId }) => mapId === 'item-shop'
-			).length ?? 0
-	);
-	await enterInteriorWithTrustedKeyboard(page, itemShop);
-	assertItemShopPaintedDiagnostic(
-		await waitForMapBackgroundDiagnostic(page, 'item-shop', itemShopDiagnosticCountBeforeReentry)
-	);
-	await saveItemShopCanvas(page, 'painted-reentry-camera-640x360.png');
-	const reentrySavePoint = await currentHudPlayerPoint(page, 'item-shop');
-	await saveThroughSaveScreen(page, 1);
-	const reentryPersisted = await readManualSlotState(page);
-	expect(reentryPersisted.mapId).toBe('item-shop');
-	expect(Math.abs(reentryPersisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-	expect(Math.abs(reentryPersisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-
-	const missingBaseRoute = '**/game/assets/interiors/item-shop/base.png';
-	await page.route(missingBaseRoute, (route) => route.abort());
-	try {
-		await page.goto('/?movementDiagnostics=on');
-		await expect(page.locator('canvas')).toBeVisible();
-		await waitForHudPosition(page, 'item-shop', reentrySavePoint);
-		assertItemShopFallbackDiagnostic(await waitForMapBackgroundDiagnostic(page, 'item-shop'));
-		await saveItemShopCanvas(page, 'fallback-base-missing-camera-640x360.png');
-	} finally {
-		await page.unroute(missingBaseRoute);
-	}
-});
-
-test('Hero House painted interior preserves runtime, reload, and fallback contracts', async ({
-	page
-}) => {
-	test.setTimeout(180_000);
-	const heroHouse = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'hero-house');
-	if (!heroHouse) throw new Error('Hero House route constants are missing');
-
-	await installRuntimeProbes(page, { captureFacing: true });
-	await injectSave(
-		page,
-		createSaveFixture({
-			mapId: 'overworld',
-			player: {
-				level: 1,
-				xp: 0,
-				hp: 20,
-				attack: 3,
-				x: heroHouse.returnArrival.x,
-				y: heroHouse.returnArrival.y,
-				facing: 'up'
-			}
-		})
-	);
-	await page.setViewportSize({ width: 640, height: 360 });
-	await page.goto('/?movementDiagnostics=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	await waitForHudPosition(page, 'overworld', heroHouse.returnArrival);
-
-	await enterInteriorWithTrustedKeyboard(page, heroHouse);
-	assertHeroHousePaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, 'hero-house'));
-	await saveHeroHouseCanvas(page, 'painted-camera-640x360.png');
-
-	const moveHeroHouseAxisWithTrustedKeyboard = async (target: Point): Promise<Point> => {
-		const from = await page.evaluate(() => {
-			const probeWindow = window as GlieseProbeWindow;
-			const movement = [...(probeWindow.__glieseMovementDiagnostics ?? [])]
-				.reverse()
-				.find(({ mapId }) => mapId === 'hero-house');
-			const hudPlayer = probeWindow.__glieseLastHudState?.areaMap?.player;
-			return (
-				movement?.resolvedPosition ??
-				(typeof hudPlayer?.x === 'number' && typeof hudPlayer.y === 'number'
-					? { x: hudPlayer.x, y: hudPlayer.y }
-					: null)
-			);
-		});
-		if (!from) throw new Error(`Missing Hero House position before ${JSON.stringify(target)}`);
-
-		const horizontal =
-			Math.abs(from.y - target.y) <= INTERIOR_ROUTE_SETTLE_TOLERANCE &&
-			Math.abs(from.x - target.x) > INTERIOR_ROUTE_SETTLE_TOLERANCE;
-		const vertical =
-			Math.abs(from.x - target.x) <= INTERIOR_ROUTE_SETTLE_TOLERANCE &&
-			Math.abs(from.y - target.y) > INTERIOR_ROUTE_SETTLE_TOLERANCE;
-		if (!horizontal && !vertical) {
-			if (
-				Math.abs(from.x - target.x) <= INTERIOR_ROUTE_SETTLE_TOLERANCE &&
-				Math.abs(from.y - target.y) <= INTERIOR_ROUTE_SETTLE_TOLERANCE
-			) {
-				return from;
-			}
-			throw new Error(
-				`Hero House route segment is not axis-aligned: ${JSON.stringify({ from, target })}`
-			);
-		}
-
-		const key = horizontal
-			? target.x > from.x
-				? 'ArrowRight'
-				: 'ArrowLeft'
-			: target.y > from.y
-				? 'ArrowDown'
-				: 'ArrowUp';
-		const movementStartCount = await page.evaluate(
-			() => (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
-		);
-		await page.locator('canvas').click();
-		await page.keyboard.down(key);
-		try {
-			await page.waitForFunction(
-				({ expectedPoint, startCount, tolerance }) => {
-					const diagnostics = (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
-					return diagnostics
-						.slice(startCount)
-						.some(
-							({ mapId, resolvedPosition }) =>
-								mapId === 'hero-house' &&
-								Math.abs(resolvedPosition.x - expectedPoint.x) <= tolerance &&
-								Math.abs(resolvedPosition.y - expectedPoint.y) <= tolerance
-						);
-				},
-				{
-					expectedPoint: target,
-					startCount: movementStartCount,
-					tolerance: INTERIOR_ROUTE_SETTLE_TOLERANCE
-				},
-				{ timeout: 30_000 }
-			);
-		} catch (error) {
-			const diagnostics = await page.evaluate(
-				() => (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? []
-			);
-			throw new Error(
-				`Hero House route failed at ${JSON.stringify({ from, target, key, last: diagnostics.at(-1) })}: ${String(error)}`,
-				{ cause: error }
-			);
-		} finally {
-			await page.keyboard.up(key);
-		}
-
-		const settled = await page.evaluate(
-			({ expectedPoint, startCount, tolerance }) => {
-				const diagnostics = (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
-				return (
-					[...diagnostics.slice(startCount)]
-						.reverse()
-						.find(
-							({ mapId, resolvedPosition }) =>
-								mapId === 'hero-house' &&
-								Math.abs(resolvedPosition.x - expectedPoint.x) <= tolerance &&
-								Math.abs(resolvedPosition.y - expectedPoint.y) <= tolerance
-						)?.resolvedPosition ?? null
-				);
-			},
-			{
-				expectedPoint: target,
-				startCount: movementStartCount,
-				tolerance: INTERIOR_ROUTE_SETTLE_TOLERANCE
-			}
-		);
-		if (!settled)
-			throw new Error(`Missing settled Hero House position near ${JSON.stringify(target)}`);
-		return settled;
-	};
-
-	let currentPoint = heroHouse.spawn;
-	for (const step of heroHouse.steps) {
-		for (const segmentTarget of interiorRoutePoints(currentPoint, step.point).slice(1)) {
-			currentPoint = await moveHeroHouseAxisWithTrustedKeyboard(segmentTarget);
-		}
-		await assertInteriorCheckpoint(page, heroHouse, step.point);
-	}
-	expect(Math.abs(currentPoint.x - heroHouse.spawn.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(currentPoint.y - heroHouse.spawn.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-
-	await saveThroughSaveScreen(page, 1);
-	const persisted = await readManualSlotState(page);
-	expect(persisted.mapId).toBe('hero-house');
-	expect(Math.abs(persisted.player?.x - currentPoint.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-	expect(Math.abs(persisted.player?.y - currentPoint.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-
-	await page.reload();
-	await expect(page.locator('canvas')).toBeVisible();
-	await waitForHudPosition(page, 'hero-house', heroHouse.spawn);
-	assertHeroHousePaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, 'hero-house'));
-	await saveHeroHouseCanvas(page, 'painted-reload-camera-640x360.png');
-
-	await exitInteriorWithTrustedKeyboard(page, heroHouse);
-	const heroDiagnosticCountBeforeReentry = await page.evaluate(
-		() =>
-			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
-				({ mapId }) => mapId === 'hero-house'
-			).length ?? 0
-	);
-	await enterInteriorWithTrustedKeyboard(page, heroHouse);
-	assertHeroHousePaintedDiagnostic(
-		await waitForMapBackgroundDiagnostic(page, 'hero-house', heroDiagnosticCountBeforeReentry)
-	);
-
-	const missingBaseRoute = '**/game/assets/interiors/hero-house/base.png';
-	await page.route(missingBaseRoute, (route) => route.abort());
-	try {
-		await page.goto('/?movementDiagnostics=on');
-		await expect(page.locator('canvas')).toBeVisible();
-		await waitForHudPosition(page, 'hero-house', heroHouse.spawn);
-		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, 'hero-house');
-		assertHeroHouseFallbackDiagnostic(fallbackDiagnostic);
-		await saveHeroHouseCanvas(page, 'fallback-camera-640x360.png');
-	} finally {
-		await page.unroute(missingBaseRoute);
-	}
-});
-
-test('Villager House 1 painted interior', async ({ page }) => {
-	test.setTimeout(600_000);
-	const house = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'villager-house-1');
-	if (!house) throw new Error('Villager House 1 route constants are missing');
-	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-1'];
-	const family = villagerHouse1Map.ambientNpcs?.find(({ id }) => id === 'villager-house-1-family');
-	if (!family) throw new Error('Villager House 1 family fixture is missing');
-	expect(house.steps.map(({ label }) => label)).toEqual(
-		expect.arrayContaining([
-			'living-center',
-			'family-table-living',
-			'kitchen',
-			'lynn-approach',
-			'family-anchor',
-			'bedroom',
-			'storage',
-			'spawn-return'
-		])
-	);
-
-	await installRuntimeProbes(page, { captureFacing: true });
-	await injectSave(
-		page,
-		createSaveFixture({
-			mapId: 'overworld',
-			player: {
-				level: 1,
-				xp: 0,
-				hp: 20,
-				attack: 3,
-				x: house.returnArrival.x,
-				y: house.returnArrival.y,
-				facing: 'up'
-			}
-		})
-	);
-	await page.setViewportSize({ width: 640, height: 360 });
-	await page.goto('/?movementDiagnostics=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await waitForHudPosition(page, 'overworld', house.returnArrival);
-
-	await traverseInteriorForJourney(
-		page,
-		house,
-		{
-			afterEnter: async () => {
-				assertVillagerHouse1PaintedDiagnostic(
-					await waitForMapBackgroundDiagnostic(page, house.mapId)
-				);
-				await saveVillagerHouse1Canvas(page, 'painted-camera-640x360.png');
-			},
-			afterStep: async (step, point) => {
-				if (step.label === 'storage-return-door') {
-					const storageDoor = layout.doors.storage;
-					const doorwayCenterX = storageDoor.x + storageDoor.width / 2;
-					const doorwayBandMargin = NPC_APPROACH_SETTLE_TOLERANCE / 2;
-					const minimumDoorX = doorwayCenterX - doorwayBandMargin;
-					const maximumDoorXExclusive = doorwayCenterX + doorwayBandMargin;
-					let doorwayRowPoint = point;
-					if (point.x < minimumDoorX || point.x >= maximumDoorXExclusive) {
-						const bandResult = await runFixedXAxisBandSteering(
-							page,
-							{
-								expectedMapId: house.mapId,
-								minX: minimumDoorX,
-								maxXExclusive: maximumDoorXExclusive,
-								expectedY: point.y,
-								initialPoint: point,
-								tokenPrefix: 'villager-house-1-storage-return-door'
-							},
-							'Villager House 1 storage return doorway'
-						);
-						if (!bandResult.position) {
-							throw new Error('Villager House 1 storage return doorway produced no position');
-						}
-						doorwayRowPoint = bandResult.position;
-					}
-					const doorRow = storageDoor.y + storageDoor.height / 2;
-					if (Math.abs(doorwayRowPoint.y - doorRow) <= INTERIOR_ROUTE_SETTLE_TOLERANCE) {
-						return doorwayRowPoint;
-					}
-					return moveRoute(
-						page,
-						[doorwayRowPoint, { x: doorwayRowPoint.x, y: doorRow }],
-						INTERIOR_ROUTE_SETTLE_TOLERANCE
-					);
-				}
-				if (step.label === 'lynn-approach') {
-					await saveVillagerHouse1Canvas(page, 'lynn-interaction-camera-640x360.png');
-				}
-				if (step.label !== house.persistAfterStep) return point;
-
-				expect(step.label).toBe('family-anchor');
-				expect(Math.abs(point.x - family.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-				expect(Math.abs(point.y - family.y)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
-				await walkToAmbientNpcStance(page, house.mapId, family, [48, 32]);
-				await page.locator('canvas').click();
-				await page.keyboard.press('e', { delay: 50 });
-				const noOneNearbyDialogue = page.getByRole('dialog', { name: 'Traveler' });
-				await expect(noOneNearbyDialogue).toBeVisible();
-				await expect(noOneNearbyDialogue).toContainText('They have nothing to say.');
-				await noOneNearbyDialogue.getByRole('button', { name: 'Close' }).click();
-				await expect(noOneNearbyDialogue).toHaveCount(0);
-				const familyHud = await page.evaluate(
-					() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
-				);
-				expect(familyHud?.mapId).toBe(house.mapId);
-				expect(familyHud?.dialogue ?? null).toBeNull();
-				expect(familyHud?.status ?? '').not.toContain(family.id);
-				await walkBackToStepPoint(page, house.mapId, point);
-
-				const resumed = await saveInteriorCheckpointAndReload(page, house.mapId, point);
-				assertVillagerHouse1PaintedDiagnostic(
-					await waitForMapBackgroundDiagnostic(page, house.mapId)
-				);
-				return resumed;
-			}
-		},
-		(label, result) => {
-			expect(result.mapId, label).toBe(house.mapId);
-		}
-	);
-
-	const diagnosticCountBeforeReentry = await page.evaluate(
-		() =>
-			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
-				({ mapId }) => mapId === 'villager-house-1'
-			).length ?? 0
-	);
-	await enterInteriorWithTrustedKeyboard(page, house);
-	assertVillagerHouse1PaintedDiagnostic(
-		await waitForMapBackgroundDiagnostic(page, house.mapId, diagnosticCountBeforeReentry)
-	);
-	await saveVillagerHouse1Canvas(page, 'reentry-reload-camera-640x360.png');
-
-	const reentrySavePoint = await currentHudPlayerPoint(page, house.mapId);
-	await saveThroughSaveScreen(page, 1);
-	const persisted = await readManualSlotState(page);
-	expect(persisted.mapId).toBe(house.mapId);
-	expect(Math.abs(persisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-	expect(Math.abs(persisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-
-	const missingBaseRoute = '**/game/assets/interiors/villager-house-1/base.png';
-	await page.route(missingBaseRoute, (route) => route.abort());
-	try {
-		await page.reload();
-		await expect(page.locator('canvas')).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-		await waitForHudPosition(page, house.mapId, reentrySavePoint);
-		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, house.mapId);
-		assertVillagerHouse1FallbackDiagnostic(fallbackDiagnostic);
-		await saveVillagerHouse1Canvas(page, 'fallback-base-missing-camera-640x360.png');
-
-		const fallbackProbePoint = {
-			x: layout.corridors.hall.x + layout.corridors.hall.width / 2,
-			y: layout.rooms.livingKitchen.y + 32
-		};
-		const fallbackStart = await currentHudPlayerPoint(page, house.mapId);
-		const fallbackPosition = await moveRoute(
-			page,
-			interiorRoutePoints(fallbackStart, fallbackProbePoint),
-			INTERIOR_ROUTE_SETTLE_TOLERANCE
-		);
-		await assertInteriorCheckpoint(page, house, fallbackProbePoint);
-		expect(Math.abs(fallbackPosition.x - fallbackProbePoint.x)).toBeLessThanOrEqual(
-			AXIS_REACH_TOLERANCE
-		);
-		expect(Math.abs(fallbackPosition.y - fallbackProbePoint.y)).toBeLessThanOrEqual(
-			AXIS_REACH_TOLERANCE
-		);
-		await exitInteriorWithTrustedKeyboard(page, house);
-	} finally {
-		await page.unroute(missingBaseRoute);
-	}
-});
-
-test('Villager House 2 painted interior', async ({ page }) => {
-	test.setTimeout(600_000);
-	const house = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'villager-house-2');
-	if (!house) throw new Error('Villager House 2 route constants are missing');
-	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-2'];
-	const toma = villagerHouse2Map.npcs?.find(({ id }) => id === 'villager-toma');
-	const neighbor = villagerHouse2Map.ambientNpcs?.find(
-		({ id }) => id === 'villager-house-2-neighbor'
-	);
-	if (!toma || !neighbor) throw new Error('Villager House 2 actor fixtures are missing');
-	expect(house.spawn).toEqual(layout.spawn);
-	expect(house.exit).toEqual(layout.exit);
-	expect(house.steps.map(({ label }) => label)).toEqual(
-		expect.arrayContaining([
-			'living-center',
-			'workshop-door',
-			'workshop-storage',
-			'toma-approach',
-			'bedroom-door',
-			'bedroom',
-			'neighbor',
-			'spawn-return'
-		])
-	);
-
-	await installRuntimeProbes(page, { captureFacing: true });
-	await injectSave(
-		page,
-		createSaveFixture({
-			mapId: 'overworld',
-			player: {
-				level: 1,
-				xp: 0,
-				hp: 20,
-				attack: 3,
-				x: house.returnArrival.x,
-				y: house.returnArrival.y,
-				facing: 'up'
-			}
-		})
-	);
-	await page.setViewportSize({ width: 640, height: 360 });
-	await page.goto('/?movementDiagnostics=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await waitForHudPosition(page, 'overworld', house.returnArrival);
-
-	await traverseInteriorForJourney(
-		page,
-		house,
-		{
-			afterEnter: async () => {
-				assertVillagerHouse2PaintedDiagnostic(
-					await waitForMapBackgroundDiagnostic(page, house.mapId)
-				);
-				await saveVillagerHouse2Canvas(page, 'painted-camera-640x360.png');
-			},
-			afterStep: async (step, point) => {
-				if (step.label === 'workshop-storage-entry') {
-					const workbench = layout.propCollisions.tomaWorkbench;
-					const workshopProbeY = Math.min(
-						workbench.y + workbench.height / 2,
-						toma.y - PLAYER_COLLISION_RADIUS - NPC_PACK_COLLISION_RADIUS - AXIS_REACH_TOLERANCE
-					);
-					const workshopApproachPoint = {
-						x: workbench.x + workbench.width + PLAYER_COLLISION_RADIUS + AXIS_REACH_TOLERANCE + 1,
-						y: workshopProbeY
-					};
-					expect(layoutRectContainsPoint(layout.rooms.workshop, workshopApproachPoint)).toBe(true);
-					expect(
-						expandedLayoutRectContainsPoint(
-							workbench,
-							workshopApproachPoint,
-							PLAYER_COLLISION_RADIUS
-						)
-					).toBe(false);
-					const probeStartPoint = await moveRoute(
-						page,
-						interiorRoutePoints(point, workshopApproachPoint),
-						INTERIOR_ROUTE_SETTLE_TOLERANCE
-					);
-					expect(
-						expandedLayoutRectContainsPoint(workbench, probeStartPoint, PLAYER_COLLISION_RADIUS)
-					).toBe(false);
-					const probeStartCount = await page.evaluate(
-						() => (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
-					);
-					await page.locator('canvas').click();
-					await page.keyboard.down('ArrowLeft');
-					try {
-						await page.waitForFunction(
-							({ startCount, requestedMapId }) =>
-								((window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [])
-									.slice(startCount)
-									.some(({ mapId, blocked }) => mapId === requestedMapId && blocked),
-							{ startCount: probeStartCount, requestedMapId: house.mapId },
-							{ timeout: 5_000 }
-						);
-					} finally {
-						await page.keyboard.up('ArrowLeft');
-					}
-					const workbenchCollisionDiagnostic = await latestMovement(page);
-					expect(workbenchCollisionDiagnostic).not.toBeNull();
-					if (!workbenchCollisionDiagnostic) {
-						throw new Error('Villager House 2 workbench collision probe returned no diagnostic');
-					}
-					expect(workbenchCollisionDiagnostic.mapId).toBe(house.mapId);
-					expect(workbenchCollisionDiagnostic.blocked).toBe(true);
-					// The generated 16px navigation source can reject the first blocked
-					// cell a few pixels before the continuous padded edge. Keep attribution
-					// on the named workbench through the existing reach-envelope oracle,
-					// while the exact resolved-position checks below prove no penetration.
-					expect(
-						routeSegmentIntersectsExpandedRectAtReachEnvelope(
-							workbenchCollisionDiagnostic.previousPosition,
-							workbenchCollisionDiagnostic.requestedPosition,
-							workbench,
-							PLAYER_COLLISION_RADIUS
-						)
-					).toBe(true);
-					const expandedWorkbenchRight = workbench.x + workbench.width + PLAYER_COLLISION_RADIUS;
-					expect(workbenchCollisionDiagnostic.previousPosition.x).toBeGreaterThanOrEqual(
-						expandedWorkbenchRight
-					);
-					expect(workbenchCollisionDiagnostic.requestedPosition.x).toBeGreaterThanOrEqual(
-						expandedWorkbenchRight
-					);
-					expect(workbenchCollisionDiagnostic.requestedPosition.x).toBeLessThan(
-						workbenchCollisionDiagnostic.previousPosition.x
-					);
-					expect(workbenchCollisionDiagnostic.requestedPosition.y).toBe(
-						workbenchCollisionDiagnostic.previousPosition.y
-					);
-					expect(
-						expandedLayoutRectContainsPoint(
-							workbench,
-							workbenchCollisionDiagnostic.resolvedPosition,
-							PLAYER_COLLISION_RADIUS
-						)
-					).toBe(false);
-					const probeDiagnostics = await page.evaluate(
-						(startCount) =>
-							(window as GlieseProbeWindow).__glieseMovementDiagnostics?.slice(startCount) ?? [],
-						probeStartCount
-					);
-					expect(probeDiagnostics.length).toBeGreaterThan(0);
-					for (const diagnostic of probeDiagnostics) {
-						expect(diagnostic.mapId).toBe(house.mapId);
-						expect(
-							expandedLayoutRectContainsPoint(
-								workbench,
-								diagnostic.resolvedPosition,
-								PLAYER_COLLISION_RADIUS
-							)
-						).toBe(false);
-					}
-					const recoveryPoint = await moveRoute(
-						page,
-						[
-							workbenchCollisionDiagnostic.resolvedPosition,
-							{ x: point.x, y: workbenchCollisionDiagnostic.resolvedPosition.y },
-							point
-						],
-						INTERIOR_ROUTE_SETTLE_TOLERANCE
-					);
-					expect(
-						expandedLayoutRectContainsPoint(workbench, recoveryPoint, PLAYER_COLLISION_RADIUS)
-					).toBe(false);
-					return recoveryPoint;
-				}
-				if (step.label === 'toma-approach') {
-					await saveVillagerHouse2Canvas(page, 'toma-interaction-camera-640x360.png');
-				}
-				if (step.label === 'neighbor') {
-					await walkToAmbientNpcStance(page, house.mapId, neighbor, [48, 32]);
-					await page.locator('canvas').click();
-					await page.keyboard.press('e', { delay: 50 });
-					const noOneNearbyDialogue = page.getByRole('dialog', { name: 'Traveler' });
-					await expect(noOneNearbyDialogue).toBeVisible();
-					await expect(noOneNearbyDialogue).toContainText('They have nothing to say.');
-					await noOneNearbyDialogue.getByRole('button', { name: 'Close' }).click();
-					await expect(noOneNearbyDialogue).toHaveCount(0);
-					const neighborHud = await page.evaluate(
-						() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
-					);
-					expect(neighborHud?.mapId).toBe(house.mapId);
-					expect(neighborHud?.dialogue ?? null).toBeNull();
-					expect(neighborHud?.status ?? '').not.toContain(neighbor.id);
-					await walkBackToStepPoint(page, house.mapId, point);
-				}
-				if (step.label !== house.persistAfterStep) return point;
-
-				expect(step.label).toBe('toma-approach');
-				const resumed = await saveInteriorCheckpointAndReload(page, house.mapId, point);
-				assertVillagerHouse2PaintedDiagnostic(
-					await waitForMapBackgroundDiagnostic(page, house.mapId)
-				);
-				return resumed;
-			}
-		},
-		(label, result) => {
-			expect(result.mapId, label).toBe(house.mapId);
-		}
-	);
-
-	const diagnosticCountBeforeReentry = await page.evaluate(
-		() =>
-			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
-				({ mapId }) => mapId === 'villager-house-2'
-			).length ?? 0
-	);
-	await enterInteriorWithTrustedKeyboard(page, house);
-	assertVillagerHouse2PaintedDiagnostic(
-		await waitForMapBackgroundDiagnostic(page, house.mapId, diagnosticCountBeforeReentry)
-	);
-	await saveVillagerHouse2Canvas(page, 'reentry-camera-640x360.png');
-
-	const reentrySavePoint = await currentHudPlayerPoint(page, house.mapId);
-	await saveThroughSaveScreen(page, 1);
-	const persisted = await readManualSlotState(page);
-	expect(persisted.mapId).toBe(house.mapId);
-	expect(Math.abs(persisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-	expect(Math.abs(persisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-
-	const missingBaseRoute = '**/game/assets/interiors/villager-house-2/base.png';
-	await page.route(missingBaseRoute, (route) => route.abort());
-	try {
-		await page.reload();
-		await expect(page.locator('canvas')).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-		await waitForHudPosition(page, house.mapId, reentrySavePoint);
-		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, house.mapId);
-		assertVillagerHouse2FallbackDiagnostic(fallbackDiagnostic);
-		await saveVillagerHouse2Canvas(page, 'fallback-base-missing-camera-640x360.png');
-
-		const fallbackProbePoint = {
-			x: layout.corridors.hall.x + layout.corridors.hall.width / 2,
-			y: layout.rooms.livingArea.y + 32
-		};
-		const fallbackStart = await currentHudPlayerPoint(page, house.mapId);
-		const fallbackPosition = await moveRoute(
-			page,
-			interiorRoutePoints(fallbackStart, fallbackProbePoint),
-			INTERIOR_ROUTE_SETTLE_TOLERANCE
-		);
-		await assertInteriorCheckpoint(page, house, fallbackProbePoint);
-		expect(Math.abs(fallbackPosition.x - fallbackProbePoint.x)).toBeLessThanOrEqual(
-			AXIS_REACH_TOLERANCE
-		);
-		expect(Math.abs(fallbackPosition.y - fallbackProbePoint.y)).toBeLessThanOrEqual(
-			AXIS_REACH_TOLERANCE
-		);
-		await exitInteriorWithTrustedKeyboard(page, house);
-	} finally {
-		await page.unroute(missingBaseRoute);
-	}
-});
-
-test('Villager House 3 painted interior', async ({ page }) => {
-	test.setTimeout(600_000);
-	const house = INTERIOR_GRAYBOX_CASES.find((interior) => interior.mapId === 'villager-house-3');
-	if (!house) throw new Error('Villager House 3 route constants are missing');
-	const layout = VILLAGE_INTERIOR_LAYOUTS['villager-house-3'];
-	const io = villagerHouse3Map.npcs?.find(({ id }) => id === 'villager-io');
-	const neighbor = villagerHouse3Map.ambientNpcs?.find(
-		({ id }) => id === 'villager-house-3-neighbor'
-	);
-	if (!io || !neighbor) throw new Error('Villager House 3 actor fixtures are missing');
-	expect(house.returnArrival).toEqual({ x: 4_848, y: 7_504 });
-	expect(house.spawn).toEqual(layout.spawn);
-	expect(house.exit).toEqual(layout.exit);
-	expect(house.steps.map(({ label }) => label)).toEqual(
-		expect.arrayContaining([
-			'sitting-room',
-			'archive-study',
-			'io-approach',
-			'bedroom-storage',
-			'neighbor',
-			'spawn-return'
-		])
-	);
-
-	await installRuntimeProbes(page, { captureFacing: true });
-	await injectSave(
-		page,
-		createSaveFixture({
-			mapId: 'overworld',
-			player: {
-				level: 1,
-				xp: 0,
-				hp: 20,
-				attack: 3,
-				x: house.returnArrival.x,
-				y: house.returnArrival.y,
-				facing: 'up'
-			}
-		})
-	);
-	await page.setViewportSize({ width: 640, height: 360 });
-	await page.goto('/?movementDiagnostics=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await waitForHudPosition(page, 'overworld', house.returnArrival);
-
-	await traverseInteriorForJourney(
-		page,
-		house,
-		{
-			afterEnter: async () => {
-				assertVillagerHouse3PaintedDiagnostic(
-					await waitForMapBackgroundDiagnostic(page, house.mapId)
-				);
-				await saveVillagerHouse3Canvas(page, 'painted-camera-640x360.png');
-			},
-			afterStep: async (step, point) => {
-				if (step.label === 'io-approach') {
-					await saveVillagerHouse3Canvas(page, 'io-interaction-camera-640x360.png');
-				}
-				if (step.label === 'neighbor') {
-					// The step point is 96px east; the near side of the villager is a prop.
-					await walkToAmbientNpcStance(page, house.mapId, neighbor, [48]);
-					await page.locator('canvas').click();
-					await page.keyboard.press('e', { delay: 50 });
-					const noOneNearbyDialogue = page.getByRole('dialog', { name: 'Traveler' });
-					await expect(noOneNearbyDialogue).toBeVisible();
-					await expect(noOneNearbyDialogue).toContainText('They have nothing to say.');
-					await noOneNearbyDialogue.getByRole('button', { name: 'Close' }).click();
-					await expect(noOneNearbyDialogue).toHaveCount(0);
-					const neighborHud = await page.evaluate(
-						() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
-					);
-					expect(neighborHud?.mapId).toBe(house.mapId);
-					expect(neighborHud?.dialogue ?? null).toBeNull();
-					expect(neighborHud?.status ?? '').not.toContain(neighbor.id);
-					await walkBackToStepPoint(page, house.mapId, point);
-				}
-				if (step.label !== house.persistAfterStep) return point;
-				expect(step.label).toBe('io-approach');
-				const resumed = await saveInteriorCheckpointAndReload(page, house.mapId, point);
-				assertVillagerHouse3PaintedDiagnostic(
-					await waitForMapBackgroundDiagnostic(page, house.mapId)
-				);
-				return resumed;
-			}
-		},
-		(label, result) => {
-			expect(result.mapId, label).toBe(house.mapId);
-		}
-	);
-
-	const diagnosticCountBeforeReentry = await page.evaluate(
-		() =>
-			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
-				({ mapId }) => mapId === 'villager-house-3'
-			).length ?? 0
-	);
-	await enterInteriorWithTrustedKeyboard(page, house);
-	assertVillagerHouse3PaintedDiagnostic(
-		await waitForMapBackgroundDiagnostic(page, house.mapId, diagnosticCountBeforeReentry)
-	);
-	await saveVillagerHouse3Canvas(page, 'reentry-camera-640x360.png');
-
-	const reentrySavePoint = await currentHudPlayerPoint(page, house.mapId);
-	await saveThroughSaveScreen(page, 1);
-	const persisted = await readManualSlotState(page);
-	expect(persisted.mapId).toBe(house.mapId);
-	expect(Math.abs(persisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-	expect(Math.abs(persisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-
-	const missingBaseRoute = '**/game/assets/interiors/villager-house-3/base.png';
-	await page.route(missingBaseRoute, (route) => route.abort());
-	try {
-		await page.reload();
-		await expect(page.locator('canvas')).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-		await waitForHudPosition(page, house.mapId, reentrySavePoint);
-		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, house.mapId);
-		assertVillagerHouse3FallbackDiagnostic(fallbackDiagnostic);
-		await saveVillagerHouse3Canvas(page, 'fallback-base-missing-camera-640x360.png');
-
-		const fallbackProbePoint = {
-			x: layout.corridors.hall.x + layout.corridors.hall.width / 2,
-			y: layout.rooms.sittingRoom.y + 16
-		};
-		const fallbackStart = await currentHudPlayerPoint(page, house.mapId);
-		const fallbackPosition = await moveRoute(
-			page,
-			interiorRoutePoints(fallbackStart, fallbackProbePoint),
-			INTERIOR_ROUTE_SETTLE_TOLERANCE
-		);
-		await assertInteriorCheckpoint(page, house, fallbackProbePoint);
-		expect(Math.abs(fallbackPosition.x - fallbackProbePoint.x)).toBeLessThanOrEqual(
-			AXIS_REACH_TOLERANCE
-		);
-		expect(Math.abs(fallbackPosition.y - fallbackProbePoint.y)).toBeLessThanOrEqual(
-			AXIS_REACH_TOLERANCE
-		);
-		await exitInteriorWithTrustedKeyboard(page, house);
-	} finally {
-		await page.unroute(missingBaseRoute);
-	}
-});
-
-test('Shrine of Aurora painted interior', async ({ page }) => {
-	test.setTimeout(600_000);
-	const shrine = INTERIOR_GRAYBOX_CASES.find(
-		(interior) => interior.mapId === 'shrine-of-aurora-interior'
-	);
-	if (!shrine) throw new Error('Shrine of Aurora route constants are missing');
-	const layout = VILLAGE_INTERIOR_LAYOUTS['shrine-of-aurora-interior'];
-	expect(shrine.returnArrival).toEqual({ x: 4_496, y: 6_320 });
-	expect(shrine.spawn).toEqual(layout.spawn);
-	expect(shrine.exit).toEqual(layout.exit);
-	expect(shrine.steps.map(({ label }) => label)).toEqual(
-		expect.arrayContaining([
-			'nave',
-			'west-preparation',
-			'east-archive',
-			'inner-sanctum',
-			'spawn-return'
-		])
-	);
-
-	await installRuntimeProbes(page, { captureFacing: true });
-	await injectSave(
-		page,
-		createSaveFixture({
-			mapId: 'overworld',
-			player: {
-				level: 1,
-				xp: 0,
-				hp: 20,
-				attack: 3,
-				x: shrine.returnArrival.x,
-				y: shrine.returnArrival.y,
-				facing: 'up'
-			}
-		})
-	);
-	await page.setViewportSize({ width: 640, height: 360 });
-	await page.goto('/?movementDiagnostics=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await waitForHudPosition(page, 'overworld', shrine.returnArrival);
-
-	await traverseInteriorForJourney(
-		page,
-		shrine,
-		{
-			afterEnter: async () => {
-				assertShrinePaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, shrine.mapId));
-				await saveShrineCanvas(page, 'painted-camera-640x360.png');
-			},
-			afterStep: async (step, point) => {
-				if (step.label !== shrine.persistAfterStep) return point;
-				expect(step.label).toBe('east-archive');
-				const resumed = await saveInteriorCheckpointAndReload(page, shrine.mapId, point);
-				assertShrinePaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, shrine.mapId));
-				return resumed;
-			}
-		},
-		(label, result) => {
-			expect(result.mapId, label).toBe(shrine.mapId);
-		}
-	);
-
-	const diagnosticCountBeforeReentry = await page.evaluate(
-		() =>
-			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
-				({ mapId }) => mapId === 'shrine-of-aurora-interior'
-			).length ?? 0
-	);
-	await enterInteriorWithTrustedKeyboard(page, shrine);
-	assertShrinePaintedDiagnostic(
-		await waitForMapBackgroundDiagnostic(page, shrine.mapId, diagnosticCountBeforeReentry)
-	);
-	await saveShrineCanvas(page, 'reentry-camera-640x360.png');
-
-	const reentrySavePoint = await currentHudPlayerPoint(page, shrine.mapId);
-	await saveThroughSaveScreen(page, 1);
-	const persisted = await readManualSlotState(page);
-	expect(persisted.mapId).toBe(shrine.mapId);
-	expect(Math.abs(persisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-	expect(Math.abs(persisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
-		AXIS_REACH_TOLERANCE
-	);
-
-	const missingBaseRoute = '**/game/assets/interiors/shrine-of-aurora-interior/base.png';
-	await page.route(missingBaseRoute, (route) => route.abort());
-	try {
-		await page.reload();
-		await expect(page.locator('canvas')).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-		await waitForHudPosition(page, shrine.mapId, reentrySavePoint);
-		const fallbackDiagnostic = await waitForMapBackgroundDiagnostic(page, shrine.mapId);
-		assertShrineFallbackDiagnostic(fallbackDiagnostic);
-		await saveShrineCanvas(page, 'fallback-base-missing-camera-640x360.png');
-
-		const fallbackProbePoint = { x: 512, y: 624 };
-		const fallbackStart = await currentHudPlayerPoint(page, shrine.mapId);
-		const fallbackPosition = await moveRoute(
-			page,
-			interiorRoutePoints(fallbackStart, fallbackProbePoint),
-			INTERIOR_ROUTE_SETTLE_TOLERANCE
-		);
-		await assertInteriorCheckpoint(page, shrine, fallbackProbePoint);
-		expect(Math.abs(fallbackPosition.x - fallbackProbePoint.x)).toBeLessThanOrEqual(
-			AXIS_REACH_TOLERANCE
-		);
-		expect(Math.abs(fallbackPosition.y - fallbackProbePoint.y)).toBeLessThanOrEqual(
-			AXIS_REACH_TOLERANCE
-		);
-		await exitInteriorWithTrustedKeyboard(page, shrine);
-	} finally {
-		await page.unroute(missingBaseRoute);
-	}
-});
-
-test('quest log shows main quest and completes proving morning at Borak', async ({ page }) => {
-	const save = createSaveFixture({
-		mapId: 'guild-hall',
-		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 800, y: 184, facing: 'up' },
-		quests: questStateAt('report-to-borak')
-	});
-
-	await page.addInitScript(
-		(payload: SaveInitPayload) => {
-			const probeWindow = window as GlieseProbeWindow;
-			probeWindow.__glieseLastHudState = undefined;
-			window.addEventListener('gliese:hud-state', (event) => {
-				probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
-			});
-			window.localStorage.setItem(
-				payload.key,
-				JSON.stringify({
-					version: 1,
-					slots: [
-						{
-							kind: 'autosave',
-							savedAt: new Date().toISOString(),
-							playtimeSeconds: 0,
-							state: JSON.parse(payload.encoded)
-						},
-						null,
-						null
-					]
-				})
-			);
-		},
-		{ encoded: JSON.stringify(save), key: SAVES_STORAGE_KEY }
-	);
-	// Instant reveal keeps the confirm count deterministic (Heroic reveal
-	// grammar: confirm completes the line, the next confirm advances).
-	await page.addInitScript(() =>
-		window.localStorage.setItem(
-			'gliese.preferences.v1',
-			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
-		)
-	);
-	await continueFromTitle(page);
-	await expect(page.getByText("Report to Borak at the Hunters' Lodge.")).toBeVisible();
-	await page.waitForFunction(() => {
-		const state = (window as GlieseProbeWindow).__glieseLastHudState;
-		return state?.status?.includes('Borak');
-	});
-
-	await page.locator('canvas').click();
-	await page.keyboard.press('e', { delay: 50 });
-	const borakDialog = page.getByRole('dialog', { name: 'Borak' });
-	await expect(borakDialog).toBeVisible({ timeout: 10_000 });
-	// Scope to the visible line: the sr-only status twin repeats the dialogue text.
-	await expect(borakDialog.locator('.jrpg-dialogue-line')).toContainText(/Grik\. You came/i);
-	await borakDialog.getByRole('button', { name: 'Next' }).click();
-	await expect(borakDialog.locator('.jrpg-dialogue-line')).toContainText(/Three Trials/i);
-	const anyDialog = page.getByRole('dialog');
-	for (let advance = 0; advance < 40; advance += 1) {
-		const hud = await page.evaluate(
-			() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
-		);
-		if (!hud?.dialogue) break;
-		const prevDialogue = JSON.stringify(hud.dialogue);
-		const next = anyDialog.getByRole('button', { name: 'Next' });
-		if ((await next.count()) > 0) {
-			await next.click();
-		} else {
-			await page.keyboard.press('Enter');
-		}
-		// Wait for the advance to publish a new hud-state (dialogue payload
-		// changes each line) rather than a fixed sleep.
-		await page
-			.waitForFunction(
-				(prev) => {
-					const state = (window as GlieseProbeWindow).__glieseLastHudState;
-					return !state?.dialogue || JSON.stringify(state.dialogue) !== prev;
-				},
-				prevDialogue,
-				{ timeout: 5_000 }
-			)
-			.catch(() => {});
-	}
-	await page.waitForFunction(() => {
-		const state = (window as GlieseProbeWindow).__glieseLastHudState;
-		return !state?.dialogue;
-	});
-	await page.waitForFunction(() => {
-		const state = (window as GlieseProbeWindow).__glieseLastHudState;
-		return state?.quests?.main?.objectiveId === 'meet-lirra-forest';
-	});
-
-	// HPA-841 removed the "Dialogue closed" toast: closing the dialogue
-	// publishes an explicit null, so the transient status is empty here.
-	await expect(fieldStatus(page)).toHaveText('');
-
-	await page.getByRole('button', { name: 'Menu' }).click();
-	await commandBox(page).getByRole('button', { name: 'Quest', exact: true }).click();
-
-	const questDialog = page.getByRole('dialog', { name: 'Quest Log' });
-	await expect(questDialog).toBeVisible();
-	await expect(questDialog.getByTestId('quest-entry-main')).toContainText('First Trial: Tracks');
-	await expect(questDialog.getByText('Meet Lirra at the edge of the Wildwood.')).toBeVisible();
-	await expect(questDialog.getByTestId('quest-entry-completed')).toContainText(
-		'The Proving Morning'
-	);
-	// Live progress renders in the detail panel only while the quest is selected.
-	const detailPanel = questDialog.getByTestId('quest-detail');
-	await expect(detailPanel).toContainText('Met Lirra: 0 / 1');
-	await questDialog.getByTestId('quest-entry-completed').click();
-	await expect(detailPanel).toContainText('Reported to Borak: 1 / 1');
-	await questDialog.getByRole('button', { name: 'Close' }).click();
-	await page.keyboard.press('Escape');
-	// The status pill only renders while the command grid is closed (Task 4);
-	// resume-game restores the nearby-NPC prompt once the grid closes.
-	await expect(fieldStatus(page)).toHaveText('Borak nearby');
-});
-
-// HPA-841 acceptance: one seeded near-end run through the whole ending on a
-// normal saved game (no ?startMap=, which would disable autosave). The save
-// sits at the real ridge anchor with `climb-to-the-ridge` current; the run
-// inspects the ridge sign, plays the final scenes to the completion card,
-// dismisses to Title, and Continue restores the ridge without a replay.
-test('a seeded near-end saved run finishes the prologue and Continue restores the ridge without replay', async ({
-	page
-}) => {
-	test.setTimeout(120_000);
-	const ridge = anchorPoint('wildwood-ridge-overlook');
-	const save = createSaveFixture({
-		player: { level: 1, xp: 0, hp: 200, attack: 50, x: ridge.x, y: ridge.y, facing: 'up' },
-		quests: questStateAt('climb-to-the-ridge'),
-		seenDiscoveries: []
-	});
-	await seedSaveSlots(page, [{ state: save }]);
-	await page.addInitScript(() => {
-		const probeWindow = window as GlieseProbeWindow;
-		probeWindow.__glieseLastHudState = undefined;
-		window.addEventListener('gliese:hud-state', (event) => {
-			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
-		});
-	});
-	// Instant reveal keeps the advance count deterministic (Heroic reveal
-	// grammar: confirm completes the line, the next confirm advances).
-	await page.addInitScript(() =>
-		window.localStorage.setItem(
-			'gliese.preferences.v1',
-			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
-		)
-	);
-	await continueFromTitle(page);
-
-	// The saved run booted onto the actual ridge coordinates.
-	await page.waitForFunction(
-		(target) => {
-			const state = (window as GlieseProbeWindow).__glieseLastHudState;
-			return (
-				state?.mapId === 'overworld' &&
-				Math.abs((state?.areaMap?.player?.x ?? NaN) - target.x) < 1 &&
-				Math.abs((state?.areaMap?.player?.y ?? NaN) - target.y) < 1
-			);
-		},
-		ridge,
-		{ timeout: 30_000 }
-	);
-
-	// Inspect the ridge sign: the final story scene, then the vow and the
-	// chapter-one cue, then the terminal autosave and the completion card.
-	await page.keyboard.press('e', { delay: 50 });
-	const anyDialog = page.getByRole('dialog');
-	const endCard = page.getByRole('dialog', { name: 'End of the Prologue' });
-	// Drive every line to the completion card, synchronized on the HUD
-	// dialogue state instead of fixed sleeps: each pass performs at most one
-	// advance, and only once the previous one has landed (the line id/index
-	// moved, the session closed, or the card appeared).
-	let lastDialogueKey: string | null = null;
-	await expect(async () => {
-		if ((await endCard.count()) > 0) return;
-		const key = await page.evaluate(() => {
-			const state = (window as GlieseProbeWindow).__glieseLastHudState;
-			return state?.dialogue ? `${state.dialogue.id}:${state.dialogue.lineIndex}` : null;
-		});
-		if (key === null) throw new Error('final dialogue not open yet');
-		if (key === lastDialogueKey) throw new Error('previous advance has not landed yet');
-		lastDialogueKey = key;
-		const next = anyDialog.getByRole('button', { name: 'Next' });
-		if ((await next.count()) > 0) {
-			await next.click();
-		} else {
-			await page.keyboard.press('Enter');
-		}
-		// One advance per pass: keep retrying until the early return above
-		// sees the completion card.
-		throw new Error('advanced a line; driving until the completion card');
-	}).toPass({ timeout: 60_000 });
-	await expect(endCard).toBeVisible({ timeout: 30_000 });
-
-	// No gameplay behind the card: the field HUD (and its Menu chip) is gone.
-	await expect(page.getByRole('button', { name: 'Menu' })).toHaveCount(0);
-
-	// The terminal autosave persisted the finished state before the card:
-	// seven completed quests and no pending marker (Continue validates this).
-	const envelope = await readSlotEnvelope(page);
-	const terminalState = envelope?.slots[0]?.state as
-		| { quests?: { entries?: Record<string, { status?: string }>; pendingEffects?: unknown[] } }
-		| undefined;
-	expect(terminalState?.quests?.pendingEffects).toEqual([]);
-	const entries = Object.values(terminalState?.quests?.entries ?? {});
-	expect(entries).toHaveLength(7);
-	expect(entries.every((entry) => entry?.status === 'completed')).toBe(true);
-
-	// Dismiss once: Title returns with a refreshed Continue subtitle over the
-	// finished save's region (the ridge sits in the Wildwood).
-	await endCard.click();
-	await expect(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
-	await expect(endCard).toHaveCount(0);
-	await expect(page.getByRole('button', { name: /continue/i })).toContainText('Wildwood');
-
-	// Continue loads the finished run on the same page — no reload, so stale
-	// teardown state would still be there to fail — restoring the ridge
-	// coordinates without replaying the card.
-	await continueFromTitlePicker(page);
-	await page.waitForFunction(
-		(target) => {
-			const state = (window as GlieseProbeWindow).__glieseLastHudState;
-			return (
-				state?.mapId === 'overworld' &&
-				Math.abs((state?.areaMap?.player?.x ?? NaN) - target.x) < 1 &&
-				Math.abs((state?.areaMap?.player?.y ?? NaN) - target.y) < 1
-			);
-		},
-		ridge,
-		{ timeout: 30_000 }
-	);
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await expect(page.getByTestId('hud-side-panel').getByText('Prologue complete')).toBeVisible();
-	await page.waitForFunction(() => {
-		const state = (window as GlieseProbeWindow).__glieseLastHudState;
-		return state?.quests?.main === null && state?.quests?.completed?.length === 7;
-	});
-	// Wait a fixed window after the resumed HUD settles before asserting the
-	// completion card stayed absent (toHaveCount(0) would otherwise pass on
-	// the first poll before a replayed card appears).
-	await page.waitForTimeout(500);
-	await expect(endCard).toHaveCount(0);
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-});
-
-// ======================= HPA-840 Task 4: live resize integration gates =======
-// One checked-in gate per named scenario: real `?startMap=` interior boots (opening scene
-// dismissed), live setViewportSize resizes, camera bounds axes, movement, and
-// viewport screenshots for the evidence pack. The capture factory is the
-// shared `evidenceShots` helper declared near the top of this file.
-
-test('evidence output defaults safely and rejects reused isolated paths', async ({
-	browserName
-}, testInfo) => {
-	expect(browserName).toBe('chromium');
-	const screenshots: string[] = [];
-	const page = {
-		screenshot: async (options?: { path?: string }) => {
-			screenshots.push(options?.path ?? '');
-			return Buffer.alloc(0);
-		}
-	};
-	const defaults = hpa840Evidence();
-	expect(defaults.root).toBe(resolve('docs/superpowers/reports/img/hpa-840-responsive'));
-	// The shared factory supplies each task's own default root.
-	expect(hpa839Evidence().root).toBe(
-		resolve('docs/superpowers/reports/img/hpa-839-story-gear-shop')
-	);
-	// HPA-839 shots resolve per test: isolated output dir by default, the
-	// committed docs pack only under an explicit env opt-in.
-	const previousDocsEnv = process.env.HPA839_EVIDENCE_DOCS;
-	const previousRootEnv = process.env.HPA839_EVIDENCE_ROOT;
-	try {
-		delete process.env.HPA839_EVIDENCE_DOCS;
-		delete process.env.HPA839_EVIDENCE_ROOT;
-		expect(hpa839Capture(testInfo).root).toBe(resolve(testInfo.outputPath('hpa-839-evidence')));
-		process.env.HPA839_EVIDENCE_DOCS = '1';
-		expect(hpa839Capture(testInfo).root).toBe(resolve(HPA839_EVIDENCE_DOCS_DIR));
-	} finally {
-		if (previousDocsEnv === undefined) delete process.env.HPA839_EVIDENCE_DOCS;
-		else process.env.HPA839_EVIDENCE_DOCS = previousDocsEnv;
-		if (previousRootEnv === undefined) delete process.env.HPA839_EVIDENCE_ROOT;
-		else process.env.HPA839_EVIDENCE_ROOT = previousRootEnv;
-	}
-	await defaults.shot(page, 'unused-default.png');
-	mkdirSync(testInfo.outputDir, { recursive: true });
-	const root = testInfo.outputPath('isolated-evidence');
-	const isolated = hpa840Evidence(root);
-	await isolated.shot(page, 'first.png');
-	await isolated.shot(page, 'second.png');
-	// A restarted worker gets a fresh helper instance over the same root: it
-	// must write new names without tripping on the existing directory, while
-	// every previously written name still refuses to overwrite.
-	const restarted = hpa840Evidence(root);
-	await restarted.shot(page, 'other.png');
-	expect(screenshots).toEqual([
-		resolve(defaults.root, 'unused-default.png'),
-		resolve(root, 'first.png'),
-		resolve(root, 'second.png'),
-		resolve(root, 'other.png')
-	]);
-	await expect(isolated.shot(page, 'first.png')).rejects.toThrow();
-	await expect(restarted.shot(page, 'first.png')).rejects.toThrow();
-	await expect(restarted.shot(page, 'other.png')).rejects.toThrow();
-});
-
-if (process.env.HPA840_SHARED_CDP) {
-	test.beforeEach(async ({ page }) => {
-		const endpoint = process.env.HPA840_SHARED_CDP!;
-		const url = new URL(endpoint);
-		if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.username || url.password) {
-			throw new Error('HPA840_SHARED_CDP must be a localhost HTTP endpoint');
-		}
-		const pageSession = await page.context().newCDPSession(page);
-		const { targetInfo } = await pageSession.send('Target.getTargetInfo');
-		await pageSession.detach();
-		const shared = await chromium.connectOverCDP(endpoint);
-		try {
-			const browserSession = await shared.newBrowserCDPSession();
-			const { targetInfos } = await browserSession.send('Target.getTargets');
-			await browserSession.detach();
-			if (!targetInfos.some((target) => target.targetId === targetInfo.targetId)) {
-				throw new Error(`Playwright target ${targetInfo.targetId} is not in HPA840_SHARED_CDP`);
-			}
-		} finally {
-			await shared.close();
-		}
-	});
-}
-
-const hpa840Capture = hpa840Evidence(process.env.HPA840_EVIDENCE_ROOT);
-
-async function hpa840Shot(page: Page, name: string) {
-	await hpa840Capture.shot(page, name);
-}
-
-/**
- * Fraction of the element's rect still visible after intersecting every
- * ancestor clip context (overflow auto/scroll/hidden/clip) and the viewport —
- * a boundingClientRect alone misses ancestor clipping.
- */
-async function visibleFraction(target: Locator): Promise<number> {
-	return target.evaluate((el) => {
-		const rect = el.getBoundingClientRect();
-		const area = rect.width * rect.height;
-		if (area <= 0) return 0;
-		let x1 = rect.left;
-		let y1 = rect.top;
-		let x2 = rect.right;
-		let y2 = rect.bottom;
-		for (let anc = el.parentElement; anc; anc = anc.parentElement) {
-			const s = getComputedStyle(anc);
-			if (!/(auto|scroll|hidden|clip)/.test(`${s.overflowX} ${s.overflowY}`)) continue;
-			const cr = anc.getBoundingClientRect();
-			const cl = cr.left + anc.clientLeft;
-			const ct = cr.top + anc.clientTop;
-			x1 = Math.max(x1, cl);
-			y1 = Math.max(y1, ct);
-			x2 = Math.min(x2, cl + anc.clientWidth);
-			y2 = Math.min(y2, ct + anc.clientHeight);
-		}
-		x1 = Math.max(x1, 0);
-		y1 = Math.max(y1, 0);
-		x2 = Math.min(x2, window.innerWidth);
-		y2 = Math.min(y2, window.innerHeight);
-		return (Math.max(0, x2 - x1) * Math.max(0, y2 - y1)) / area;
-	});
-}
-
-/** Asserts an element is rendered essentially unclipped inside the viewport. */
-async function expectUnclipped(target: Locator) {
-	await expect(target).toBeVisible();
-	expect(await visibleFraction(target)).toBeGreaterThan(0.95);
-}
-
-/**
- * Clip-aware check for controls taller than their scroll context (a row can
- * never reach 95% visible area at a tiny viewport): the element's centre must
- * sit inside every ancestor clip + the viewport, and a real hit test at that
- * point must resolve to the element (or a descendant of it).
- */
-async function expectCenterVisible(target: Locator) {
-	await expect(target).toBeVisible();
-	const hit = await target.evaluate((el) => {
-		const rect = el.getBoundingClientRect();
-		const cx = rect.left + rect.width / 2;
-		const cy = rect.top + rect.height / 2;
-		for (let anc = el.parentElement; anc; anc = anc.parentElement) {
-			const s = getComputedStyle(anc);
-			if (!/(auto|scroll|hidden|clip)/.test(`${s.overflowX} ${s.overflowY}`)) continue;
-			const cr = anc.getBoundingClientRect();
-			if (cx < cr.left || cx > cr.left + anc.clientWidth) return false;
-			if (cy < cr.top || cy > cr.top + anc.clientHeight) return false;
-		}
-		if (cx < 0 || cy < 0 || cx > window.innerWidth || cy > window.innerHeight) return false;
-		const top = document.elementFromPoint(cx, cy);
-		return top === el || el.contains(top);
-	});
-	expect(hit).toBe(true);
-}
-
-/**
- * Waits until the overlay's entrance animation actually settles: any running
- * CSS animation/transition inside the element finishes, then its rect must be
- * identical across two consecutive frames (both bounded — never a fixed
- * sleep). A plain two-frame check can exit before the animation's first tick.
- */
-async function settleMotion(target: Locator) {
-	await target.evaluate(async (el) => {
-		const animations = el.getAnimations({ subtree: true });
-		await Promise.race([
-			Promise.all(animations.map((a) => a.finished.catch(() => {}))),
-			new Promise((r) => setTimeout(r, 2_000))
-		]);
-		let last = '';
-		const deadline = performance.now() + 1_000;
-		for (;;) {
-			const r = el.getBoundingClientRect();
-			const now = `${r.x},${r.y},${r.width},${r.height}`;
-			if (now === last || performance.now() > deadline) return;
-			last = now;
-			await new Promise((res) => requestAnimationFrame(res));
-		}
-	});
-}
-
-/** Focus must land inside the dialog once it opens (bounded poll). */
-async function expectFocusInside(dialog: Locator) {
-	await expect
-		.poll(() => dialog.evaluate((el) => el.contains(document.activeElement)), {
-			timeout: 5_000
-		})
-		.toBe(true);
-}
-
-/**
- * Focus containment: pressing Tab once per stop plus one wrap press never
- * escapes the dialog into the field HUD behind it.
- */
-async function expectTabContained(page: Page, dialog: Locator) {
-	const stops = await dialog
-		.locator('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
-		.count();
-	for (let press = 0; press < stops + 1; press += 1) {
-		await page.keyboard.press('Tab');
-		const inside = await dialog.evaluate((el) => el.contains(document.activeElement));
-		expect(inside).toBe(true);
-	}
-}
-
-/**
- * Tags and returns the dialog's largest vertically scrollable panel, or null
- * when nothing inside overflows (small content never grows a scroller — the
- * caller then asserts the document didn't scroll instead).
- */
-async function findInnerScroller(dialog: Locator): Promise<Locator | null> {
-	const found = await dialog.evaluate((root) => {
-		for (const e of root.querySelectorAll('[data-e2e-scroller]')) {
-			e.removeAttribute('data-e2e-scroller');
-		}
-		let best: HTMLElement | null = null;
-		let bestArea = 0;
-		for (const el of root.querySelectorAll<HTMLElement>('*')) {
-			const s = getComputedStyle(el);
-			if (s.overflowY !== 'auto' && s.overflowY !== 'scroll') continue;
-			if (el.scrollHeight <= el.clientHeight + 4 || el.clientHeight < 40) continue;
-			const area = el.clientWidth * el.clientHeight;
-			if (area > bestArea) {
-				best = el;
-				bestArea = area;
-			}
-		}
-		if (!best) return false;
-		best.setAttribute('data-e2e-scroller', '1');
-		return true;
-	});
-	return found ? dialog.locator('[data-e2e-scroller="1"]') : null;
-}
-
-/**
- * Scrolls an inner panel toward its end via the last scrollable descendant —
- * an interactive control when one exists, otherwise the last element child —
- * and returns the panel's scrollTop before/after.
- */
-async function scrollInnerPanelToEnd(scroller: Locator) {
-	const before = await scroller.evaluate((e) => e.scrollTop);
-	let tail = scroller.locator('button, [tabindex], a[href]').last();
-	if ((await tail.count()) === 0) {
-		tail = scroller.locator('*').last();
-	}
-	await tail.scrollIntoViewIfNeeded({ timeout: 5_000 });
-	return { before, after: await scroller.evaluate((e) => e.scrollTop) };
-}
-
-async function documentScrollTop(page: Page) {
-	return page.evaluate(() => document.documentElement.scrollTop + document.body.scrollTop);
-}
-
-type LiveCameraSnapshot = {
-	view: { x: number; y: number; width: number; height: number } | null;
-	bounds: { x: number; y: number; width: number; height: number } | null;
-};
-
-async function waitForLiveCamera(page: Page, width: number, height: number) {
-	await page.waitForFunction(
-		({ w, h }) => {
-			const camera = (window as GlieseProbeWindow).__glieseActiveSceneCamera;
-			return camera?.worldView?.width === w && camera?.worldView?.height === h;
-		},
-		{ w: width, h: height },
-		{ timeout: 30_000 }
-	);
-}
-
-async function liveCamera(page: Page): Promise<LiveCameraSnapshot> {
-	return page.evaluate(() => {
-		const camera = (window as GlieseProbeWindow).__glieseActiveSceneCamera as
-			| (OverworldSceneCamera & {
-					getBounds?: () => { x: number; y: number; width: number; height: number };
-			  })
-			| undefined;
-		const bounds = camera?.getBounds?.();
-		const view = camera?.worldView;
-		return {
-			view:
-				view && typeof view.x === 'number' && typeof view.y === 'number'
-					? { x: view.x, y: view.y, width: view.width ?? 0, height: view.height ?? 0 }
-					: null,
-			bounds: bounds
-				? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
-				: null
-		};
-	});
-}
-
-// The WorldScene resize contract per axis: when the map is smaller than the
-// viewport the camera bounds center it (equal negative padding, bounds sized
-// to the viewport so the whole window shows the room plus margin); when it is
-// larger the axis clamps to the map rect and the view stays inside it.
-function expectCameraAxes(
-	mapId: string,
-	mapW: number,
-	mapH: number,
-	vw: number,
-	vh: number,
-	cam: LiveCameraSnapshot
-) {
-	expect(cam.bounds, `${mapId} camera bounds`).not.toBeNull();
-	expect(cam.view, `${mapId} world view`).not.toBeNull();
-	const bounds = cam.bounds!;
-	const view = cam.view!;
-	expect({ width: view.width, height: view.height }, `${mapId} view size at ${vw}×${vh}`).toEqual({
-		width: vw,
-		height: vh
-	});
-	for (const axis of ['x', 'y'] as const) {
-		const mapDim = axis === 'x' ? mapW : mapH;
-		const viewDim = axis === 'x' ? vw : vh;
-		const boundsStart = axis === 'x' ? bounds.x : bounds.y;
-		const boundsSize = axis === 'x' ? bounds.width : bounds.height;
-		const viewStart = axis === 'x' ? view.x : view.y;
-		const label = `${mapId} ${axis} at ${vw}×${vh}`;
-		if (mapDim <= viewDim) {
-			expect(boundsStart, `${label}: centered bounds start`).toBeCloseTo((mapDim - viewDim) / 2, 0);
-			expect(boundsSize, `${label}: centered bounds size`).toBe(viewDim);
-			// Zero scroll slack: the view is pinned to the bounds origin.
-			expect(viewStart, `${label}: pinned view start`).toBeCloseTo(boundsStart, 0);
-		} else {
-			expect(boundsStart, `${label}: clamped bounds start`).toBe(0);
-			expect(boundsSize, `${label}: clamped bounds size`).toBe(mapDim);
-			expect(viewStart, `${label}: view start inside map`).toBeGreaterThanOrEqual(-1);
-			expect(viewStart + viewDim, `${label}: view end inside map`).toBeLessThanOrEqual(mapDim + 1);
-		}
-	}
-}
-
-async function playerHudPoint(page: Page): Promise<{ x: number; y: number }> {
-	const point = await page.evaluate(() => {
-		const probeWindow = window as GlieseProbeWindow;
-		const player =
-			probeWindow.__glieseLastMovementDiagnostic?.resolvedPosition ??
-			probeWindow.__glieseLastHudState?.areaMap?.player;
-		return typeof player?.x === 'number' && typeof player?.y === 'number'
-			? { x: player.x, y: player.y }
-			: null;
-	});
-	if (!point) throw new Error('HUD player position unavailable');
-	return point;
-}
-
-// Real-keyboard proof the scene keeps resolving movement at the new size:
-// try each cardinal direction until the resolved player position displaces.
-async function expectPlayerMoves(page: Page, mapId: string) {
-	const start = await playerHudPoint(page);
-	for (const key of ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'] as const) {
-		await page.keyboard.down(key);
-		let moved = false;
-		try {
-			await page.waitForFunction(
-				(origin) => {
-					const probeWindow = window as GlieseProbeWindow;
-					const player =
-						probeWindow.__glieseLastMovementDiagnostic?.resolvedPosition ??
-						probeWindow.__glieseLastHudState?.areaMap?.player;
-					return (
-						typeof player?.x === 'number' &&
-						typeof player?.y === 'number' &&
-						Math.hypot(player.x - origin.x, player.y - origin.y) >= 12
-					);
-				},
-				start,
-				{ timeout: 2_500 }
-			);
-			moved = true;
-		} catch {
-			// This direction is blocked or unreachable — try the next one.
-		}
-		await page.keyboard.up(key);
-		if (moved) return;
-	}
-	throw new Error(`${mapId}: player could not move in any direction from ${JSON.stringify(start)}`);
-}
-
-// `?startMap=` boots a fresh profile, and the proving-morning quest starts the
-// prologue.opening scene over the interior — Enter advances each line until the
-// dialog is gone, freeing both the Menu anchor and player movement.
-async function dismissOpeningScene(page: Page) {
-	const dialog = page.getByRole('dialog');
-	// The scene mounts only after the story catalog fetch; give it a bounded
-	// window before concluding there is nothing to dismiss.
-	try {
-		await dialog.first().waitFor({ state: 'visible', timeout: 30_000 });
-	} catch {
-		return;
-	}
-	for (let advance = 0; advance < 40 && (await dialog.count()) > 0; advance += 1) {
-		const lastHudAt = await page.evaluate(
-			() => (window as GlieseProbeWindow).__glieseLastHudAt ?? 0
-		);
-		await page.keyboard.press('Enter');
-		// Wait for the next hud-state publish (each advance emits one) or the
-		// dialog closing, instead of a fixed sleep.
-		await page
-			.waitForFunction(
-				(at) =>
-					((window as GlieseProbeWindow).__glieseLastHudAt ?? 0) > at ||
-					document.querySelectorAll('dialog').length === 0,
-				lastHudAt,
-				{ timeout: 5_000 }
-			)
-			.catch(() => {});
-	}
-	await expect(dialog).toHaveCount(0);
-}
-
-for (const interior of [
-	{ mapId: 'hero-house', mapW: 704, mapH: 576, spawn: { x: 352, y: 480 } },
-	{ mapId: 'guild-hall', mapW: 1024, mapH: 832, spawn: { x: 512, y: 736 } },
-	{ mapId: 'blacksmith-interior', mapW: 896, mapH: 704, spawn: { x: 448, y: 576 } }
-] as const) {
-	test(`HPA-840 ${interior.mapId} recenters the camera across live resizes and keeps movement working`, async ({
-		page
-	}) => {
-		test.setTimeout(120_000);
-		await installRuntimeProbes(page, { captureFacing: true });
-		await page.setViewportSize({ width: 1280, height: 720 });
-		await page.goto(`/?movementDiagnostics=on&startMap=${interior.mapId}`);
-		await expect(page.locator('canvas')).toBeVisible();
-		await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
-		await dismissOpeningScene(page);
-		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-		await waitForHudPosition(page, interior.mapId, interior.spawn);
-
-		await waitForLiveCamera(page, 1280, 720);
-		expectCameraAxes(
-			interior.mapId,
-			interior.mapW,
-			interior.mapH,
-			1280,
-			720,
-			await liveCamera(page)
-		);
-		await hpa840Shot(page, `${interior.mapId}-before-1280x720.png`);
-
-		await page.setViewportSize({ width: 1920, height: 1080 });
-		await waitForLiveCamera(page, 1920, 1080);
-		expectCameraAxes(
-			interior.mapId,
-			interior.mapW,
-			interior.mapH,
-			1920,
-			1080,
-			await liveCamera(page)
-		);
-		await expectPlayerMoves(page, interior.mapId);
-		await hpa840Shot(page, `${interior.mapId}-resized-1920x1080.png`);
-
-		await page.setViewportSize({ width: 640, height: 360 });
-		await waitForLiveCamera(page, 640, 360);
-		expectCameraAxes(
-			interior.mapId,
-			interior.mapW,
-			interior.mapH,
-			640,
-			360,
-			await liveCamera(page)
-		);
-		await expectPlayerMoves(page, interior.mapId);
-		await hpa840Shot(page, `${interior.mapId}-resized-640x360.png`);
-
-		// Indoor Area Map leg (architecture review): the persisted sweep's
-		// only map evidence was the outdoor Wilds. Open the real interior map
-		// at 640×360 — chrome, marker focus, containment and no document
-		// scroll all checked in this same persisted execution.
-		await page.keyboard.press('m');
-		const indoorMap = page.getByRole('dialog', { name: /map$/i });
-		await expect(indoorMap).toBeVisible();
-		await settleMotion(indoorMap);
-		await expectFocusInside(indoorMap);
-		// Chrome is pinned outside the scrollable body.
-		await expectUnclipped(indoorMap.getByRole('heading').first());
-		const indoorClose = indoorMap.getByRole('button', { name: /close/i }).first();
-		await expectUnclipped(indoorClose);
-		// The map body is intentionally the scrollport: at 640×360 the SVG is
-		// allowed to be taller than it, so assert bounded scrolling instead of
-		// an unclipped SVG height. Horizontally nothing may overflow.
-		const indoorBody = indoorMap.locator('.jrpg-area-map-body');
-		await expectUnclipped(indoorBody);
-		const indoorBodyBox = await indoorBody.evaluate((el) => ({
-			clientWidth: el.clientWidth,
-			scrollWidth: el.scrollWidth,
-			clientHeight: el.clientHeight,
-			scrollHeight: el.scrollHeight
-		}));
-		expect(indoorBodyBox.scrollWidth).toBeLessThanOrEqual(indoorBodyBox.clientWidth + 1);
-		expect(indoorBodyBox.scrollHeight).toBeGreaterThan(indoorBodyBox.clientHeight);
-		const indoorBodyScrolled = await indoorBody.evaluate((el) => {
-			el.scrollTop = el.scrollHeight;
-			const top = el.scrollTop;
-			el.scrollTop = 0;
-			return top;
-		});
-		expect(indoorBodyScrolled).toBeGreaterThan(0);
-		// Each interior's exit transition marker sits within the spawn reveal
-		// radius, so a real marker joins the Tab/focus lattice, scrolls fully
-		// into the scrollport on focus, and publishes its live label.
-		const indoorMarkers = indoorMap.getByTestId('area-map-marker');
-		await expect(indoorMarkers.first()).toBeVisible();
-		await indoorMarkers.first().focus();
-		await expect(indoorMarkers.first()).toBeFocused();
-		await indoorMarkers.first().scrollIntoViewIfNeeded({ timeout: 5_000 });
-		await expectCenterVisible(indoorMarkers.first());
-		await expectUnclipped(indoorMarkers.first());
-		await expect(indoorMap.getByTestId('area-map-selected')).toContainText(/\S/);
-		// The focused marker's rendered label must sit inside the SVG frame
-		// horizontally — the regression was long titles clipped at the edge.
-		const indoorLabelInside = await indoorMarkers.first().evaluate((g) => {
-			const text = g.querySelector('text');
-			const svg = g.closest('svg');
-			if (!text || !svg) return false;
-			const frame = svg.getBoundingClientRect();
-			const box = text.getBoundingClientRect();
-			return box.left >= frame.left - 1 && box.right <= frame.right + 1;
-		});
-		expect(indoorLabelInside).toBe(true);
-		await hpa840Shot(page, `${interior.mapId}-area-map-640x360.png`);
-		expect(await documentScrollTop(page)).toBe(0);
-		await page.keyboard.press('m');
-		await expect(indoorMap).toBeHidden();
-	});
-}
-
-test('HPA-840 compact field HUD at 640×360 hides the minimap, keeps M, and stays disjoint', async ({
-	page
-}) => {
-	test.setTimeout(90_000);
-	await installRuntimeProbes(page);
-	// Same seeded-save reason as the interior gates: a `?startMap=` fresh boot
-	// would park the run inside the prologue.opening scene.
-	await injectSave(page, createSaveFixture());
-	await page.setViewportSize({ width: 640, height: 360 });
-	await page.goto('/?movementDiagnostics=on');
-	await expect(page.locator('canvas')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
-	await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
-	await expect(page.getByTestId('hud-party-panel')).toBeVisible();
-
-	// Compact layout: the minimap is removed entirely while the shrunken
-	// card, Menu chip, quest tracker, wallet and status stay onscreen.
-	await expect(page.getByTestId('hud-minimap')).toBeHidden();
-	await expect(page.locator('.jrpg-menu-anchor')).toBeVisible();
-	await expect(page.locator('.quest-banner')).toBeVisible();
-	await expect(page.locator('.wallet-pill')).toBeVisible();
-	await hpa840Shot(page, 'field-hud-640x360.png');
-
-	const surfaceRects = await page.evaluate(() => {
-		const selectors = [
-			['party', '[data-testid="hud-party-panel"]'],
-			['menu', '.jrpg-menu-anchor'],
-			['questBanner', '.quest-banner'],
-			['wallet', '.wallet-pill'],
-			['status', '.heroic-field-status']
-		] as const;
-		return selectors
-			.map(([id, selector]) => {
-				const rect = document.querySelector(selector)?.getBoundingClientRect();
-				return rect ? ([id, rect.toJSON()] as const) : null;
-			})
-			.filter((entry) => entry !== null);
-	});
-	// An empty status pill can collapse to zero size; only surfaces with a real
-	// box participate in the bounds and disjointness gates.
-	const sizedRects = surfaceRects.filter(([, rect]) => rect.width > 0 && rect.height > 0);
-	expect(sizedRects.length).toBeGreaterThanOrEqual(4);
-	for (const [id, rect] of sizedRects) {
-		expect(rect.top, `${id} top`).toBeGreaterThanOrEqual(0);
-		expect(rect.left, `${id} left`).toBeGreaterThanOrEqual(0);
-		expect(rect.bottom, `${id} bottom`).toBeLessThanOrEqual(360);
-		expect(rect.right, `${id} right`).toBeLessThanOrEqual(640);
-	}
-	for (let i = 0; i < sizedRects.length; i += 1) {
-		for (let j = i + 1; j < sizedRects.length; j += 1) {
-			const [idA, a] = sizedRects[i]!;
-			const [idB, b] = sizedRects[j]!;
-			const overlaps = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-			expect(overlaps, `${idA} overlaps ${idB} at 640×360`).toBe(false);
-		}
-	}
-	const totalArea = sizedRects.reduce((sum, [, rect]) => sum + rect.width * rect.height, 0);
-	// The compact HUD must stay under a third of the tiny field.
-	expect(totalArea).toBeLessThanOrEqual((640 * 360) / 3);
-	expect(
-		await page.evaluate(() => document.documentElement.scrollTop + document.body.scrollTop)
-	).toBe(0);
-
-	// M still opens the area map even with the minimap medallion removed.
-	await page.keyboard.press('m');
-	const mapDialog = page.getByRole('dialog', { name: /map$/i });
-	await expect(mapDialog).toBeVisible();
-	await hpa840Shot(page, 'area-map-640x360.png');
-	await page.keyboard.press('m');
-	await expect(mapDialog).toBeHidden();
-});
-
+// Registered first on purpose: at ~3 minutes this sweep is the longest tail
+// in the suite, so a worker takes it at t=0 and the rest overlap it.
 test('HPA-840 overlay evidence sweep across the required viewport matrix', async ({ page }) => {
-	test.setTimeout(540_000);
+	test.setTimeout(testTimeout(540_000));
 	// Every overlay also runs a real journey once at 640×360 (the most
 	// clip-prone viewport): scroll the inner panel to the last control, then
 	// activate a real action with a locator click or keyboard Enter and observe
@@ -17180,4 +2735,3674 @@ test('HPA-840 overlay evidence sweep across the required viewport matrix', async
 			await expect(page.locator('[data-focus-id="title-continue"]')).toBeFocused();
 		}
 	}
+});
+
+test('entry map boots with no game console errors', async ({ page }) => {
+	// Collect console errors emitted during boot. Phaser logs missing-texture and
+	// asset-load failures to console.error, so this catches a broken/missing asset
+	// from the entry-map enrichment (terrain tiles, decor packs, etc.). Missing
+	// atlas frames and texture keys only surface as console warnings — a stale
+	// reference to a deleted sheet is not an error — so those are gated below
+	// on an asset-scoped pass over the warning stream.
+	const errors: string[] = [];
+	const warnings: string[] = [];
+	page.on('console', (msg) => {
+		if (msg.type() === 'error') errors.push(msg.text());
+		if (msg.type() === 'warning') warnings.push(msg.text());
+	});
+
+	await startNewRunFromTitle(page);
+	// startNewRunFromTitle returns as soon as the canvas mounts, while BootScene
+	// is still preloading textures and audio. Wait for WorldScene's opening
+	// dialogue (emitted in WorldScene.create() only after BootScene's loader
+	// completes and runtime frames are registered), plus a bounded settle
+	// window for any late asset/decode 404.
+	await expect(page.getByRole('dialog')).toBeVisible({ timeout: 30_000 });
+	await page.waitForTimeout(1_000);
+
+	// Filter benign, game-unrelated noise (e.g. favicon / generic resource 404s and
+	// devtools chatter) so the assertion stays meaningful. We deliberately do NOT
+	// filter anything that mentions a game asset path, Phaser, texture, or frame
+	// failure — a real missing-texture from the enrichment must still fail here.
+	const benign = /favicon|\.ico\b/i;
+	const gameErrors = errors.filter((text) => !benign.test(text));
+
+	expect(gameErrors).toEqual([]);
+
+	// A boot also logs unrelated browser warnings (WebGL "GPU stall" noise),
+	// so instead of asserting on every warning, fail only on ones that name
+	// game content — Phaser's "Frame not found in texture" and "No texture
+	// found matching key" both land here.
+	const gameAsset = /texture|frame|atlas|sprite|tile(set|map)|animation|audio|font|phaser|asset/i;
+	expect(warnings.filter((text) => !benign.test(text) && gameAsset.test(text))).toEqual([]);
+});
+
+test('game route boots', async ({ page }) => {
+	await startNewRunThroughOpening(page);
+
+	const viewport = page.viewportSize();
+	const minimap = page.getByTestId('hud-minimap');
+	const partyPanel = page.getByTestId('hud-party-panel');
+	const sideHud = page.getByTestId('hud-side-panel');
+	await expect(minimap).toBeVisible();
+	await expect(partyPanel).toBeVisible();
+	await expect(sideHud).toBeVisible();
+	// Location pill renders the live area name inside the minimap card.
+	await expect(minimap.getByText("Grik's House")).toBeVisible();
+
+	const minimapBox = await minimap.boundingBox();
+	const partyBox = await partyPanel.boundingBox();
+	const sideBox = await sideHud.boundingBox();
+	// Hero card top-left, minimap medallion + side HUD top-right.
+	expect(partyBox?.x).toBeLessThan(40);
+	expect(partyBox?.y).toBeLessThan(40);
+	expect(minimapBox?.y).toBeLessThan(40);
+	expect((minimapBox?.x ?? 0) + (minimapBox?.width ?? 0)).toBeGreaterThan(
+		(viewport?.width ?? 0) - 40
+	);
+	expect((sideBox?.x ?? 0) + (sideBox?.width ?? 0)).toBeGreaterThan((viewport?.width ?? 0) - 40);
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await expect(commandBox(page)).toBeVisible();
+	const commandBounds = await commandBox(page).boundingBox();
+	expect((commandBounds?.y ?? 0) + (commandBounds?.height ?? 0)).toBeLessThan(
+		(viewport?.height ?? 0) * 0.78
+	);
+});
+
+test('encounter opens battle scene and returns through battle summary', async ({ page }) => {
+	const save = createSaveFixture({
+		player: {
+			level: 1,
+			xp: 0,
+			hp: 200,
+			attack: 50,
+			x: 2_896,
+			y: 5_904,
+			facing: 'down'
+		}
+	});
+
+	await injectSave(page, save);
+	// Seeded inside the pack's aggro radius: the self-playing fight can open
+	// before the field HUD's Menu mounts — same boot race as the wolf fight.
+	await continueFromTitle(page, { readiness: 'field-or-battle' });
+
+	// The Heroic summary dialog is named by its outcome (Victory / Defeat);
+	// /battle summary/i keeps matching the pre-Heroic Arcane naming.
+	const battleSummary = page.getByRole('dialog', { name: /battle summary|victory|defeat/i });
+	await expect(battleSummary).toBeVisible({ timeout: 30_000 });
+	// Heroic summary renders foes defeated as the structured stat tile.
+	await expect(battleSummary.getByTestId('battle-stat-foes')).toContainText(/[1-9]/);
+	await battleSummary.getByRole('button', { name: /continue/i }).click();
+	await expect(battleSummary).toHaveCount(0);
+	await expect(fieldStatus(page)).toContainText('Returned from battle');
+});
+
+test('fleeing the boar king requires leaving and returning before re-engagement', async ({
+	page
+}) => {
+	test.setTimeout(testTimeout(90_000));
+	const home = anchorPoint('silverpine-boar-king');
+	const save = {
+		...createSaveFixture({
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: home.x,
+				y: home.y + 60,
+				facing: 'up'
+			},
+			clearedEncounters: ['silverpine-wolves-falls', 'silverpine-wolves-terrace']
+		}),
+		quests: questStateAt('defeat-boar-king')
+	};
+	await seedSaveSlots(page, [{ state: save }]);
+	await page.addInitScript(() => {
+		localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		);
+		window.addEventListener('gliese:player-movement-diagnostic', (event) => {
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic = (
+				event as CustomEvent<PlayerMovementDiagnostic>
+			).detail;
+		});
+	});
+	await page.goto('/?movementDiagnostics=on');
+	const battle = page.getByRole('region', { name: 'Battle' });
+	await expect(battle).toBeVisible({ timeout: expectTimeout(15_000) });
+	await page.keyboard.down('ArrowDown');
+	await battle.getByRole('button', { name: 'Flee' }).click();
+	await expect(fieldStatus(page)).toContainText(/leave.+return/i, {
+		timeout: expectTimeout(10_000)
+	});
+	await page.keyboard.up('ArrowDown');
+	await page.waitForTimeout(5_500);
+	await expect(fieldStatus(page)).toContainText(/leave.+return/i);
+	await expect(battle).toHaveCount(0);
+
+	await page.evaluate((targetY) => {
+		function stopAtLane(event: Event) {
+			const movement = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
+			if (movement.resolvedPosition.y > targetY) return;
+			window.removeEventListener('gliese:player-movement-diagnostic', stopAtLane);
+			window.dispatchEvent(
+				new KeyboardEvent('keyup', {
+					key: 'ArrowUp',
+					code: 'ArrowUp',
+					keyCode: 38,
+					which: 38,
+					bubbles: true
+				})
+			);
+		}
+		window.addEventListener('gliese:player-movement-diagnostic', stopAtLane);
+	}, home.y + 16);
+	await page.keyboard.down('ArrowUp');
+	await page.waitForFunction(
+		(y) =>
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic?.resolvedPosition.y !==
+				undefined &&
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic!.resolvedPosition.y <= y + 16,
+		home.y,
+		{ timeout: 15_000 }
+	);
+	await page.keyboard.up('ArrowUp');
+	await page.keyboard.down('ArrowLeft');
+	await page.waitForFunction(
+		(x) =>
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic?.resolvedPosition.x !==
+				undefined &&
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic!.resolvedPosition.x <= x - 220,
+		home.x,
+		{ timeout: 15_000 }
+	);
+	await page.keyboard.up('ArrowLeft');
+	await expect(battle).toHaveCount(0);
+	// Stop inside the acquisition zone: flee protection drains in sim time, so
+	// under contention it can outlast the return walk — a held ArrowRight then
+	// carries the hero through the 200px aggro radius and out of the pocket
+	// before the boar may re-engage. A stationary hero stays a legal target.
+	await page.evaluate((stopX) => {
+		function stopInAcquisitionZone(event: Event) {
+			const movement = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
+			if (movement.resolvedPosition.x < stopX) return;
+			window.removeEventListener('gliese:player-movement-diagnostic', stopInAcquisitionZone);
+			window.dispatchEvent(
+				new KeyboardEvent('keyup', {
+					key: 'ArrowRight',
+					code: 'ArrowRight',
+					keyCode: 39,
+					which: 39,
+					bubbles: true
+				})
+			);
+		}
+		window.addEventListener('gliese:player-movement-diagnostic', stopInAcquisitionZone);
+	}, home.x - 160);
+	await page.keyboard.down('ArrowRight');
+	await page.waitForFunction(
+		(x) =>
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic?.resolvedPosition.x !==
+				undefined &&
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic!.resolvedPosition.x >= x - 160,
+		home.x,
+		{ timeout: 15_000 }
+	);
+	await page.keyboard.up('ArrowRight');
+	// The hero now waits in-zone for the re-engagement chase; any grace left in
+	// the fled pack's sim-time protection must still drain before it may start.
+	await expect(battle.getByRole('button', { name: /Boar King/i })).toBeVisible({ timeout: 30_000 });
+});
+
+test('mobile HUD stacks without overlapping controls', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await startNewRunThroughOpening(page);
+
+	const viewport = page.viewportSize();
+	const menuButton = page.getByRole('button', { name: 'Menu' });
+	const minimap = page.getByTestId('hud-minimap');
+	const partyPanel = page.getByTestId('hud-party-panel');
+	const sideHud = page.getByTestId('hud-side-panel');
+	const fieldStatusMessage = fieldStatus(page);
+	await expect(menuButton).toBeVisible();
+	await expect(minimap).toBeVisible();
+	await expect(partyPanel).toBeVisible();
+	await expect(sideHud).toBeVisible();
+	await expect(fieldStatusMessage).toBeVisible();
+
+	const menuBox = await menuButton.boundingBox();
+	const minimapBox = await minimap.boundingBox();
+	const partyBox = await partyPanel.boundingBox();
+	const sideBox = await sideHud.boundingBox();
+	const fieldStatusBox = await fieldStatusMessage.boundingBox();
+	expect(menuBox).not.toBeNull();
+	expect(minimapBox).not.toBeNull();
+	expect(partyBox).not.toBeNull();
+	expect(sideBox).not.toBeNull();
+	expect(fieldStatusBox).not.toBeNull();
+	const partyRight = partyBox!.x + partyBox!.width;
+	// Hero card top-left with the Menu button clear of it top-right.
+	expect(partyRight).toBeLessThan(menuBox!.x - 8);
+	// Side HUD (minimap / quest / wallet) stacks below the hero card.
+	expect(sideBox!.y).toBeGreaterThan(partyBox!.y + partyBox!.height + 8);
+	expect((sideBox?.x ?? 0) + (sideBox?.width ?? 0)).toBeLessThanOrEqual((viewport?.width ?? 0) - 8);
+
+	// The opened 2-column command grid stays left of the side HUD.
+	await menuButton.click();
+	const gridBox = await commandBox(page).boundingBox();
+	expect(gridBox).not.toBeNull();
+	expect((gridBox?.x ?? 0) + (gridBox?.width ?? 0)).toBeLessThan(sideBox!.x - 8);
+
+	expect(fieldStatusBox!.width).toBeLessThan((viewport?.width ?? 0) * 0.75);
+});
+
+test('inventory overlay opens from the menu', async ({ page }) => {
+	await injectSave(page, createSaveFixture());
+	await continueFromTitle(page);
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
+
+	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
+	const inventorySlotGrid = inventoryDialog.getByTestId('inventory-slot-grid');
+	await expect(page.getByRole('heading', { name: 'Potions' })).toBeVisible();
+	await expect(inventoryDialog.getByTestId('inventory-slot')).toHaveCount(24);
+	await expect
+		.soft(
+			await inventorySlotGrid.evaluate(
+				(element) => getComputedStyle(element).gridTemplateColumns.split(' ').length
+			)
+		)
+		.toBe(6);
+	await expect
+		.soft(
+			await inventorySlotGrid.evaluate(
+				(element) => getComputedStyle(element).gridTemplateRows.split(' ').length
+			)
+		)
+		.toBe(4);
+	await expect(inventoryDialog.getByLabel('Field Potion')).toBeVisible();
+	const fieldPotionSlot = inventoryDialog.getByLabel('Field Potion');
+	await expect(fieldPotionSlot.getByRole('img', { name: 'Field Potion' })).toBeVisible();
+	await expect(fieldPotionSlot.getByText('Restores 8 HP.')).toHaveCount(0);
+	await expect(fieldPotionSlot.getByRole('button', { name: 'Use' })).toHaveCount(0);
+
+	await page.getByRole('tab', { name: 'Gear' }).click();
+	await expect(inventoryDialog.getByTestId('inventory-slot')).toHaveCount(24);
+	const trainingSwordSlot = inventoryDialog
+		.getByTestId('inventory-slot-grid')
+		.getByLabel('Training Sword');
+	await expect(trainingSwordSlot).toBeVisible();
+	await expect(trainingSwordSlot.getByRole('img', { name: 'Training Sword' })).toBeVisible();
+	await expect(trainingSwordSlot.getByRole('button', { name: /Equip|Equipped/ })).toHaveCount(0);
+	await expect(trainingSwordSlot.getByText('Equipped')).toBeVisible();
+});
+
+test('area map opens from the menu and closes back to field HUD', async ({ page }) => {
+	await startNewRunThroughOpening(page);
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Map' }).click();
+
+	const mapDialog = page.getByRole('dialog', { name: /map$/i });
+	await expect(mapDialog).toBeVisible();
+	await expect(mapDialog.getByTestId('area-map-svg')).toBeVisible();
+	await expect(mapDialog.getByTestId('area-map-player')).toBeVisible();
+
+	await mapDialog.getByRole('button', { name: 'Close' }).click();
+	await expect(mapDialog).toHaveCount(0);
+	await expect(commandBox(page)).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(commandBox(page)).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await expect(fieldStatus(page)).toBeVisible();
+});
+
+const openFieldPosition = { x: 4_336, y: 7_856, facing: 'down' };
+
+async function tabFocusMenu(page: Page) {
+	const menu = page.getByRole('button', { name: 'Menu' });
+	for (let attempt = 0; attempt < 10; attempt += 1) {
+		if (await menu.evaluate((element) => element === document.activeElement)) return;
+		await page.keyboard.press('Tab');
+	}
+}
+
+type ActivationProbe = {
+	menuClicks: number;
+	commandClicks: number;
+	windowKeys: string[];
+	interactions: number;
+};
+
+async function installActivationProbe(page: Page) {
+	await page.evaluate(() => {
+		const probe: ActivationProbe = {
+			menuClicks: 0,
+			commandClicks: 0,
+			windowKeys: [],
+			interactions: 0
+		};
+		(window as unknown as { __glieseKeyProbe: ActivationProbe }).__glieseKeyProbe = probe;
+		const menu = document.querySelector<HTMLButtonElement>(
+			'button[aria-controls="game-command-panel"]'
+		);
+		menu?.addEventListener('click', () => {
+			probe.menuClicks += 1;
+		});
+		document.addEventListener('click', (event) => {
+			const target = event.target as HTMLElement | null;
+			if (target?.closest('[role="region"][aria-label="Command"]')) probe.commandClicks += 1;
+		});
+		window.addEventListener('keydown', (event) => {
+			if (event.key === 'Enter' || event.key === ' ') {
+				probe.windowKeys.push(`keydown:${event.key}`);
+			}
+		});
+		window.addEventListener('keyup', (event) => {
+			if (event.key === 'Enter' || event.key === ' ') {
+				probe.windowKeys.push(`keyup:${event.key}`);
+			}
+		});
+		window.addEventListener('gliese:hud-state', (event) => {
+			const detail = (event as CustomEvent).detail as
+				| { dialogue?: unknown; status?: unknown }
+				| undefined;
+			if (detail?.dialogue || detail?.status) probe.interactions += 1;
+		});
+	});
+}
+
+function readActivationProbe(page: Page): Promise<ActivationProbe> {
+	return page.evaluate(
+		() => (window as unknown as { __glieseKeyProbe: ActivationProbe }).__glieseKeyProbe
+	);
+}
+
+test('trusted Enter activates the focused field Menu and command tiles without world interaction', async ({
+	page
+}) => {
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
+		})
+	);
+	await continueFromTitle(page);
+	await installActivationProbe(page);
+
+	const menu = page.getByRole('button', { name: 'Menu' });
+	const command = commandBox(page);
+	const traveler = page.getByRole('dialog', { name: 'Traveler' });
+	await tabFocusMenu(page);
+	await expect(menu).toBeFocused();
+
+	await page.keyboard.press('Enter');
+	let probe = await readActivationProbe(page);
+	expect(probe.menuClicks).toBe(1);
+	expect(probe.windowKeys).toEqual([]);
+	await expect(command).toBeVisible();
+	await expect(traveler).toHaveCount(0);
+
+	await command.getByRole('button', { name: 'Map' }).focus();
+	await page.keyboard.press('Enter');
+	probe = await readActivationProbe(page);
+	expect(probe.commandClicks).toBe(1);
+	expect(probe.windowKeys).toEqual([]);
+	const mapDialog = page.getByRole('dialog', { name: /map$/i });
+	await expect(mapDialog).toBeVisible();
+	await expect(traveler).toHaveCount(0);
+
+	await page.keyboard.press('Escape');
+	await expect(command).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(command).toHaveCount(0);
+	await expect(page.locator('.game-stage')).toBeFocused();
+	// World interaction fetches story dialogue asynchronously; wait a bounded
+	// window before asserting no stray key, interaction, or dialog fired.
+	await page.waitForTimeout(250);
+
+	probe = await readActivationProbe(page);
+	expect(probe.menuClicks).toBe(1);
+	expect(probe.commandClicks).toBe(1);
+	expect(probe.windowKeys).toEqual([]);
+	expect(probe.interactions).toBe(0);
+	await expect(traveler).toHaveCount(0);
+});
+
+test('trusted Space activates the focused field Menu without world interaction', async ({
+	page
+}) => {
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
+		})
+	);
+	await continueFromTitle(page);
+	await installActivationProbe(page);
+
+	const menu = page.getByRole('button', { name: 'Menu' });
+	const command = commandBox(page);
+	const traveler = page.getByRole('dialog', { name: 'Traveler' });
+	await tabFocusMenu(page);
+	await expect(menu).toBeFocused();
+
+	await page.keyboard.press('Space');
+	let probe = await readActivationProbe(page);
+	expect(probe.menuClicks).toBe(1);
+	expect(probe.windowKeys).toEqual([]);
+	await expect(command).toBeVisible();
+	await expect(traveler).toHaveCount(0);
+
+	await page.keyboard.press('Escape');
+	await expect(command).toHaveCount(0);
+	await expect(page.locator('.game-stage')).toBeFocused();
+	// Same as above: give any leaked interaction + async story fetch time to
+	// surface before asserting the negative.
+	await page.waitForTimeout(250);
+
+	probe = await readActivationProbe(page);
+	expect(probe.menuClicks).toBe(1);
+	expect(probe.windowKeys).toEqual([]);
+	expect(probe.interactions).toBe(0);
+	await expect(traveler).toHaveCount(0);
+});
+
+test('trusted Enter activates a focused command tile opened by pointer exactly once', async ({
+	page
+}) => {
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
+		})
+	);
+	await continueFromTitle(page);
+	await installActivationProbe(page);
+
+	const menu = page.getByRole('button', { name: 'Menu' });
+	await menu.click();
+	const command = commandBox(page);
+	await expect(command).toBeVisible();
+	let probe = await readActivationProbe(page);
+	expect(probe.menuClicks).toBe(1);
+
+	const mapTile = command.getByRole('button', { name: 'Map', exact: true });
+	await mapTile.focus();
+	await page.keyboard.press('Enter');
+
+	probe = await readActivationProbe(page);
+	expect(probe.commandClicks).toBe(1);
+	expect(probe.windowKeys).toEqual([]);
+	const mapDialog = page.getByRole('dialog', { name: /map$/i });
+	await expect(mapDialog).toBeVisible();
+	await expect(page.getByRole('dialog', { name: 'Traveler' })).toHaveCount(0);
+	expect(probe.interactions).toBe(0);
+});
+
+test('Escape ladder returns through Command one level at a time', async ({ page }) => {
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
+		})
+	);
+	await continueFromTitle(page);
+
+	const menu = page.getByRole('button', { name: 'Menu' });
+	const command = commandBox(page);
+
+	await page.keyboard.press('Escape');
+	await expect(command).toBeVisible();
+	await expect(command.getByRole('button', { name: 'Bag' })).toBeFocused();
+
+	await page.keyboard.press('ArrowRight');
+	await expect(command.getByRole('button', { name: 'Gear' })).toBeFocused();
+	await page.keyboard.press('Enter');
+	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
+	await expect(inventoryDialog).toBeVisible();
+	await expect(inventoryDialog.getByRole('tab', { name: 'Gear' })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+
+	await page.keyboard.press('Escape');
+	await expect(inventoryDialog).toHaveCount(0);
+	await expect(command).toBeVisible();
+	await expect(command.getByRole('button', { name: 'Gear' })).toBeFocused();
+
+	await page.keyboard.press('Escape');
+	await expect(command).toHaveCount(0);
+	await expect(menu).not.toBeFocused();
+	await expect(page.locator('.game-stage')).toBeFocused();
+
+	await page.keyboard.press('Space');
+	await expect(command).toHaveCount(0);
+});
+
+test('a pointer-picked command tile owns the return focus in a keyboard-opened Command', async ({
+	page
+}) => {
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
+		})
+	);
+	await continueFromTitle(page);
+
+	const command = commandBox(page);
+	await page.keyboard.press('Escape');
+	await expect(command).toBeVisible();
+
+	const bagTile = command.getByRole('button', { name: 'Bag', exact: true });
+	await bagTile.focus();
+	const mapTile = command.getByRole('button', { name: 'Map', exact: true });
+	await mapTile.dispatchEvent('click');
+
+	const mapDialog = page.getByRole('dialog', { name: /map$/i });
+	await expect(mapDialog).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(mapDialog).toHaveCount(0);
+
+	await expect(command).toBeVisible();
+	await expect(mapTile).toBeFocused();
+});
+
+test('E on genuinely empty ground opens no dialogue and publishes no status', async ({ page }) => {
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 20, attack: 3, ...openFieldPosition }
+		})
+	);
+	await continueFromTitle(page);
+
+	const statusBefore = await fieldStatus(page).textContent();
+	// Hold 'e' across frames: a zero-delay press can have its JustDown edge
+	// cleared by keyup before any update consumes it (~200ms/frame under CI
+	// contention — see the sealed-gate comment below), which would let this
+	// absence-only test pass without the interact ever being delivered.
+	await page.keyboard.down('e');
+	await page.waitForTimeout(500);
+	await page.keyboard.up('e');
+	// Wait a bounded window so an unintended async dialogue fetch or status
+	// publish has time to surface before asserting absence.
+	await page.waitForTimeout(250);
+
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await expect(fieldStatus(page)).toHaveText(statusBefore ?? '');
+});
+
+const southGateApproach = { x: 5_392, y: 8_688, facing: 'down' };
+
+test('E facing the south-road sealed gate reports the way barred without a dialogue', async ({
+	page
+}) => {
+	await injectSave(
+		page,
+		createSaveFixture({
+			player: { level: 1, xp: 0, hp: 20, attack: 3, ...southGateApproach }
+		})
+	);
+	await continueFromTitle(page);
+
+	// A lone press's edge likely died with its hold: Phaser v4 clears
+	// Key._justDown in onUp, and WorldScene drains JustDown every frame — at
+	// ~200ms/frame under CI contention (run 45297648388) a zero-delay press can
+	// clear before any update consumes it, with no evidence the interact
+	// ever ran. Hold 'e' until the real interact path lands the barred
+	// line: the first update in the window consumes the edge once, and held
+	// repeats cannot re-fire it (onDown only re-arms while !isDown).
+	await page.keyboard.down('e');
+	try {
+		await expect(fieldStatus(page)).toContainText(/barred/i);
+	} finally {
+		await page.keyboard.up('e');
+	}
+	await page.waitForTimeout(250);
+
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('language preference shows Japanese chrome and keeps Japanese selected', async ({ page }) => {
+	await startNewRunThroughOpening(page);
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+
+	// Japanese is chosen on the Heroic System surface (segmented control).
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await page.getByRole('button', { name: 'System', exact: true }).click();
+	const systemDialog = page.getByRole('dialog', { name: /display & text/i });
+	await expect(systemDialog).toBeVisible();
+	// Selecting 日本語 re-renders the chrome (and this dialog's name) in Japanese.
+	await systemDialog.getByRole('button', { name: '日本語' }).click();
+	const japaneseDialog = page.getByRole('dialog', { name: '表示とテキスト' });
+	await expect(japaneseDialog.getByRole('button', { name: '日本語' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+	await japaneseDialog.getByRole('button', { name: '閉じる' }).click();
+	await expect(japaneseDialog).toHaveCount(0);
+
+	// The command chrome flips to Japanese; the bag opens on the Potions rail.
+	await commandBox(page, 'コマンド').getByRole('button', { name: 'バッグ' }).click();
+
+	const inventoryDialog = page.getByRole('dialog', { name: '持ち物' });
+	await expect(inventoryDialog).toBeVisible();
+	await expect(inventoryDialog.getByRole('heading', { name: 'ポーション' })).toBeVisible();
+	await expect(inventoryDialog.getByRole('tab', { name: 'ポーション', exact: true })).toBeVisible();
+	await inventoryDialog.getByRole('button', { name: '閉じる' }).click();
+
+	await commandBox(page, 'コマンド').getByRole('button', { name: 'システム' }).click();
+	await expect(
+		page.getByRole('dialog', { name: '表示とテキスト' }).getByRole('button', { name: '日本語' })
+	).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('full hp potions explain why they cannot be consumed', async ({ page }) => {
+	await injectSave(page, createSaveFixture());
+	await continueFromTitle(page);
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
+
+	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
+	const fieldPotionSlot = inventoryDialog
+		.getByTestId('inventory-slot-grid')
+		.getByLabel('Field Potion');
+	await expect(fieldPotionSlot).toBeVisible();
+	await expect(fieldPotionSlot.getByRole('button', { name: 'Use' })).toHaveCount(0);
+	// Selecting the potion shows its description in the detail panel.
+	await fieldPotionSlot.click();
+	await expect(page.getByTestId('inventory-detail')).toContainText('Restores 8 HP.');
+	await fieldPotionSlot.dblclick();
+	await inventoryDialog.getByRole('button', { name: 'Close' }).click();
+	await page.keyboard.press('Escape');
+	// The status pill only renders while the command grid is closed (Task 4).
+	await expect(fieldStatus(page)).toContainText('HP already full');
+});
+
+test('double-clicking unequipped equipment equips it from inventory', async ({ page }) => {
+	const save = createSaveFixture({
+		inventory: {
+			stacks: [{ itemId: 'field-potion', quantity: 1 }],
+			equipment: ['training-sword', 'iron-cap']
+		}
+	});
+
+	await injectSave(page, save);
+	await continueFromTitle(page);
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
+
+	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
+	await page.getByRole('tab', { name: 'Gear' }).click();
+	const ironCapSlot = inventoryDialog.getByTestId('inventory-slot-grid').getByLabel('Iron Cap');
+	await expect(ironCapSlot.getByRole('img', { name: 'Iron Cap' })).toBeVisible();
+	await expect(ironCapSlot.getByText('head')).toBeVisible();
+	await ironCapSlot.dblclick();
+	await expect(ironCapSlot.getByText('Equipped')).toBeVisible();
+});
+
+test('shop overlay opens near a merchant and supports buying and selling', async ({ page }) => {
+	const save = createSaveFixture({
+		mapId: 'item-shop',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 416, y: 360, facing: 'up' }
+	});
+
+	await page.addInitScript(
+		(payload: SaveInitPayload) => {
+			const probeWindow = window as GlieseProbeWindow;
+			probeWindow.__glieseLastHudState = undefined;
+			window.addEventListener('gliese:hud-state', (event) => {
+				probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
+			});
+			window.localStorage.setItem(
+				payload.key,
+				JSON.stringify({
+					version: 1,
+					slots: [
+						{
+							kind: 'autosave',
+							savedAt: new Date().toISOString(),
+							playtimeSeconds: 0,
+							state: JSON.parse(payload.encoded)
+						},
+						null,
+						null
+					]
+				})
+			);
+		},
+		{ encoded: JSON.stringify(save), key: SAVES_STORAGE_KEY }
+	);
+	await continueFromTitle(page);
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+
+		return state?.nearbyShop?.shopId === 'miras-item-shop' || state?.status?.startsWith('Mira:');
+	});
+	// The Heroic command grid has no Shop tile: talk to Mira and enter the
+	// shop through the dialogue action.
+	await page.locator('canvas').click();
+	await page.keyboard.press('e', { delay: 50 });
+	const miraDialog = page.getByRole('dialog', { name: 'Mira' });
+	await expect(miraDialog).toBeVisible();
+	await miraDialog.getByRole('button', { name: 'Shop' }).click();
+
+	await expect(page.getByRole('heading', { name: "Mira's Herb Hut" })).toBeVisible();
+	await expect(page.getByLabel('Coins: 30')).toBeVisible();
+	const buyGrid = page.getByTestId('shop-buy-grid');
+	await expect
+		.soft(
+			await buyGrid.evaluate(
+				(element) => getComputedStyle(element).gridTemplateColumns.split(' ').length
+			)
+		)
+		.toBe(4);
+	const fieldPotionBuyTile = buyGrid.getByLabel('Field Potion', { exact: true });
+	await expect(fieldPotionBuyTile.getByRole('img', { name: 'Field Potion' })).toBeVisible();
+	await expect(fieldPotionBuyTile.getByText('Restores 8 HP.')).toHaveCount(0);
+	await expect(fieldPotionBuyTile.getByRole('button', { name: 'Buy' })).toHaveCount(0);
+	await fieldPotionBuyTile.hover();
+	await expect(page.getByRole('tooltip')).toContainText('Restores 8 HP.');
+
+	await fieldPotionBuyTile.dblclick();
+	await expect(page.getByLabel('Coins: 20')).toBeVisible();
+
+	await page.getByRole('tab', { name: 'Sell' }).click();
+	const sellGrid = page.getByTestId('shop-sell-grid');
+	await expect
+		.soft(
+			await sellGrid.evaluate(
+				(element) => getComputedStyle(element).gridTemplateColumns.split(' ').length
+			)
+		)
+		.toBe(4);
+	const fieldPotionSellTile = sellGrid.getByLabel('Field Potion', { exact: true });
+	await expect(fieldPotionSellTile.getByRole('img', { name: 'Field Potion' })).toBeVisible();
+	await expect(fieldPotionSellTile.getByText('Restores 8 HP.')).toHaveCount(0);
+	await expect(fieldPotionSellTile.getByRole('button', { name: 'Sell' })).toHaveCount(0);
+	await fieldPotionSellTile.hover();
+	await expect(page.getByRole('tooltip')).toContainText('Restores 8 HP.');
+	await fieldPotionSellTile.dblclick();
+	await expect(page.getByLabel('Coins: 25')).toBeVisible();
+});
+
+test('interact key shop purchase appears in inventory', async ({ page }) => {
+	const save = createSaveFixture({
+		mapId: 'item-shop',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 416, y: 360, facing: 'up' }
+	});
+
+	await page.addInitScript(
+		(payload: SaveInitPayload) => {
+			const probeWindow = window as GlieseProbeWindow;
+			probeWindow.__glieseLastHudState = undefined;
+			window.addEventListener('gliese:hud-state', (event) => {
+				probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
+			});
+			window.localStorage.setItem(
+				payload.key,
+				JSON.stringify({
+					version: 1,
+					slots: [
+						{
+							kind: 'autosave',
+							savedAt: new Date().toISOString(),
+							playtimeSeconds: 0,
+							state: JSON.parse(payload.encoded)
+						},
+						null,
+						null
+					]
+				})
+			);
+		},
+		{ encoded: JSON.stringify(save), key: SAVES_STORAGE_KEY }
+	);
+	// Instant reveal keeps the confirm grammar deterministic: the single line
+	// renders complete, so one confirm advances into the choice treatment.
+	await page.addInitScript(() =>
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		)
+	);
+	await continueFromTitle(page);
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+
+		return state?.nearbyShop?.shopId === 'miras-item-shop' || state?.status?.startsWith('Mira:');
+	});
+
+	await page.locator('canvas').click();
+	await page.keyboard.press('e', { delay: 50 });
+
+	const miraDialog = page.getByRole('dialog', { name: 'Mira' });
+	await expect(miraDialog).toBeVisible();
+	await miraDialog.getByRole('button', { name: 'Next' }).click();
+	await miraDialog.getByRole('button', { name: 'Shop' }).click();
+
+	const shopDialog = page.getByRole('dialog', { name: "Mira's Herb Hut" });
+	await expect(shopDialog).toBeVisible();
+	await shopDialog
+		.getByTestId('shop-buy-grid')
+		.getByLabel('Field Potion', { exact: true })
+		.dblclick();
+	await expect(shopDialog.getByLabel('Coins: 20')).toBeVisible();
+	await shopDialog.getByRole('button', { name: 'Close' }).click();
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
+
+	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
+	const fieldPotionSlot = inventoryDialog.getByLabel('Field Potion');
+	await expect(inventoryDialog.getByTestId('inventory-slot')).toHaveCount(24);
+	await expect(fieldPotionSlot).toBeVisible();
+	await expect(fieldPotionSlot.getByText('x2')).toBeVisible();
+});
+
+test('HPA-839 Mira salve economy, potion prices, and tooltip clearance', async ({ page }) => {
+	test.setTimeout(testTimeout(300_000));
+
+	type PassLocale = 'en' | 'ja' | 'zh-Hant';
+	type PassCopy = {
+		// The dialogue panel's accessible name is the story speaker string —
+		// 'Mira' in every locale — while the shop dialog takes the localized
+		// shop name.
+		miraName: string;
+		shopName: string;
+		shopChoice: string;
+		nextChoice: string;
+		closeName: string;
+		salveName: string;
+		fieldPotionName: string;
+		greaterPotionName: string;
+		coins: (n: number) => string;
+	};
+	const passCopy: Record<PassLocale, PassCopy> = {
+		en: {
+			miraName: 'Mira',
+			shopName: "Mira's Herb Hut",
+			shopChoice: 'Shop',
+			nextChoice: 'Next',
+			closeName: 'Close',
+			salveName: 'Sunleaf Salve',
+			fieldPotionName: 'Field Potion',
+			greaterPotionName: 'Greater Field Potion',
+			coins: (n) => `Coins: ${n}`
+		},
+		ja: {
+			miraName: 'Mira',
+			shopName: 'ミラの薬草小屋',
+			shopChoice: '店',
+			nextChoice: '次へ',
+			closeName: '閉じる',
+			salveName: '陽葉軟膏',
+			fieldPotionName: 'フィールドポーション',
+			greaterPotionName: '上級フィールドポーション',
+			coins: (n) => `コイン: ${n}`
+		},
+		'zh-Hant': {
+			miraName: 'Mira',
+			shopName: '米拉的採藥小屋',
+			shopChoice: '商店',
+			nextChoice: '下一步',
+			closeName: '關閉',
+			salveName: '日葉藥膏',
+			fieldPotionName: '野外藥水',
+			greaterPotionName: '強效野外藥水',
+			coins: (n) => `金幣：${n}`
+		}
+	};
+
+	// hp 10 < max 20 so the drink-a-salve step has headroom to heal 6.
+	const miraSeed = () =>
+		createSaveFixture({
+			mapId: 'item-shop',
+			player: { level: 1, xp: 0, hp: 10, attack: 3, x: 416, y: 360, facing: 'up' },
+			wallet: { coins: 30 }
+		});
+	const miraEnvelope = () =>
+		JSON.stringify({
+			version: 1,
+			slots: [
+				{
+					kind: 'autosave',
+					savedAt: '2026-09-04T12:00:00.000Z',
+					playtimeSeconds: 0,
+					state: miraSeed()
+				},
+				null,
+				null
+			]
+		});
+
+	await seedSaveSlots(page, [{ state: miraSeed() }]);
+	await installHudStateListener(page);
+	// Seeded preferences must not clobber a locale chosen later: later passes
+	// rewrite the preference before reload, and only the first write wins.
+	await page.addInitScript(() => {
+		if (!window.localStorage.getItem('gliese.preferences.v1')) {
+			window.localStorage.setItem(
+				'gliese.preferences.v1',
+				JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+			);
+		}
+	});
+	await continueFromTitle(page);
+	const readHud = () => readHudState(page);
+	const waitAtMira = () =>
+		page.waitForFunction(
+			() =>
+				(window as GlieseProbeWindow).__glieseLastHudState?.nearbyShop?.shopId ===
+				'miras-item-shop',
+			undefined,
+			{ timeout: 15_000 }
+		);
+	await waitAtMira();
+
+	const openMiraShop = async (copy: PassCopy) => {
+		const miraDialog = await pressInteractUntilDialog(page, copy.miraName);
+		// Mira's greeting lines end on the shop/close choice row; advance Next
+		// lines until the Shop choice is actually rendered.
+		for (let press = 0; press < 6; press += 1) {
+			const shopChoice = miraDialog.getByRole('button', { name: copy.shopChoice, exact: true });
+			if (await shopChoice.isVisible().catch(() => false)) {
+				await shopChoice.click();
+				return;
+			}
+			await miraDialog.getByRole('button', { name: copy.nextChoice }).click();
+		}
+		throw new Error('Mira dialogue never offered the Shop choice');
+	};
+
+	// Measures the rendered tooltip, the selected item's Buy/Sell action, the
+	// stock column and the dialog frame, then hit-tests the action's center.
+	// Text clipping is measured too: a control can sit fully on-screen while a
+	// localized label still overflows its box.
+	const measureShopLayout = () =>
+		page.evaluate(() => {
+			const rect = (selector: string) => {
+				const el = document.querySelector<HTMLElement>(selector);
+				if (!el) return null;
+				const r = el.getBoundingClientRect();
+				return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+			};
+			const textOverflows = (selector: string) => {
+				const el = document.querySelector<HTMLElement>(selector);
+				if (!el) return null;
+				return el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
+			};
+			const actionEl = document.querySelector<HTMLElement>('.shop-detail-action');
+			let actionHit = false;
+			if (actionEl) {
+				const r = actionEl.getBoundingClientRect();
+				const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+				actionHit = hit === actionEl || actionEl.contains(hit);
+			}
+			return {
+				tooltip: rect('.shop-tooltip'),
+				action: rect('.shop-detail-action'),
+				main: rect('.shop-main'),
+				dialog: rect('.shop-screen'),
+				actionHit,
+				actionTextOverflows: textOverflows('.shop-detail-action'),
+				detailNameOverflows: textOverflows('.shop-detail-name'),
+				tooltipNameOverflows: textOverflows('.shop-tooltip-name'),
+				viewport: { width: window.innerWidth, height: window.innerHeight }
+			};
+		});
+
+	type ShopLayout = Awaited<ReturnType<typeof measureShopLayout>>;
+
+	const expectTooltipClear = (m: ShopLayout) => {
+		expect(m.tooltip, 'tooltip rendered').not.toBeNull();
+		expect(m.action, 'selected detail action rendered').not.toBeNull();
+		expect(m.main).not.toBeNull();
+		expect(m.dialog, 'shop dialog rendered').not.toBeNull();
+		const tooltip = m.tooltip!;
+		const action = m.action!;
+		const main = m.main!;
+		const dialog = m.dialog!;
+		// The tooltip is clamped inside the stock column and on-screen.
+		expect(tooltip.left).toBeGreaterThanOrEqual(main.left - 1);
+		expect(tooltip.right).toBeLessThanOrEqual(main.right + 1);
+		expect(tooltip.top).toBeGreaterThanOrEqual(main.top - 1);
+		expect(tooltip.bottom).toBeLessThanOrEqual(main.bottom + 1);
+		expect(tooltip.left).toBeGreaterThanOrEqual(0);
+		expect(tooltip.right).toBeLessThanOrEqual(m.viewport.width);
+		expect(tooltip.bottom).toBeLessThanOrEqual(m.viewport.height);
+		// HPA-839 regression: the tooltip must not cover the Buy/Sell action.
+		const overlaps = !(
+			tooltip.right <= action.left ||
+			tooltip.left >= action.right ||
+			tooltip.bottom <= action.top ||
+			tooltip.top >= action.bottom
+		);
+		expect(overlaps, 'tooltip must not cover the Buy/Sell action').toBe(false);
+		expect(m.actionHit, 'Buy/Sell action hit-testable').toBe(true);
+		// The action's complete bounds must sit inside the dialog and on-screen —
+		// a partially clipped/offscreen action passes a center-only hit test.
+		expect(action.left, 'action left edge inside dialog').toBeGreaterThanOrEqual(dialog.left - 1);
+		expect(action.right, 'action right edge inside dialog').toBeLessThanOrEqual(dialog.right + 1);
+		expect(action.top, 'action top edge inside dialog').toBeGreaterThanOrEqual(dialog.top - 1);
+		expect(action.bottom, 'action bottom edge inside dialog').toBeLessThanOrEqual(
+			dialog.bottom + 1
+		);
+		expect(action.left).toBeGreaterThanOrEqual(0);
+		expect(action.right).toBeLessThanOrEqual(m.viewport.width);
+		expect(action.top).toBeGreaterThanOrEqual(0);
+		expect(action.bottom).toBeLessThanOrEqual(m.viewport.height);
+		// Localized labels must not silently clip inside their boxes.
+		expect(m.actionTextOverflows, 'action label text clipped').toBe(false);
+		expect(m.detailNameOverflows, 'detail item name clipped').toBe(false);
+		expect(m.tooltipNameOverflows, 'tooltip item name clipped').toBe(false);
+	};
+
+	// Moves DOM focus through the shop dialog the way a real keyboard does:
+	// arrows rove the data-focus lattice (the pad path), while the Buy/Sell
+	// tab rail roves arrows between its tabs by design — Tab is the genuine
+	// keyboard exit off the rail into the stock panel. Bounded: a small
+	// dialog resolves in a dozen presses.
+	const focusedElement = () => page.evaluateHandle(() => document.activeElement);
+	const waitForFocusChange = (previous: JSHandle) =>
+		page
+			.waitForFunction((prev) => document.activeElement !== prev, previous, { timeout: 400 })
+			.catch(() => undefined);
+	const keyboardFocusTo = async (focusId: string) => {
+		for (let step = 0; step < 16; step += 1) {
+			const state = await page.evaluate((id) => {
+				const active = document.activeElement;
+				if (active?.getAttribute('data-focus-id') === id) return { done: true as const };
+				const axis = (el: Element | null, attr: string) =>
+					Number(el?.getAttribute(attr) ?? Number.NaN);
+				const target = document.querySelector(`[data-focus-id="${id}"]`);
+				return {
+					done: false as const,
+					activeId: active?.getAttribute('data-focus-id') ?? null,
+					activeInDialog: active?.closest('[role="dialog"]') !== null,
+					activeIsTab: active?.getAttribute('role') === 'tab',
+					targetIsTab: target?.getAttribute('role') === 'tab',
+					targetExists: target !== null,
+					dRow: axis(target, 'data-focus-row') - axis(active, 'data-focus-row'),
+					dCol: axis(target, 'data-focus-column') - axis(active, 'data-focus-column')
+				};
+			}, focusId);
+			if (state.done) return;
+			expect(state.targetExists, `focus target ${focusId} rendered`).toBe(true);
+			const previous = await focusedElement();
+			// Inside the dialog but off-lattice (rail Close) or on a tab whose
+			// target sits off the rail: Tab walks DOM order into the panel —
+			// an arrow would rove the rail or snap to the first lattice node.
+			const key =
+				(state.activeId === null && state.activeInDialog) ||
+				(state.activeIsTab && !state.targetIsTab)
+					? 'Tab'
+					: state.dRow !== 0
+						? state.dRow > 0
+							? 'ArrowDown'
+							: 'ArrowUp'
+						: state.dCol !== 0
+							? state.dCol > 0
+								? 'ArrowRight'
+								: 'ArrowLeft'
+							: 'ArrowDown';
+			await page.keyboard.press(key);
+			await waitForFocusChange(previous);
+			await previous.dispose();
+		}
+		throw new Error(`keyboard focus did not reach ${focusId}`);
+	};
+
+	// ---- Pass 1: full economy + geometry at 1280×720 (en) ----
+	const en = passCopy.en;
+	await openMiraShop(en);
+	const shop = page.getByRole('dialog', { name: en.shopName });
+	await expect(shop).toBeVisible();
+	await expect(shop.getByLabel('Coins: 30')).toBeVisible();
+	const buyGrid = shop.getByTestId('shop-buy-grid');
+	// The herb shop's own prices: salve 6, Field Potion 10, Greater 18.
+	await expect(
+		buyGrid.getByLabel(en.salveName, { exact: true }).locator('.shop-tile-price')
+	).toHaveText('6');
+	await expect(
+		buyGrid.getByLabel(en.fieldPotionName, { exact: true }).locator('.shop-tile-price')
+	).toHaveText('10');
+	await expect(
+		buyGrid.getByLabel(en.greaterPotionName, { exact: true }).locator('.shop-tile-price')
+	).toHaveText('18');
+
+	// Select the salve so the detail action exists, then hover/focus other
+	// tiles: the tooltip must stay inside the stock column and clear of it.
+	await buyGrid.getByLabel(en.salveName, { exact: true }).click();
+	await expect(shop.locator('.shop-detail-action')).toBeVisible();
+	await buyGrid.getByLabel(en.greaterPotionName, { exact: true }).hover();
+	await expect(shop.locator('.shop-tooltip')).toBeVisible();
+	let layout = await measureShopLayout();
+	expectTooltipClear(layout);
+	await expectUnclipped(shop.locator('.shop-detail-action'));
+	await hpa839Shot(page, 'mira-shop-1280x720-en-tooltip.png');
+	await buyGrid.getByLabel(en.fieldPotionName, { exact: true }).focus();
+	await expect(shop.locator('.shop-tooltip')).toContainText(en.fieldPotionName);
+	layout = await measureShopLayout();
+	expectTooltipClear(layout);
+	await expectUnclipped(shop.locator('.shop-detail-action'));
+	// Clicking the action twice proves it is hit-testable both times; each
+	// salve costs exactly 6 coins.
+	await shop.locator('.shop-detail-action').click();
+	await expect(shop.getByLabel('Coins: 24')).toBeVisible();
+	await shop.locator('.shop-detail-action').click();
+	await expect(shop.getByLabel('Coins: 18')).toBeVisible();
+	expect(
+		(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
+			?.quantity
+	).toBe(2);
+	await shop.getByRole('button', { name: 'Close' }).click();
+
+	// Drink one salve below max HP: exactly +6 (10 → 16).
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
+	const inventoryDialog = page.getByRole('dialog', { name: 'Inventory' });
+	const salveSlot = inventoryDialog.getByLabel(en.salveName, { exact: true });
+	await salveSlot.click();
+	await expect(inventoryDialog.getByTestId('inventory-detail')).toBeVisible();
+	await inventoryDialog.getByRole('button', { name: 'Drink' }).click();
+	await expect.poll(async () => (await readHud())?.hp).toBe(16);
+	expect(
+		(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
+			?.quantity
+	).toBe(1);
+	await inventoryDialog.getByRole('button', { name: 'Close' }).click();
+	await page.keyboard.press('Escape');
+
+	// Back into the shop: sell the remaining salve for exactly 3 coins.
+	await openMiraShop(en);
+	await expect(shop).toBeVisible();
+	await shop.getByRole('tab', { name: 'Sell' }).click();
+	const sellGrid = shop.getByTestId('shop-sell-grid');
+	const salveSellTile = sellGrid.getByLabel(en.salveName, { exact: true });
+	await expect(salveSellTile.locator('.shop-tile-price')).toHaveText('3');
+	await salveSellTile.click();
+	await expect(shop.locator('.shop-detail-action')).toBeVisible();
+	await sellGrid.getByLabel(en.fieldPotionName, { exact: true }).hover();
+	layout = await measureShopLayout();
+	expectTooltipClear(layout);
+	await expectUnclipped(shop.locator('.shop-detail-action'));
+	await shop.locator('.shop-detail-action').click();
+	await expect(shop.getByLabel('Coins: 21')).toBeVisible();
+	expect(
+		(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
+			?.quantity ?? 0
+	).toBe(0);
+	await shop.getByRole('button', { name: 'Close' }).click();
+
+	// ---- Passes 2-4: geometry + localization at 640×360 (en/ja/zh-Hant) ----
+	// Same page and same browser target as pass 1: resize the viewport,
+	// rewrite locale + a fresh seeded save, reload, and reopen the real shop.
+	await page.setViewportSize({ width: 640, height: 360 });
+	for (const locale of ['en', 'ja', 'zh-Hant'] as const) {
+		const copy = passCopy[locale];
+		await page.evaluate(
+			({ loc, envelope, prefsKey, savesKey }) => {
+				window.localStorage.setItem(
+					prefsKey,
+					JSON.stringify({
+						locale: loc,
+						textSpeed: 'instant',
+						motion: 'on',
+						promptMode: 'auto'
+					})
+				);
+				window.localStorage.setItem(savesKey, envelope);
+			},
+			{
+				loc: locale,
+				envelope: miraEnvelope(),
+				prefsKey: 'gliese.preferences.v1',
+				savesKey: SAVES_STORAGE_KEY
+			}
+		);
+		// Locale-agnostic continue: the Title/Load labels are localized, but the
+		// focus ids and save-slot testids are stable. waitAtMira doubles as the
+		// post-boot barrier — the seeded spot is already inside her shop.
+		await page.goto('/');
+		await page.locator('[data-focus-id="title-continue"]').click();
+		await page
+			.locator('[role="dialog"] [data-testid^="save-slot-"]:not([disabled])')
+			.first()
+			.click();
+		await waitAtMira();
+		await openMiraShop(copy);
+		const passShop = page.getByRole('dialog', { name: copy.shopName });
+		await expect(passShop).toBeVisible();
+		await expect(passShop.getByLabel(copy.coins(30))).toBeVisible();
+		const passBuyGrid = passShop.getByTestId('shop-buy-grid');
+		const salveTile = passBuyGrid.getByLabel(copy.salveName, { exact: true });
+		await expect(salveTile).toBeVisible();
+		await salveTile.click();
+		await expect(passShop.locator('.shop-detail-action')).toBeVisible();
+		await passBuyGrid.getByLabel(copy.greaterPotionName, { exact: true }).hover();
+		await expect(passShop.locator('.shop-tooltip')).toBeVisible();
+		layout = await measureShopLayout();
+		expectTooltipClear(layout);
+		await expectUnclipped(passShop.locator('.shop-detail-action'));
+		await hpa839Shot(page, `mira-shop-640x360-${locale}-tooltip.png`);
+		await passBuyGrid.getByLabel(copy.fieldPotionName, { exact: true }).focus();
+		layout = await measureShopLayout();
+		expectTooltipClear(layout);
+		await expectUnclipped(passShop.locator('.shop-detail-action'));
+		if (locale === 'en') {
+			// Compact keyboard economy: buy and sell at 640×360 entirely through
+			// the dialog's arrow/Enter lattice — never .focus()/.click() — with
+			// wallet + inventory assertions proving each activation landed.
+			const salveFocusId = await salveTile.getAttribute('data-focus-id');
+			expect(salveFocusId, 'salve tile carries a focus id').toBeTruthy();
+			await keyboardFocusTo(salveFocusId!);
+			await page.keyboard.press('Enter');
+			await expect(passShop.locator('.shop-detail-action')).toBeVisible();
+			await keyboardFocusTo('shop-detail-action');
+			await page.keyboard.press('Enter');
+			await expect(passShop.getByLabel('Coins: 24')).toBeVisible();
+			expect(
+				(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
+					?.quantity
+			).toBe(1);
+
+			// Compact Sell tab: arrow to the tab, Enter opens it, arrow to the
+			// salve sell tile and select it, then measure the sell layout with
+			// the tooltip shown by focusing a different sell tile.
+			await keyboardFocusTo('shop-tab-sell');
+			await page.keyboard.press('Enter');
+			const passSellGrid = passShop.getByTestId('shop-sell-grid');
+			await expect(passSellGrid).toBeVisible();
+			const salveSellTile = passSellGrid.getByLabel(copy.salveName, { exact: true });
+			const salveSellFocusId = await salveSellTile.getAttribute('data-focus-id');
+			expect(salveSellFocusId, 'salve sell tile carries a focus id').toBeTruthy();
+			await keyboardFocusTo(salveSellFocusId!);
+			await page.keyboard.press('Enter');
+			await expect(passShop.locator('.shop-detail-action')).toBeVisible();
+			const potionSellFocusId = await passSellGrid
+				.getByLabel(copy.fieldPotionName, { exact: true })
+				.getAttribute('data-focus-id');
+			expect(potionSellFocusId, 'potion sell tile carries a focus id').toBeTruthy();
+			await keyboardFocusTo(potionSellFocusId!);
+			await expect(passShop.locator('.shop-tooltip')).toBeVisible();
+			layout = await measureShopLayout();
+			expectTooltipClear(layout);
+			await expectUnclipped(passShop.locator('.shop-detail-action'));
+			await hpa839Shot(page, 'mira-shop-640x360-en-sell.png');
+			// Keyboard-activate the Sell action: +3 coins, salve count back to 0.
+			await keyboardFocusTo('shop-detail-action');
+			await page.keyboard.press('Enter');
+			await expect(passShop.getByLabel('Coins: 27')).toBeVisible();
+			expect(
+				(await readHud())?.inventory?.consumables?.find((item) => item.itemId === 'sunleaf-salve')
+					?.quantity ?? 0
+			).toBe(0);
+		}
+		await passShop.getByRole('button', { name: copy.closeName }).click();
+	}
+	await page.setViewportSize({ width: 1280, height: 720 });
+});
+
+test('Blacksmith graybox entrance', async ({ page }) => {
+	test.setTimeout(testTimeout(180_000));
+	const blacksmith: InteriorGrayboxCase = {
+		mapId: 'blacksmith-interior',
+		...overworldDoor('blacksmith-interior'),
+		spawn: { x: 448, y: 576 },
+		exit: { x: 448, y: 688 },
+		steps: []
+	};
+
+	await installRuntimeProbes(page);
+	await injectSave(
+		page,
+		createSaveFixture({
+			mapId: 'overworld',
+			player: {
+				level: 1,
+				xp: 0,
+				hp: 20,
+				attack: 3,
+				x: blacksmith.returnArrival.x,
+				y: blacksmith.returnArrival.y,
+				facing: 'up'
+			}
+		})
+	);
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await waitForHudPosition(page, 'overworld', blacksmith.returnArrival);
+
+	await enterInteriorWithTrustedKeyboard(page, blacksmith);
+	await waitForExactHudPosition(page, 'blacksmith-interior', blacksmith.spawn);
+	await exitInteriorWithTrustedKeyboard(page, blacksmith);
+});
+
+// A `blocked` diagnostic means one requested frame step did not fully fit and
+// was clamped to the furthest free point, not that the player cannot advance.
+// A stop is only real once a bounded window of fresh attempts all resolve to
+// one unchanged position.
+const COUNTER_SETTLE_ATTEMPTS = 10;
+// Consecutive blocked attempts pinned at one resolved position before the
+// NPC approach walker accepts that the speaker is unreachable — a single
+// rejected step is recoverable, ten in a row at the same point is not.
+const APPROACH_PINNED_ATTEMPTS = 10;
+
+function settledBlockedWindow(input: {
+	mapId: string;
+	counterBottom: number;
+	maxY: number;
+	windowSize: number;
+	startIndex: number;
+	attempts?: PlayerMovementDiagnostic[];
+}): PlayerMovementDiagnostic[] | false {
+	const diagnostics =
+		input.attempts ?? (window as GlieseProbeWindow).__glieseMovementDiagnostics ?? [];
+	const fresh = diagnostics.slice(input.startIndex);
+	if (fresh.length < input.windowSize) return false;
+	const recent = fresh.slice(-input.windowSize);
+	const first = recent[0];
+	if (
+		first.mapId !== input.mapId ||
+		first.blocked !== true ||
+		first.resolvedPosition.y <= input.counterBottom ||
+		first.resolvedPosition.y >= input.maxY
+	) {
+		return false;
+	}
+	const settled = recent.every(
+		(attempt) =>
+			attempt.mapId === input.mapId &&
+			attempt.blocked === true &&
+			attempt.resolvedPosition.x === first.resolvedPosition.x &&
+			attempt.resolvedPosition.y === first.resolvedPosition.y
+	);
+	return settled ? recent : false;
+}
+
+test('Blacksmith Oren equipment shop', async ({ page }) => {
+	test.setTimeout(testTimeout(180_000));
+	const blacksmith: InteriorGrayboxCase = {
+		mapId: 'blacksmith-interior',
+		...overworldDoor('blacksmith-interior'),
+		spawn: { x: 448, y: 576 },
+		exit: { x: 448, y: 688 },
+		steps: []
+	};
+
+	await installRuntimeProbes(page);
+	await seedSaveSlots(page, [
+		{
+			state: createSaveFixture({
+				mapId: 'overworld',
+				player: {
+					level: 1,
+					xp: 0,
+					hp: 20,
+					attack: 3,
+					x: blacksmith.returnArrival.x,
+					y: blacksmith.returnArrival.y,
+					facing: 'up'
+				},
+				wallet: { coins: 100 }
+			})
+		}
+	]);
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await waitForHudPosition(page, 'overworld', blacksmith.returnArrival);
+
+	await enterInteriorWithTrustedKeyboard(page, blacksmith);
+	const layout = VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'];
+	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'oren');
+	if (!oren) throw new Error('Oren fixture is missing');
+	const counter = layout.propCollisions.serviceCounter;
+	const counterBottom = counter.y + counter.height;
+
+	// HPA-816: walk up the centre customer aisle from spawn and keep holding
+	// north until the service counter has stopped the player for a bounded window
+	// of emitted movement attempts at one unchanged position. A lone blocked
+	// diagnostic is not a stop: that frame's step can be rejected whole while the
+	// next smaller step advances. The pre-fix 18px counter core left the compiled
+	// grid's last walkable row at y=480 (64px from Oren), so y<480 also rejects
+	// that geometry even though the authored orenApproachPoint=(448,480) is
+	// reachable.
+	const movementStart = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseMovementDiagnostics?.length ?? 0
+	);
+	await page.locator('canvas').click();
+	await page.keyboard.down('w');
+	// Release the key in `finally` even when the bounded wait times out.
+	const settled = await page
+		.waitForFunction(
+			settledBlockedWindow,
+			{
+				mapId: blacksmith.mapId,
+				counterBottom,
+				maxY: 480,
+				windowSize: COUNTER_SETTLE_ATTEMPTS,
+				startIndex: movementStart
+			},
+			{ timeout: 30_000 }
+		)
+		.finally(() => page.keyboard.up('w'));
+	const settledWindow = (await settled.jsonValue()) as PlayerMovementDiagnostic[];
+
+	expect(settledWindow).toHaveLength(COUNTER_SETTLE_ATTEMPTS);
+	const stopPoint = settledWindow[0].resolvedPosition;
+	// The body may clip at most 5px into the painted counter.
+	expect(stopPoint.y).toBeGreaterThanOrEqual(counterBottom + PLAYER_COLLISION_RADIUS - 5);
+	expect(stopPoint.y).toBeLessThan(480);
+	expect(Math.abs(stopPoint.x - blacksmith.spawn.x)).toBeLessThanOrEqual(AXIS_REACH_TOLERANCE);
+	expect(Math.hypot(stopPoint.x - oren.x, stopPoint.y - oren.y)).toBeLessThanOrEqual(
+		PLAYER_COLLISION_RADIUS + NPC_INTERACTION_RADIUS + NPC_PACK_COLLISION_RADIUS
+	);
+
+	// Condition-based interaction: a lone timed 'e' press can land while the
+	// interact key is still debounced after the counter stop, so retry the
+	// press until the dialogue actually appears.
+	const dialogue = await pressInteractUntilDialog(page, 'Oren');
+	await expect(dialogue).toContainText(
+		"Steel for those who can pay, advice for those who can't. Today, the advice is free."
+	);
+	await dialogue.getByRole('button', { name: 'Shop' }).click();
+
+	const shop = page.getByRole('dialog', { name: 'Sundrop Forge' });
+	await expect(shop).toBeVisible();
+	await expect(shop.getByLabel('Coins: 100')).toBeVisible();
+	await shop.getByTestId('shop-buy-grid').getByLabel('Iron Cap', { exact: true }).dblclick();
+	await expect(shop.getByLabel('Coins: 65')).toBeVisible();
+	await shop.getByRole('button', { name: 'Close' }).click();
+	await expect(shop).toHaveCount(0);
+
+	await saveThroughSaveScreen(page, 1);
+	const persisted = await readManualSlotState(page);
+	expect(persisted.wallet?.coins).toBe(65);
+	expect(persisted.shops?.stock?.['sundrop-forge']?.['iron-cap']).toBe(0);
+	expect(persisted.inventory?.equipment).toContain('iron-cap');
+
+	await page.reload();
+	await expect(page.locator('canvas')).toBeVisible();
+	await page.waitForFunction(
+		() => {
+			const state = (window as GlieseProbeWindow).__glieseLastHudState;
+			return state?.mapId === 'blacksmith-interior' && state.status === 'Oren nearby';
+		},
+		undefined,
+		{ timeout: 30_000 }
+	);
+	const resumedDialogue = await pressInteractUntilDialog(page, 'Oren');
+	await resumedDialogue.getByRole('button', { name: 'Shop' }).click();
+	const resumedShop = page.getByRole('dialog', { name: 'Sundrop Forge' });
+	await expect(resumedShop).toBeVisible();
+	await expect(resumedShop.getByLabel('Coins: 65')).toBeVisible();
+	const resumedIronCap = resumedShop
+		.getByTestId('shop-buy-grid')
+		.getByLabel('Iron Cap', { exact: true });
+	await resumedIronCap.hover();
+	await expect(page.getByRole('tooltip')).toContainText('0 left');
+});
+
+test('proving morning keyboard journey reaches Oren through the painted forge lane', async ({
+	page
+}) => {
+	test.setTimeout(testTimeout(240_000));
+	await installRuntimeProbes(page);
+	// Instant text: at normal speed a reveal-skip Enter never changes the HUD
+	// dialogue payload, so every advanceDialogue press would eat the full
+	// 5s payload-change timeout before the next press.
+	await page.addInitScript(() => {
+		localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		);
+	});
+	await startNewRunFromTitle(page, { movementDiagnostics: true });
+
+	const readHud = () =>
+		page.evaluate(() => (window as GlieseProbeWindow).__glieseLastHudState ?? null);
+	const readPosition = () =>
+		page.evaluate(() => {
+			const probeWindow = window as GlieseProbeWindow;
+			const state = probeWindow.__glieseLastHudState;
+			// The movement diagnostic publishes the resolved player position every
+			// frame the player moves — fresher than the throttled HUD snapshot.
+			const diagnostic = probeWindow.__glieseLastMovementDiagnostic;
+			if (diagnostic && diagnostic.mapId === state?.mapId) {
+				return { ...diagnostic.resolvedPosition };
+			}
+			const player = state?.areaMap?.player;
+			return typeof player?.x === 'number' && typeof player.y === 'number'
+				? { x: player.x, y: player.y }
+				: null;
+		});
+	let axisHoldSequence = 0;
+	const holdUntil = async (
+		key: 'w' | 'a' | 's' | 'd',
+		stop:
+			| { kind: 'axis'; axis: 'x' | 'y'; direction: 'gte' | 'lte'; value: number }
+			| { kind: 'status'; value: string }
+			| { kind: 'map'; value: string },
+		timeoutMs = 15_000
+	) => {
+		// Axis stops arm the movement-diagnostic release before the key goes
+		// down: the init-script listener checks each resolved position,
+		// consumes the arm on the first crossing and dispatches one keyup on
+		// that same event — a stalled frame can overshoot by at most its own
+		// step, and the poll below resolves only when the release log records
+		// this hold's token, so listener release is the sole release path.
+		// Status/map stops have no axis to arm; their key stays held until the
+		// Playwright keyup in finally, which is fine because those stops fire
+		// on state, not on a lane boundary.
+		let axisToken: number | null = null;
+		if (stop.kind === 'axis') {
+			axisToken = axisHoldSequence += 1;
+			await page.evaluate(
+				(armed) => {
+					(window as GlieseProbeWindow).__glieseAxisHold = armed;
+				},
+				{
+					token: axisToken,
+					axis: stop.axis,
+					direction: stop.direction,
+					value: stop.value,
+					key,
+					keyCode: key.toUpperCase().charCodeAt(0)
+				}
+			);
+		}
+		await page.keyboard.down(key);
+		try {
+			await page.waitForFunction(
+				({ requested, token }) => {
+					const probeWindow = window as GlieseProbeWindow;
+					const state = probeWindow.__glieseLastHudState;
+					if (requested.kind === 'map') return state?.mapId === requested.value;
+					if (requested.kind === 'status') return state?.status === requested.value;
+					return (probeWindow.__glieseAxisHoldLog ?? []).some((entry) => entry.token === token);
+				},
+				{ requested: stop, token: axisToken },
+				// rAF polling starves under headless occlusion while the Phaser
+				// loop keeps stepping — interval polling keeps the observation
+				// lag off the release path entirely.
+				{ timeout: timeoutMs, polling: 50 }
+			);
+		} catch (error) {
+			const hud = await readHud();
+			const position = await readPosition();
+			throw new Error(
+				`holdUntil(${JSON.stringify(stop)}) timed out holding '${key}' ` +
+					`at ${JSON.stringify(position)} on map ${hud?.mapId ?? '?'} ` +
+					`(status: ${hud?.status ?? '?'})`,
+				{ cause: error }
+			);
+		} finally {
+			if (stop.kind === 'axis') {
+				await page
+					.evaluate(() => {
+						(window as GlieseProbeWindow).__glieseAxisHold = null;
+					})
+					.catch(() => {});
+			}
+			await page.keyboard.up(key);
+		}
+	};
+	// Forward nudges for a hold that released short of the checkpoint band.
+	// Recovery can only move along the leg's progress axis — backing up would
+	// falsify the corridor trace (the violation check rejects >8px regression)
+	// — so a short landing is nudged forward with real presses, checked after
+	// each tap rather than re-held past the safe edge.
+	const tapAxisUntil = async (
+		key: 'w' | 'a' | 's' | 'd',
+		axis: 'x' | 'y',
+		direction: 'gte' | 'lte',
+		value: number,
+		maxTaps = 8
+	) => {
+		for (let tap = 0; tap < maxTaps; tap += 1) {
+			const position = await readPosition();
+			if (!position) return;
+			const current = position[axis];
+			if (direction === 'gte' ? current >= value : current <= value) return;
+			await page.keyboard.press(key, { delay: 45 });
+		}
+	};
+	// Relies on the instant text speed seeded above — a mid-reveal confirm only
+	// completes the typewriter and never republishes the dialogue payload.
+	// Each visible line is recorded as rendered so the HPA-839 Oren dialogue
+	// correction can be verified against the actual panel text. The keyboard
+	// journey drives Enter — the panel autofocuses on mount, so presses stay
+	// inside its keydown handler and never leak to Phaser's interact key.
+	const seenDialogueLines: string[] = [];
+	const advanceDialogue = async () => {
+		seenDialogueLines.push(...(await advanceConversationToEnd(page, 'enter')));
+	};
+
+	await page.waitForFunction(
+		() => (window as GlieseProbeWindow).__glieseLastHudState?.dialogue != null,
+		undefined,
+		{ timeout: 30_000 }
+	);
+	await advanceDialogue();
+	await expect.poll(async () => (await readHud())?.quests?.main?.objectiveId).toBe('talk-to-mott');
+	await expect.poll(async () => (await readHud())?.mapId).toBe('hero-house');
+
+	await page.locator('canvas').click();
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 228 });
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 160 });
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 336 });
+	await holdUntil('s', { kind: 'axis', axis: 'y', direction: 'gte', value: 352 });
+	await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 160 });
+	for (let attempt = 0; attempt < 6; attempt += 1) {
+		const status = (await readHud())?.status ?? '';
+		if (status === 'Old Mott nearby') break;
+		if (status === 'Tikka nearby') {
+			await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 352 }, 5_000);
+		} else {
+			await page.keyboard.down('a');
+			await page.waitForTimeout(250);
+			await page.keyboard.up('a');
+		}
+	}
+	await expect
+		.poll(async () => (await readHud())?.status, { timeout: expectTimeout(10_000) })
+		.toBe('Old Mott nearby');
+	await pressInteractUntilDialog(page, 'Old Mott');
+	await advanceDialogue();
+	// HPA-839: the amulet auto-equips when Mott's actual reward dialogue
+	// closes. The named status must render on the remounted FieldHud — the
+	// hidden HUD payload alone is not the acceptance signal.
+	await expect(fieldStatus(page)).toHaveText('Equipped Ancestral Amulet');
+	await hpa839Shot(page, 'mott-amulet-status.png');
+	const afterMott = await readHud();
+	expect(afterMott?.inventory?.equipped?.accessory).toBe('ancestral-amulet');
+	// The amulet's +2 max HP must not refill current HP; its +1 DEF is
+	// already live without opening Gear.
+	expect(afterMott?.maxHp).toBe(22);
+	expect(afterMott?.hp).toBe(20);
+	expect(afterMott?.defense).toBe(1);
+	await expect
+		.poll(async () => (await readHud())?.quests?.main?.objectiveId)
+		.toBe('collect-practice-spear');
+
+	await page.locator('canvas').click();
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 352 });
+	// The exterior-door trigger column is x∈[320,384]: an over-released east
+	// hold pins the hero in the wall pocket beside the door instead of
+	// transitioning. Nudge back into the column before committing south.
+	const exitDoorLane = await readPosition();
+	if (exitDoorLane && exitDoorLane.x > 368) {
+		await tapAxisUntil('a', 'x', 'lte', 352);
+	}
+	await holdUntil('s', { kind: 'map', value: 'overworld' }, 20_000);
+	await expect.poll(async () => (await readHud())?.mapId).toBe('overworld');
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Map' }).click();
+	const mapDialog = page.getByRole('dialog', { name: /map$/i });
+	await expect(mapDialog).toBeVisible();
+	const mapEvidence = await mapDialog.getByTestId('area-map-svg').evaluate((svgEl) => {
+		const [viewX = 0, viewY = 0, viewWidth = 0, viewHeight = 0] = (
+			svgEl.getAttribute('viewBox') ?? ''
+		)
+			.split(/\s+/)
+			.map(Number);
+		const markers = [...svgEl.querySelectorAll('[data-focus-id^="map-marker-"]')].map(
+			(markerEl) => {
+				const textEl = markerEl.querySelector('text');
+				const transform = markerEl.getAttribute('transform') ?? '';
+				const translate = transform.match(/translate\((-?[\d.]+)[ ,]+(-?[\d.]+)\)/);
+				const textBox = textEl?.getBBox();
+				return {
+					id: markerEl.getAttribute('data-focus-id'),
+					label: textEl?.textContent ?? null,
+					markerX: translate ? Number(translate[1]) : NaN,
+					markerY: translate ? Number(translate[2]) : NaN,
+					textLeft: textBox ? textBox.x : null,
+					textRight: textBox ? textBox.x + textBox.width : null,
+					textTop: textBox ? textBox.y : null,
+					textBottom: textBox ? textBox.y + textBox.height : null,
+					emphasis: markerEl.classList.contains('area-map-marker-emphasis')
+				};
+			}
+		);
+		return { viewX, viewY, viewWidth, viewHeight, markers };
+	});
+	expect(mapEvidence.viewWidth).toBeGreaterThan(0);
+	expect(mapEvidence.viewWidth).toBeLessThan(12_288);
+	const forgeMarker = mapEvidence.markers.find(
+		(marker) => marker.id === 'map-marker-overworld-to-blacksmith-interior'
+	);
+	expect(forgeMarker?.label).toBe('Sundrop Forge');
+	expect(forgeMarker?.emphasis).toBe(true);
+	expect(forgeMarker?.textLeft).not.toBeNull();
+	expect(forgeMarker!.markerX + forgeMarker!.textLeft!).toBeGreaterThanOrEqual(
+		mapEvidence.viewX - 1
+	);
+	expect(forgeMarker!.markerX + forgeMarker!.textRight!).toBeLessThanOrEqual(
+		mapEvidence.viewX + mapEvidence.viewWidth + 1
+	);
+	expect(forgeMarker!.markerY + forgeMarker!.textTop!).toBeGreaterThanOrEqual(
+		mapEvidence.viewY - 1
+	);
+	expect(forgeMarker!.markerY + forgeMarker!.textBottom!).toBeLessThanOrEqual(
+		mapEvidence.viewY + mapEvidence.viewHeight + 1
+	);
+	expect(new Set(mapEvidence.markers.map((marker) => marker.id))).toEqual(
+		new Set(['map-marker-overworld-to-hero-house', 'map-marker-overworld-to-blacksmith-interior'])
+	);
+	await mapDialog.getByRole('button', { name: 'Close' }).click();
+	await expect(mapDialog).toHaveCount(0);
+	await page.keyboard.press('Escape');
+
+	await page.locator('canvas').click();
+	await page.evaluate(() => {
+		(window as GlieseProbeWindow).__glieseJourneyTrace = [];
+	});
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 4508 });
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7288 });
+	const doorLane = await readPosition();
+	expect(doorLane?.x).toBeGreaterThanOrEqual(4_508);
+	expect(doorLane?.x).toBeLessThanOrEqual(4_576);
+	expect(doorLane?.y).toBeGreaterThanOrEqual(7_264);
+	expect(doorLane?.y).toBeLessThanOrEqual(7_296);
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 4640 });
+	const connectorTurn = await readPosition();
+	expect(connectorTurn?.x).toBeGreaterThanOrEqual(4_632);
+	expect(connectorTurn?.x).toBeLessThanOrEqual(4_704);
+	expect(connectorTurn?.y).toBeGreaterThanOrEqual(7_264);
+	expect(connectorTurn?.y).toBeLessThanOrEqual(7_296);
+	// Release at the corridor's safe edge, not the assert's: the connector is
+	// open below y=7152, so a stalled frame could carry the old 7190 stop past
+	// the walkable band outright. Every landing now stays inside [7154,7214].
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7214 });
+	const laneTop = await readPosition();
+	expect(laneTop?.x).toBeGreaterThanOrEqual(4_632);
+	expect(laneTop?.x).toBeLessThanOrEqual(4_704);
+	expect(laneTop?.y).toBeGreaterThanOrEqual(7_152);
+	expect(laneTop?.y).toBeLessThanOrEqual(7_216);
+	// Same idea on the top lane: the first-crossing landing after a gte stop is
+	// guaranteed inside [T,T+60), so release at the band's own entry edge and
+	// let the assert/corridor band cover the whole one-step envelope — a
+	// nudge's timed press has the same step bound, which is why nudges are
+	// gone from every corridor leg.
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5136 });
+	const southTurn = await readPosition();
+	expect(southTurn?.x).toBeGreaterThanOrEqual(5_136);
+	expect(southTurn?.x).toBeLessThanOrEqual(5_196);
+	expect(southTurn?.y).toBeGreaterThanOrEqual(7_152);
+	expect(southTurn?.y).toBeLessThanOrEqual(7_216);
+	// The lower lane opens south well past y=7300 (walkable to ~7344+), so the
+	// release must land inside the widened corridor edge: gte 7276 lands in
+	// [7276,7336), which keeps the 'w' descent crossing the jog-north band
+	// (jog-north-only trace coverage needs at least one point above y=7272).
+	await holdUntil('s', { kind: 'axis', axis: 'y', direction: 'gte', value: 7276 });
+	const lowerLane = await readPosition();
+	expect(lowerLane?.x).toBeGreaterThanOrEqual(5_136);
+	expect(lowerLane?.x).toBeLessThanOrEqual(5_196);
+	expect(lowerLane?.y).toBeGreaterThanOrEqual(7_276);
+	expect(lowerLane?.y).toBeLessThanOrEqual(7_336);
+	// The eastward leg releases at the band's entry edge: landing is always
+	// ≥5440 and below 5500, inside the real lane apron (walkable east to
+	// ~5679) and inside the widened jog-north corridor leg.
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5440 });
+	const underHut = await readPosition();
+	expect(underHut?.x).toBeGreaterThanOrEqual(5_440);
+	expect(underHut?.x).toBeLessThanOrEqual(5_504);
+	expect(underHut?.y).toBeGreaterThanOrEqual(7_276);
+	expect(underHut?.y).toBeLessThanOrEqual(7_336);
+	// The descent releases at the jog's north edge: landings sit inside
+	// (7212,7272], and the real north wall near x≈5500 (y≥7216) clamps any
+	// stall-step inside the widened jog-east leg — no rescue nudge needed.
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 7272 });
+	const jogShoulder = await readPosition();
+	expect(jogShoulder?.x).toBeGreaterThanOrEqual(5_432);
+	expect(jogShoulder?.x).toBeLessThanOrEqual(5_508);
+	expect(jogShoulder?.y).toBeGreaterThanOrEqual(7_216);
+	expect(jogShoulder?.y).toBeLessThanOrEqual(7_272);
+	// The forge door only triggers inside the ~30px cone at (5648,7184) —
+	// x∈[5618,5678]. The release target bounds the whole one-step envelope:
+	// the lane's east wall is 5743 at y≤7259 (not 5679), so gte 5628 lands in
+	// [5628,5688) — inside the forge-approach corridor leg and mostly inside
+	// the cone already.
+	await holdUntil('d', { kind: 'axis', axis: 'x', direction: 'gte', value: 5628 });
+	const forgeColumn = await readPosition();
+	expect(forgeColumn?.x).toBeGreaterThanOrEqual(5_628);
+	expect(forgeColumn?.x).toBeLessThanOrEqual(5_688);
+	expect(forgeColumn?.y).toBeGreaterThanOrEqual(7_216);
+	expect(forgeColumn?.y).toBeLessThanOrEqual(7_272);
+	// A landing past the cone's east edge still satisfies the corridor asserts
+	// but walks north past the trigger — observed as a real timeout at
+	// (5678.7,7184), and a timed nudge can start just below its target and
+	// overshoot the same edge it was meant to avoid (5617→5639→5687). The
+	// correction is event-gated like every other stop: 'a' releasing at the
+	// cone's own east edge puts the landing envelope at (5618,5678] — strictly
+	// inside the cone on the west and inclusive on the east — and westward
+	// points there attribute to the y-axis forge-approach leg, so the trace
+	// contract is preserved.
+	if (forgeColumn && forgeColumn.x > 5_678) {
+		await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 5678 });
+	}
+	const approachPoint = await readPosition();
+	expect(approachPoint?.x).toBeGreaterThanOrEqual(5_618);
+	expect(approachPoint?.x).toBeLessThanOrEqual(5_678);
+	await holdUntil('w', { kind: 'map', value: 'blacksmith-interior' }, 20_000);
+	await expect.poll(async () => (await readHud())?.mapId).toBe('blacksmith-interior');
+	// The overworld route is complete on arrival — capture and attach it before
+	// any later check can fail, so a failed reward assertion still leaves the
+	// route evidence in the report.
+	const journeyTrace =
+		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseJourneyTrace ?? [])) ?? [];
+	const overworldTrace = journeyTrace.filter((point) => point.mapId === 'overworld');
+	const axisHoldLog =
+		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseAxisHoldLog ?? [])) ?? [];
+	await test.info().attach('overworld-journey-trace-raw', {
+		body: JSON.stringify({ trace: overworldTrace, axisHoldLog }),
+		contentType: 'application/json'
+	});
+	const forgePoint = await readPosition();
+	expect(forgePoint?.x).toBeGreaterThanOrEqual(440);
+	expect(forgePoint?.x).toBeLessThanOrEqual(456);
+	expect(forgePoint?.y).toBeGreaterThanOrEqual(560);
+	expect(forgePoint?.y).toBeLessThanOrEqual(580);
+
+	await page.locator('canvas').click();
+	await holdUntil('a', { kind: 'axis', axis: 'x', direction: 'lte', value: 200 });
+	await holdUntil('w', { kind: 'axis', axis: 'y', direction: 'lte', value: 404 });
+	await holdUntil('d', { kind: 'status', value: 'Oren nearby' }, 15_000);
+	await pressInteractUntilDialog(page, 'Oren');
+	await advanceDialogue();
+	// HPA-839: the corrected line must actually render — the old wording told
+	// Grik to equip the spear himself, which the auto-equip now does.
+	expect(
+		seenDialogueLines.some((line) => /spear in a bag has never killed anything/i.test(line)),
+		'Oren corrected line rendered'
+	).toBe(true);
+	expect(
+		seenDialogueLines.some((line) =>
+			/come home with coin, come back\. i keep better steel for real hunters/i.test(line)
+		),
+		'Oren better-steel hook rendered'
+	).toBe(true);
+	expect(
+		seenDialogueLines.some((line) => /open your pack/i.test(line)),
+		'no line still asks the player to equip manually'
+	).toBe(false);
+	// The spear auto-equips when the reward dialogue closes; the FieldHud
+	// status renders the equipped name, not just a hidden payload field.
+	await expect(fieldStatus(page)).toHaveText('Equipped Practice Spear');
+	await hpa839Shot(page, 'oren-spear-status.png');
+	await expect
+		.poll(async () => (await readHud())?.quests?.main?.objectiveId)
+		.toBe('collect-herb-pouch');
+	await expect
+		.poll(
+			async () =>
+				(await readHud())?.inventory?.equipment?.some(
+					(item) => item.itemId === 'practice-spear'
+				) === true
+		)
+		.toBe(true);
+	const afterOren = await readHud();
+	expect(afterOren?.inventory?.equipped?.weapon).toBe('practice-spear');
+	expect(afterOren?.inventory?.equipped?.accessory).toBe('ancestral-amulet');
+	// The stats the hero brings to the first wolves are live now: spear +1
+	// ATK (3→4), amulet +1 DEF, +2 max HP applied without refilling HP.
+	expect(afterOren?.attack).toBe(4);
+	expect(afterOren?.defense).toBe(1);
+	expect(afterOren?.maxHp).toBe(22);
+	expect(afterOren?.hp).toBe(20);
+	// The rendered hero card shows the same first-wolves numbers, so the
+	// visible HUD — not only the probe — reflects the equips.
+	const heroStats = await page
+		.getByTestId('hud-party-panel')
+		.locator('.hero-stats')
+		.first()
+		.evaluate((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim());
+	expect(heroStats).toContain('ATK 4');
+	expect(heroStats).toContain('DEF 1');
+	await expect(page.getByTestId('hud-party-panel').locator('.hero-meter-value').first()).toHaveText(
+		'20/22'
+	);
+
+	// The corridor trace is verified at the end of the test — after the Oren
+	// reward checks — so a route-flake failure cannot mask the reward result.
+	expect(overworldTrace.length).toBeGreaterThan(0);
+	const corridorLegs: {
+		name: string;
+		axis: 'x' | 'y';
+		dir: 1 | -1;
+		test: (point: { x: number; y: number }) => boolean;
+	}[] = [
+		{
+			name: 'door-apron',
+			axis: 'x',
+			dir: 1,
+			test: (point) => point.x >= 4_440 && point.x <= 4_576 && point.y >= 7_264 && point.y <= 7_344
+		},
+		{
+			name: 'door-lane',
+			axis: 'x',
+			dir: 1,
+			test: (point) => point.x >= 4_448 && point.x <= 4_696 && point.y >= 7_264 && point.y <= 7_296
+		},
+		{
+			name: 'connector',
+			axis: 'y',
+			dir: -1,
+			test: (point) => point.x >= 4_624 && point.x <= 4_704 && point.y >= 7_152 && point.y <= 7_296
+		},
+		{
+			name: 'top-lane',
+			axis: 'x',
+			dir: 1,
+			test: (point) => point.x >= 4_624 && point.x <= 5_216 && point.y >= 7_152 && point.y <= 7_216
+		},
+		{
+			name: 'south-turn',
+			axis: 'y',
+			dir: 1,
+			test: (point) => point.x >= 5_136 && point.x <= 5_196 && point.y >= 7_152 && point.y <= 7_288
+		},
+		{
+			name: 'lower-lane',
+			axis: 'x',
+			dir: 1,
+			test: (point) => point.x >= 5_136 && point.x <= 5_468 && point.y >= 7_256 && point.y <= 7_340
+		},
+		{
+			name: 'jog-north',
+			axis: 'y',
+			dir: -1,
+			test: (point) => point.x >= 5_432 && point.x <= 5_508 && point.y >= 7_232 && point.y <= 7_340
+		},
+		{
+			name: 'jog-east',
+			axis: 'x',
+			dir: 1,
+			test: (point) => point.x >= 5_432 && point.x <= 5_664 && point.y >= 7_216 && point.y <= 7_272
+		},
+		{
+			name: 'forge-approach',
+			axis: 'y',
+			dir: -1,
+			test: (point) => point.x >= 5_616 && point.x <= 5_688 && point.y >= 7_160 && point.y <= 7_272
+		}
+	];
+	const containingLegs = (point: { x: number; y: number }) =>
+		corridorLegs.flatMap((leg, legIndex) => (leg.test(point) ? [legIndex] : []));
+	const corridorViolation = (trace: typeof overworldTrace) => {
+		let furthestLeg = 0;
+		const legProgress = corridorLegs.map(() => Number.NEGATIVE_INFINITY);
+		for (const [index, point] of trace.entries()) {
+			const containing = containingLegs(point);
+			if (containing.length === 0) {
+				return `point ${index} (${point.x.toFixed(2)}, ${point.y.toFixed(2)}) outside the authored corridor`;
+			}
+			const reached = containing[containing.length - 1];
+			if (reached < furthestLeg) {
+				return `point ${index} (${point.x.toFixed(2)}, ${point.y.toFixed(2)}) returned to ${corridorLegs[reached].name} after ${corridorLegs[furthestLeg].name}`;
+			}
+			furthestLeg = reached;
+			const leg = corridorLegs[furthestLeg];
+			const progress = (leg.axis === 'x' ? point.x : point.y) * leg.dir;
+			if (progress < legProgress[furthestLeg] - 8) {
+				return `point ${index} (${point.x.toFixed(2)}, ${point.y.toFixed(2)}) regressed ${(legProgress[furthestLeg] - progress).toFixed(1)}px along ${leg.name}`;
+			}
+			legProgress[furthestLeg] = Math.max(legProgress[furthestLeg], progress);
+		}
+		if (furthestLeg !== corridorLegs.length - 1) {
+			return `trace never reached ${corridorLegs[corridorLegs.length - 1].name}`;
+		}
+		return null;
+	};
+	expect(corridorViolation(overworldTrace)).toBeNull();
+	const samplePoints = (
+		waypoints: readonly { x: number; y: number }[],
+		stepPx = 7
+	): typeof overworldTrace =>
+		waypoints.slice(1).flatMap((to, segment) => {
+			const from = waypoints[segment];
+			const steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / stepPx));
+			return Array.from({ length: steps }, (_, step) => ({
+				x: from.x + ((to.x - from.x) * (step + 1)) / steps,
+				y: from.y + ((to.y - from.y) * (step + 1)) / steps,
+				mapId: 'overworld'
+			}));
+		});
+	// The first top-lane sample before the south turn, wherever in the lane the run walked.
+	const detourIndex = overworldTrace.findIndex(
+		(point) => point.x >= 4_900 && point.x < 5_136 && point.y >= 7_152 && point.y <= 7_216
+	);
+	expect(detourIndex).toBeGreaterThanOrEqual(0);
+	const detouredTrace = [
+		...overworldTrace.slice(0, detourIndex),
+		{ x: 4_900, y: 7_215, mapId: 'overworld' },
+		{ x: 4_900, y: 7_245, mapId: 'overworld' },
+		{ x: 5_040, y: 7_245, mapId: 'overworld' },
+		{ x: 5_040, y: 7_190, mapId: 'overworld' },
+		...overworldTrace.slice(detourIndex)
+	];
+	expect(corridorViolation(detouredTrace)).toContain('outside the authored corridor');
+	let loopAnchorIndex = -1;
+	let loopAnchorDistance = Number.POSITIVE_INFINITY;
+	for (const [index, point] of overworldTrace.entries()) {
+		const distance = Math.hypot(point.x - 4_613.44, point.y - 7_305.4);
+		if (distance < loopAnchorDistance) {
+			loopAnchorDistance = distance;
+			loopAnchorIndex = index;
+		}
+	}
+	expect(loopAnchorIndex).toBeGreaterThanOrEqual(0);
+	const loopedTrace = [
+		...overworldTrace.slice(0, loopAnchorIndex + 1),
+		{ x: 4_613.44, y: 7_305.4, mapId: 'overworld' },
+		...samplePoints([
+			{ x: 4_613.44, y: 7_305.4 },
+			{ x: 4_598, y: 7_305.4 },
+			{ x: 4_598, y: 7_208 },
+			{ x: 4_636, y: 7_208 },
+			{ x: 4_636, y: 7_305.4 },
+			{ x: 4_613.44, y: 7_305.4 }
+		]),
+		...overworldTrace.slice(loopAnchorIndex + 1)
+	];
+	expect(corridorViolation(loopedTrace)).toContain('outside the authored corridor');
+	const connectorIndex = overworldTrace.findIndex(
+		(point) => point.x >= 4_624 && point.x <= 4_704 && point.y >= 7_152 && point.y <= 7_296
+	);
+	expect(connectorIndex).toBeGreaterThanOrEqual(0);
+	const connectorEntry = overworldTrace[connectorIndex];
+	const withinBandTrace = [
+		...overworldTrace.slice(0, connectorIndex + 1),
+		...samplePoints([
+			connectorEntry,
+			{ x: 4_644, y: connectorEntry.y },
+			{ x: 4_644, y: 7_224 },
+			{ x: 4_676, y: 7_224 },
+			{ x: 4_676, y: connectorEntry.y },
+			{ x: 4_644, y: connectorEntry.y },
+			connectorEntry
+		]),
+		...overworldTrace.slice(connectorIndex + 1)
+	];
+	expect(corridorViolation(withinBandTrace)).toContain('regressed');
+	const legRuns = corridorLegs.map((leg) => ({
+		name: leg.name,
+		points: [] as typeof overworldTrace
+	}));
+	let legCursor = 0;
+	for (const point of overworldTrace) {
+		legCursor = Math.max(legCursor, ...containingLegs(point));
+		legRuns[legCursor].points.push(point);
+	}
+	const legRanges = legRuns.map((run) => {
+		expect(run.points.length, `corridor leg "${run.name}" has no trace points`).toBeGreaterThan(0);
+		return {
+			leg: run.name,
+			points: run.points.length,
+			x: [
+				Math.min(...run.points.map((point) => point.x)),
+				Math.max(...run.points.map((point) => point.x))
+			],
+			y: [
+				Math.min(...run.points.map((point) => point.y)),
+				Math.max(...run.points.map((point) => point.y))
+			]
+		};
+	});
+	const forgeDoor = overworldMap.transitions.find(
+		(transition) => transition.id === 'overworld-to-blacksmith-interior'
+	)!;
+	const lastTracePoint = overworldTrace[overworldTrace.length - 1];
+	const lastDoorDistance = Math.hypot(
+		lastTracePoint.x - forgeDoor.x,
+		lastTracePoint.y - forgeDoor.y
+	);
+	expect(lastDoorDistance).toBeLessThanOrEqual(32);
+	const relatedDoors = new Set([forgeDoor.id, 'overworld-to-hero-house']);
+	const unrelatedDoors = overworldMap.transitions.filter(
+		(transition) => !relatedDoors.has(transition.id)
+	);
+	const doorClearance = (trace: typeof overworldTrace) =>
+		Math.min(
+			...trace.flatMap((point) =>
+				unrelatedDoors.map((door) => Math.hypot(point.x - door.x, point.y - door.y))
+			)
+		);
+	const minDoorClearance = doorClearance(overworldTrace);
+	expect(minDoorClearance).toBeGreaterThanOrEqual(48);
+	expect(doorClearance(detouredTrace)).toBeGreaterThanOrEqual(48);
+	expect(
+		Math.hypot(
+			detouredTrace[detouredTrace.length - 1].x - forgeDoor.x,
+			detouredTrace[detouredTrace.length - 1].y - forgeDoor.y
+		)
+	).toBeLessThanOrEqual(32);
+	expect(doorClearance(loopedTrace)).toBeGreaterThanOrEqual(48);
+	expect(
+		Math.hypot(
+			loopedTrace[loopedTrace.length - 1].x - forgeDoor.x,
+			loopedTrace[loopedTrace.length - 1].y - forgeDoor.y
+		)
+	).toBeLessThanOrEqual(32);
+	expect(doorClearance(withinBandTrace)).toBeGreaterThanOrEqual(48);
+	const traceEvidence = { legRanges, minDoorClearance, lastDoorDistance, trace: overworldTrace };
+	await test.info().attach('overworld-journey-trace', {
+		body: JSON.stringify(traceEvidence),
+		contentType: 'application/json'
+	});
+});
+
+test('HPA-839 Oren reward equips the practice spear and shows it on the field HUD', async ({
+	page
+}) => {
+	test.setTimeout(testTimeout(120_000));
+	// Real-game checkpoint one step from Oren — the same seeded-continue
+	// pattern the quest-log and shop tests use. The amulet is already worn
+	// (maxHp 22, DEF 1) exactly as Mott's reward left it; the long proving
+	// walk to the forge is covered by the journey test above.
+	const save = createSaveFixture({
+		mapId: 'blacksmith-interior',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 448, y: 480, facing: 'up' },
+		inventory: {
+			stacks: [{ itemId: 'field-potion', quantity: 1 }],
+			equipment: ['ancestral-amulet']
+		},
+		equipment: {
+			weapon: null,
+			head: null,
+			body: null,
+			hands: null,
+			accessory: 'ancestral-amulet'
+		},
+		wallet: { coins: 0 },
+		quests: questStateAt('collect-practice-spear')
+	});
+	await seedSaveSlots(page, [{ state: save }]);
+	await installHudStateListener(page);
+	await page.addInitScript(() => {
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		);
+	});
+	await continueFromTitle(page);
+	const readHud = () => readHudState(page);
+	await page.waitForFunction(
+		() => (window as GlieseProbeWindow).__glieseLastHudState?.status === 'Oren nearby',
+		undefined,
+		{ timeout: 15_000 }
+	);
+	await pressInteractUntilDialog(page, 'Oren');
+	// Advance the real reward dialogue, recording each rendered line: the
+	// corrected copy must appear and no line may still ask Grik to equip it.
+	const seenLines = await advanceConversationToEnd(page);
+	expect(
+		seenLines.some((line) => /spear in a bag has never killed anything/i.test(line)),
+		'Oren corrected line rendered'
+	).toBe(true);
+	expect(
+		seenLines.some((line) =>
+			/come home with coin, come back\. i keep better steel for real hunters/i.test(line)
+		),
+		'Oren better-steel hook rendered'
+	).toBe(true);
+	expect(
+		seenLines.some((line) => /open your pack/i.test(line)),
+		'no line still asks the player to equip manually'
+	).toBe(false);
+	await expect.poll(async () => (await readHud())?.dialogue ?? null).toBeNull();
+	// The spear auto-equips when the reward dialogue closes; the rendered
+	// FieldHud status shows the equipped name.
+	await expect(fieldStatus(page)).toHaveText('Equipped Practice Spear');
+	await hpa839Shot(page, 'checkpoint-oren-spear-status.png');
+	const afterOren = await readHud();
+	expect(afterOren?.inventory?.equipped?.weapon).toBe('practice-spear');
+	expect(afterOren?.inventory?.equipped?.accessory).toBe('ancestral-amulet');
+	// First-wolves numbers, live without opening Gear: spear +1 ATK (3→4),
+	// amulet +1 DEF, +2 max HP applied without refilling HP.
+	expect(afterOren?.attack).toBe(4);
+	expect(afterOren?.defense).toBe(1);
+	expect(afterOren?.maxHp).toBe(22);
+	expect(afterOren?.hp).toBe(20);
+	const heroStats = await page
+		.getByTestId('hud-party-panel')
+		.locator('.hero-stats')
+		.first()
+		.evaluate((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim());
+	expect(heroStats).toContain('ATK 4');
+	expect(heroStats).toContain('DEF 1');
+	await expect(page.getByTestId('hud-party-panel').locator('.hero-meter-value').first()).toHaveText(
+		'20/22'
+	);
+});
+
+test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async ({ page }) => {
+	test.setTimeout(testTimeout(120_000));
+	// The wildwood mouth pack is the proving day's first wolf fight: seeded at
+	// report-to-borak with the spear and amulet already worn exactly as Oren's
+	// and Mott's auto-equip left them, three potions in the bag.
+	const pack = anchorPoint('wildwood-wolves-mouth');
+	const save = createSaveFixture({
+		mapId: 'overworld',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: pack.x, y: pack.y + 48, facing: 'up' },
+		inventory: {
+			stacks: [{ itemId: 'field-potion', quantity: 3 }],
+			equipment: ['ancestral-amulet', 'practice-spear']
+		},
+		equipment: {
+			weapon: 'practice-spear',
+			head: null,
+			body: null,
+			hands: null,
+			accessory: 'ancestral-amulet'
+		},
+		wallet: { coins: 0 },
+		quests: questStateAt('report-to-borak')
+	});
+	await seedSaveSlots(page, [{ state: save }]);
+	await installHudStateListener(page);
+	await page.addInitScript(() => {
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		);
+		// The HUD feed keeps only the last four entries; accumulate every
+		// battle event so a short fight still proves each hit/hurt amount.
+		// Two separate proofs, because the self-playing fight can resolve to
+		// its summary before any test-side poll observes the active phase:
+		//  1. `__glieseWolvesActive` records the first active-phase hud-state
+		//     publish carrying both mouth-pack units — the state/stats the
+		//     fight ran with. It says nothing about the DOM.
+		//  2. `__glieseWolvesHudPlates` records the named, exposed Battle
+		//     region and both visible, on-screen plates in one observation.
+		const probeWindow = window as GlieseProbeWindow;
+		probeWindow.__glieseBattleFeed = [];
+		probeWindow.__glieseWolvesActive = null;
+		probeWindow.__glieseWolvesHudPlates = undefined;
+		const wolfIds = ['wildwood-wolves-mouth:unit:0', 'wildwood-wolves-mouth:unit:1'];
+		const rendered = (el: Element | null): el is HTMLElement => {
+			if (
+				!(el instanceof HTMLElement) ||
+				!el.checkVisibility({ visibilityProperty: true, opacityProperty: true })
+			)
+				return false;
+			const box = el.getBoundingClientRect();
+			if (box.width <= 0 || box.height <= 0) return false;
+			let left = Math.max(box.left, 0);
+			let top = Math.max(box.top, 0);
+			let right = Math.min(box.right, window.innerWidth);
+			let bottom = Math.min(box.bottom, window.innerHeight);
+			for (let node: HTMLElement | null = el; node; node = node.parentElement) {
+				if (
+					node.hasAttribute('inert') ||
+					node.getAttribute('aria-hidden')?.trim().toLowerCase() === 'true'
+				)
+					return false;
+				const style = getComputedStyle(node);
+				if (Number(style.opacity) <= 0) return false;
+				if (node !== el) {
+					const clip = node.getBoundingClientRect();
+					if (['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowX)) {
+						left = Math.max(left, clip.left);
+						right = Math.min(right, clip.right);
+					}
+					if (['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowY)) {
+						top = Math.max(top, clip.top);
+						bottom = Math.min(bottom, clip.bottom);
+					}
+				}
+			}
+			return right > left && bottom > top;
+		};
+		const checkHud = () => {
+			// A mounted summary ends observation, even before its entrance transition.
+			if (document.querySelector('[data-testid="battle-summary"]')) return stop();
+			const hud = document.querySelector('[data-testid="battle-hud"]');
+			// BattleHud is a section named directly with aria-label; reject alternate
+			// roles or aria-labelledby, which can override that accessible name.
+			if (
+				rendered(hud) &&
+				hud.tagName === 'SECTION' &&
+				(!hud.hasAttribute('role') || hud.getAttribute('role') === 'region') &&
+				!hud.hasAttribute('aria-labelledby') &&
+				hud.getAttribute('aria-label')?.replace(/\s+/g, ' ').trim() === 'Battle'
+			) {
+				const plates = wolfIds
+					.map((unitId) =>
+						hud.querySelector(`[data-testid="battle-plate"][data-unit-id="${unitId}"]`)
+					)
+					.filter(rendered)
+					.map((plate) => plate.dataset.unitId ?? '');
+				if (plates.length === wolfIds.length) {
+					probeWindow.__glieseWolvesHudPlates = plates;
+					stop();
+				}
+			}
+		};
+		let finished = false;
+		let frame = 0;
+		const hudObserver = new MutationObserver(checkHud);
+		const stop = () => {
+			finished = true;
+			hudObserver.disconnect();
+			cancelAnimationFrame(frame);
+			clearTimeout(deadline);
+		};
+		const deadline = window.setTimeout(stop, 120_000);
+		const checkFrame = () => {
+			checkHud();
+			if (!finished) frame = requestAnimationFrame(checkFrame);
+		};
+		hudObserver.observe(document, {
+			childList: true,
+			subtree: true,
+			attributes: true,
+			characterData: true
+		});
+		checkFrame();
+		window.addEventListener('gliese:hud-state', (event) => {
+			const detail = (event as CustomEvent<HudStateSnapshot>).detail;
+			const feed = detail?.battle?.active?.feed ?? [];
+			for (const entry of feed) {
+				if (!probeWindow.__glieseBattleFeed?.some((seen) => seen.id === entry.id)) {
+					probeWindow.__glieseBattleFeed?.push(entry);
+				}
+			}
+			const active = detail?.battle?.phase === 'active' ? detail.battle.active : null;
+			const unitIds = new Set((active?.enemies ?? []).map((enemy) => enemy.unitId));
+			if (
+				probeWindow.__glieseWolvesActive == null &&
+				unitIds.has('wildwood-wolves-mouth:unit:0') &&
+				unitIds.has('wildwood-wolves-mouth:unit:1')
+			) {
+				probeWindow.__glieseWolvesActive = {
+					attack: detail?.attack,
+					defense: detail?.defense,
+					enemies: (active?.enemies ?? []).map((enemy) => ({
+						unitId: enemy.unitId,
+						hp: enemy.hp,
+						maxHp: enemy.maxHp
+					}))
+				};
+			}
+		});
+	});
+	await continueFromTitle(page, { readiness: 'field-or-battle' });
+	// Spawning inside the pack's aggro radius opens the real battle scene — and
+	// on a contended runner the self-playing fight can already stand at its
+	// summary, so either battle UI is a valid readiness signal here.
+	const battle = page.getByRole('region', { name: 'Battle' });
+	const summary = page.getByTestId('battle-summary');
+	await expect(battle.or(summary)).toBeVisible({ timeout: expectTimeout(15_000) });
+	// The page-side observer requires the named, exposed Battle region and
+	// both visible, on-screen wolf plates in the same check before summary.
+	await expect
+		.poll(async () =>
+			page.evaluate(() => ((window as GlieseProbeWindow).__glieseWolvesHudPlates ?? []).join(','))
+		)
+		.toBe('wildwood-wolves-mouth:unit:0,wildwood-wolves-mouth:unit:1');
+	// The summary recomputes its stats from the applied save, so it cannot
+	// prove what the fight showed. The recorded active state snapshot must
+	// carry the two mouth units — and the equipped spear+amulet stats live
+	// in combat (ATK 4, DEF 1), not just on the field hero card.
+	await expect
+		.poll(async () =>
+			page.evaluate(() => (window as GlieseProbeWindow).__glieseWolvesActive?.enemies.length ?? 0)
+		)
+		.toBe(2);
+	const activeFight = await page.evaluate(
+		() => (window as GlieseProbeWindow).__glieseWolvesActive ?? null
+	);
+	expect(activeFight?.enemies.map((enemy) => enemy.unitId).sort()).toEqual([
+		'wildwood-wolves-mouth:unit:0',
+		'wildwood-wolves-mouth:unit:1'
+	]);
+	expect(activeFight?.attack).toBe(4);
+	expect(activeFight?.defense).toBe(1);
+	// resolveHit has no variance — but feed amounts are HP lost, capped by the
+	// target's remaining HP. `.some(amount===4)` would pass a wrong 6-overkill
+	// followed by a finishing 4, so the proof is the FIRST hit on a 10-HP wolf
+	// and the FIRST bite on the 20-HP hero, when neither can be capped.
+	const seenFeed = async () =>
+		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseBattleFeed ?? [])) ?? [];
+	await expect
+		.poll(async () => (await seenFeed()).find((entry) => entry.kind === 'hit')?.amount ?? null, {
+			timeout: expectTimeout(20_000)
+		})
+		.toBe(4);
+	await expect
+		.poll(async () => (await seenFeed()).find((entry) => entry.kind === 'hurt')?.amount ?? null, {
+			timeout: expectTimeout(20_000)
+		})
+		.toBe(2);
+	await hpa839Shot(page, 'first-wolves-fight.png');
+});
+
+test('HPA-839 reporting the Boar King equips the hunter knife and persists it', async ({
+	page
+}) => {
+	test.setTimeout(testTimeout(240_000));
+	// Same real-game checkpoint the quest-log test uses: inside the guild hall,
+	// one step from Borak, with the Boar King trial already cleared so the
+	// report-boar-king branch awards the knife.
+	const save = createSaveFixture({
+		mapId: 'guild-hall',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 800, y: 184, facing: 'up' },
+		inventory: {
+			stacks: [{ itemId: 'field-potion', quantity: 3 }],
+			equipment: ['ancestral-amulet', 'practice-spear']
+		},
+		equipment: {
+			weapon: 'practice-spear',
+			head: null,
+			body: null,
+			hands: null,
+			accessory: 'ancestral-amulet'
+		},
+		wallet: { coins: 30 },
+		quests: questStateAt('report-boar-king')
+	});
+	await seedSaveSlots(page, [{ state: save }]);
+	await installHudStateListener(page);
+	await page.addInitScript(() => {
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		);
+	});
+	await continueFromTitle(page);
+	const readHud = () => readHudState(page);
+	await page.waitForFunction(
+		() => (window as GlieseProbeWindow).__glieseLastHudState?.status === 'Borak nearby',
+		undefined,
+		{ timeout: 15_000 }
+	);
+	await pressInteractUntilDialog(page, 'Borak');
+	// Advance the full naming ceremony; the knife handoff line must render.
+	const seenLines = await advanceConversationToEnd(page);
+	expect(
+		seenLines.some((line) => /first I ever carried/i.test(line)),
+		'Borak knife handoff line rendered'
+	).toBe(true);
+	await expect.poll(async () => (await readHud())?.dialogue ?? null).toBeNull();
+	// The +4 knife replaces the +1 spear automatically and the status pill
+	// shows the equipped name once the dialogue closes.
+	await expect(fieldStatus(page)).toHaveText("Equipped Hunter's Knife");
+	await hpa839Shot(page, 'borak-knife-status.png');
+	const awarded = await readHud();
+	expect(awarded?.inventory?.equipped?.weapon).toBe('hunters-knife');
+	expect(awarded?.inventory?.equipment?.map((item) => item.itemId)).toEqual(
+		expect.arrayContaining(['hunters-knife', 'practice-spear', 'ancestral-amulet'])
+	);
+	expect(awarded?.wallet?.coins).toBe(90); // 30 seeded + 60 report reward
+	expect(awarded?.attack).toBe(7); // 3 base + 4 knife
+
+	// Save through the real Save screen; the persisted slot keeps the knife
+	// worn and the spear merely owned.
+	await saveThroughSaveScreen(page, 1);
+	const savedEquipped = await readManualSlotState(page);
+	expect((savedEquipped.equipment as Record<string, string | null> | undefined)?.weapon).toBe(
+		'hunters-knife'
+	);
+	expect(savedEquipped.inventory.equipment).toEqual(
+		expect.arrayContaining(['hunters-knife', 'practice-spear'])
+	);
+
+	// Continue from that manual slot through the real load flow.
+	const loadManualSlot = async () => {
+		await page.goto('/');
+		await page.getByRole('button', { name: /Continue/i }).click();
+		const loadDialog = page.getByRole('dialog', { name: /load/i });
+		await expect(loadDialog).toBeVisible();
+		await loadDialog.getByTestId('save-slot-1').click();
+		await expect(page.locator('canvas')).toBeVisible();
+		await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
+		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible({
+			timeout: expectTimeout(15_000)
+		});
+	};
+	await loadManualSlot();
+	await expect
+		.poll(async () => (await readHud())?.inventory?.equipped?.weapon)
+		.toBe('hunters-knife');
+	let hud = await readHud();
+	expect(hud?.inventory?.equipment?.map((item) => item.itemId)).toEqual(
+		expect.arrayContaining(['hunters-knife', 'practice-spear'])
+	);
+
+	// Manually unworn gear must stay unworn: unequip the knife, save, load,
+	// and the weapon slot must still be empty — loading never re-equips it.
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Bag' }).click();
+	const bagDialog = page.getByRole('dialog', { name: 'Inventory' });
+	await expect(bagDialog).toBeVisible();
+	await bagDialog.getByRole('button', { name: "Remove Hunter's Knife" }).click();
+	await expect.poll(async () => (await readHud())?.inventory?.equipped?.weapon).toBeNull();
+	await bagDialog.getByRole('button', { name: 'Close' }).click();
+	await page.keyboard.press('Escape');
+	await saveThroughSaveScreen(page, 1);
+	const savedUnworn = await readManualSlotState(page);
+	expect((savedUnworn.equipment as Record<string, string | null> | undefined)?.weapon).toBeNull();
+	expect(savedUnworn.inventory.equipment).toEqual(
+		expect.arrayContaining(['hunters-knife', 'practice-spear'])
+	);
+	await loadManualSlot();
+	await expect.poll(async () => (await readHud())?.inventory?.equipped?.weapon).toBeNull();
+	hud = await readHud();
+	expect(hud?.inventory?.equipment?.map((item) => item.itemId)).toEqual(
+		expect.arrayContaining(['hunters-knife', 'practice-spear'])
+	);
+});
+
+test('HPA-839 portrait forge tooltip stays on screen at 390x844', async ({ page }) => {
+	test.setTimeout(testTimeout(120_000));
+	// Post-spear checkpoint at the forge counter: Oren's always-branch offers
+	// the Shop choice. All four stock pieces are finite and wrap to a
+	// 3-tile first row plus one at 390px — exactly the case whose tooltip
+	// anchored below the stacked screen's fold.
+	const save = createSaveFixture({
+		mapId: 'blacksmith-interior',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 448, y: 480, facing: 'up' },
+		wallet: { coins: 100 },
+		quests: questStateAt('collect-herb-pouch')
+	});
+	await seedSaveSlots(page, [{ state: save }]);
+	await installHudStateListener(page);
+	await page.addInitScript(() => {
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		);
+	});
+	await continueFromTitle(page);
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.waitForFunction(
+		() => (window as GlieseProbeWindow).__glieseLastHudState?.status === 'Oren nearby',
+		undefined,
+		{ timeout: 15_000 }
+	);
+	const dialogue = await pressInteractUntilDialog(page, 'Oren');
+	await dialogue.getByRole('button', { name: 'Shop', exact: true }).click();
+	const shop = page.getByRole('dialog', { name: 'Sundrop Forge' });
+	await expect(shop).toBeVisible();
+	const buyGrid = shop.getByTestId('shop-buy-grid');
+	await expect(buyGrid.getByRole('button')).toHaveCount(4);
+
+	const measureTooltip = () =>
+		page.evaluate(() => {
+			const rect = (selector: string) => {
+				const el = document.querySelector<HTMLElement>(selector);
+				if (!el) return null;
+				const r = el.getBoundingClientRect();
+				return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+			};
+			return {
+				tooltip: rect('.shop-tooltip'),
+				action: rect('.shop-detail-action'),
+				main: rect('.shop-main'),
+				screenScrollTop: document.querySelector<HTMLElement>('.shop-screen')?.scrollTop,
+				viewport: { width: window.innerWidth, height: window.innerHeight }
+			};
+		});
+	const expectTooltipInView = async () => {
+		const m = await measureTooltip();
+		expect(m.tooltip, 'tooltip rendered').not.toBeNull();
+		expect(m.main, 'stock column rendered').not.toBeNull();
+		// visibility:hidden keeps the layout box — assert the strip is painted
+		// before trusting the geometry.
+		await expect(shop.locator('.shop-tooltip')).toBeVisible();
+		const tooltip = m.tooltip!;
+		const main = m.main!;
+		// Regression: the strip pins inside the scrolling shop's viewport —
+		// never anchored at the bottom of a stock column that runs below it.
+		expect(tooltip.left).toBeGreaterThanOrEqual(main.left - 1);
+		expect(tooltip.right).toBeLessThanOrEqual(main.right + 1);
+		expect(tooltip.top).toBeGreaterThanOrEqual(0);
+		expect(tooltip.bottom).toBeLessThanOrEqual(m.viewport.height);
+		// Same measurement as the bounds: a hover that scrolled the shop would
+		// pass the checks above in the scrolled layout instead.
+		expect(m.screenScrollTop).toBe(0);
+		if (m.action) {
+			const overlaps = !(
+				tooltip.right <= m.action.left ||
+				tooltip.left >= m.action.right ||
+				tooltip.bottom <= m.action.top ||
+				tooltip.top >= m.action.bottom
+			);
+			expect(overlaps, 'tooltip must not cover the Buy action').toBe(false);
+		}
+	};
+
+	// The bug only shows at scrollTop 0: a real pointer hover on a tile's
+	// visible portion never scrolls, so the strip anchored at the stock
+	// column's bottom stays below the fold. (Clicking/focusing a tile would
+	// scroll it into view and mask the bug, so the detail action is armed
+	// with a synthetic click that leaves scroll position alone.)
+	const screenMetrics = await measureTooltip();
+	expect(screenMetrics.main!.bottom).toBeGreaterThan(screenMetrics.viewport.height);
+	expect(screenMetrics.screenScrollTop).toBe(0);
+	await buyGrid.getByLabel('Training Sword', { exact: true }).dispatchEvent('click');
+	await expect(shop.locator('.shop-detail-action')).toBeVisible();
+	const hover = async (name: string) => {
+		const tile = buyGrid.getByLabel(name, { exact: true });
+		const box = (await tile.boundingBox())!;
+		expect(box.y).toBeLessThan(844);
+		// Midpoint of the tile's visible slice — a real pointer rest there
+		// without scrolling.
+		await page.mouse.move(box.x + box.width / 2, (box.y + Math.min(box.y + box.height, 844)) / 2);
+	};
+	await hover('Iron Cap');
+	await expect(shop.locator('.shop-tooltip')).toContainText('Iron Cap');
+	await expectTooltipInView();
+	await hover('Grip Wraps');
+	await expect(shop.locator('.shop-tooltip')).toContainText('Grip Wraps');
+	await expectTooltipInView();
+});
+
+test('Blacksmith painted interior preserves baked composition and collision', async ({ page }) => {
+	test.setTimeout(testTimeout(600_000));
+	const blacksmith: InteriorGrayboxCase = {
+		mapId: 'blacksmith-interior',
+		...overworldDoor('blacksmith-interior'),
+		spawn: { x: 448, y: 576 },
+		exit: { x: 448, y: 688 },
+		steps: []
+	};
+	const layout = VILLAGE_INTERIOR_LAYOUTS['blacksmith-interior'];
+	const oren = blacksmithInteriorMap.npcs?.find(({ id }) => id === 'oren');
+	if (!oren) throw new Error('Oren fixture is missing');
+	expect(blacksmith.spawn).toEqual(layout.spawn);
+	expect(blacksmith.exit).toEqual(layout.exit);
+	expect(oren).toMatchObject({
+		id: 'oren',
+		x: 448,
+		y: 416,
+		shopId: 'sundrop-forge'
+	});
+
+	const forgePoint = { x: 240, y: 144 };
+	const storagePoint = { x: 336, y: 320 };
+	const armoryPoint = { x: 800, y: 304 };
+	const showroomPoint = { x: 800, y: 624 };
+	const orenApproachPoint = layout.npcApproaches.oren.approach;
+	expect(layoutRectContainsPoint(layout.rooms.forgeFloor, forgePoint)).toBe(true);
+	expect(layoutRectContainsPoint(layout.rooms.forgeFloor, storagePoint)).toBe(true);
+	expect(layoutRectContainsPoint(layout.rooms.armoryDisplay, armoryPoint)).toBe(true);
+	expect(layoutRectContainsPoint(layout.rooms.showroom, showroomPoint)).toBe(true);
+	expect(orenApproachPoint).toEqual({ x: 448, y: 480 });
+	expect(
+		expandedLayoutRectContainsPoint(
+			layout.propCollisions.coalStorage,
+			storagePoint,
+			PLAYER_COLLISION_RADIUS
+		)
+	).toBe(false);
+
+	await installRuntimeProbes(page);
+	await seedSaveSlots(page, [
+		{
+			state: createSaveFixture({
+				mapId: 'overworld',
+				player: {
+					level: 1,
+					xp: 0,
+					hp: 20,
+					attack: 3,
+					x: blacksmith.returnArrival.x,
+					y: blacksmith.returnArrival.y,
+					facing: 'up'
+				},
+				wallet: { coins: 100 }
+			})
+		}
+	]);
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await waitForHudPosition(page, 'overworld', blacksmith.returnArrival);
+
+	await enterInteriorWithTrustedKeyboard(page, blacksmith);
+	assertBlacksmithPaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, blacksmith.mapId));
+	await saveBlacksmithCanvas(page, 'painted-camera-640x360.png');
+
+	let currentPoint = blacksmith.spawn;
+	currentPoint = await moveRoute(page, [
+		currentPoint,
+		{ x: 448, y: 640 },
+		{ x: 800, y: 640 },
+		{ x: 800, y: 400 },
+		{ x: 520, y: 400 },
+		{ x: 480, y: 208 },
+		{ x: 368, y: 208 },
+		{ x: 368, y: 144 },
+		forgePoint
+	]);
+	await assertInteriorCheckpoint(page, blacksmith, forgePoint);
+
+	currentPoint = await moveRoute(page, [
+		currentPoint,
+		{ x: 240, y: 272 },
+		{ x: 336, y: 272 },
+		storagePoint
+	]);
+	await assertInteriorCheckpoint(page, blacksmith, storagePoint);
+
+	currentPoint = await moveRoute(page, [
+		currentPoint,
+		{ x: 384, y: 320 },
+		{ x: 384, y: 208 },
+		{ x: 592, y: 208 },
+		{ x: BLACKSMITH_ARMORY_TRANSIT_X, y: 304 },
+		armoryPoint
+	]);
+	await assertInteriorCheckpoint(page, blacksmith, armoryPoint);
+
+	currentPoint = await moveRoute(page, [
+		currentPoint,
+		{ x: 592, y: 208 },
+		{ x: 512, y: 208 },
+		{ x: 512, y: 416 },
+		{ x: 640, y: 416 },
+		{ x: 640, y: 624 },
+		showroomPoint
+	]);
+	await assertInteriorCheckpoint(page, blacksmith, showroomPoint);
+
+	currentPoint = await moveRoute(page, [
+		currentPoint,
+		{ x: 240, y: 624 },
+		{ x: 240, y: 480 },
+		orenApproachPoint
+	]);
+	await assertInteriorCheckpoint(page, blacksmith, orenApproachPoint);
+	await moveRoute(
+		page,
+		[currentPoint, { x: 240, y: 480 }, { x: 240, y: 400 }, blacksmithOrenInteractionStagingPoint],
+		INTERIOR_ROUTE_SETTLE_TOLERANCE,
+		undefined,
+		undefined,
+		TIGHT_HANDOFF_REACH_TOLERANCE
+	);
+	await approachNpcWithTrustedKeyboard(page, {
+		mapId: blacksmith.mapId,
+		speaker: 'Oren',
+		stagingPoint: blacksmithOrenInteractionStagingPoint,
+		npc: { x: oren.x, y: oren.y },
+		propCollision: layout.propCollisions.serviceCounter
+	});
+	await interactWithInteriorNpc(page, {
+		speaker: 'Oren',
+		shopName: 'Sundrop Forge'
+	});
+	currentPoint = await currentHudPlayerPoint(page, blacksmith.mapId);
+
+	currentPoint = await saveInteriorCheckpointAndReload(page, blacksmith.mapId, currentPoint);
+	assertBlacksmithPaintedDiagnostic(await waitForMapBackgroundDiagnostic(page, blacksmith.mapId));
+	await saveBlacksmithCanvas(page, 'painted-reentry-camera-640x360.png');
+
+	await moveRoute(page, [currentPoint, { x: 240, y: 416 }, { x: 240, y: 576 }, blacksmith.spawn]);
+	await assertInteriorCheckpoint(page, blacksmith, blacksmith.spawn);
+	await exitInteriorWithTrustedKeyboard(page, blacksmith);
+	const diagnosticCountBeforeReturn = await page.evaluate(
+		() =>
+			(window as GlieseProbeWindow).__glieseRegionalBackgroundDiagnostics?.filter(
+				({ mapId }) => mapId === 'blacksmith-interior'
+			).length ?? 0
+	);
+	await enterInteriorWithTrustedKeyboard(page, blacksmith);
+	assertBlacksmithPaintedDiagnostic(
+		await waitForMapBackgroundDiagnostic(page, blacksmith.mapId, diagnosticCountBeforeReturn)
+	);
+	await saveBlacksmithCanvas(page, 'painted-exit-return-camera-640x360.png');
+
+	const reentrySavePoint = await currentHudPlayerPoint(page, blacksmith.mapId);
+	await saveThroughSaveScreen(page, 1);
+	const reentryPersisted = await readManualSlotState(page);
+	expect(reentryPersisted.mapId).toBe(blacksmith.mapId);
+	expect(Math.abs(reentryPersisted.player?.x - reentrySavePoint.x)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+	expect(Math.abs(reentryPersisted.player?.y - reentrySavePoint.y)).toBeLessThanOrEqual(
+		AXIS_REACH_TOLERANCE
+	);
+
+	const missingBaseRoute = '**/game/assets/interiors/blacksmith-interior/base.png';
+	await page.route(missingBaseRoute, (route) => route.abort());
+	try {
+		await page.reload();
+		await expect(page.locator('canvas')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+		await waitForHudPosition(page, blacksmith.mapId, reentrySavePoint);
+		assertBlacksmithFallbackDiagnostic(
+			await waitForMapBackgroundDiagnostic(page, blacksmith.mapId)
+		);
+		await saveBlacksmithCanvas(page, 'fallback-base-missing-camera-640x360.png');
+		await exitInteriorWithTrustedKeyboard(page, blacksmith);
+	} finally {
+		await page.unroute(missingBaseRoute);
+	}
+});
+
+test('quest log shows main quest and completes proving morning at Borak', async ({ page }) => {
+	// The dialogue advance, quest-log round-trip, and Escape all run on real
+	// HUD publishes; under two-worker CPU contention the whole sequence can
+	// pass the default 30s before the final assertion.
+	test.setTimeout(testTimeout(60_000));
+	const save = createSaveFixture({
+		mapId: 'guild-hall',
+		player: { level: 1, xp: 0, hp: 20, attack: 3, x: 800, y: 184, facing: 'up' },
+		quests: questStateAt('report-to-borak')
+	});
+
+	await page.addInitScript(
+		(payload: SaveInitPayload) => {
+			const probeWindow = window as GlieseProbeWindow;
+			probeWindow.__glieseLastHudState = undefined;
+			window.addEventListener('gliese:hud-state', (event) => {
+				probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
+			});
+			window.localStorage.setItem(
+				payload.key,
+				JSON.stringify({
+					version: 1,
+					slots: [
+						{
+							kind: 'autosave',
+							savedAt: new Date().toISOString(),
+							playtimeSeconds: 0,
+							state: JSON.parse(payload.encoded)
+						},
+						null,
+						null
+					]
+				})
+			);
+		},
+		{ encoded: JSON.stringify(save), key: SAVES_STORAGE_KEY }
+	);
+	// Instant reveal keeps the confirm count deterministic (Heroic reveal
+	// grammar: confirm completes the line, the next confirm advances).
+	await page.addInitScript(() =>
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		)
+	);
+	await continueFromTitle(page);
+	await expect(page.getByText("Report to Borak at the Hunters' Lodge.")).toBeVisible();
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+		return state?.status?.includes('Borak');
+	});
+
+	await page.locator('canvas').click();
+	await page.keyboard.press('e', { delay: 50 });
+	const borakDialog = page.getByRole('dialog', { name: 'Borak' });
+	await expect(borakDialog).toBeVisible({ timeout: expectTimeout(10_000) });
+	// Scope to the visible line: the sr-only status twin repeats the dialogue text.
+	await expect(borakDialog.locator('.jrpg-dialogue-line')).toContainText(/Grik\. You came/i);
+	await borakDialog.getByRole('button', { name: 'Next' }).click();
+	await expect(borakDialog.locator('.jrpg-dialogue-line')).toContainText(/Three Trials/i);
+	const anyDialog = page.getByRole('dialog');
+	for (let advance = 0; advance < 40; advance += 1) {
+		const hud = await page.evaluate(
+			() => (window as GlieseProbeWindow).__glieseLastHudState ?? null
+		);
+		if (!hud?.dialogue) break;
+		const prevDialogue = JSON.stringify(hud.dialogue);
+		const next = anyDialog.getByRole('button', { name: 'Next' });
+		if ((await next.count()) > 0) {
+			await next.click();
+		} else {
+			await page.keyboard.press('Enter');
+		}
+		// Wait for the advance to publish a new hud-state (dialogue payload
+		// changes each line) rather than a fixed sleep.
+		await page
+			.waitForFunction(
+				(prev) => {
+					const state = (window as GlieseProbeWindow).__glieseLastHudState;
+					return !state?.dialogue || JSON.stringify(state.dialogue) !== prev;
+				},
+				prevDialogue,
+				{ timeout: 5_000 }
+			)
+			.catch(() => {});
+	}
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+		return !state?.dialogue;
+	});
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+		return state?.quests?.main?.objectiveId === 'meet-lirra-forest';
+	});
+
+	// HPA-841 removed the "Dialogue closed" toast: closing the dialogue
+	// publishes an explicit null, so the transient status is empty here.
+	await expect(fieldStatus(page)).toHaveText('');
+
+	await page.getByRole('button', { name: 'Menu' }).click();
+	await commandBox(page).getByRole('button', { name: 'Quest', exact: true }).click();
+
+	const questDialog = page.getByRole('dialog', { name: 'Quest Log' });
+	await expect(questDialog).toBeVisible();
+	await expect(questDialog.getByTestId('quest-entry-main')).toContainText('First Trial: Tracks');
+	await expect(questDialog.getByText('Meet Lirra at the edge of the Wildwood.')).toBeVisible();
+	await expect(questDialog.getByTestId('quest-entry-completed')).toContainText(
+		'The Proving Morning'
+	);
+	// Live progress renders in the detail panel only while the quest is selected.
+	const detailPanel = questDialog.getByTestId('quest-detail');
+	await expect(detailPanel).toContainText('Met Lirra: 0 / 1');
+	await questDialog.getByTestId('quest-entry-completed').click();
+	await expect(detailPanel).toContainText('Reported to Borak: 1 / 1');
+	await questDialog.getByRole('button', { name: 'Close' }).click();
+	await page.keyboard.press('Escape');
+	// The status pill only renders while the command grid is closed (Task 4);
+	// resume-game restores the nearby-NPC prompt once the grid closes.
+	await expect(fieldStatus(page)).toHaveText('Borak nearby');
+});
+
+// HPA-841 acceptance: one seeded near-end run through the whole ending on a
+// normal saved game (no ?startMap=, which would disable autosave). The save
+// sits at the real ridge anchor with `climb-to-the-ridge` current; the run
+// inspects the ridge sign, plays the final scenes to the completion card,
+// dismisses to Title, and Continue restores the ridge without a replay.
+test('a seeded near-end saved run finishes the prologue and Continue restores the ridge without replay', async ({
+	page
+}) => {
+	test.setTimeout(testTimeout(120_000));
+	const ridge = anchorPoint('wildwood-ridge-overlook');
+	const save = createSaveFixture({
+		player: { level: 1, xp: 0, hp: 200, attack: 50, x: ridge.x, y: ridge.y, facing: 'up' },
+		quests: questStateAt('climb-to-the-ridge'),
+		seenDiscoveries: []
+	});
+	await seedSaveSlots(page, [{ state: save }]);
+	await page.addInitScript(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		probeWindow.__glieseLastHudState = undefined;
+		window.addEventListener('gliese:hud-state', (event) => {
+			probeWindow.__glieseLastHudState = (event as CustomEvent<HudStateSnapshot>).detail;
+		});
+	});
+	// Instant reveal keeps the advance count deterministic (Heroic reveal
+	// grammar: confirm completes the line, the next confirm advances).
+	await page.addInitScript(() =>
+		window.localStorage.setItem(
+			'gliese.preferences.v1',
+			JSON.stringify({ locale: 'en', textSpeed: 'instant', motion: 'on', promptMode: 'auto' })
+		)
+	);
+	await continueFromTitle(page);
+
+	// The saved run booted onto the actual ridge coordinates.
+	await page.waitForFunction(
+		(target) => {
+			const state = (window as GlieseProbeWindow).__glieseLastHudState;
+			return (
+				state?.mapId === 'overworld' &&
+				Math.abs((state?.areaMap?.player?.x ?? NaN) - target.x) < 1 &&
+				Math.abs((state?.areaMap?.player?.y ?? NaN) - target.y) < 1
+			);
+		},
+		ridge,
+		{ timeout: 30_000 }
+	);
+
+	// Inspect the ridge sign: the final story scene, then the vow and the
+	// chapter-one cue, then the terminal autosave and the completion card.
+	await page.keyboard.press('e', { delay: 50 });
+	const anyDialog = page.getByRole('dialog');
+	const endCard = page.getByRole('dialog', { name: 'End of the Prologue' });
+	// Drive every line to the completion card, synchronized on the HUD
+	// dialogue state instead of fixed sleeps: each pass performs at most one
+	// advance, and only once the previous one has landed (the line id/index
+	// moved, the session closed, or the card appeared).
+	let lastDialogueKey: string | null = null;
+	await expect(async () => {
+		if ((await endCard.count()) > 0) return;
+		const key = await page.evaluate(() => {
+			const state = (window as GlieseProbeWindow).__glieseLastHudState;
+			return state?.dialogue ? `${state.dialogue.id}:${state.dialogue.lineIndex}` : null;
+		});
+		if (key === null) throw new Error('final dialogue not open yet');
+		if (key === lastDialogueKey) throw new Error('previous advance has not landed yet');
+		lastDialogueKey = key;
+		const next = anyDialog.getByRole('button', { name: 'Next' });
+		if ((await next.count()) > 0) {
+			await next.click();
+		} else {
+			await page.keyboard.press('Enter');
+		}
+		// One advance per pass: keep retrying until the early return above
+		// sees the completion card.
+		throw new Error('advanced a line; driving until the completion card');
+	}).toPass({ timeout: 60_000 });
+	await expect(endCard).toBeVisible({ timeout: 30_000 });
+
+	// No gameplay behind the card: the field HUD (and its Menu chip) is gone.
+	await expect(page.getByRole('button', { name: 'Menu' })).toHaveCount(0);
+
+	// The terminal autosave persisted the finished state before the card:
+	// seven completed quests and no pending marker (Continue validates this).
+	const envelope = await readSlotEnvelope(page);
+	const terminalState = envelope?.slots[0]?.state as
+		| { quests?: { entries?: Record<string, { status?: string }>; pendingEffects?: unknown[] } }
+		| undefined;
+	expect(terminalState?.quests?.pendingEffects).toEqual([]);
+	const entries = Object.values(terminalState?.quests?.entries ?? {});
+	expect(entries).toHaveLength(7);
+	expect(entries.every((entry) => entry?.status === 'completed')).toBe(true);
+
+	// Dismiss once: Title returns with a refreshed Continue subtitle over the
+	// finished save's region (the ridge sits in the Wildwood).
+	await endCard.click();
+	await expect(page.getByRole('heading', { name: 'GLIESE' })).toBeVisible();
+	await expect(endCard).toHaveCount(0);
+	await expect(page.getByRole('button', { name: /continue/i })).toContainText('Wildwood');
+
+	// Continue loads the finished run on the same page — no reload, so stale
+	// teardown state would still be there to fail — restoring the ridge
+	// coordinates without replaying the card.
+	await continueFromTitlePicker(page);
+	await page.waitForFunction(
+		(target) => {
+			const state = (window as GlieseProbeWindow).__glieseLastHudState;
+			return (
+				state?.mapId === 'overworld' &&
+				Math.abs((state?.areaMap?.player?.x ?? NaN) - target.x) < 1 &&
+				Math.abs((state?.areaMap?.player?.y ?? NaN) - target.y) < 1
+			);
+		},
+		ridge,
+		{ timeout: 30_000 }
+	);
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await expect(page.getByTestId('hud-side-panel').getByText('Prologue complete')).toBeVisible();
+	await page.waitForFunction(() => {
+		const state = (window as GlieseProbeWindow).__glieseLastHudState;
+		return state?.quests?.main === null && state?.quests?.completed?.length === 7;
+	});
+	// Wait a fixed window after the resumed HUD settles before asserting the
+	// completion card stayed absent (toHaveCount(0) would otherwise pass on
+	// the first poll before a replayed card appears).
+	await page.waitForTimeout(500);
+	await expect(endCard).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+});
+
+// ======================= HPA-840 Task 4: live resize integration gates =======
+// One checked-in gate per named scenario: real `?startMap=` interior boots (opening scene
+// dismissed), live setViewportSize resizes, camera bounds axes, movement, and
+// viewport screenshots for the evidence pack. The capture factory is the
+// shared `evidenceShots` helper declared near the top of this file.
+
+if (process.env.HPA840_SHARED_CDP) {
+	test.beforeEach(async ({ page }) => {
+		const endpoint = process.env.HPA840_SHARED_CDP!;
+		const url = new URL(endpoint);
+		if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.username || url.password) {
+			throw new Error('HPA840_SHARED_CDP must be a localhost HTTP endpoint');
+		}
+		const pageSession = await page.context().newCDPSession(page);
+		const { targetInfo } = await pageSession.send('Target.getTargetInfo');
+		await pageSession.detach();
+		const shared = await chromium.connectOverCDP(endpoint);
+		try {
+			const browserSession = await shared.newBrowserCDPSession();
+			const { targetInfos } = await browserSession.send('Target.getTargets');
+			await browserSession.detach();
+			if (!targetInfos.some((target) => target.targetId === targetInfo.targetId)) {
+				throw new Error(`Playwright target ${targetInfo.targetId} is not in HPA840_SHARED_CDP`);
+			}
+		} finally {
+			await shared.close();
+		}
+	});
+}
+
+/**
+ * HPA-840 evidence capture: isolated per-test output by default so a plain
+ * `bun run test:e2e` can never overwrite — or leave `-retryN` litter in —
+ * the committed docs pack. `HPA840_EVIDENCE_DOCS=1` opts back into the
+ * committed dir for a deliberate refresh; `HPA840_EVIDENCE_ROOT` captures
+ * into a custom (still 'wx'-guarded) root.
+ */
+function hpa840Capture(info: TestInfo) {
+	if (process.env.HPA840_EVIDENCE_ROOT) {
+		return hpa840Evidence(process.env.HPA840_EVIDENCE_ROOT);
+	}
+	if (process.env.HPA840_EVIDENCE_DOCS === '1') {
+		return hpa840Evidence();
+	}
+	return hpa840Evidence(info.outputPath('hpa-840-evidence'));
+}
+
+async function hpa840Shot(page: Page, name: string) {
+	// A retried attempt re-takes the same screenshots; stamp the retry index so
+	// the no-overwrite guard still flags stale evidence instead of the retry.
+	const retry = test.info().retry;
+	const stamped = retry > 0 ? name.replace(/\.png$/, `-retry${retry}.png`) : name;
+	await hpa840Capture(test.info()).shot(page, stamped);
+}
+
+/**
+ * Fraction of the element's rect still visible after intersecting every
+ * ancestor clip context (overflow auto/scroll/hidden/clip) and the viewport —
+ * a boundingClientRect alone misses ancestor clipping.
+ */
+async function visibleFraction(target: Locator): Promise<number> {
+	return target.evaluate((el) => {
+		const rect = el.getBoundingClientRect();
+		const area = rect.width * rect.height;
+		if (area <= 0) return 0;
+		let x1 = rect.left;
+		let y1 = rect.top;
+		let x2 = rect.right;
+		let y2 = rect.bottom;
+		for (let anc = el.parentElement; anc; anc = anc.parentElement) {
+			const s = getComputedStyle(anc);
+			if (!/(auto|scroll|hidden|clip)/.test(`${s.overflowX} ${s.overflowY}`)) continue;
+			const cr = anc.getBoundingClientRect();
+			const cl = cr.left + anc.clientLeft;
+			const ct = cr.top + anc.clientTop;
+			x1 = Math.max(x1, cl);
+			y1 = Math.max(y1, ct);
+			x2 = Math.min(x2, cl + anc.clientWidth);
+			y2 = Math.min(y2, ct + anc.clientHeight);
+		}
+		x1 = Math.max(x1, 0);
+		y1 = Math.max(y1, 0);
+		x2 = Math.min(x2, window.innerWidth);
+		y2 = Math.min(y2, window.innerHeight);
+		return (Math.max(0, x2 - x1) * Math.max(0, y2 - y1)) / area;
+	});
+}
+
+/** Asserts an element is rendered essentially unclipped inside the viewport. */
+async function expectUnclipped(target: Locator) {
+	await expect(target).toBeVisible();
+	expect(await visibleFraction(target)).toBeGreaterThan(0.95);
+}
+
+/**
+ * Clip-aware check for controls taller than their scroll context (a row can
+ * never reach 95% visible area at a tiny viewport): the element's centre must
+ * sit inside every ancestor clip + the viewport, and a real hit test at that
+ * point must resolve to the element (or a descendant of it).
+ */
+async function expectCenterVisible(target: Locator) {
+	await expect(target).toBeVisible();
+	const hit = await target.evaluate((el) => {
+		const rect = el.getBoundingClientRect();
+		const cx = rect.left + rect.width / 2;
+		const cy = rect.top + rect.height / 2;
+		for (let anc = el.parentElement; anc; anc = anc.parentElement) {
+			const s = getComputedStyle(anc);
+			if (!/(auto|scroll|hidden|clip)/.test(`${s.overflowX} ${s.overflowY}`)) continue;
+			const cr = anc.getBoundingClientRect();
+			if (cx < cr.left || cx > cr.left + anc.clientWidth) return false;
+			if (cy < cr.top || cy > cr.top + anc.clientHeight) return false;
+		}
+		if (cx < 0 || cy < 0 || cx > window.innerWidth || cy > window.innerHeight) return false;
+		const top = document.elementFromPoint(cx, cy);
+		return top === el || el.contains(top);
+	});
+	expect(hit).toBe(true);
+}
+
+/**
+ * Waits until the overlay's entrance animation actually settles: any running
+ * CSS animation/transition inside the element finishes, then its rect must be
+ * identical across two consecutive frames (both bounded — never a fixed
+ * sleep). A plain two-frame check can exit before the animation's first tick.
+ */
+async function settleMotion(target: Locator) {
+	await target.evaluate(async (el) => {
+		const animations = el.getAnimations({ subtree: true });
+		await Promise.race([
+			Promise.all(animations.map((a) => a.finished.catch(() => {}))),
+			new Promise((r) => setTimeout(r, 2_000))
+		]);
+		let last = '';
+		const deadline = performance.now() + 1_000;
+		for (;;) {
+			const r = el.getBoundingClientRect();
+			const now = `${r.x},${r.y},${r.width},${r.height}`;
+			if (now === last || performance.now() > deadline) return;
+			last = now;
+			await new Promise((res) => requestAnimationFrame(res));
+		}
+	});
+}
+
+/** Focus must land inside the dialog once it opens (bounded poll). */
+async function expectFocusInside(dialog: Locator) {
+	await expect
+		.poll(() => dialog.evaluate((el) => el.contains(document.activeElement)), {
+			timeout: expectTimeout(5_000)
+		})
+		.toBe(true);
+}
+
+/**
+ * Focus containment: pressing Tab once per stop plus one wrap press never
+ * escapes the dialog into the field HUD behind it.
+ */
+async function expectTabContained(page: Page, dialog: Locator) {
+	const stops = await dialog
+		.locator('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+		.count();
+	for (let press = 0; press < stops + 1; press += 1) {
+		await page.keyboard.press('Tab');
+		const inside = await dialog.evaluate((el) => el.contains(document.activeElement));
+		expect(inside).toBe(true);
+	}
+}
+
+/**
+ * Tags and returns the dialog's largest vertically scrollable panel, or null
+ * when nothing inside overflows (small content never grows a scroller — the
+ * caller then asserts the document didn't scroll instead).
+ */
+async function findInnerScroller(dialog: Locator): Promise<Locator | null> {
+	const found = await dialog.evaluate((root) => {
+		for (const e of root.querySelectorAll('[data-e2e-scroller]')) {
+			e.removeAttribute('data-e2e-scroller');
+		}
+		let best: HTMLElement | null = null;
+		let bestArea = 0;
+		for (const el of root.querySelectorAll<HTMLElement>('*')) {
+			const s = getComputedStyle(el);
+			if (s.overflowY !== 'auto' && s.overflowY !== 'scroll') continue;
+			if (el.scrollHeight <= el.clientHeight + 4 || el.clientHeight < 40) continue;
+			const area = el.clientWidth * el.clientHeight;
+			if (area > bestArea) {
+				best = el;
+				bestArea = area;
+			}
+		}
+		if (!best) return false;
+		best.setAttribute('data-e2e-scroller', '1');
+		return true;
+	});
+	return found ? dialog.locator('[data-e2e-scroller="1"]') : null;
+}
+
+/**
+ * Scrolls an inner panel toward its end via the last scrollable descendant —
+ * an interactive control when one exists, otherwise the last element child —
+ * and returns the panel's scrollTop before/after.
+ */
+async function scrollInnerPanelToEnd(scroller: Locator) {
+	const before = await scroller.evaluate((e) => e.scrollTop);
+	let tail = scroller.locator('button, [tabindex], a[href]').last();
+	if ((await tail.count()) === 0) {
+		tail = scroller.locator('*').last();
+	}
+	await tail.scrollIntoViewIfNeeded({ timeout: 5_000 });
+	return { before, after: await scroller.evaluate((e) => e.scrollTop) };
+}
+
+async function documentScrollTop(page: Page) {
+	return page.evaluate(() => document.documentElement.scrollTop + document.body.scrollTop);
+}
+
+type CameraSnapshot = {
+	view: { x: number; y: number; width: number; height: number } | null;
+	bounds: { x: number; y: number; width: number; height: number } | null;
+};
+
+// The scene emits one camera diagnostic after the first post-startFollow
+// render and one more after each real resize — nothing in between. The
+// returned snapshot is that last emitted geometry, so view.x/y go stale as
+// soon as the camera follows a moving player: only read it right after
+// waitForCameraSnapshot, and keep bounds assertions to center/clamp math
+// that movement cannot change.
+async function waitForCameraSnapshot(page: Page, width: number, height: number) {
+	await page.waitForFunction(
+		({ w, h }) => {
+			const diagnostic = (window as GlieseProbeWindow).__glieseLastSceneCameraDiagnostic;
+			return diagnostic?.camera.view.width === w && diagnostic?.camera.view.height === h;
+		},
+		{ w: width, h: height },
+		{ timeout: 30_000 }
+	);
+}
+
+async function cameraSnapshot(page: Page): Promise<CameraSnapshot> {
+	return page.evaluate(() => {
+		const diagnostic = (window as GlieseProbeWindow).__glieseLastSceneCameraDiagnostic;
+		const camera = diagnostic?.camera;
+		return {
+			view: camera ? { ...camera.view } : null,
+			bounds: camera ? { ...camera.bounds } : null
+		};
+	});
+}
+
+// The WorldScene resize contract per axis: when the map is smaller than the
+// viewport the camera bounds center it (equal negative padding, bounds sized
+// to the viewport so the whole window shows the room plus margin); when it is
+// larger the axis clamps to the map rect and the view stays inside it.
+function expectCameraAxes(
+	mapId: string,
+	mapW: number,
+	mapH: number,
+	vw: number,
+	vh: number,
+	cam: CameraSnapshot
+) {
+	expect(cam.bounds, `${mapId} camera bounds`).not.toBeNull();
+	expect(cam.view, `${mapId} world view`).not.toBeNull();
+	const bounds = cam.bounds!;
+	const view = cam.view!;
+	expect({ width: view.width, height: view.height }, `${mapId} view size at ${vw}×${vh}`).toEqual({
+		width: vw,
+		height: vh
+	});
+	for (const axis of ['x', 'y'] as const) {
+		const mapDim = axis === 'x' ? mapW : mapH;
+		const viewDim = axis === 'x' ? vw : vh;
+		const boundsStart = axis === 'x' ? bounds.x : bounds.y;
+		const boundsSize = axis === 'x' ? bounds.width : bounds.height;
+		const viewStart = axis === 'x' ? view.x : view.y;
+		const label = `${mapId} ${axis} at ${vw}×${vh}`;
+		if (mapDim <= viewDim) {
+			expect(boundsStart, `${label}: centered bounds start`).toBeCloseTo((mapDim - viewDim) / 2, 0);
+			expect(boundsSize, `${label}: centered bounds size`).toBe(viewDim);
+			// Zero scroll slack: the view is pinned to the bounds origin.
+			expect(viewStart, `${label}: pinned view start`).toBeCloseTo(boundsStart, 0);
+		} else {
+			expect(boundsStart, `${label}: clamped bounds start`).toBe(0);
+			expect(boundsSize, `${label}: clamped bounds size`).toBe(mapDim);
+			expect(viewStart, `${label}: view start inside map`).toBeGreaterThanOrEqual(-1);
+			expect(viewStart + viewDim, `${label}: view end inside map`).toBeLessThanOrEqual(mapDim + 1);
+		}
+	}
+}
+
+async function playerHudPoint(page: Page): Promise<{ x: number; y: number }> {
+	const point = await page.evaluate(() => {
+		const probeWindow = window as GlieseProbeWindow;
+		const player =
+			probeWindow.__glieseLastMovementDiagnostic?.resolvedPosition ??
+			probeWindow.__glieseLastHudState?.areaMap?.player;
+		return typeof player?.x === 'number' && typeof player?.y === 'number'
+			? { x: player.x, y: player.y }
+			: null;
+	});
+	if (!point) throw new Error('HUD player position unavailable');
+	return point;
+}
+
+// Real-keyboard proof the scene keeps resolving movement at the new size:
+// try each cardinal direction until the resolved player position displaces.
+async function expectPlayerMoves(page: Page, mapId: string) {
+	const start = await playerHudPoint(page);
+	for (const key of ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'] as const) {
+		await page.keyboard.down(key);
+		let moved = false;
+		try {
+			await page.waitForFunction(
+				(origin) => {
+					const probeWindow = window as GlieseProbeWindow;
+					const player =
+						probeWindow.__glieseLastMovementDiagnostic?.resolvedPosition ??
+						probeWindow.__glieseLastHudState?.areaMap?.player;
+					return (
+						typeof player?.x === 'number' &&
+						typeof player?.y === 'number' &&
+						Math.hypot(player.x - origin.x, player.y - origin.y) >= 12
+					);
+				},
+				start,
+				{ timeout: 2_500 }
+			);
+			moved = true;
+		} catch {
+			// This direction is blocked or unreachable — try the next one.
+		}
+		await page.keyboard.up(key);
+		if (moved) return;
+	}
+	throw new Error(`${mapId}: player could not move in any direction from ${JSON.stringify(start)}`);
+}
+
+// `?startMap=` boots a fresh profile, and the proving-morning quest starts the
+// prologue.opening scene over the interior — Enter advances each line until the
+// dialog is gone, freeing both the Menu anchor and player movement.
+async function dismissOpeningScene(page: Page) {
+	const dialog = page.getByRole('dialog');
+	// The scene mounts only after the story catalog fetch; give it a bounded
+	// window before concluding there is nothing to dismiss.
+	try {
+		await dialog.first().waitFor({ state: 'visible', timeout: 30_000 });
+	} catch {
+		return;
+	}
+	for (let advance = 0; advance < 40 && (await dialog.count()) > 0; advance += 1) {
+		const lastHudAt = await page.evaluate(
+			() => (window as GlieseProbeWindow).__glieseLastHudAt ?? 0
+		);
+		await page.keyboard.press('Enter');
+		// Wait for the next hud-state publish (each advance emits one) or the
+		// dialog closing, instead of a fixed sleep.
+		await page
+			.waitForFunction(
+				(at) =>
+					((window as GlieseProbeWindow).__glieseLastHudAt ?? 0) > at ||
+					document.querySelectorAll('dialog').length === 0,
+				lastHudAt,
+				{ timeout: 5_000 }
+			)
+			.catch(() => {});
+	}
+	await expect(dialog).toHaveCount(0);
+}
+
+for (const interior of [
+	{ mapId: 'hero-house', mapW: 704, mapH: 576, spawn: { x: 352, y: 480 } },
+	{ mapId: 'guild-hall', mapW: 1024, mapH: 832, spawn: { x: 512, y: 736 } },
+	{ mapId: 'blacksmith-interior', mapW: 896, mapH: 704, spawn: { x: 448, y: 576 } }
+] as const) {
+	test(`HPA-840 ${interior.mapId} recenters the camera across live resizes and keeps movement working`, async ({
+		page
+	}) => {
+		test.setTimeout(testTimeout(120_000));
+		await installRuntimeProbes(page);
+		await page.setViewportSize({ width: 1280, height: 720 });
+		await page.goto(`/?movementDiagnostics=on&startMap=${interior.mapId}`);
+		await expect(page.locator('canvas')).toBeVisible();
+		await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
+		await dismissOpeningScene(page);
+		await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+		await waitForHudPosition(page, interior.mapId, interior.spawn);
+
+		await waitForCameraSnapshot(page, 1280, 720);
+		expectCameraAxes(
+			interior.mapId,
+			interior.mapW,
+			interior.mapH,
+			1280,
+			720,
+			await cameraSnapshot(page)
+		);
+		await hpa840Shot(page, `${interior.mapId}-before-1280x720.png`);
+
+		await page.setViewportSize({ width: 1920, height: 1080 });
+		await waitForCameraSnapshot(page, 1920, 1080);
+		expectCameraAxes(
+			interior.mapId,
+			interior.mapW,
+			interior.mapH,
+			1920,
+			1080,
+			await cameraSnapshot(page)
+		);
+		await expectPlayerMoves(page, interior.mapId);
+		await hpa840Shot(page, `${interior.mapId}-resized-1920x1080.png`);
+
+		await page.setViewportSize({ width: 640, height: 360 });
+		await waitForCameraSnapshot(page, 640, 360);
+		expectCameraAxes(
+			interior.mapId,
+			interior.mapW,
+			interior.mapH,
+			640,
+			360,
+			await cameraSnapshot(page)
+		);
+		await expectPlayerMoves(page, interior.mapId);
+		await hpa840Shot(page, `${interior.mapId}-resized-640x360.png`);
+
+		// Indoor Area Map leg (architecture review): the persisted sweep's
+		// only map evidence was the outdoor Wilds. Open the real interior map
+		// at 640×360 — chrome, marker focus, containment and no document
+		// scroll all checked in this same persisted execution.
+		await page.keyboard.press('m');
+		const indoorMap = page.getByRole('dialog', { name: /map$/i });
+		await expect(indoorMap).toBeVisible();
+		await settleMotion(indoorMap);
+		await expectFocusInside(indoorMap);
+		// Chrome is pinned outside the scrollable body.
+		await expectUnclipped(indoorMap.getByRole('heading').first());
+		const indoorClose = indoorMap.getByRole('button', { name: /close/i }).first();
+		await expectUnclipped(indoorClose);
+		// The map body is intentionally the scrollport: at 640×360 the SVG is
+		// allowed to be taller than it, so assert bounded scrolling instead of
+		// an unclipped SVG height. Horizontally nothing may overflow.
+		const indoorBody = indoorMap.locator('.jrpg-area-map-body');
+		await expectUnclipped(indoorBody);
+		const indoorBodyBox = await indoorBody.evaluate((el) => ({
+			clientWidth: el.clientWidth,
+			scrollWidth: el.scrollWidth,
+			clientHeight: el.clientHeight,
+			scrollHeight: el.scrollHeight
+		}));
+		expect(indoorBodyBox.scrollWidth).toBeLessThanOrEqual(indoorBodyBox.clientWidth + 1);
+		expect(indoorBodyBox.scrollHeight).toBeGreaterThan(indoorBodyBox.clientHeight);
+		const indoorBodyScrolled = await indoorBody.evaluate((el) => {
+			el.scrollTop = el.scrollHeight;
+			const top = el.scrollTop;
+			el.scrollTop = 0;
+			return top;
+		});
+		expect(indoorBodyScrolled).toBeGreaterThan(0);
+		// Each interior's exit transition marker sits within the spawn reveal
+		// radius, so a real marker joins the Tab/focus lattice, scrolls fully
+		// into the scrollport on focus, and publishes its live label.
+		const indoorMarkers = indoorMap.getByTestId('area-map-marker');
+		await expect(indoorMarkers.first()).toBeVisible();
+		await indoorMarkers.first().focus();
+		await expect(indoorMarkers.first()).toBeFocused();
+		await indoorMarkers.first().scrollIntoViewIfNeeded({ timeout: 5_000 });
+		await expectCenterVisible(indoorMarkers.first());
+		await expectUnclipped(indoorMarkers.first());
+		await expect(indoorMap.getByTestId('area-map-selected')).toContainText(/\S/);
+		// The focused marker's rendered label must sit inside the SVG frame
+		// horizontally — the regression was long titles clipped at the edge.
+		const indoorLabelInside = await indoorMarkers.first().evaluate((g) => {
+			const text = g.querySelector('text');
+			const svg = g.closest('svg');
+			if (!text || !svg) return false;
+			const frame = svg.getBoundingClientRect();
+			const box = text.getBoundingClientRect();
+			return box.left >= frame.left - 1 && box.right <= frame.right + 1;
+		});
+		expect(indoorLabelInside).toBe(true);
+		await hpa840Shot(page, `${interior.mapId}-area-map-640x360.png`);
+		expect(await documentScrollTop(page)).toBe(0);
+		await page.keyboard.press('m');
+		await expect(indoorMap).toBeHidden();
+	});
+}
+
+test('HPA-840 compact field HUD at 640×360 hides the minimap, keeps M, and stays disjoint', async ({
+	page
+}) => {
+	test.setTimeout(testTimeout(90_000));
+	await installRuntimeProbes(page);
+	// Same seeded-save reason as the interior gates: a `?startMap=` fresh boot
+	// would park the run inside the prologue.opening scene.
+	await injectSave(page, createSaveFixture());
+	await page.setViewportSize({ width: 640, height: 360 });
+	await page.goto('/?movementDiagnostics=on');
+	await expect(page.locator('canvas')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+	await expect(page.getByText('Loading game')).toHaveCount(0, { timeout: 30_000 });
+	await expect(page.getByTestId('hud-party-panel')).toBeVisible();
+
+	// Compact layout: the minimap is removed entirely while the shrunken
+	// card, Menu chip, quest tracker, wallet and status stay onscreen.
+	await expect(page.getByTestId('hud-minimap')).toBeHidden();
+	await expect(page.locator('.jrpg-menu-anchor')).toBeVisible();
+	await expect(page.locator('.quest-banner')).toBeVisible();
+	await expect(page.locator('.wallet-pill')).toBeVisible();
+	await hpa840Shot(page, 'field-hud-640x360.png');
+
+	const surfaceRects = await page.evaluate(() => {
+		const selectors = [
+			['party', '[data-testid="hud-party-panel"]'],
+			['menu', '.jrpg-menu-anchor'],
+			['questBanner', '.quest-banner'],
+			['wallet', '.wallet-pill'],
+			['status', '.heroic-field-status']
+		] as const;
+		return selectors
+			.map(([id, selector]) => {
+				const rect = document.querySelector(selector)?.getBoundingClientRect();
+				return rect ? ([id, rect.toJSON()] as const) : null;
+			})
+			.filter((entry) => entry !== null);
+	});
+	// An empty status pill can collapse to zero size; only surfaces with a real
+	// box participate in the bounds and disjointness gates.
+	const sizedRects = surfaceRects.filter(([, rect]) => rect.width > 0 && rect.height > 0);
+	expect(sizedRects.length).toBeGreaterThanOrEqual(4);
+	for (const [id, rect] of sizedRects) {
+		expect(rect.top, `${id} top`).toBeGreaterThanOrEqual(0);
+		expect(rect.left, `${id} left`).toBeGreaterThanOrEqual(0);
+		expect(rect.bottom, `${id} bottom`).toBeLessThanOrEqual(360);
+		expect(rect.right, `${id} right`).toBeLessThanOrEqual(640);
+	}
+	for (let i = 0; i < sizedRects.length; i += 1) {
+		for (let j = i + 1; j < sizedRects.length; j += 1) {
+			const [idA, a] = sizedRects[i]!;
+			const [idB, b] = sizedRects[j]!;
+			const overlaps = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+			expect(overlaps, `${idA} overlaps ${idB} at 640×360`).toBe(false);
+		}
+	}
+	const totalArea = sizedRects.reduce((sum, [, rect]) => sum + rect.width * rect.height, 0);
+	// The compact HUD must stay under a third of the tiny field.
+	expect(totalArea).toBeLessThanOrEqual((640 * 360) / 3);
+	expect(
+		await page.evaluate(() => document.documentElement.scrollTop + document.body.scrollTop)
+	).toBe(0);
+
+	// M still opens the area map even with the minimap medallion removed.
+	await page.keyboard.press('m');
+	const mapDialog = page.getByRole('dialog', { name: /map$/i });
+	await expect(mapDialog).toBeVisible();
+	await hpa840Shot(page, 'area-map-640x360.png');
+	await page.keyboard.press('m');
+	await expect(mapDialog).toBeHidden();
 });

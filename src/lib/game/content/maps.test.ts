@@ -12,11 +12,7 @@ import { anchorPoint } from '$lib/game/content/maps/overworld/world';
 import { en } from '$lib/game/i18n/messages/en';
 import { ja } from '$lib/game/i18n/messages/ja';
 import { zhHant } from '$lib/game/i18n/messages/zh-Hant';
-import {
-	coastDressingAsset,
-	interiorPropAsset,
-	isNpcPackFrameName
-} from '$lib/game/content/assets';
+import { interiorPropAsset, isNpcPackFrameName } from '$lib/game/content/assets';
 import { getItem } from '$lib/game/content/items';
 import { getShop } from '$lib/game/content/shops';
 import { storyWindows } from '$lib/game/content/quests';
@@ -48,12 +44,11 @@ import {
 	villagerHouse2Map,
 	villagerHouse3Map
 } from '$lib/game/content/maps';
-import type { MapDecor, WorldMapDefinition } from '$lib/game/content/maps';
+import type { WorldMapDefinition } from '$lib/game/content/maps';
 import { compileNavigationGrid, isWalkable } from '$lib/game/core/navigation';
 import { walk } from '$lib/game/core/navigation-test-utils';
 import { buildMapNavigationObstacles } from '$lib/game/content/maps/navigation';
 import {
-	collectLandmarkRects,
 	collectStrictCollisionRects,
 	isInsideCollisionRect,
 	isInsideAnyCollisionRect
@@ -221,10 +216,7 @@ function expectRouteClear(
 	// Story-gated blockers close routes on purpose (the raid's burning bridge); every
 	// other entry counts regardless of its story window, so routes stay clear throughout.
 	const openMap = { ...map, blockers: map.blockers?.filter((blocker) => !blocker.activeDuring) };
-	const routeCollisionRects = [
-		...collectStrictCollisionRects(openMap),
-		...collectLandmarkRects(openMap)
-	];
+	const routeCollisionRects = collectStrictCollisionRects(openMap);
 	for (let index = 1; index < waypoints.length; index += 1) {
 		const from = waypoints[index - 1]!;
 		const to = waypoints[index]!;
@@ -303,7 +295,7 @@ describe('opening map content', () => {
 					y: 320,
 					width: 64,
 					height: 320,
-					kind: 'city-wall'
+					kind: 'ruin-wall'
 				},
 				{
 					id: 'model-test-hedge',
@@ -311,7 +303,7 @@ describe('opening map content', () => {
 					y: 320,
 					width: 160,
 					height: 48,
-					kind: 'town-hedge'
+					kind: 'ruin-wall'
 				},
 				{
 					id: 'model-test-future-gate',
@@ -343,8 +335,8 @@ describe('opening map content', () => {
 			tile: 'pathTile'
 		});
 		expect(modelTestMap.blockers?.map((blocker) => blocker.kind)).toEqual([
-			'city-wall',
-			'town-hedge',
+			'ruin-wall',
+			'ruin-wall',
 			'future-gate'
 		]);
 		expect(modelTestMap.combatBounds?.[0].encounterIds).toEqual(['model-test-slime']);
@@ -988,10 +980,7 @@ describe('opening map content', () => {
 			for (const rect of [
 				...(map.groundPatches ?? []),
 				...(map.blockers ?? []),
-				...(map.combatBounds ?? []),
-				...(map.fences ?? []),
-				...(map.mapDecor ?? []),
-				...(map.landmarks ?? [])
+				...(map.combatBounds ?? [])
 			]) {
 				expectRectInsideMap(rect, map);
 			}
@@ -2650,43 +2639,6 @@ describe('Item Shop Gates 1/2 coordinate and navigation contracts', () => {
 			),
 			'mira approach must be within interaction radius'
 		).toBeLessThanOrEqual(NPC_INTERACTION_RADIUS + PLAYER_COLLISION_RADIUS);
-	});
-});
-
-describe('MapDecor compile-time frame safety', () => {
-	// Sink that forces an object literal to be checked against the MapDecor union.
-	function acceptDecor(_decor: MapDecor) {
-		// intentionally empty: existence of the typed parameter is the assertion
-	}
-
-	it('rejects a frameName that does not belong to its textureKey sheet', () => {
-		// Valid: 'torii' is a real coast-dressing frame.
-		acceptDecor({
-			id: 'valid',
-			x: 0,
-			y: 0,
-			width: 1,
-			height: 1,
-			textureKey: coastDressingAsset.key,
-			frameName: 'torii'
-		});
-
-		// If the union regresses to bare `string`, this directive becomes unused
-		// and svelte-check fails — proving the typo protection is intact. The
-		// directive must sit directly above the offending property because TS
-		// reports the assignability error on `frameName`, not on the call site.
-		acceptDecor({
-			id: 'bad',
-			x: 0,
-			y: 0,
-			width: 1,
-			height: 1,
-			textureKey: coastDressingAsset.key,
-			// @ts-expect-error 'toriii' is not a CoastDressingFrameName
-			frameName: 'toriii'
-		});
-
-		expect(coastDressingAsset.frames).toHaveProperty('torii');
 	});
 });
 

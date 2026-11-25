@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   build-and-lint:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Build & Lint
     runs-on: ubuntu-24.04
     steps:
@@ -48,7 +47,6 @@ jobs:
           bun run story:assert-no-frontend-prose
 
   unit-test:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Unit Tests
     runs-on: ubuntu-24.04
     steps:
@@ -70,15 +68,7 @@ jobs:
         run: bunx playwright install --with-deps chromium
 
       - name: Run unit tests with coverage
-        # Core CI checks out without Git LFS, so skip the asset-byte tests that
-        # hash/decode real LFS-tracked PNGs. They run in the Asset Integrity
-        # workflow, which fetches LFS (nightly + on asset-path changes).
-        # CI_SKIP_LFS_ASSET_TESTS is read by vite.config.ts to exclude those
-        # files from the server project (CLI --exclude doesn't override
-        # per-project config in vitest 4.x).
         run: bun run test:unit -- --run --coverage
-        env:
-          CI_SKIP_LFS_ASSET_TESTS: '1'
 
       - name: Upload coverage to Codecov
         if: ${{ !cancelled() }}
@@ -89,7 +79,6 @@ jobs:
           flags: frontend
 
   rust-build-lint:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Rust Build & Lint
     runs-on: ubuntu-24.04
     defaults:
@@ -170,6 +159,58 @@ jobs:
           files: lcov.info
           flags: rust
 
-  # E2E tests live in the Asset Integrity workflow (.github/workflows/asset-integrity.yml).
-  # The e2e suite renders real LFS-tracked background/interior PNGs as Phaser textures,
-  # so it cannot run in core CI, which checks out without Git LFS.
+  # Single blocking e2e job: `bun run test:e2e` builds once, so there is no
+  # separate build step. The design's ~10-minute target is for the whole job
+  # (checkout, install, Chromium install, build and tests) and is not yet met:
+  # the last measured run took ~15 minutes, ~5.5 of them installing Chromium.
+  # The 20-minute timeout is a hard cap, not the target. Playwright's
+  # globalTimeout only covers the test run, so the test step passes it the
+  # job budget left after setup (minus a reserve for build + report upload);
+  # a slow setup then cannot cancel the run before the upload runs — under
+  # four minutes left, the step fails outright instead of handing Playwright
+  # a budget the job cannot honor.
+  # Keep E2E_JOB_CAP_MINUTES in sync with timeout-minutes.
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      E2E_JOB_CAP_MINUTES: '20'
+    steps:
+      - name: Record job start
+        run: echo "E2E_JOB_START=$(date +%s)" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run e2e tests
+        run: |
+          remaining_s=$(( E2E_JOB_CAP_MINUTES * 60 - ($(date +%s) - E2E_JOB_START) ))
+          if (( remaining_s < 240 )); then
+            echo "::error::e2e setup left ${remaining_s}s of the ${E2E_JOB_CAP_MINUTES}-minute job budget; at least 240s are needed (60s minimum run + 180s build/upload reserve)"
+            exit 1
+          fi
+          budget_s=$(( remaining_s - 180 ))
+          PLAYWRIGHT_GLOBAL_TIMEOUT_MS=$(( budget_s * 1000 )) bun run test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-e2e-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

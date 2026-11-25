@@ -11,7 +11,7 @@ via Tauri's `fs` plugin.
 
 The story follows Grik, a goblin hunter whose village is raided by humans (see
 `docs/stories/prologue.md` and the high-level story plan on Notion). Sundrop is his
-village, and the playable slice is the prologue main quest (stand-in art for now).
+village, and the playable slice is the prologue main quest.
 
 - **Language**: TypeScript (Svelte 5 runes mode enforced project-wide via `svelte.config.js`)
 - **Package Manager**: bun
@@ -90,6 +90,21 @@ bun run test:e2e -- --grep "game route boots"
 - `tests/e2e/*.e2e.ts` → Playwright, runs against `vite preview` on :4173 (auto-spun by `playwright.config.ts`)
 
 `vite.config.ts` sets `expect: { requireAssertions: true }` — any test that runs without calling `expect()` will fail.
+
+The nine painted interior PNGs under `public/game/assets/interiors/` are ordinary
+Git blobs — a normal checkout already holds the real bytes, no Git LFS pull needed.
+`src/lib/game/content/village-interior-assets.asset.test.ts` is their byte check: it
+validates each file's SHA-256 and decoded dimensions against
+`content/backgrounds/manifests/`, and separately checks the decoded alpha channel
+(bases fully opaque, foregrounds containing both transparent and visible pixels),
+so a pointer or altered PNG fails the unit job.
+
+In CI, `bun run test:e2e` is the single blocking Playwright job in
+`.github/workflows/ci.yml`. It runs on pull requests targeting `main` — including
+drafts — and on pushes to `main`, with a 20-minute job cap. `playwright.config.ts` sets
+`fullyParallel`, `workers: 2` on CI (1 locally) and `retries: 0`; the workflow
+uploads `playwright-report/` and `test-results/` as artifacts unless the job is
+cancelled.
 
 ## Architecture
 

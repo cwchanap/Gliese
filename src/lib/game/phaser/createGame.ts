@@ -7,7 +7,8 @@ export type GameStartRequest =
 type PhaserModule = typeof import('phaser');
 
 /**
- * Dynamic-imports Phaser and mounts the game (Boot → World → Battle scenes).
+ * Dynamic-imports Phaser and mounts the game (Boot → World → Battle scenes, plus the
+ * `?battleTest=` prototype battle).
  * @param target - Host HTMLElement the Phaser canvas attaches to.
  * @param start - GameStartRequest boot mode: `new` run or `resume` from a save state.
  * @returns Promise<{ destroy: () => void }> — resolves once the game is
@@ -22,6 +23,7 @@ export async function createGame(target: HTMLElement, start: GameStartRequest) {
 	const { BootScene } = await import('$lib/game/phaser/scenes/BootScene');
 	const { WorldScene } = await import('$lib/game/phaser/scenes/WorldScene');
 	const { BattleScene } = await import('$lib/game/phaser/scenes/BattleScene');
+	const { SnareBattleScene } = await import('$lib/game/phaser/scenes/SnareBattleScene');
 	const { preferences } = await import('$lib/game/i18n/store');
 	const { resetAmbience } = await import('$lib/game/phaser/audio');
 	let unsubscribeSound = () => {};
@@ -51,7 +53,7 @@ export async function createGame(target: HTMLElement, start: GameStartRequest) {
 				});
 			}
 		},
-		scene: [BootScene, WorldScene, BattleScene]
+		scene: [BootScene, WorldScene, BattleScene, SnareBattleScene]
 	});
 
 	return {

@@ -1,6 +1,6 @@
 import { equipmentSlots, getItem } from '$lib/game/content/items';
 import { maps } from '$lib/game/content/maps';
-import type { MapLandmark, MapTransition, WorldMapDefinition } from '$lib/game/content/maps/types';
+import type { WorldMapDefinition } from '$lib/game/content/maps/types';
 import { homeBedside, startingPlayer } from '$lib/game/content/player';
 import { getShop } from '$lib/game/content/shops';
 import { createEmptyEquipment, type EquipmentState } from '$lib/game/core/equipment';
@@ -10,9 +10,7 @@ import {
 	resolveMapNavigationGrid
 } from '$lib/game/content/maps/navigation';
 import {
-	findLandmarkDoorway as findNavigationLandmarkDoorway,
 	findNearestWalkablePosition,
-	getLandmarkCollisionRects,
 	isPointInsideAnyRect,
 	isPointInsideRect,
 	isPositionWalkable,
@@ -80,18 +78,9 @@ export type SaveState = {
 };
 
 const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
-// Shared strict-rect collision radius (blockers, fences,
-// decor) expands every rect by this radius before testing containment, so a
-// tile center outside the raw rect but inside the padded rect still traps the
-// player. Normalization must test against the same padded bounds.
-// Mirrors WorldScene.landmarkDoorwayClearanceWidth — the horizontal opening
-// carved around a transition that sits inside a landmark bounds, so the
-// doorway position remains walkable. Without this carving, normalization
-// treats a valid doorway position as inside the landmark and nudges it out.
-export const NORMALIZE_DOORWAY_CLEARANCE_WIDTH = 56;
-// Mirrors WorldScene.transitionRadius — the vertical clearance above the
-// doorway transition point that stays open for the player to enter.
-export const NORMALIZE_TRANSITION_RADIUS = 18;
+// The strict-rect collision radius expands every rect before testing
+// containment, so a tile center outside the raw rect but inside the padded
+// rect still traps the player. Normalization tests the same padded bounds.
 
 /** A new run wakes Grik in his own house on the morning of his proving hunt. */
 export function createNewSaveState(): SaveState {
@@ -397,16 +386,9 @@ interface MapCollisionRect {
 }
 
 export function collectStrictCollisionRects(map: WorldMapDefinition): MapCollisionRect[] {
-	const sourceById = new Map<string, MapCollisionRect>([
-		...(map.blockers ?? []).map((rect) => [rect.id, rect] as const),
-		...(map.fences ?? []).map((rect) => [rect.id, rect] as const),
-		...(map.mapDecor ?? [])
-			.filter(
-				(decor): decor is typeof decor & { collision: MapCollisionRect } =>
-					decor.collision !== undefined
-			)
-			.map((decor) => [decor.collision.id, decor.collision] as const)
-	]);
+	const sourceById = new Map<string, MapCollisionRect>(
+		(map.blockers ?? []).map((rect) => [rect.id, rect] as const)
+	);
 
 	return buildCompatibilityNavigationObstacles(map).flatMap((obstacle) => {
 		if (obstacle.shape !== 'rect' || obstacle.movement !== 'strict') {
@@ -419,36 +401,6 @@ export function collectStrictCollisionRects(map: WorldMapDefinition): MapCollisi
 			}
 		];
 	});
-}
-
-export function collectLandmarkRects(map: WorldMapDefinition): MapCollisionRect[] {
-	return buildCompatibilityNavigationObstacles(map).flatMap((obstacle) => {
-		if (obstacle.shape !== 'landmark') {
-			return [];
-		}
-		return getLandmarkCollisionRects(obstacle).map(toMapCollisionRect);
-	});
-}
-
-/**
- * Mirrors WorldScene.findLandmarkDoorway: returns the transition whose
- * position falls inside the landmark bounds and whose id contains the
- * landmark id (with '-exterior' stripped), or undefined if no match.
- */
-export function findLandmarkDoorway(
-	landmark: MapLandmark,
-	bounds: { left: number; right: number; top: number; bottom: number },
-	transitions: MapTransition[]
-): MapTransition | undefined {
-	return findNavigationLandmarkDoorway(
-		landmark.id,
-		bounds,
-		transitions.map((transition) => ({
-			id: transition.id,
-			point: { x: transition.x, y: transition.y },
-			value: transition
-		}))
-	)?.value;
 }
 
 export function isInsideAnyCollisionRect(

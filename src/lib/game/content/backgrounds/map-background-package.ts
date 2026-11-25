@@ -56,8 +56,6 @@ export interface ResolveMapBackgroundPackageInput {
 const PACKAGE_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SOURCE_FIELDS = {
 	blocker: 'blockers',
-	decor: 'mapDecor',
-	fence: 'fences',
 	'ground-patch': 'groundPatches',
 	'interior-prop': 'interiorProps'
 } as const;
@@ -292,8 +290,6 @@ export function applyMapBackgroundPackage(
 
 	const sources = {
 		blocker: map.blockers ?? [],
-		decor: map.mapDecor ?? [],
-		fence: map.fences ?? [],
 		'ground-patch': map.groundPatches ?? [],
 		'interior-prop': map.interiorProps ?? []
 	} as const;
@@ -317,12 +313,6 @@ export function applyMapBackgroundPackage(
 		switch (field) {
 			case 'blockers':
 				transformed.blockers = updated as WorldMapDefinition['blockers'];
-				break;
-			case 'mapDecor':
-				transformed.mapDecor = updated as WorldMapDefinition['mapDecor'];
-				break;
-			case 'fences':
-				transformed.fences = updated as WorldMapDefinition['fences'];
 				break;
 			case 'groundPatches':
 				transformed.groundPatches = updated as WorldMapDefinition['groundPatches'];

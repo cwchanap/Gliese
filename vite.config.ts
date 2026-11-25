@@ -4,13 +4,6 @@ import tailwindcss from '@tailwindcss/vite';
 import { playwright } from '@vitest/browser-playwright';
 import path from 'node:path';
 
-// Asset-byte tests that hash/decode real Git LFS-tracked PNGs. Core CI
-// checks out without LFS, so these must be skipped there; they run in the
-// Asset Integrity workflow, which fetches LFS. Gated by env var so the Asset
-// Integrity workflow (which doesn't set it) still runs them.
-const lfsAssetTestFiles = ['src/lib/game/content/village-interior-assets.asset.test.ts'];
-const skipLfsAssetTests = process.env.CI_SKIP_LFS_ASSET_TESTS === '1';
-
 export default defineConfig({
 	plugins: [tailwindcss(), svelte()],
 	resolve: {
@@ -57,14 +50,13 @@ export default defineConfig({
 					hookTimeout: 60_000,
 					include: [
 						'src/**/*.{test,spec}.{js,ts}',
-						// vitest-native and CI-safe tools specs: no LFS assets, no
+						// vitest-native and CI-safe tools specs: no
 						// bun:test/node:test imports, CPU-cheap.
-						'tools/validate-heroic-ui-art.test.ts'
+						'tools/validate-heroic-ui-art.test.ts',
+						// e2e run-budget logic: pure node, no Playwright worker.
+						'tools/e2e-timeout-budget.test.ts'
 					],
-					exclude: [
-						'src/**/*.svelte.{test,spec}.{js,ts}',
-						...(skipLfsAssetTests ? lfsAssetTestFiles : [])
-					]
+					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
 				}
 			}
 		]
