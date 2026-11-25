@@ -36,10 +36,6 @@ playwright-report/
 # Local playtest screenshots
 docs/superpowers/reports/entry-map-playtest/
 
-# Generated runtime evidence captures
-/docs/superpowers/reports/img/hpa-586-interiors-runtime/
-/docs/superpowers/reports/img/hpa-840-responsive/
-
 # Legacy generated capture batches. Keep reviewed evidence and reports addable.
 /docs/superpowers/reports/img/hpa-586-interiors/final/*/*-camera-*.png
 !/docs/superpowers/reports/img/hpa-586-interiors/final/item-shop/fallback-camera-640x360.png
