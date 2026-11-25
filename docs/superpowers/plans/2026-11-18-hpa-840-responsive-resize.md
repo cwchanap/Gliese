@@ -88,8 +88,8 @@
 **Execute once:** After implementation run `bun run check`, `bun run lint`, `bun run test:unit -- --run`, relevant component specs, `bun run build` and the checked-in Playwright E2E. Run the **E2E acceptance via MCP** against these same persisted scenarios, in one shared browser:
 
 1. Launch Chrome/Chromium with CDP open on a non-default profile (Chrome 136+ ignores the debug port on the default data directory), e.g. `chrome --remote-debugging-port=9333 --user-data-dir=/tmp/gliese-hpa840-chrome about:blank`, and attach the MCP browser tools to `http://127.0.0.1:9333`.
-2. Run the checked-in scenarios inside that same browser: `HPA840_SHARED_CDP=http://127.0.0.1:9333 bun run test:e2e -- <scenario names>`. The suite's `beforeEach` (guarded by the env var) asserts every Playwright target lives in the shared browser, so the run only counts as MCP evidence when the attach succeeds.
-3. Screenshots land in `docs/superpowers/reports/img/hpa-840-responsive` by default; override with `HPA840_EVIDENCE_ROOT=<dir>`.
+2. Run the checked-in scenarios inside that same browser: `HPA840_SHARED_CDP=http://127.0.0.1:9333 HPA840_EVIDENCE_DOCS=1 bun run test:e2e -- <scenario names>`. The suite's `beforeEach` (guarded by the env var) asserts every Playwright target lives in the shared browser, so the run only counts as MCP evidence when the attach succeeds.
+3. Screenshots land in Playwright's per-test output by default; the acceptance command above uses `HPA840_EVIDENCE_DOCS=1` to collect them in the ignored shared `verification-output/hpa-840-responsive` directory. Override with `HPA840_EVIDENCE_ROOT=<dir>`.
 
 A default `bun run test:e2e` run still counts as a test result, but not as MCP acceptance — the MCP browser must be the browser Playwright drives. This meets the MCP acceptance requirement without a separate duplicate manual E2E/baseline pass. One web platform is sufficient. If asset-dependent CI remains unavailable, record it under HPA-694 rather than declaring a pass.
 
