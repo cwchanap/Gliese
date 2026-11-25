@@ -584,8 +584,12 @@ function runLane(
 	enemy.y = clamp(enemy.y + attack.aim.y * step, snareArenaBox.minY, snareArenaBox.maxY);
 	attack.travelled += step;
 
-	// The drawn line runs on to Grik, past the last stored sample.
-	const drawn = state.line.points.length > 0 ? [...state.line.points, state.hero] : [];
+	// The drawn line runs on to Grik, past the last stored sample. A lone point under Grik is
+	// not a line yet, so standing at spawn leaves nothing to cut.
+	const [first] = state.line.points;
+	const laid =
+		state.line.points.length > 1 || (first !== undefined && distance(first, state.hero) > 0);
+	const drawn = laid ? [...state.line.points, state.hero] : [];
 	if (pattern.cutsLine && lineCrossesSegment({ ...state.line, points: drawn }, from, enemy)) {
 		cutLine(state, enemy, events);
 	}

@@ -209,7 +209,9 @@ export class SnareBattleScene extends Phaser.Scene {
 			return;
 		}
 
-		const lineBefore = this.state.line.points.slice();
+		// The drawn line, tip included, so a cut can flash it.
+		const { points } = this.state.line;
+		const lineBefore = points.length > 0 ? [...points, { ...this.state.hero }] : [];
 		const move = this.readMovement();
 		const events = stepSnareBattle(this.state, { move }, delta);
 		this.handleEvents(events, lineBefore);
