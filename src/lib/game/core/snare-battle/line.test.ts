@@ -50,8 +50,9 @@ describe('snare line', () => {
 		expect(line.length).toBe(0);
 	});
 
-	it('ignores a loop smaller than the minimum, and the line keeps going', () => {
+	it('closes a loop of 180 px around', () => {
 		const line = createLine({ x: 100, y: 100 });
+		// A 50 px square: 150 px of line, then 50 px more to the crossing.
 		const loop = lay(line, [
 			{ x: 150, y: 100 },
 			{ x: 150, y: 150 },
@@ -59,7 +60,21 @@ describe('snare line', () => {
 			{ x: 100, y: 60 }
 		]);
 
-		expect(rules.minLoopLength).toBe(240);
+		expect(rules.minLoopLength).toBe(180);
+		expect(loop).not.toBeNull();
+		expect(pathLength([...loop!, loop![0]!])).toBeGreaterThanOrEqual(rules.minLoopLength);
+	});
+
+	it('ignores a loop under 180 px around, and the line keeps going', () => {
+		const line = createLine({ x: 100, y: 100 });
+		// A 40 px square is 160 px around.
+		const loop = lay(line, [
+			{ x: 140, y: 100 },
+			{ x: 140, y: 140 },
+			{ x: 100, y: 140 },
+			{ x: 100, y: 60 }
+		]);
+
 		expect(loop).toBeNull();
 		expect(line.points[0]).toEqual({ x: 100, y: 100 });
 		expect(line.points.at(-1)!.y).toBeLessThan(70);

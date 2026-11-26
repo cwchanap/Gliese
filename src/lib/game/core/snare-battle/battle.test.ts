@@ -145,6 +145,7 @@ describe('snare battle: the loop', () => {
 		expect(events.some((event) => event.type === 'windup')).toBe(false);
 		expect({ x: wolf.x, y: wolf.y, facing: wolf.facing }).toEqual(held);
 		const snareMs = snareTuning.enemies['forest-wolf'].snareMs;
+		expect(snareMs).toBe(6_000);
 		expect(isSnared(wolf, snaredAt + snareMs - 50)).toBe(true);
 		expect(isSnared(wolf, snaredAt + snareMs)).toBe(false);
 	});
@@ -330,7 +331,23 @@ describe('snare battle: cutting the line', () => {
 });
 
 describe('snare battle: throws', () => {
-	it('deals Attack from the front and 3 times on the back', () => {
+	/**
+	 * Grik plants 40 px behind a wolf that faces away and throws once. He is close
+	 * enough that the spear lands before a free wolf's 400 ms turn is over.
+	 */
+	function throwAtWolfBack(wolf: Partial<SnareEnemy>) {
+		const state = setup(
+			'wolves-2',
+			[
+				{ x: 500, y: 250, facing: -1, ...wolf },
+				{ x: 800, y: 450 }
+			],
+			{ x: 540, y: 250 }
+		);
+		return hits(runUntil(state, still, (event) => event.type === 'enemy-hit'))[0]!;
+	}
+
+	it('deals Attack on the front, even of a stunned enemy', () => {
 		const front = setup(
 			'wolves-2',
 			[
@@ -341,17 +358,59 @@ describe('snare battle: throws', () => {
 		);
 		const frontHit = hits(runUntil(front, still, (event) => event.type === 'enemy-hit'))[0]!;
 		expect(frontHit).toMatchObject({ back: false, damage: 4 });
+	});
 
-		const back = setup(
-			'wolves-2',
-			[
-				{ x: 500, y: 250, facing: -1 },
-				{ x: 800, y: 450 }
-			],
-			{ x: 600, y: 250 }
-		);
-		const backHit = hits(runUntil(back, still, (event) => event.type === 'enemy-hit'))[0]!;
-		expect(backHit).toMatchObject({ back: true, damage: 12 });
+	it('deals plain Attack on the back of a free enemy', () => {
+		expect(throwAtWolfBack({ stunnedUntil: 0 })).toMatchObject({ back: false, damage: 4 });
+	});
+
+	it('deals 3 times on the back of a snared enemy', () => {
+		const hit = throwAtWolfBack({ stunnedUntil: 0, snaredUntil: Number.POSITIVE_INFINITY });
+		expect(hit).toMatchObject({ back: true, damage: 12 });
+	});
+
+	it('deals 3 times on the back of a stunned enemy', () => {
+		// `setup` parks every enemy stunned.
+		expect(throwAtWolfBack({})).toMatchObject({ back: true, damage: 12 });
+	});
+
+	it('deals plain Attack on the Boar King’s back with one or two Bound rings', () => {
+		for (const boundRings of [1, 2]) {
+			const state = setup(
+				'boar-king',
+				[
+					{
+						x: 500,
+						y: 250,
+						facing: -1,
+						stunnedUntil: 0,
+						boundRings,
+						ringsExpireAt: Number.POSITIVE_INFINITY
+					}
+				],
+				{ x: 540, y: 250 }
+			);
+			const hit = hits(runUntil(state, still, (event) => event.type === 'enemy-hit'))[0]!;
+			// The Boar King fight's Grik hits for 8.
+			expect(hit).toMatchObject({ back: false, damage: 8 });
+		}
+	});
+
+	it('deals 3 times on the Boar King’s back once the third Bound ring brings it down', () => {
+		// Parked stunned while Grik loops it, so it holds still; freed once it is snared.
+		const state = setup('boar-king', [{ x: 450, y: 250 }], { x: 360, y: 160 });
+		const boar = state.enemies[0]!;
+		for (let loop = 0; loop < 3; loop += 1) {
+			runPath(state, loopAround(boar, 90));
+		}
+		expect(isSnared(boar, state.now)).toBe(true);
+		release(boar);
+		expect(isStunned(boar, state.now)).toBe(false);
+
+		state.hero.x = 490;
+		state.hero.y = 250;
+		const hit = hits(runUntil(state, still, (event) => event.type === 'enemy-hit'))[0]!;
+		expect(hit).toMatchObject({ back: true, damage: 24 });
 	});
 
 	it('doubles every 4th throw in a row from the same spot', () => {

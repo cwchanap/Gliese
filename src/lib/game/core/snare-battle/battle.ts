@@ -120,6 +120,7 @@ export type SnareEvent =
 	| { type: 'strike'; unitId: string; pattern: AttackPattern['name'] }
 	| { type: 'stunned'; unitId: string }
 	| { type: 'throw'; spearId: number; unitId: string }
+	/** `back`: the hit dealt the back-hit multiplier (a snared or stunned enemy, hit from behind). */
 	| { type: 'enemy-hit'; unitId: string; damage: number; back: boolean; focus: boolean }
 	| { type: 'enemy-defeated'; unitId: string }
 	| { type: 'hero-hit'; unitId: string; damage: number; back: boolean }
@@ -393,7 +394,10 @@ function landSpear(
 	target: SnareEnemy,
 	events: SnareEvent[]
 ) {
-	const back = isBehind(target, spear.originX);
+	// A free enemy's back is plain damage: the back hit is the reward for a snare or a dodged charge.
+	const back =
+		isBehind(target, spear.originX) &&
+		(isSnared(target, state.now) || isStunned(target, state.now));
 	const damage = Math.round(
 		state.hero.attack *
 			(back ? tuning.hero.backHitMultiplier : 1) *
