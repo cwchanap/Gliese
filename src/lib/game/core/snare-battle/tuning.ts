@@ -111,13 +111,13 @@ const boarCharge: LanePattern = {
 
 const enemyProfiles: Record<SnareEnemyId, EnemyProfile> = {
 	'forest-wolf': {
-		hp: 36, // paper 24: standing still won
+		hp: 48, // 36 in HPA-747 (paper 24: standing still won); HPA-1232 raised it with the back-hit rule
 		walkSpeed: 110,
 		holdDistance: 90,
 		radius: 28,
 		turnDelayMs: 400,
 		loopsToSnare: 1,
-		snareMs: 4_500, // paper 3_000
+		snareMs: 6_000, // 4_500 in HPA-747 (paper 3_000)
 		ringsFallOffMs: 10_000,
 		patterns: [wolfLunge]
 	},
@@ -153,6 +153,7 @@ export const snareTuning = {
 		throwIntervalMs: 600,
 		throwRange: 300,
 		spearSpeed: 900,
+		/** Only on a snared or stunned enemy's back; a free enemy's back takes plain damage. */
 		backHitMultiplier: 3,
 		focusEvery: 4,
 		focusMultiplier: 2,
@@ -162,7 +163,7 @@ export const snareTuning = {
 	},
 	line: {
 		maxLength: 720,
-		minLoopLength: 240,
+		minLoopLength: 180, // 240 in HPA-747: loops around moving wolves closed on nothing
 		/** A new line point is laid every this many px. */
 		sampleSpacing: 8,
 		cutPauseMs: 500
