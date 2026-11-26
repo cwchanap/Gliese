@@ -2884,6 +2884,15 @@ test('fleeing the boar king requires leaving and returning before re-engagement'
 	await expect(fieldStatus(page)).toContainText(/leave.+return/i);
 	await expect(battle).toHaveCount(0);
 
+	// The lane is the row the hero can walk west along: a lone tree stands one
+	// row above the anchor and a rock two rows below it, five tiles west, so the
+	// hero needs y within about 20px above to 50px below the anchor. The stop is
+	// checked once per frame, so the hero ends up past it by up to one frame's
+	// step: 4px at 60fps, about 40px on an 8x CPU-throttled page, which is how
+	// a loaded CI runner failed this walk at the tree. Aim low in the lane: a
+	// stop 34px below the anchor stays in the lane for steps up to about 54px
+	// (4-5fps).
+	const laneStopY = home.y + 34;
 	await page.evaluate((targetY) => {
 		function stopAtLane(event: Event) {
 			const movement = (event as CustomEvent<PlayerMovementDiagnostic>).detail;
@@ -2900,14 +2909,14 @@ test('fleeing the boar king requires leaving and returning before re-engagement'
 			);
 		}
 		window.addEventListener('gliese:player-movement-diagnostic', stopAtLane);
-	}, home.y + 16);
+	}, laneStopY);
 	await page.keyboard.down('ArrowUp');
 	await page.waitForFunction(
 		(y) =>
 			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic?.resolvedPosition.y !==
 				undefined &&
-			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic!.resolvedPosition.y <= y + 16,
-		home.y,
+			(window as GlieseProbeWindow).__glieseLastMovementDiagnostic!.resolvedPosition.y <= y,
+		laneStopY,
 		{ timeout: 15_000 }
 	);
 	await page.keyboard.up('ArrowUp');
