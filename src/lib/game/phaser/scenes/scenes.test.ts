@@ -1178,6 +1178,35 @@ describe('BootScene', () => {
 		expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, resumeRequest);
 	});
 
+	it('opens the ?battleTest= fight on a throwaway save instead of the world', async () => {
+		const restoreLocation = installLocationSearch('?battleTest=wolves-2');
+		const { BootScene } = await import('./BootScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new BootScene();
+		Object.assign(scene, { registry: { get: vi.fn(() => undefined) } });
+
+		try {
+			scene.init();
+			scene.create();
+		} finally {
+			restoreLocation();
+		}
+
+		expect(scene.scene.start).toHaveBeenCalledWith(
+			SnareBattleScene.key,
+			expect.objectContaining({
+				testFightId: 'wolves-2',
+				payload: expect.objectContaining({
+					sourceEnemyId: 'forest-wolf',
+					enemyCount: 2,
+					sourceEncounterId: 'battle-test:wolves-2'
+				})
+			})
+		);
+		expect(scene.scene.start).not.toHaveBeenCalledWith(WorldScene.key, expect.anything());
+	});
+
 	it('ignores ?startMap= values that are not registered maps', async () => {
 		const restoreLocation = installLocationSearch('?startMap=constructor');
 		const { BootScene } = await import('./BootScene');
