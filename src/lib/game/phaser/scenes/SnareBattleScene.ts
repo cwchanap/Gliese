@@ -32,7 +32,6 @@ import {
 	cancelFleeChannel,
 	cycleBattleTarget,
 	getFleeChannelProgress,
-	isFleeChannelComplete,
 	selectBattleTarget,
 	sortBattleRibbonEntries,
 	startFleeChannel,
@@ -46,14 +45,14 @@ import {
 	healSnareHero,
 	isSnared,
 	isStunned,
-	stepSnareBattle,
 	type SnareBattleState,
 	type SnareEnemy,
 	type SnareEvent
 } from '$lib/game/core/snare-battle/battle';
 import {
 	buildSnareBattleResult,
-	snareSetupFromPayload
+	snareSetupFromPayload,
+	stepSnareFrame
 } from '$lib/game/core/snare-battle/encounter';
 import type { SnareFightId } from '$lib/game/core/snare-battle/fights';
 import type { Vec } from '$lib/game/core/snare-battle/geometry';
@@ -238,15 +237,16 @@ export class SnareBattleScene extends Phaser.Scene {
 			return;
 		}
 
-		if (this.updateFlee()) {
-			return;
-		}
-
 		// The drawn line, tip included, so a cut can flash it.
 		const { points } = this.state.line;
 		const lineBefore = points.length > 0 ? [...points, { ...this.state.hero }] : [];
 		const move = this.readMovement();
-		const events = stepSnareBattle(this.state, { move }, delta);
+		const { fled, events } = stepSnareFrame(this.state, this.fleeChannel, { move }, delta);
+		if (fled) {
+			this.fleeChannel = cancelFleeChannel();
+			this.finishBattle('fled');
+			return;
+		}
 		this.handleEvents(events, lineBefore);
 		this.updateHeroClip(move);
 		this.draw();
@@ -350,10 +350,7 @@ export class SnareBattleScene extends Phaser.Scene {
 					);
 					this.cameras.main.shake(event.back ? 120 : 70, event.back ? 0.006 : 0.003);
 					playSfx(this, 'hero-hurt');
-					// A hit in the frame that crosses the deadline lets the flee finish.
-					if (!isFleeChannelComplete(this.fleeChannel, this.state.now)) {
-						this.fleeChannel = cancelFleeChannel();
-					}
+					this.fleeChannel = cancelFleeChannel();
 					this.appendFeed('hurt', event.damage, t(getActiveLocale(), 'ui.heroName'));
 					break;
 				case 'stunned': {
@@ -973,16 +970,6 @@ export class SnareBattleScene extends Phaser.Scene {
 			default:
 				this.publishHud('status.battleLocked');
 		}
-	}
-
-	/** A finished flee channel ends the fight. Returns true when it did. */
-	private updateFlee(): boolean {
-		if (!isFleeChannelComplete(this.fleeChannel, this.state.now)) {
-			return false;
-		}
-		this.fleeChannel = cancelFleeChannel();
-		this.finishBattle('fled');
-		return true;
 	}
 
 	private useFirstHealingItem() {

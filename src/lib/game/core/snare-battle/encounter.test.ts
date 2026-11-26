@@ -7,6 +7,7 @@ import {
 	buildBattleUnitId,
 	type BattleStartPayload
 } from '$lib/game/core/battle';
+import { startFleeChannel } from '$lib/game/core/battle-presentation';
 import { resolveLootDrops } from '$lib/game/core/loot';
 import {
 	createSnareBattle,
@@ -17,7 +18,8 @@ import {
 import {
 	buildSnareBattleResult,
 	isSnareEnemyId,
-	snareSetupFromPayload
+	snareSetupFromPayload,
+	stepSnareFrame
 } from '$lib/game/core/snare-battle/encounter';
 import { snareTuning } from '$lib/game/core/snare-battle/tuning';
 import { createNewSaveState } from '$lib/game/save/save-state';
@@ -134,6 +136,77 @@ describe('snare encounter: the hero’s defense', () => {
 
 	it('never lets a hit fall below 1', () => {
 		expect(lungeAt(99)).toMatchObject({ damage: 1 });
+	});
+});
+
+describe('snare encounter: the flee deadline', () => {
+	const idle = { move: { x: 0, y: 0 } };
+
+	/** A wolf about to lunge at Grik, who has 1 HP: the first strike is lethal. */
+	function lethalLunge() {
+		const payload = payloadFor({
+			enemyCount: 1,
+			hero: { hp: 1, maxHp: 24, attack: 4, defense: 0 }
+		});
+		const state = createSnareBattle(snareSetupFromPayload(payload));
+		const wolf = state.enemies[0]!;
+		state.hero.x = 450;
+		state.hero.y = 250;
+		state.line.points = [{ x: 450, y: 250 }];
+		Object.assign(wolf, { x: 360, y: 250, facing: 1 });
+		park(state);
+		wolf.stunnedUntil = 0;
+		wolf.readyAt.lunge = 0;
+		return state;
+	}
+
+	/** Runs to the frame just before the strike and says when the strike frame ends. */
+	function approachStrike() {
+		const probe = lethalLunge();
+		let strikeFrameEnd = -1;
+		while (strikeFrameEnd < 0) {
+			const { events } = stepSnareFrame(probe, { status: 'idle' }, idle, 16);
+			if (events.some((event) => event.type === 'hero-hit')) strikeFrameEnd = probe.now;
+			expect(probe.now).toBeLessThan(5_000);
+		}
+
+		const state = lethalLunge();
+		while (state.now + 16 < strikeFrameEnd) stepSnareFrame(state, { status: 'idle' }, idle, 16);
+		return { state, strikeFrameEnd };
+	}
+
+	it('lets a flee that completes on the strike frame win over the strike', () => {
+		const { state, strikeFrameEnd } = approachStrike();
+		const flee = startFleeChannel(state.now, strikeFrameEnd - state.now);
+		const before = { now: state.now, hp: state.hero.hp };
+
+		const frame = stepSnareFrame(state, flee, idle, 16);
+
+		expect(frame).toEqual({ fled: true, events: [] });
+		expect(state.hero.hp).toBe(before.hp);
+		expect(state.outcome).toBeNull();
+		expect(state.now).toBe(before.now);
+	});
+
+	it('still lands a strike on the frame before the flee completes', () => {
+		const { state, strikeFrameEnd } = approachStrike();
+		const flee = startFleeChannel(state.now, strikeFrameEnd - state.now + 1);
+
+		const frame = stepSnareFrame(state, flee, idle, 16);
+
+		expect(frame.fled).toBe(false);
+		expect(frame.events).toContainEqual(expect.objectContaining({ type: 'hero-hit' }));
+		expect(state.hero.hp).toBe(0);
+		expect(state.outcome).toBe('defeat');
+	});
+
+	it('judges the deadline on the clamped frame, not the raw one', () => {
+		const longFrame = snareTuning.maxStepMs * 5;
+		const frameWith = (durationMs: number) =>
+			stepSnareFrame(lethalLunge(), startFleeChannel(0, durationMs), idle, longFrame);
+
+		expect(frameWith(snareTuning.maxStepMs + 1).fled).toBe(false);
+		expect(frameWith(snareTuning.maxStepMs).fled).toBe(true);
 	});
 });
 

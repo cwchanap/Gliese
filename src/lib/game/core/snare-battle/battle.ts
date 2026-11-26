@@ -206,6 +206,11 @@ export function createSnareBattle(setup: SnareBattleSetup): SnareBattleState {
 	};
 }
 
+/** The part of a frame the fight simulates: a long frame is cut to `maxStepMs`. */
+export function snareStepMs(deltaMs: number): number {
+	return Math.min(Math.max(deltaMs, 0), tuning.maxStepMs);
+}
+
 /** Advances the fight by `deltaMs` (clamped to `maxStepMs`) and reports what happened. */
 export function stepSnareBattle(
 	state: SnareBattleState,
@@ -218,7 +223,7 @@ export function stepSnareBattle(
 		return events;
 	}
 
-	const dt = Math.min(Math.max(deltaMs, 0), tuning.maxStepMs);
+	const dt = snareStepMs(deltaMs);
 	state.now += dt;
 	stepHero(state, input.move, dt, events);
 	stepThrows(state, events);
