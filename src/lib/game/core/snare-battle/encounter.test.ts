@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { enemies, enemyList } from '$lib/game/content/enemies';
 import {
 	applyBattleResultToSaveState,
+	battleEnemyCountRange,
 	buildBattleUnitId,
 	type BattleStartPayload
 } from '$lib/game/core/battle';
@@ -16,7 +17,6 @@ import {
 import {
 	buildSnareBattleResult,
 	isSnareEnemyId,
-	snareMaxEnemies,
 	snareSetupFromPayload
 } from '$lib/game/core/snare-battle/encounter';
 import { snareTuning } from '$lib/game/core/snare-battle/tuning';
@@ -87,7 +87,7 @@ describe('snare encounter: setup', () => {
 		expect(countOf(0)).toBe(1);
 		expect(countOf(Number.NaN)).toBe(1);
 		expect(countOf(2.9)).toBe(2);
-		expect(countOf(10)).toBe(snareMaxEnemies);
+		expect(countOf(10)).toBe(battleEnemyCountRange.max);
 	});
 
 	it('throws on an enemy that has no fight profile', () => {

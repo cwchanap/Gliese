@@ -5,6 +5,7 @@
  */
 import {
 	getBattleEnemyDefinition,
+	normalizeBattleEnemyCount,
 	type BattleOutcome,
 	type BattleResult,
 	type BattleStartPayload
@@ -13,9 +14,6 @@ import { resolveLootDrops } from '$lib/game/core/loot';
 import type { SaveState } from '$lib/game/save/save-state';
 import type { SnareBattleSetup, SnareBattleState } from '$lib/game/core/snare-battle/battle';
 import { snareTuning, type SnareEnemyId } from '$lib/game/core/snare-battle/tuning';
-
-/** Spawn rows are 112 px apart in a 504 px arena, so more than four would not fit. */
-export const snareMaxEnemies = 4;
 
 export function isSnareEnemyId(value: string): value is SnareEnemyId {
 	return Object.hasOwn(snareTuning.enemies, value);
@@ -27,12 +25,10 @@ export function snareSetupFromPayload(payload: BattleStartPayload): SnareBattleS
 		throw new Error(`No snare battle profile for enemy "${payload.sourceEnemyId}"`);
 	}
 
-	const count = Number.isFinite(payload.enemyCount) ? Math.trunc(payload.enemyCount) : 1;
-
 	return {
 		enemyId: payload.sourceEnemyId,
 		encounterId: payload.sourceEncounterId,
-		count: Math.min(Math.max(count, 1), snareMaxEnemies),
+		count: normalizeBattleEnemyCount(payload.enemyCount),
 		hero: { ...payload.hero }
 	};
 }

@@ -15,7 +15,8 @@ import type { QuestId } from '$lib/game/content/quests';
 import { deriveEffectiveStats, getHeroBaseStats } from '$lib/game/core/stats';
 import { normalizePlayerPosition, type SaveState } from '$lib/game/save/save-state';
 
-export const battleEnemyCountRange = { min: 1, max: 10 } as const;
+/** A fight holds at most four enemies: the Snare arena has room for four spawn rows. */
+export const battleEnemyCountRange = { min: 1, max: 4 } as const;
 
 export type BattleOutcome = 'victory' | 'defeat' | 'fled';
 
@@ -322,7 +323,7 @@ function applyBattleFled(saveState: SaveState, result: BattleResult): BattleAppl
 	};
 }
 
-function normalizeBattleEnemyCount(count: number): number {
+export function normalizeBattleEnemyCount(count: number): number {
 	const finiteCount = Number.isFinite(count) ? count : battleEnemyCountRange.min;
 
 	return Math.min(

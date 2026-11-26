@@ -350,7 +350,10 @@ export class SnareBattleScene extends Phaser.Scene {
 					);
 					this.cameras.main.shake(event.back ? 120 : 70, event.back ? 0.006 : 0.003);
 					playSfx(this, 'hero-hurt');
-					this.fleeChannel = cancelFleeChannel();
+					// A hit in the frame that crosses the deadline lets the flee finish.
+					if (!isFleeChannelComplete(this.fleeChannel, this.state.now)) {
+						this.fleeChannel = cancelFleeChannel();
+					}
 					this.appendFeed('hurt', event.damage, t(getActiveLocale(), 'ui.heroName'));
 					break;
 				case 'stunned': {
