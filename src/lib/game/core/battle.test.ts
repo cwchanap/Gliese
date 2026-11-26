@@ -50,10 +50,10 @@ vi.mock('$lib/game/core/quests', async (importOriginal) => {
 });
 
 describe('battle contracts', () => {
-	it('rolls an inclusive 1 to 10 enemy count', () => {
+	it('rolls an inclusive 1 to 4 enemy count', () => {
 		expect(rollBattleEnemyCount(() => 0)).toBe(1);
-		expect(rollBattleEnemyCount(() => 0.999)).toBe(10);
-		expect(rollBattleEnemyCount(() => 0.5)).toBe(6);
+		expect(rollBattleEnemyCount(() => 0.999)).toBe(4);
+		expect(rollBattleEnemyCount(() => 0.5)).toBe(3);
 	});
 
 	it('creates indexed enemy units from one world encounter', () => {
@@ -101,7 +101,7 @@ describe('battle contracts', () => {
 				enemy: enemies['human-soldier']!,
 				count: 25
 			})
-		).toHaveLength(10);
+		).toHaveLength(4);
 	});
 
 	it('never drops the unbeatable captain below 1 HP', () => {
