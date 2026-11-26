@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { battleBackgroundAssets } from '$lib/game/content/assets';
 import {
 	blacksmithInteriorMap,
 	heroHouseMap,
@@ -1605,1813 +1604,10 @@ describe('BootScene', () => {
 	});
 });
 
-describe('BattleScene', () => {
-	beforeEach(() => {
-		localeState.activeLocale = 'en';
-		vi.clearAllMocks();
-		phaserState.reset();
-		Object.assign(phaserState.cursorKeys.left, { isDown: false });
-		Object.assign(phaserState.cursorKeys.right, { isDown: false });
-		Object.assign(phaserState.cursorKeys.up, { isDown: false });
-		Object.assign(phaserState.cursorKeys.down, { isDown: false });
-		Object.assign(phaserState.wasdKeys.left, { isDown: false });
-		Object.assign(phaserState.wasdKeys.right, { isDown: false });
-		Object.assign(phaserState.wasdKeys.up, { isDown: false });
-		Object.assign(phaserState.wasdKeys.down, { isDown: false });
-	});
-
-	it('spawns real generated enemies around the larger battle arena', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-
-		scene.create({
-			saveState,
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 4,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-
-		const state = scene as unknown as {
-			enemies: Array<{ unitId: string; hp: number; defeated: boolean; x: number; y: number }>;
-		};
-
-		expect(state.enemies).toHaveLength(4);
-		expect(state.enemies.map((enemy) => enemy.unitId)).toEqual([
-			'wildwood-wolves-mouth:unit:0',
-			'wildwood-wolves-mouth:unit:1',
-			'wildwood-wolves-mouth:unit:2',
-			'wildwood-wolves-mouth:unit:3'
-		]);
-		expect(state.enemies.every((enemy) => enemy.hp === 10 && !enemy.defeated)).toBe(true);
-		expect(state.enemies.map((enemy) => ({ x: enemy.x, y: enemy.y }))).toEqual(
-			expect.arrayContaining([
-				expect.objectContaining({ x: 448 }),
-				expect.objectContaining({ y: 74 }),
-				expect.objectContaining({ x: 790 }),
-				expect.objectContaining({ x: 106 })
-			])
-		);
-		expect(phaserState.enemyMarkers).toHaveLength(4);
-		expect(phaserState.enemyHealthBarBgs).toHaveLength(4);
-		expect(phaserState.enemyHealthBarFills).toHaveLength(4);
-	});
-
-	it('centers the larger arena when the canvas matches the arena size', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		Object.assign(scene.scale, { width: 896, height: 504 });
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-
-		expect(phaserState.mainCamera.setZoom).toHaveBeenCalledWith(1);
-		expect(phaserState.mainCamera.scrollX).toBe(0);
-		expect(phaserState.mainCamera.scrollY).toBe(0);
-	});
-
-	it('offsets the camera to center the larger arena on a larger canvas', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		Object.assign(scene.scale, { width: 1280, height: 720 });
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-
-		expect(phaserState.mainCamera.setZoom).toHaveBeenCalledWith(1);
-		expect(phaserState.mainCamera.scrollX).toBe(-192);
-		expect(phaserState.mainCamera.scrollY).toBe(-108);
-	});
-
-	it('clears field occlusion in every battle HUD publish', async () => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-
-		expect(emitHudStateSpy).toHaveBeenCalled();
-		for (const call of emitHudStateSpy.mock.calls) {
-			expect(call[0]).toEqual(expect.objectContaining({ heroOccluded: false }));
-		}
-	});
-
-	it('renders a ruins battle backdrop before actors', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'ruins-core',
-			sourceEncounterId: 'boar-king',
-			sourceEnemyId: 'boar-king',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-
-		expect(scene.add.image).toHaveBeenCalledWith(448, 252, battleBackgroundAssets.ruins.key);
-		// The backdrop covers twice the arena so it bleeds into the letterbox.
-		expect(phaserState.imageMarkers[0]?.setDisplaySize).toHaveBeenCalledWith(1_792, 1_008);
-		expect(vi.mocked(scene.add.image).mock.invocationCallOrder[0]).toBeLessThan(
-			vi.mocked(scene.add.sprite).mock.invocationCallOrder[0]!
-		);
-	});
-
-	it('registers a resize listener that re-centers the arena', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-
-		expect(scene.scale.on).toHaveBeenCalledWith('resize', expect.any(Function));
-		const scaleOnMock = scene.scale.on as unknown as import('vitest').Mock;
-		const resizeCalls = scaleOnMock.mock.calls as Array<[string, () => void]>;
-		const resizeHandler = resizeCalls.find((call) => call[0] === 'resize')?.[1];
-		expect(resizeHandler).toBeTypeOf('function');
-
-		Object.assign(scene.scale, { width: 960, height: 540 });
-		resizeHandler!();
-
-		expect(phaserState.mainCamera.scrollX).toBe(-32);
-		expect(phaserState.mainCamera.scrollY).toBe(-18);
-	});
-
-	it('zooms out to fit the full arena on a canvas smaller than the arena', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		Object.assign(scene.scale, { width: 640, height: 360 });
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 4,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-
-		expect(phaserState.mainCamera.setZoom).toHaveBeenCalled();
-		const zoomArg = vi.mocked(phaserState.mainCamera.setZoom).mock.calls[0]![0];
-		expect(zoomArg).toBeCloseTo(640 / 896, 5);
-		expect(zoomArg).toBeCloseTo(360 / 504, 5);
-		expect(phaserState.mainCamera.scrollX).toBe(0);
-		expect(phaserState.mainCamera.scrollY).toBe(0);
-	});
-
-	it('produces a victory result after all generated enemies are defeated', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-
-		scene.create({
-			saveState,
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 2,
-			hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-		const state = scene as unknown as {
-			enemies: Array<{ x: number; y: number; hp: number }>;
-			pendingResult: unknown;
-		};
-		state.enemies[0]!.x = 330;
-		state.enemies[0]!.y = 180;
-		state.enemies[1]!.x = 330;
-		state.enemies[1]!.y = 190;
-
-		scene.update(0, 16);
-		scene.update(200, 16);
-		scene.update(500, 16);
-
-		expect(state.pendingResult).toMatchObject({
-			outcome: 'victory',
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			finalHeroHp: 17,
-			inventory: saveState.inventory,
-			defeatedUnits: [
-				expect.objectContaining({
-					unitId: 'wildwood-wolves-mouth:unit:0',
-					unitIndex: 0,
-					enemyId: 'forest-wolf',
-					xpReward: 2,
-					coinReward: 3
-				}),
-				expect.objectContaining({
-					unitId: 'wildwood-wolves-mouth:unit:1',
-					unitIndex: 1,
-					enemyId: 'forest-wolf',
-					xpReward: 2,
-					coinReward: 3
-				})
-			]
-		});
-	});
-
-	it('publishes the applied victory save state in the battle summary HUD', async () => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-		saveState.mapId = 'overworld';
-		saveState.player = {
-			...saveState.player,
-			level: 1,
-			xp: 0,
-			hp: 20,
-			attack: 9,
-			x: 2_900,
-			y: 800,
-			facing: 'down'
-		};
-		saveState.inventory = {
-			stacks: [{ itemId: 'field-potion', quantity: 1 }],
-			equipment: ['practice-spear']
-		};
-		saveState.equipment = { ...saveState.equipment, weapon: 'practice-spear' };
-		saveState.wallet = { coins: 30 };
-		saveState.quests = questStateAt('defeat-boar-king');
-		localeState.activeLocale = 'ja';
-
-		try {
-			scene.create({
-				saveState,
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'boar-king',
-				sourceEnemyId: 'boar-king',
-				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 90, defense: 0 }
-			});
-			emitHudStateSpy.mockClear();
-			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-			const state = scene as unknown as {
-				enemies: Array<{ x: number; y: number }>;
-			};
-			state.enemies[0]!.x = 330;
-			state.enemies[0]!.y = 180;
-
-			scene.update(0, 16);
-
-			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-				expect.objectContaining({
-					level: 4,
-					xp: 30,
-					wallet: { coins: 60 },
-					battle: {
-						phase: 'summary',
-						summary: expect.objectContaining({
-							outcome: 'victory',
-							xpGained: 30,
-							coinsGained: 30,
-							completedQuestTitles: ['JP Third Trial: The Boar King'],
-							drops: [expect.objectContaining({ itemId: 'greater-field-potion', quantity: 1 })]
-						}),
-						active: null
-					},
-					quests: expect.objectContaining({
-						completed: expect.arrayContaining([
-							expect.objectContaining({
-								questId: 'prologue-trial-boar-king',
-								title: 'JP Third Trial: The Boar King',
-								status: 'completed'
-							})
-						])
-					}),
-					inventory: expect.objectContaining({
-						consumables: expect.arrayContaining([
-							expect.objectContaining({ itemId: 'greater-field-potion', quantity: 1 })
-						]),
-						equipped: expect.objectContaining({ weapon: 'practice-spear' })
-					})
-				})
-			);
-			// The summary previews the applied state; the pre-battle save is untouched.
-			expect(saveState.player.level).toBe(1);
-			expect(saveState.wallet.coins).toBe(30);
-			expect(saveState.inventory.stacks).toEqual([{ itemId: 'field-potion', quantity: 1 }]);
-			expect(saveState.quests.entries['prologue-trial-boar-king']).toMatchObject({
-				status: 'active',
-				currentObjectiveId: 'defeat-boar-king'
-			});
-		} finally {
-			randomSpy.mockRestore();
-		}
-	});
-
-	it('produces a defeat result when hero HP reaches zero', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-
-		scene.create({
-			saveState,
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 1, maxHp: 20, attack: 1, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-		const state = scene as unknown as {
-			enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
-			pendingResult: unknown;
-		};
-		state.enemies[0]!.x = 320;
-		state.enemies[0]!.y = 180;
-		state.enemies[0]!.attackCooldownUntil = 0;
-
-		scene.update(0, 16);
-		scene.update(120, 16);
-
-		expect(state.pendingResult).toMatchObject({
-			outcome: 'defeat',
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			finalHeroHp: 0,
-			inventory: saveState.inventory,
-			defeatedUnits: []
-		});
-	});
-
-	it('keeps the hero attack animation locked briefly after striking', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-		const state = scene as unknown as {
-			enemies: Array<{ x: number; y: number }>;
-		};
-		state.enemies[0]!.x = 330;
-		state.enemies[0]!.y = 180;
-		phaserState.playerMarker.play.mockClear();
-
-		scene.update(0, 16);
-		const callCountAfterStrike = phaserState.playerMarker.play.mock.calls.length;
-		phaserState.cursorKeys.right.isDown = true;
-		scene.update(16, 16);
-
-		expect(phaserState.playerMarker.play).toHaveBeenCalledWith('hero-attack', false);
-		expect(phaserState.playerMarker.play).toHaveBeenCalledTimes(callCountAfterStrike);
-	});
-
-	it('plays slash and impact presentation when the hero attacks', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
-		const state = scene as unknown as {
-			enemies: Array<{ x: number; y: number }>;
-			hitStopUntil: number;
-		};
-		state.enemies[0]!.x = 458;
-		state.enemies[0]!.y = 252;
-
-		scene.update(0, 16);
-
-		expect(scene.add.arc).toHaveBeenCalledWith(453, 252, 24, -55, 55, false, 0xffd166, 0.88);
-		expect(scene.add.arc).toHaveBeenCalledWith(458, 252, 16, 0, 360, false, 0xffffff, 0.72);
-		expect(phaserState.hitImpactMarkers[0]!.destroy).toHaveBeenCalled();
-		expect(phaserState.hitImpactMarkers[1]!.destroy).toHaveBeenCalled();
-		expect(phaserState.mainCamera.shake).toHaveBeenCalledWith(80, 0.004);
-		expect(scene.tweens.add).toHaveBeenCalled();
-		expect(state.hitStopUntil).toBe(110);
-	});
-
-	it('skips movement updates during hit-stop but keeps time advancing afterward', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
-		const state = scene as unknown as {
-			enemies: Array<{ x: number; y: number }>;
-			hitStopUntil: number;
-		};
-		state.enemies[0]!.x = 458;
-		state.enemies[0]!.y = 252;
-		phaserState.cursorKeys.right.isDown = true;
-
-		scene.update(0, 16);
-		const xDuringStrike = phaserState.playerMarker.x;
-		scene.update(20, 16);
-
-		expect(phaserState.playerMarker.x).toBe(xDuringStrike);
-		// Hit-stop now spans the full 110 ms hero lunge (out + yoyo return),
-		// so input is still frozen at t=80 — the frame where the lunge tween
-		// used to resume overwriting player.x mid-return.
-		scene.update(80, 16);
-		expect(phaserState.playerMarker.x).toBe(xDuringStrike);
-		scene.update(130, 16);
-		expect(phaserState.playerMarker.x).toBeGreaterThan(xDuringStrike);
-	});
-
-	it('freezes enemy movement on the frame the hero triggers hit-stop', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
-		const state = scene as unknown as {
-			enemies: Array<{ x: number; y: number }>;
-			hitStopUntil: number;
-		};
-		// Place enemy within hero attack reach (distance 50 <= 62) but outside enemy
-		// chase threshold (50 > 40) so it would normally move on the hit frame.
-		state.enemies[0]!.x = 498;
-		state.enemies[0]!.y = 252;
-
-		scene.update(0, 16);
-
-		expect(state.hitStopUntil).toBe(110);
-		expect(state.enemies[0]!.x).toBe(498);
-	});
-
-	it('keeps enemy AI frozen for the full hero lunge return so the lunged sprite cannot trigger a false counterattack', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
-		// Enemy at distance 50 px: inside hero attack reach (50 <= 62) but
-		// outside enemy attack reach (50 > 40). With the lunge tween pushing
-		// the sprite ~18 px toward the enemy, AI that read the lunged
-		// sprite position would see distance ~32 px and counter-attack.
-		const state = scene as unknown as {
-			enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
-			hero: { hp: number };
-			hitStopUntil: number;
-		};
-		state.enemies[0]!.x = 498;
-		state.enemies[0]!.y = 252;
-		state.enemies[0]!.attackCooldownUntil = 0;
-
-		scene.update(0, 16);
-		expect(state.hitStopUntil).toBe(110);
-
-		const hpAtStrike = state.hero.hp;
-		const enemyXAtStrike = state.enemies[0]!.x;
-
-		// t=80 is past the legacy 70 ms hit-stop but still inside the
-		// lunge+yoyo window (55 ms out + 55 ms back = 110 ms). AI and the
-		// hero's logical position must remain frozen here.
-		scene.update(80, 16);
-
-		expect(state.enemies[0]!.x).toBe(enemyXAtStrike);
-		expect(state.hero.hp).toBe(hpAtStrike);
-
-		// After the full lunge returns, gameplay resumes.
-		scene.update(130, 16);
-		// Enemy is still outside its 40 px chase threshold from the hero's
-		// logical position, so it should now close in but not yet attack.
-		expect(state.enemies[0]!.x).toBeLessThan(enemyXAtStrike);
-		expect(state.hero.hp).toBe(hpAtStrike);
-	});
-
-	it('sorts by the current frame’s ground-contact point rather than the frame bottom', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'boar-king',
-			sourceEnemyId: 'boar-king',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, {
-			y: 300,
-			frame: { name: 'heroIdle0' }
-		});
-		Object.assign(phaserState.enemyMarker, {
-			y: 261.25,
-			frame: { name: 'boarKingIdle0' }
-		});
-		scene.events.emit('postupdate');
-		expect(phaserState.playerMarker.depth).toBeCloseTo(300 + (187 / 192 - 0.5) * 90);
-		expect(phaserState.enemyMarker.depth).toBeCloseTo(261.25 + (188 / 192 - 0.5) * 168);
-		expect(phaserState.playerMarker.depth).toBeGreaterThan(phaserState.enemyMarker.depth);
-
-		Object.assign(phaserState.playerMarker, { frame: { name: 'heroAttack0' } });
-		Object.assign(phaserState.enemyMarker, { frame: { name: 'boarKingAttack2' } });
-		scene.events.emit('postupdate');
-		expect(phaserState.playerMarker.depth).toBeCloseTo(300 + (180 / 192 - 0.5) * 90);
-		expect(phaserState.enemyMarker.depth).toBeCloseTo(261.25 + (183 / 192 - 0.5) * 168);
-		expect(phaserState.playerMarker.depth).toBeGreaterThan(phaserState.enemyMarker.depth);
-	});
-
-	it('sorts battle actors by displayed foot even when center-Y sorting disagrees', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'ruins-core',
-			sourceEncounterId: 'boar-king',
-			sourceEnemyId: 'boar-king',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-		const state = scene as unknown as { hitStopUntil: number };
-		// Authored display heights come from content/assets.ts: hero 90, boar king 168.
-		expect(phaserState.playerMarker.displayHeight).toBe(90);
-		expect(phaserState.enemyMarker.displayHeight).toBe(168);
-		// Freeze movement and AI so only the depth sync runs.
-		state.hitStopUntil = 10_000;
-
-		// Center-Y sorting would put Grik in front (300 > 280), but the boar
-		// king's calibrated foot is below Grik's.
-		Object.assign(phaserState.playerMarker, { x: 448, y: 300 });
-		Object.assign(phaserState.enemyMarker, { x: 448, y: 280 });
-
-		scene.update(0, 16);
-		scene.events.emit('postupdate');
-
-		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(300 + (187 / 192 - 0.5) * 90);
-		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(280 + (188 / 192 - 0.5) * 168);
-		expect(phaserState.enemyMarker.depth).toBeGreaterThan(phaserState.playerMarker.depth);
-
-		// Reverse the arrangement so Grik's foot is lower: the front actor flips.
-		Object.assign(phaserState.playerMarker, { x: 448, y: 380 });
-		Object.assign(phaserState.enemyMarker, { x: 448, y: 300 });
-		phaserState.playerMarker.setDepth.mockClear();
-		phaserState.enemyMarker.setDepth.mockClear();
-
-		scene.update(20, 16);
-		scene.events.emit('postupdate');
-
-		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(380 + (187 / 192 - 0.5) * 90);
-		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(300 + (188 / 192 - 0.5) * 168);
-		expect(phaserState.playerMarker.depth).toBeGreaterThan(phaserState.enemyMarker.depth);
-	});
-
-	it('sorts the taller thornback boar ahead of the hero by displayed foot', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-thornback-boar',
-			sourceEnemyId: 'thornback-boar',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-		const state = scene as unknown as { hitStopUntil: number };
-		expect(phaserState.enemyMarker.displayHeight).toBe(108);
-		state.hitStopUntil = 10_000;
-
-		// Only 5 px of center Y separate them; the boar's foot is lower.
-		Object.assign(phaserState.playerMarker, { x: 448, y: 300 });
-		Object.assign(phaserState.enemyMarker, { x: 448, y: 295 });
-
-		scene.update(0, 16);
-		scene.events.emit('postupdate');
-
-		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(300 + (187 / 192 - 0.5) * 90);
-		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(295 + (188 / 192 - 0.5) * 108);
-		expect(phaserState.enemyMarker.depth).toBeGreaterThan(phaserState.playerMarker.depth);
-
-		// Reverse the arrangement: the hero's foot is lower, so the hero leads.
-		Object.assign(phaserState.playerMarker, { x: 448, y: 320 });
-		Object.assign(phaserState.enemyMarker, { x: 448, y: 300 });
-		phaserState.playerMarker.setDepth.mockClear();
-		phaserState.enemyMarker.setDepth.mockClear();
-
-		scene.update(20, 16);
-		scene.events.emit('postupdate');
-
-		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(320 + (187 / 192 - 0.5) * 90);
-		expect(phaserState.enemyMarker.setDepth).toHaveBeenCalledWith(300 + (188 / 192 - 0.5) * 108);
-		expect(phaserState.playerMarker.depth).toBeGreaterThan(phaserState.enemyMarker.depth);
-	});
-
-	it('follows regular hero movement with re-synced depths', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
-		// The wolf stays out of reach on its spawn ring (448, 74).
-		phaserState.cursorKeys.down.isDown = true;
-
-		scene.update(0, 250); // hero walks 35 px down to y = 287
-		scene.events.emit('postupdate'); // depth re-syncs after movement in the same frame
-
-		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(287 + (184 / 192 - 0.5) * 90); // heroWalk0
-	});
-
-	it('re-syncs depths during hit stop so lunged frames stay sorted', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
-		const state = scene as unknown as {
-			enemies: Array<{ x: number; y: number }>;
-			hitStopUntil: number;
-		};
-		state.enemies[0]!.x = 458;
-		state.enemies[0]!.y = 252;
-
-		scene.update(0, 16); // hero strikes: hit stop runs to t = 110
-		expect(state.hitStopUntil).toBe(110);
-
-		// Simulate the lunge tween having pushed the sprite toward the enemy.
-		Object.assign(phaserState.playerMarker, { y: 244 });
-		phaserState.playerMarker.setDepth.mockClear();
-
-		scene.update(20, 16); // movement and AI are frozen; depth sync is not
-		scene.events.emit('postupdate');
-
-		expect(phaserState.playerMarker.setDepth).toHaveBeenCalledWith(244 + (180 / 192 - 0.5) * 90); // heroAttack0
-	});
-
-	it('draws health bars and strike arcs at a fixed depth above every actor foot', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const { overlayDepth } = BattleScene as unknown as { overlayDepth: number };
-		// Deepest feet possible in the 504 px arena: 504 - 48 padding + 168 / 2 (boar king).
-		expect(overlayDepth).toBeGreaterThan(540);
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'ruins-core',
-			sourceEncounterId: 'boar-king',
-			sourceEnemyId: 'boar-king',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-
-		expect(phaserState.enemyHealthBarBg.setDepth).toHaveBeenCalledWith(overlayDepth);
-		expect(phaserState.enemyHealthBarFill.setDepth).toHaveBeenCalledWith(overlayDepth);
-
-		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
-		const state = scene as unknown as { enemies: Array<{ x: number; y: number }> };
-		state.enemies[0]!.x = 458;
-		state.enemies[0]!.y = 252;
-
-		scene.update(0, 16);
-
-		expect(phaserState.hitImpactMarkers[0]!.setDepth).toHaveBeenCalledWith(overlayDepth);
-		expect(phaserState.hitImpactMarkers[1]!.setDepth).toHaveBeenCalledWith(overlayDepth);
-	});
-
-	it('keeps enemy attack animation locked briefly after striking the hero', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-		const state = scene as unknown as {
-			enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
-		};
-		state.enemies[0]!.x = 330;
-		state.enemies[0]!.y = 180;
-		state.enemies[0]!.attackCooldownUntil = 0;
-		phaserState.enemyMarker.play.mockClear();
-
-		scene.update(0, 16);
-		scene.update(120, 16);
-		const callCountAfterStrike = phaserState.enemyMarker.play.mock.calls.length;
-		scene.update(136, 16);
-
-		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('forestWolf-attack', false);
-		expect(phaserState.enemyMarker.play).toHaveBeenCalledTimes(callCountAfterStrike);
-	});
-
-	it('plays a compact impact pulse when an enemy attacks the hero', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 448, y: 252 });
-		const state = scene as unknown as {
-			enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
-		};
-		state.enemies[0]!.x = 448;
-		state.enemies[0]!.y = 252;
-		state.enemies[0]!.attackCooldownUntil = 0;
-		vi.mocked(scene.add.arc).mockClear();
-
-		scene.update(0, 16);
-		vi.mocked(scene.add.arc).mockClear();
-		scene.update(120, 16);
-
-		expect(scene.add.arc).toHaveBeenCalledWith(448, 252, 12, 0, 360, false, 0xff6b6b, 0.65);
-		expect(phaserState.hitImpactMarkers[2]!.destroy).toHaveBeenCalled();
-		const { overlayDepth } = BattleScene as unknown as { overlayDepth: number };
-		expect(phaserState.hitImpactMarkers[2]!.setDepth).toHaveBeenCalledWith(overlayDepth);
-		expect(phaserState.mainCamera.shake).toHaveBeenCalledWith(60, 0.003);
-	});
-
-	it('waits for the enemy death animation before hiding the marker and health bars', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-		const state = scene as unknown as {
-			enemies: Array<{ x: number; y: number }>;
-		};
-		state.enemies[0]!.x = 330;
-		state.enemies[0]!.y = 180;
-
-		scene.update(0, 16);
-
-		expect(phaserState.enemyMarker.play).toHaveBeenCalledWith('forestWolf-dead', false);
-		expect(phaserState.enemyMarker.once).toHaveBeenCalledWith(
-			'animationcomplete-forestWolf-dead',
-			expect.any(Function)
-		);
-		expect(phaserState.enemyMarker.setVisible).not.toHaveBeenCalledWith(false);
-		expect(phaserState.enemyHealthBarBg.setVisible).not.toHaveBeenCalledWith(false);
-		expect(phaserState.enemyHealthBarFill.setVisible).not.toHaveBeenCalledWith(false);
-
-		const [, completeDeathAnimation] = phaserState.enemyMarker.once.mock.calls[0]!;
-		completeDeathAnimation();
-
-		expect(phaserState.enemyMarker.setVisible).toHaveBeenCalledWith(false);
-		expect(phaserState.enemyHealthBarBg.setVisible).toHaveBeenCalledWith(false);
-		expect(phaserState.enemyHealthBarFill.setVisible).toHaveBeenCalledWith(false);
-	});
-
-	it('clears the enemy hit tint after the hit reaction window', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-		const state = scene as unknown as {
-			enemies: Array<{ x: number; y: number }>;
-		};
-		state.enemies[0]!.x = 330;
-		state.enemies[0]!.y = 180;
-
-		scene.update(0, 16);
-		state.enemies[0]!.x = 600;
-		state.enemies[0]!.y = 180;
-		scene.update(451, 16);
-
-		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xfff0a8);
-		expect(phaserState.enemyMarker.clearTint).toHaveBeenCalled();
-	});
-
-	it('registers BattleScene actor animations from the asset registry', async () => {
-		const { actorAnimationAssets } = await import('$lib/game/content/assets');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const mutableAssets = actorAnimationAssets as unknown as Record<
-			string,
-			{
-				clips: Record<
-					'idle' | 'walk' | 'attack' | 'dead',
-					{ key: string; frames: string[]; frameRate: number; repeat: number }
-				>;
-				displaySize: { width: number; height: number };
-				id: string;
-			}
-		>;
-
-		mutableAssets.sentinelActor = {
-			id: 'sentinelActor',
-			displaySize: { width: 1, height: 1 },
-			clips: {
-				idle: { key: 'sentinel-idle', frames: ['heroIdle0'], frameRate: 1, repeat: -1 },
-				walk: { key: 'sentinel-walk', frames: ['heroWalk0'], frameRate: 1, repeat: -1 },
-				attack: { key: 'sentinel-attack', frames: ['heroAttack0'], frameRate: 1, repeat: 0 },
-				dead: { key: 'sentinel-dead', frames: ['heroDead0'], frameRate: 1, repeat: 0 }
-			}
-		};
-
-		try {
-			const scene = new BattleScene();
-			scene.create({
-				saveState: createNewSaveState(),
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
-			});
-
-			expect(scene.anims.create).toHaveBeenCalledWith(
-				expect.objectContaining({ key: 'sentinel-idle' })
-			);
-		} finally {
-			delete mutableAssets.sentinelActor;
-		}
-	});
-
-	it('accepts healing commands and returns the consumed inventory', async () => {
-		const hud = installHudCommandTarget();
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const saveState = {
-			...createNewSaveState(),
-			inventory: {
-				stacks: [{ itemId: 'field-potion', quantity: 1 }],
-				equipment: []
-			}
-		};
-
-		try {
-			scene.create({
-				saveState,
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 1,
-				hero: { hp: 4, maxHp: 20, attack: 8, defense: 0 }
-			});
-			emitHudStateSpy.mockClear();
-
-			hud.dispatch({ type: 'heal' });
-
-			const state = scene as unknown as {
-				hero: { hp: number };
-				inventory: { stacks: Array<{ itemId: string; quantity: number }> };
-			};
-			expect(state.hero.hp).toBe(12);
-			expect(state.inventory.stacks).toEqual([]);
-			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-				expect.objectContaining({
-					hp: 12,
-					heals: 0,
-					status: 'Recovered HP',
-					battle: {
-						phase: 'active',
-						summary: null,
-						active: expect.objectContaining({
-							heals: 0,
-							items: 0,
-							feed: [expect.objectContaining({ kind: 'heal', amount: 8 })]
-						})
-					},
-					inventory: expect.objectContaining({ consumables: [] })
-				})
-			);
-		} finally {
-			hud.restore();
-		}
-	});
-
-	it('locks non-battle commands during active battle', async () => {
-		const hud = installHudCommandTarget();
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		try {
-			scene.create({
-				saveState: createNewSaveState(),
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
-			});
-			emitHudStateSpy.mockClear();
-
-			hud.dispatch({ type: 'open-shop', shopId: 'miras-item-shop' });
-
-			expect(scene.scene.start).not.toHaveBeenCalled();
-			expect(emitHudStateSpy).toHaveBeenLastCalledWith(
-				expect.objectContaining({
-					status: 'Cannot do that during battle',
-					battle: { phase: 'active', summary: null, active: expect.anything() }
-				})
-			);
-		} finally {
-			hud.restore();
-		}
-	});
-
-	it('transitions to WorldScene with pre-battle state and battle result after summary dismissal', async () => {
-		const hud = installHudCommandTarget();
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-
-		try {
-			scene.create({
-				saveState,
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
-			});
-			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-			const state = scene as unknown as {
-				enemies: Array<{ x: number; y: number }>;
-				pendingResult: unknown;
-			};
-			state.enemies[0]!.x = 330;
-			state.enemies[0]!.y = 180;
-			scene.update(0, 16);
-
-			expect(state.pendingResult).not.toBeNull();
-
-			hud.dispatch({ type: 'dismiss-battle-summary' });
-
-			expect(scene.scene.start).toHaveBeenCalledWith(WorldScene.key, {
-				saveState,
-				reason: 'battle-result',
-				battleResult: state.pendingResult
-			});
-		} finally {
-			hud.restore();
-		}
-	});
-
-	it('ignores non-dismiss commands while the battle summary is showing', async () => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-
-		scene.create({
-			saveState,
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 10, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-		const state = scene as unknown as {
-			enemies: Array<{ x: number; y: number }>;
-			pendingResult: unknown;
-		};
-		state.enemies[0]!.x = 330;
-		state.enemies[0]!.y = 180;
-
-		scene.update(0, 16);
-
-		expect(state.pendingResult).toBeTruthy();
-		emitHudStateSpy.mockClear();
-
-		const hud = installHudCommandTarget();
-		try {
-			hud.dispatch({ type: 'heal' });
-
-			expect(emitHudStateSpy).not.toHaveBeenCalled();
-		} finally {
-			hud.restore();
-		}
-	});
-
-	it('does not persist battle results in BattleScene (deferred to WorldScene)', async () => {
-		const storage = await import('$lib/game/save/storage');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-		const setItemSpy = vi.fn();
-		const memoryStorage = {
-			getItem: vi.fn(() => null),
-			removeItem: vi.fn(),
-			setItem: setItemSpy
-		};
-
-		storage.setSaveStorage(memoryStorage);
-		try {
-			scene.create({
-				saveState,
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 8, defense: 0 }
-			});
-			Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-			const state = scene as unknown as {
-				enemies: Array<{ x: number; y: number }>;
-			};
-			state.enemies[0]!.x = 330;
-			state.enemies[0]!.y = 180;
-
-			scene.update(0, 16);
-
-			expect(setItemSpy).not.toHaveBeenCalled();
-		} finally {
-			storage.setSaveStorage(undefined);
-		}
-	});
-
-	it('applies 1.5x speed multiplier for phase-2 boss enemies', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-
-		scene.create({
-			saveState,
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'boar-king',
-			sourceEnemyId: 'boar-king',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 41, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-		const state = scene as unknown as {
-			enemies: Array<{
-				x: number;
-				y: number;
-				hp: number;
-				maxHp: number;
-				phase: 1 | 2;
-				moveSpeed: number;
-			}>;
-		};
-
-		// Phase 1: position enemy close enough for the hero to hit
-		state.enemies[0]!.x = 330;
-		state.enemies[0]!.y = 180;
-
-		scene.update(0, 16);
-
-		// Hit should trigger enrage (80 HP → 39, below 50%)
-		expect(state.enemies[0]!.phase).toBe(2);
-
-		// Now measure speed in phase 2: move hero far away, boss chases
-		Object.assign(phaserState.playerMarker, { x: 60, y: 60 });
-		const xBeforeChase = state.enemies[0]!.x;
-
-		scene.update(500, 200);
-
-		const phase2Delta = Math.abs(state.enemies[0]!.x - xBeforeChase);
-		// Phase-2 boss (90 * 1.5 = 135 speed) * 0.2s = 27 units
-		// Phase-1 boss (90 speed) * 0.2s = 18 units
-		expect(phase2Delta).toBeGreaterThan(22);
-	});
-
-	it('restores phase-2 boss tint after hit reaction expires', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-
-		scene.create({
-			saveState,
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'boar-king',
-			sourceEnemyId: 'boar-king',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 41, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-		const state = scene as unknown as {
-			enemies: Array<{
-				x: number;
-				y: number;
-				hp: number;
-				maxHp: number;
-				phase: 1 | 2;
-				hitReactionUntil: number;
-			}>;
-		};
-		state.enemies[0]!.x = 330;
-		state.enemies[0]!.y = 180;
-
-		// First hit: trigger enrage
-		scene.update(0, 16);
-		expect(state.enemies[0]!.phase).toBe(2);
-		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xff8a3d);
-
-		// Reset setTint/clearTint mock tracking but keep phase state
-		phaserState.enemyMarker.setTint.mockClear();
-		phaserState.enemyMarker.clearTint.mockClear();
-
-		// Wait for first hit reaction to clear
-		const hitReactionEnd = state.enemies[0]!.hitReactionUntil;
-		scene.update(hitReactionEnd + 1, 16);
-
-		// Phase-2 tint should be restored, not clearTint
-		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xff8a3d);
-		expect(phaserState.enemyMarker.clearTint).not.toHaveBeenCalled();
-	});
-
-	it('selects the nearest enemy as the initial target', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			// Spawn ring: unit:0 lands at (448, 74) — distance 178 — and units 1/2
-			// tie at ~309, so unit:0 is nearest to the hero at center.
-			enemyCount: 2,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-
-		const state = scene as unknown as { selectedTargetUnitId: string | null };
-
-		expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:0');
-	});
-
-	it('cycles targets skipping defeated enemies and falls back to nearest', async () => {
-		const hud = installHudCommandTarget();
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		try {
-			scene.create({
-				saveState: createNewSaveState(),
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 3,
-				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-			});
-			const state = scene as unknown as {
-				enemies: Array<{ unitId: string; defeated: boolean }>;
-				selectedTargetUnitId: string | null;
-			};
-
-			expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:0');
-			state.enemies[0]!.defeated = true;
-
-			// Invalid (defeated) current target falls back to the nearest living
-			// enemy (units 1/2 tie at ~309; the first, unit:1, wins).
-			hud.dispatch({ type: 'battle-cycle-target', direction: 1 });
-			expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:1');
-
-			// Next cycle wraps left-to-right past unit:1 to unit:2.
-			hud.dispatch({ type: 'battle-cycle-target', direction: 1 });
-			expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:2');
-		} finally {
-			hud.restore();
-		}
-	});
-
-	it('selects a target directly by unit id, ignoring defeated or unknown units', async () => {
-		const hud = installHudCommandTarget();
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		try {
-			scene.create({
-				saveState: createNewSaveState(),
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 3,
-				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-			});
-			const state = scene as unknown as {
-				enemies: Array<{ unitId: string; defeated: boolean }>;
-				selectedTargetUnitId: string | null;
-			};
-
-			hud.dispatch({ type: 'battle-select-target', unitId: 'wildwood-wolves-mouth:unit:2' });
-			expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:2');
-
-			// Defeated and unknown ids leave the current selection untouched.
-			state.enemies[1]!.defeated = true;
-			hud.dispatch({ type: 'battle-select-target', unitId: 'wildwood-wolves-mouth:unit:1' });
-			expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:2');
-			hud.dispatch({ type: 'battle-select-target', unitId: 'wildwood-wolves-mouth:unit:9' });
-			expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:2');
-		} finally {
-			hud.restore();
-		}
-	});
-
-	it('prefers the selected target for auto-attacks when it is in reach', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		scene.create({
-			saveState: createNewSaveState(),
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 2,
-			hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-		});
-		const state = scene as unknown as {
-			enemies: Array<{ unitId: string; x: number; y: number; hp: number }>;
-			selectedTargetUnitId: string | null;
-		};
-
-		// Selected (nearest-spawned) unit:0 sits in reach; unit:1 is even closer
-		// to the hero, but the selected target must take the hit.
-		state.enemies[0]!.x = 458;
-		state.enemies[0]!.y = 252;
-		state.enemies[1]!.x = 450;
-		state.enemies[1]!.y = 252;
-
-		scene.update(0, 16);
-
-		expect(state.selectedTargetUnitId).toBe('wildwood-wolves-mouth:unit:0');
-		expect(state.enemies[0]!.hp).toBe(6);
-		expect(state.enemies[1]!.hp).toBe(10);
-	});
-
-	it('appends bounded combat feed entries at damage, heal, and defeat points', async () => {
-		const hud = installHudCommandTarget();
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const saveState = {
-			...createNewSaveState(),
-			inventory: {
-				stacks: [{ itemId: 'field-potion', quantity: 2 }],
-				equipment: []
-			}
-		};
-
-		try {
-			scene.create({
-				saveState,
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 5, defense: 0 }
-			});
-			const state = scene as unknown as {
-				enemies: Array<{ x: number; y: number; hp: number }>;
-				feed: Array<{ kind: string; amount: number; subject: string }>;
-			};
-			state.enemies[0]!.x = 458;
-			state.enemies[0]!.y = 252;
-
-			scene.update(0, 16);
-			// t=120 sits between hero cooldowns (no hit-stop): the enemy strikes back.
-			scene.update(120, 16);
-			expect(state.feed).toEqual([
-				{ id: 1, kind: 'hit', amount: 5, subject: 'Forest Wolf' },
-				{ id: 2, kind: 'hurt', amount: 3, subject: 'Grik' }
-			]);
-
-			hud.dispatch({ type: 'heal' });
-			// Hero is at 17/20 after the enemy hit, so the 8-HP potion only restores 3.
-			expect(state.feed.at(-1)).toEqual({
-				id: 3,
-				kind: 'heal',
-				amount: 3,
-				subject: 'Field Potion'
-			});
-
-			scene.update(500, 16);
-			expect(state.feed).toHaveLength(4);
-			expect(state.feed.map((entry) => entry.kind)).toEqual(['hurt', 'heal', 'hit', 'defeat']);
-		} finally {
-			hud.restore();
-		}
-	});
-
-	it('publishes a readiness ribbon sorted by readyAt', async () => {
-		const hud = installHudCommandTarget();
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		try {
-			scene.create({
-				saveState: createNewSaveState(),
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 3,
-				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-			});
-			const state = scene as unknown as {
-				enemies: Array<{ attackCooldownUntil: number }>;
-				heroAttackCooldownUntil: number;
-			};
-			state.enemies[0]!.attackCooldownUntil = 500;
-			state.enemies[1]!.attackCooldownUntil = 200;
-			state.enemies[2]!.attackCooldownUntil = 700;
-			state.heroAttackCooldownUntil = 100;
-			emitHudStateSpy.mockClear();
-
-			hud.dispatch({ type: 'battle-cycle-target', direction: 1 });
-
-			const payload = emitHudStateSpy.mock.calls.at(-1)![0] as {
-				battle: {
-					active: {
-						ribbon: Array<{ unitId: string; readyAt: number }>;
-						enemies: Array<{ unitId: string; name: string }>;
-					};
-				};
-			};
-			expect(payload.battle.active.ribbon).toEqual([
-				{ unitId: 'hero', readyAt: 100 },
-				{ unitId: 'wildwood-wolves-mouth:unit:1', readyAt: 200 },
-				{ unitId: 'wildwood-wolves-mouth:unit:0', readyAt: 500 },
-				{ unitId: 'wildwood-wolves-mouth:unit:2', readyAt: 700 }
-			]);
-			expect(payload.battle.active.enemies).toHaveLength(3);
-			expect(payload.battle.active.enemies[0]).toMatchObject({ name: 'Forest Wolf' });
-		} finally {
-			emitHudStateSpy.mockRestore();
-			hud.restore();
-		}
-	});
-
-	it('exposes flee channel progress while channeling', async () => {
-		const hud = installHudCommandTarget();
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		try {
-			scene.create({
-				saveState: createNewSaveState(),
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-			});
-			const state = scene as unknown as { pendingResult: unknown };
-			scene.update(0, 16);
-			emitHudStateSpy.mockClear();
-
-			hud.dispatch({ type: 'battle-flee' });
-			let payload = emitHudStateSpy.mock.calls.at(-1)![0] as {
-				battle: { active: { flee: { status: string; progress: number } } };
-			};
-			expect(payload.battle.active.flee).toEqual({ status: 'channeling', progress: 0 });
-
-			emitHudStateSpy.mockClear();
-			scene.update(1_200, 16);
-			payload = emitHudStateSpy.mock.calls.at(-1)![0] as typeof payload;
-			expect(payload.battle.active.flee).toEqual({ status: 'channeling', progress: 0.5 });
-			expect(state.pendingResult).toBeNull();
-		} finally {
-			emitHudStateSpy.mockRestore();
-			hud.restore();
-		}
-	});
-
-	it('ignores a second flee press while channeling', async () => {
-		const hud = installHudCommandTarget();
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		try {
-			scene.create({
-				saveState: createNewSaveState(),
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-			});
-			scene.update(0, 16);
-
-			hud.dispatch({ type: 'battle-flee' });
-			hud.dispatch({ type: 'battle-flee' });
-			scene.update(1_200, 16);
-
-			// A restart would report (1200-1200)/2400 = 0; the original channel
-			// keeps its deadline and reports 0.5.
-			const payload = emitHudStateSpy.mock.calls.at(-1)![0] as {
-				battle: { active: { flee: { status: string; progress: number } } };
-			};
-			expect(payload.battle.active.flee).toEqual({ status: 'channeling', progress: 0.5 });
-		} finally {
-			emitHudStateSpy.mockRestore();
-			hud.restore();
-		}
-	});
-
-	it('cancels the flee channel when the hero takes damage', async () => {
-		const hud = installHudCommandTarget();
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-
-		try {
-			scene.create({
-				saveState: createNewSaveState(),
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
-			});
-			const state = scene as unknown as {
-				enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
-				hero: { hp: number };
-				fleeChannel: { status: string };
-			};
-			state.enemies[0]!.x = 448;
-			state.enemies[0]!.y = 252;
-			state.enemies[0]!.attackCooldownUntil = 0;
-
-			scene.update(0, 16);
-			hud.dispatch({ type: 'battle-flee' });
-			expect(state.fleeChannel.status).toBe('channeling');
-
-			// The enemy's next strike lands at t=120 (between hero cooldowns).
-			scene.update(120, 16);
-
-			expect(state.fleeChannel.status).toBe('idle');
-			expect(scene.scene.start).not.toHaveBeenCalled();
-		} finally {
-			hud.restore();
-		}
-	});
-
-	it('hands a fled result to WorldScene when the channel completes', async () => {
-		const hud = installHudCommandTarget();
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-
-		try {
-			scene.create({
-				saveState,
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 1,
-				hero: { hp: 13, maxHp: 20, attack: 1, defense: 0 }
-			});
-			const state = scene as unknown as {
-				enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
-			};
-			state.enemies[0]!.x = 448;
-			state.enemies[0]!.y = 252;
-			state.enemies[0]!.attackCooldownUntil = 0;
-
-			scene.update(0, 16);
-			// Enemy strike first (t=120), THEN the channel: a hit after fleeing starts
-			// would cancel it, so the damage must already be on the books.
-			scene.update(120, 16);
-			hud.dispatch({ type: 'battle-flee' });
-			scene.update(2_600, 16);
-
-			expect(scene.scene.start).toHaveBeenCalledWith(
-				WorldScene.key,
-				expect.objectContaining({
-					reason: 'battle-result',
-					battleResult: expect.objectContaining({
-						outcome: 'fled',
-						finalHeroHp: 10,
-						inventory: saveState.inventory,
-						defeatedUnits: []
-					}),
-					recentlyFled: { encounterId: 'wildwood-wolves-mouth' }
-				})
-			);
-		} finally {
-			hud.restore();
-		}
-	});
-
-	it('hands a scripted defeat straight back to WorldScene without flee grace', async () => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
-		const { BattleScene } = await import('./BattleScene');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new BattleScene();
-		const saveState = {
-			...createNewSaveState(),
-			mapId: 'overworld',
-			quests: questStateAt('charge-the-captain')
-		};
-
-		try {
-			scene.create({
-				saveState,
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'sun-crest-captain',
-				sourceEnemyId: 'sun-crest-captain',
-				enemyCount: 1,
-				hero: { hp: 2, maxHp: 20, attack: 1, defense: 0 }
-			});
-			const state = scene as unknown as {
-				enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
-			};
-			// The hero spawns at the arena centre (448, 252); put the captain inside
-			// its 40px attack reach so the scripted strike lands on the first beat.
-			state.enemies[0]!.x = 448;
-			state.enemies[0]!.y = 244;
-			state.enemies[0]!.attackCooldownUntil = 0;
-
-			scene.update(0, 16);
-			// The captain's strike drops the hero — the scripted loss completes.
-			scene.update(120, 16);
-
-			expect(scene.scene.start).toHaveBeenCalledTimes(1);
-			expect(scene.scene.start).toHaveBeenCalledWith(
-				WorldScene.key,
-				expect.objectContaining({
-					reason: 'battle-result',
-					battleResult: expect.objectContaining({
-						outcome: 'defeat',
-						sourceEnemyId: 'sun-crest-captain',
-						finalHeroHp: 0
-					})
-				})
-			);
-			// Flee grace belongs to fleeing only: the scripted defeat handoff must
-			// not carry recentlyFled metadata.
-			const payload = vi.mocked(scene.scene.start).mock.calls[0]![1] as Record<string, unknown>;
-			expect(payload).not.toHaveProperty('recentlyFled');
-			// No summary in between: the loss is the story beat itself.
-			expect(emitHudStateSpy).not.toHaveBeenCalledWith(
-				expect.objectContaining({
-					battle: expect.objectContaining({ phase: 'summary' })
-				})
-			);
-		} finally {
-			emitHudStateSpy.mockRestore();
-		}
-	});
-
-	it('keeps the defeat summary for an ordinary loss and stays on the battle', async () => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-
-		try {
-			scene.create({
-				saveState,
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 1,
-				hero: { hp: 2, maxHp: 20, attack: 1, defense: 0 }
-			});
-			const state = scene as unknown as {
-				enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
-			};
-			state.enemies[0]!.x = 448;
-			state.enemies[0]!.y = 244;
-			state.enemies[0]!.attackCooldownUntil = 0;
-
-			scene.update(0, 16);
-			scene.update(120, 16);
-
-			expect(scene.scene.start).not.toHaveBeenCalledWith(WorldScene.key, expect.anything());
-			expect(emitHudStateSpy).toHaveBeenCalledWith(
-				expect.objectContaining({
-					battle: expect.objectContaining({ phase: 'summary' })
-				})
-			);
-		} finally {
-			emitHudStateSpy.mockRestore();
-		}
-	});
-
-	it('anchors the flee channel to the loop clock when fleeing before the first update', async () => {
-		const hud = installHudCommandTarget();
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const { WorldScene } = await import('./WorldScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-
-		try {
-			// update() runs on the global rAF timestamp, which is already past the
-			// channel duration by the time a mid-session battle scene is created.
-			(scene.game as unknown as { loop: { now: number } }).loop = { now: 5_000 };
-
-			scene.create({
-				saveState,
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 1,
-				hero: { hp: 13, maxHp: 20, attack: 1, defense: 0 }
-			});
-
-			// Flee inside the create() → first update() gap. Anchored to 0 this
-			// would complete on the very next frame.
-			hud.dispatch({ type: 'battle-flee' });
-			scene.update(5_016, 16);
-
-			expect(scene.scene.start).not.toHaveBeenCalled();
-			const payload = emitHudStateSpy.mock.calls.at(-1)![0] as {
-				battle: { active: { flee: { status: string; progress: number } } };
-			};
-			expect(payload.battle.active.flee.status).toBe('channeling');
-
-			scene.update(7_400, 16);
-
-			expect(scene.scene.start).toHaveBeenCalledWith(
-				WorldScene.key,
-				expect.objectContaining({
-					reason: 'battle-result',
-					battleResult: expect.objectContaining({ outcome: 'fled' }),
-					recentlyFled: { encounterId: 'wildwood-wolves-mouth' }
-				})
-			);
-		} finally {
-			emitHudStateSpy.mockRestore();
-			hud.restore();
-		}
-	});
-
-	it('builds area map state from story-gated map definition', async () => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-
-		try {
-			scene.create({
-				saveState,
-				sourceMapId: 'overworld',
-				sourceEncounterId: 'wildwood-wolves-mouth',
-				sourceEnemyId: 'forest-wolf',
-				enemyCount: 1,
-				hero: { hp: 20, maxHp: 20, attack: 4, defense: 0 }
-			});
-
-			const lastCall = emitHudStateSpy.mock.calls.at(-1)?.[0];
-			expect(lastCall).toBeDefined();
-			const ruinsMarker = lastCall?.areaMap.markers.find(
-				(marker) => marker.id === 'overworld-to-ruins-threshold'
-			);
-			expect(ruinsMarker).toBeUndefined();
-		} finally {
-			emitHudStateSpy.mockRestore();
-		}
-	});
-});
+/** The start data of a battle: the encounter's fields sit under `payload`. */
+function battlePayload(fields: Record<string, unknown>) {
+	return expect.objectContaining({ payload: expect.objectContaining(fields) });
+}
 
 describe('WorldScene', () => {
 	const twoPlaneBaseTextureKey = 'two-plane-base';
@@ -9310,10 +7506,10 @@ describe('WorldScene', () => {
 		expect(phaserState.playerMarker.play).toHaveBeenLastCalledWith('hero-idle', true);
 	});
 
-	it('starts BattleScene when the hero engages an uncleared field encounter', async () => {
+	it('starts SnareBattleScene when the hero engages an uncleared field encounter', async () => {
 		const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const save = createNewSaveState();
@@ -9340,8 +7536,8 @@ describe('WorldScene', () => {
 			scene.update(0, 16);
 
 			expect(scene.scene.start).toHaveBeenCalledWith(
-				BattleScene.key,
-				expect.objectContaining({
+				SnareBattleScene.key,
+				battlePayload({
 					saveState: expect.objectContaining({
 						mapId: 'overworld',
 						player: expect.objectContaining({ ...wolvesMouthApproach, facing: 'down' }),
@@ -9361,7 +7557,7 @@ describe('WorldScene', () => {
 
 	it('returns Grik to his own position and facing when a battle starts', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const save = createNewSaveState();
@@ -9378,8 +7574,8 @@ describe('WorldScene', () => {
 		scene.update(0, 16);
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({
+			SnareBattleScene.key,
+			battlePayload({
 				saveState: expect.objectContaining({
 					mapId: 'overworld',
 					player: expect.objectContaining({ ...wolvesMouthApproach, facing: 'left' })
@@ -9388,7 +7584,7 @@ describe('WorldScene', () => {
 		);
 	});
 
-	it('does not start BattleScene for cleared or already defeated encounters', async () => {
+	it('does not start SnareBattleScene for cleared or already defeated encounters', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { WorldScene } = await import('./WorldScene');
 		const save = createNewSaveState();
@@ -9718,7 +7914,7 @@ describe('WorldScene', () => {
 	});
 
 	it('starts battle instead of resolving a lethal world contact hit', async () => {
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -9733,8 +7929,8 @@ describe('WorldScene', () => {
 		scene.update(500, 16);
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({
+			SnareBattleScene.key,
+			battlePayload({
 				sourceMapId: 'ruins-core',
 				sourceEncounterId: 'core-crawlers',
 				sourceEnemyId: 'tunnel-crawler'
@@ -9787,7 +7983,7 @@ describe('WorldScene', () => {
 	});
 
 	it('does not play world hit impact when battle starts from a field encounter', async () => {
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
@@ -9799,8 +7995,8 @@ describe('WorldScene', () => {
 		scene.update(0, 16);
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'wildwood-wolves-mouth' })
+			SnareBattleScene.key,
+			battlePayload({ sourceEncounterId: 'wildwood-wolves-mouth' })
 		);
 		expect(scene.add.arc).not.toHaveBeenCalled();
 		expect(phaserState.enemyMarker.setTint).not.toHaveBeenCalledWith(0xfff0a8);
@@ -13178,7 +11374,7 @@ describe('WorldScene', () => {
 	it('starts battle instead of applying melee XP in WorldScene', async () => {
 		const progression = await import('$lib/game/core/progression');
 		const applyExperienceGainSpy = vi.spyOn(progression, 'applyExperienceGain');
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -13193,8 +11389,8 @@ describe('WorldScene', () => {
 		scene.update(0, 16);
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'wildwood-wolves-mouth' })
+			SnareBattleScene.key,
+			battlePayload({ sourceEncounterId: 'wildwood-wolves-mouth' })
 		);
 		expect(applyExperienceGainSpy).not.toHaveBeenCalled();
 		expect(sceneState.enemies[0]!.hp).toBe(3);
@@ -13203,7 +11399,7 @@ describe('WorldScene', () => {
 	});
 
 	it('plays enemy walk while chasing and starts battle at contact', async () => {
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -13227,8 +11423,8 @@ describe('WorldScene', () => {
 		scene.update(500, 16);
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({
+			SnareBattleScene.key,
+			battlePayload({
 				sourceEncounterId: 'core-crawlers',
 				sourceEnemyId: 'tunnel-crawler'
 			})
@@ -13237,7 +11433,7 @@ describe('WorldScene', () => {
 	});
 
 	it('starts battle before enemy contact hit impact is resolved', async () => {
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -13253,8 +11449,8 @@ describe('WorldScene', () => {
 		scene.update(500, 16);
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'core-crawlers' })
+			SnareBattleScene.key,
+			battlePayload({ sourceEncounterId: 'core-crawlers' })
 		);
 		expect(phaserState.playerMarker.setTint).not.toHaveBeenCalledWith(0xfff0a8);
 		expect(phaserState.playerMarker.clearTint).not.toHaveBeenCalled();
@@ -13262,7 +11458,7 @@ describe('WorldScene', () => {
 
 	it('starts battle when an enemy moves into encounter range during behavior update', async () => {
 		registerSceneSupportTestMap();
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -13275,8 +11471,8 @@ describe('WorldScene', () => {
 		scene.update(500, 10_000);
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({
+			SnareBattleScene.key,
+			battlePayload({
 				sourceMapId: 'scene-support-test',
 				sourceEncounterId: 'scene-support-slime',
 				sourceEnemyId: 'forest-wolf'
@@ -13456,7 +11652,7 @@ describe('WorldScene', () => {
 	});
 
 	it('starts battle in range without manual input and leaves world enemy HP unchanged', async () => {
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -13469,14 +11665,14 @@ describe('WorldScene', () => {
 		scene.update(0, 16);
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'wildwood-wolves-mouth' })
+			SnareBattleScene.key,
+			battlePayload({ sourceEncounterId: 'wildwood-wolves-mouth' })
 		);
 		expect(sceneState.enemies[0]!.hp).toBe(10);
 	});
 
 	it('does not start battle before the engagement cooldown elapses', async () => {
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -13496,8 +11692,8 @@ describe('WorldScene', () => {
 		scene.update(500, 16);
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'wildwood-wolves-mouth' })
+			SnareBattleScene.key,
+			battlePayload({ sourceEncounterId: 'wildwood-wolves-mouth' })
 		);
 	});
 
@@ -14142,10 +12338,10 @@ describe('WorldScene', () => {
 		expect(boarKing.marker.setTint).toHaveBeenCalledWith(0xff8a3d);
 	});
 
-	it('starts BattleScene instead of damaging the boss with one opening engagement', async () => {
+	it('starts SnareBattleScene instead of damaging the boss with one opening engagement', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const sceneState = scene as unknown as {
@@ -14165,8 +12361,8 @@ describe('WorldScene', () => {
 		scene.update(0, 16);
 
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({
+			SnareBattleScene.key,
+			battlePayload({
 				sourceMapId: 'overworld',
 				sourceEncounterId: 'boar-king',
 				sourceEnemyId: 'boar-king',
@@ -14184,7 +12380,7 @@ describe('WorldScene', () => {
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const save = {
@@ -14228,7 +12424,7 @@ describe('WorldScene', () => {
 		for (let time = 250; time <= 5_000; time += 250) {
 			scene.update(time, 250);
 		}
-		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+		expect(scene.scene.start).not.toHaveBeenCalledWith(SnareBattleScene.key, expect.anything());
 		const boarKing = sceneState.enemies.find(({ id }) => id === 'boar-king')!;
 		expect(boarKing.x).toBe(boarKingHome.x);
 		expect(boarKing.y).toBe(boarKingHome.y);
@@ -14238,14 +12434,14 @@ describe('WorldScene', () => {
 		// after grace lifts the disengagement: the fight re-engages normally.
 		Object.assign(phaserState.playerMarker, { x: boarKingHome.x + 480, y: boarKingHome.y });
 		scene.update(5_050, 16);
-		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+		expect(scene.scene.start).not.toHaveBeenCalledWith(SnareBattleScene.key, expect.anything());
 
 		Object.assign(phaserState.playerMarker, { x: boarKingHome.x, y: boarKingHome.y + 60 });
 		scene.update(5_100, 16);
 		expect(sceneState.recentlyFled).toBeNull();
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'boar-king' })
+			SnareBattleScene.key,
+			battlePayload({ sourceEncounterId: 'boar-king' })
 		);
 
 		// A plain map/scene reset clears the transient flee state: the same
@@ -14261,7 +12457,7 @@ describe('WorldScene', () => {
 		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const save = {
@@ -14295,7 +12491,7 @@ describe('WorldScene', () => {
 		phaserState.cursorKeys.right.isDown = true;
 		for (let time = 5_250; time <= 7_250; time += 250) {
 			scene.update(time, 250);
-			expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+			expect(scene.scene.start).not.toHaveBeenCalledWith(SnareBattleScene.key, expect.anything());
 		}
 		expect(phaserState.playerMarker.x).toBeGreaterThan(boarKingHome.x + 200);
 
@@ -14305,15 +12501,15 @@ describe('WorldScene', () => {
 			scene.update(time, 250);
 		}
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'boar-king' })
+			SnareBattleScene.key,
+			battlePayload({ sourceEncounterId: 'boar-king' })
 		);
 	});
 
 	it('leaves other packs engaging and updating while the fled pack is protected', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
 		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const save = {
@@ -14370,25 +12566,25 @@ describe('WorldScene', () => {
 		expect(boarKing.x).toBe(boarKingHome.x);
 		expect(boarKing.y).toBe(boarKingHome.y);
 		expect(wolf.y).toBeGreaterThan(boarKingHome.y - 120);
-		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+		expect(scene.scene.start).not.toHaveBeenCalledWith(SnareBattleScene.key, expect.anything());
 
 		// The wolf closes in and starts its own battle; the fled pack stays out.
 		for (let time = 5_250; time <= 6_000; time += 250) {
 			scene.update(time, 250);
 		}
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'silverpine-wolves-terrace' })
+			SnareBattleScene.key,
+			battlePayload({ sourceEncounterId: 'silverpine-wolves-terrace' })
 		);
 		expect(scene.scene.start).not.toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'boar-king' })
+			SnareBattleScene.key,
+			battlePayload({ sourceEncounterId: 'boar-king' })
 		);
 	});
 
 	it('shields an unbounded ruins pack for the grace window only', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const save = { ...createNewSaveState(), mapId: 'ruins-core' };
@@ -14424,7 +12620,7 @@ describe('WorldScene', () => {
 		const crawler = sceneState.enemies.find(({ id }) => id === 'core-crawlers')!;
 		expect(crawler.y).toBe(3_200);
 		expect(crawler.movementMode).toBe('idle');
-		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+		expect(scene.scene.start).not.toHaveBeenCalledWith(SnareBattleScene.key, expect.anything());
 
 		// Grace only: afterwards the crawler follows its existing unrestricted
 		// chase policy and re-engages.
@@ -14434,14 +12630,14 @@ describe('WorldScene', () => {
 			scene.update(time, 250);
 		}
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'core-crawlers' })
+			SnareBattleScene.key,
+			battlePayload({ sourceEncounterId: 'core-crawlers' })
 		);
 	});
 
 	it('never lets an in-range unbounded crawler attack during the flee grace', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const save = { ...createNewSaveState(), mapId: 'ruins-core' };
@@ -14473,12 +12669,12 @@ describe('WorldScene', () => {
 
 		expect(sceneState.canEnemyAttackPlayer(crawler)).toBe(false);
 		scene.update(3_999, 16);
-		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+		expect(scene.scene.start).not.toHaveBeenCalledWith(SnareBattleScene.key, expect.anything());
 	});
 
 	it('preserves the flee grace while the world is paused', async () => {
 		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
+		const { SnareBattleScene } = await import('./SnareBattleScene');
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 		const save = {
@@ -14509,14 +12705,14 @@ describe('WorldScene', () => {
 		scene.update(5_000, 16);
 		sceneState.handleHudCommand({ type: 'resume-game' });
 		scene.update(5_016, 16);
-		expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+		expect(scene.scene.start).not.toHaveBeenCalledWith(SnareBattleScene.key, expect.anything());
 
 		for (let time = 5_266; time <= 9_266; time += 250) {
 			scene.update(time, 250);
 		}
 		expect(scene.scene.start).toHaveBeenCalledWith(
-			BattleScene.key,
-			expect.objectContaining({ sourceEncounterId: 'core-crawlers' })
+			SnareBattleScene.key,
+			battlePayload({ sourceEncounterId: 'core-crawlers' })
 		);
 	});
 
@@ -14525,7 +12721,7 @@ describe('WorldScene', () => {
 		async (hold) => {
 			const { buildDialogueFallback } = await import('$lib/game/core/dialogue');
 			const { createNewSaveState } = await import('$lib/game/save/save-state');
-			const { BattleScene } = await import('./BattleScene');
+			const { SnareBattleScene } = await import('./SnareBattleScene');
 			const { WorldScene } = await import('./WorldScene');
 			const scene = new WorldScene();
 			const save = {
@@ -14562,84 +12758,15 @@ describe('WorldScene', () => {
 			sceneState.storyEffectRunning = false;
 			sceneState.dialogueSession = null;
 			scene.update(5_016, 16);
-			expect(scene.scene.start).not.toHaveBeenCalledWith(BattleScene.key, expect.anything());
+			expect(scene.scene.start).not.toHaveBeenCalledWith(SnareBattleScene.key, expect.anything());
 
 			for (let time = 5_266; time <= 9_266; time += 250) {
 				scene.update(time, 250);
 			}
 			expect(scene.scene.start).toHaveBeenCalledWith(
-				BattleScene.key,
-				expect.objectContaining({ sourceEncounterId: 'core-crawlers' })
+				SnareBattleScene.key,
+				battlePayload({ sourceEncounterId: 'core-crawlers' })
 			);
 		}
 	);
-
-	it('publishes HUD state after a non-lethal enemy hit in BattleScene', async () => {
-		const events = await import('$lib/game/ui-bridge/events');
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-
-		scene.create({
-			saveState,
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'wildwood-wolves-mouth',
-			sourceEnemyId: 'forest-wolf',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 1, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-		const state = scene as unknown as {
-			enemies: Array<{ x: number; y: number; attackCooldownUntil: number }>;
-		};
-		state.enemies[0]!.x = 330;
-		state.enemies[0]!.y = 180;
-		state.enemies[0]!.attackCooldownUntil = 0;
-		emitHudStateSpy.mockClear();
-
-		scene.update(0, 16);
-		emitHudStateSpy.mockClear();
-		scene.update(120, 16);
-
-		const lastCall = emitHudStateSpy.mock.calls[emitHudStateSpy.mock.calls.length - 1];
-		expect(lastCall?.[0]).toMatchObject({ hp: 17, maxHp: 20 });
-	});
-
-	it('applies boss enrage tint when enemy HP drops below 50% in BattleScene', async () => {
-		const { createNewSaveState } = await import('$lib/game/save/save-state');
-		const { BattleScene } = await import('./BattleScene');
-		const scene = new BattleScene();
-		const saveState = createNewSaveState();
-
-		scene.create({
-			saveState,
-			sourceMapId: 'overworld',
-			sourceEncounterId: 'boar-king',
-			sourceEnemyId: 'boar-king',
-			enemyCount: 1,
-			hero: { hp: 20, maxHp: 20, attack: 41, defense: 0 }
-		});
-		Object.assign(phaserState.playerMarker, { x: 320, y: 180 });
-		const state = scene as unknown as {
-			enemies: Array<{
-				x: number;
-				y: number;
-				hp: number;
-				maxHp: number;
-				phase: 1 | 2;
-			}>;
-		};
-		state.enemies[0]!.x = 330;
-		state.enemies[0]!.y = 180;
-
-		expect(state.enemies[0]!.phase).toBe(1);
-
-		scene.update(0, 16);
-
-		expect(state.enemies[0]!.hp).toBe(39);
-		expect(state.enemies[0]!.phase).toBe(2);
-		expect(phaserState.enemyMarker.setTint).toHaveBeenCalledWith(0xff8a3d);
-	});
 });

@@ -5,7 +5,14 @@
  * changed after measuring keeps the paper value in a comment.
  */
 
-export type SnareEnemyId = 'forest-wolf' | 'boar-king';
+export type SnareEnemyId =
+	| 'forest-wolf'
+	| 'mist-toad'
+	| 'thornback-boar'
+	| 'tunnel-crawler'
+	| 'human-soldier'
+	| 'sun-crest-captain'
+	| 'boar-king';
 
 /** A straight lane the enemy runs along after the wind-up. */
 export type LanePattern = {
@@ -109,6 +116,26 @@ const boarCharge: LanePattern = {
 	cutsLine: true
 };
 
+/**
+ * The five enemies that have no fight of their own yet fight like the forest
+ * wolf: one lunge, scaled from their old definitions the way the wolf scaled
+ * (HP x4.8, damage x4/3, their own walk speed). Placeholders until the full
+ * build gives each of them a pattern to be taught.
+ */
+function wolfLike(stats: { hp: number; walkSpeed: number; damage: number }): EnemyProfile {
+	return {
+		hp: stats.hp,
+		walkSpeed: stats.walkSpeed,
+		holdDistance: 90,
+		radius: 28,
+		turnDelayMs: 400,
+		loopsToSnare: 1,
+		snareMs: 6_000,
+		ringsFallOffMs: 10_000,
+		patterns: [{ ...wolfLunge, damage: stats.damage }]
+	};
+}
+
 const enemyProfiles: Record<SnareEnemyId, EnemyProfile> = {
 	'forest-wolf': {
 		hp: 48, // 36 in HPA-747 (paper 24: standing still won); HPA-1232 raised it with the back-hit rule
@@ -121,6 +148,12 @@ const enemyProfiles: Record<SnareEnemyId, EnemyProfile> = {
 		ringsFallOffMs: 10_000,
 		patterns: [wolfLunge]
 	},
+	'mist-toad': wolfLike({ hp: 67, walkSpeed: 80, damage: 5 }),
+	'thornback-boar': wolfLike({ hp: 144, walkSpeed: 95, damage: 5 }),
+	'tunnel-crawler': wolfLike({ hp: 86, walkSpeed: 85, damage: 7 }),
+	'human-soldier': wolfLike({ hp: 115, walkSpeed: 100, damage: 8 }),
+	/** The raid's scripted loss: `unbeatable`, so its HP never drops below 1. */
+	'sun-crest-captain': wolfLike({ hp: 999, walkSpeed: 120, damage: 40 }),
 	'boar-king': {
 		hp: 760, // paper 520
 		walkSpeed: 90,

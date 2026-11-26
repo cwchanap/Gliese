@@ -5173,10 +5173,11 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 	]);
 	expect(activeFight?.attack).toBe(4);
 	expect(activeFight?.defense).toBe(1);
-	// resolveHit has no variance — but feed amounts are HP lost, capped by the
-	// target's remaining HP. `.some(amount===4)` would pass a wrong 6-overkill
-	// followed by a finishing 4, so the proof is the FIRST hit on a 10-HP wolf
-	// and the FIRST bite on the 20-HP hero, when neither can be capped.
+	// Damage has no variance — but feed amounts are HP lost, capped by the
+	// target's remaining HP. `.some(amount===4)` would pass a wrong overkill
+	// followed by a finishing 4, so the proof is the FIRST spear on a 48-HP wolf
+	// (ATK 4, a front hit) and the FIRST lunge on the 20-HP hero (the wolf's 4
+	// minus DEF 1), when neither can be capped.
 	const seenFeed = async () =>
 		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseBattleFeed ?? [])) ?? [];
 	await expect
@@ -5188,7 +5189,7 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 		.poll(async () => (await seenFeed()).find((entry) => entry.kind === 'hurt')?.amount ?? null, {
 			timeout: expectTimeout(20_000)
 		})
-		.toBe(2);
+		.toBe(3);
 	await hpa839Shot(page, 'first-wolves-fight.png');
 });
 

@@ -1,3 +1,4 @@
+import type { SnareBattleSetup } from '$lib/game/core/snare-battle/battle';
 import type { SnareEnemyId } from '$lib/game/core/snare-battle/tuning';
 
 /** The fights the `?battleTest=` dev link can open. */
@@ -40,4 +41,15 @@ export const snareFights: Record<SnareFightId, SnareFight> = {
 
 export function isSnareFightId(value: unknown): value is SnareFightId {
 	return typeof value === 'string' && (snareFightIds as readonly string[]).includes(value);
+}
+
+/** The fight as `createSnareBattle` takes it: Grik walks in at full HP. */
+export function snareFightSetup(fightId: SnareFightId): SnareBattleSetup {
+	const fight = snareFights[fightId];
+
+	return {
+		enemyId: fight.enemyId,
+		count: fight.count,
+		hero: { hp: fight.hero.maxHp, maxHp: fight.hero.maxHp, attack: fight.hero.attack, defense: 0 }
+	};
 }

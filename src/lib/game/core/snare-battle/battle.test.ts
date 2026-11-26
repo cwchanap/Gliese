@@ -10,7 +10,11 @@ import {
 	type SnareEnemy,
 	type SnareEvent
 } from '$lib/game/core/snare-battle/battle';
-import { snareFights, type SnareFightId } from '$lib/game/core/snare-battle/fights';
+import {
+	snareFights,
+	snareFightSetup,
+	type SnareFightId
+} from '$lib/game/core/snare-battle/fights';
 import { direction, distance, type Vec } from '$lib/game/core/snare-battle/geometry';
 import { snareTuning } from '$lib/game/core/snare-battle/tuning';
 
@@ -23,7 +27,7 @@ function setup(
 	place: Array<Partial<SnareEnemy>>,
 	hero: Vec = { x: 220, y: 252 }
 ) {
-	const state = createSnareBattle(fightId);
+	const state = createSnareBattle(snareFightSetup(fightId));
 	state.hero.x = hero.x;
 	state.hero.y = hero.y;
 	state.line.points = [{ ...hero }];
@@ -600,7 +604,7 @@ describe('snare battle: phase 2 during an edge stun', () => {
 
 describe('snare battle: the whole fight', () => {
 	it('standing still against the Boar King loses, even with all three Field Potions', () => {
-		const state = createSnareBattle('boar-king');
+		const state = createSnareBattle(snareFightSetup('boar-king'));
 		const potion = snareFights['boar-king'].items[0]!;
 		let potions = potion.quantity;
 
