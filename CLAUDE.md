@@ -169,9 +169,13 @@ phaser/      Phaser integration
     BootScene.ts    Loads the sprite sheet asset, then hands off to WorldScene
     WorldScene.ts   Main game loop: movement, transitions, save/load, NPC + shop +
                     dialogue + quest interaction
-    BattleScene.ts  Turn-based battle UI, driven by core/battle.ts
+    SnareBattleScene.ts  The battle: real-time Snare, Flank, Loose. WorldScene hands it a
+                    BattleStartPayload and takes a BattleResult back; the rules live in
+                    core/snare-battle/ (encounter.ts joins payload and result to the fight)
+  battle-hud.ts     Builds the HudState the battle publishes (live fight, then summary)
+  snare-test-payload.ts  The payload behind the `?battleTest=` dev link
   createGame.ts     Dynamic-imports Phaser, instantiates the Game with
-                    [BootScene, WorldScene, BattleScene]
+                    [BootScene, WorldScene, SnareBattleScene]
 save/        SaveState type, serialize/parse/validate, storage adapter swapping
 story/       Story client boundary: client.ts routes to the Tauri command or browser fixture
 i18n/        Locale-aware UI text: locales registry (en, ja, zh-Hant), translate()/content
@@ -192,7 +196,7 @@ Phaser and Svelte communicate exclusively through custom `window` events (define
 
 - `WorldScene` calls `emitHudState(...)` after every meaningful state change
 - The Svelte HUD reads `$hudState` (a readable store backed by `onHudState`)
-- The Svelte HUD dispatches commands via `emitHudCommand(...)`, which `WorldScene` receives via `onHudCommand`. The `HudCommand` union currently covers: `heal`, `save-slot`, `pause-game`, `resume-game`, `use-item`, `equip-item`, `unequip-slot`, `open-shop`, `close-shop`, `buy-shop-item`, `sell-inventory-item`, `dialogue-advance`, `dialogue-close`, `dialogue-choose`, `battle-cycle-target`, `battle-select-target`, `battle-flee`, `dismiss-battle-summary`. When adding a new command, update the union in `ui-bridge/events.ts` and handle it in both `WorldScene` and the HUD (`battle-cycle-target` / `battle-select-target` / `battle-flee` / `dismiss-battle-summary` are battle-scoped: `BattleScene` handles them and `WorldScene` ignores them).
+- The Svelte HUD dispatches commands via `emitHudCommand(...)`, which `WorldScene` receives via `onHudCommand`. The `HudCommand` union currently covers: `heal`, `save-slot`, `pause-game`, `resume-game`, `use-item`, `equip-item`, `unequip-slot`, `open-shop`, `close-shop`, `buy-shop-item`, `sell-inventory-item`, `dialogue-advance`, `dialogue-close`, `dialogue-choose`, `battle-cycle-target`, `battle-select-target`, `battle-flee`, `dismiss-battle-summary`. When adding a new command, update the union in `ui-bridge/events.ts` and handle it in both `WorldScene` and the HUD (`battle-cycle-target` / `battle-select-target` / `battle-flee` / `dismiss-battle-summary` are battle-scoped: `SnareBattleScene` handles them and `WorldScene` ignores them).
 
 ### Content / Data Model
 
@@ -207,6 +211,7 @@ a walkable graybox first.
 
 - **Story gates**: map NPCs, encounters, pickups, discoveries, blockers, transitions, and grid-map tile overlays can carry `activeDuring` / `hiddenDuring` (quest ids, objective ids, or the shared `storyWindows` in `content/quests.ts`). `core/story-gates.ts` filters a map by the current story progress, so one overworld plays the proving day, the raid, and the escape. The prologue's story placements live in `content/maps/overworld/prologue.ts`.
 - **Enemies**: prologue beasts `forest-wolf`, `mist-toad`, `thornback-boar`, `tunnel-crawler`; humans `human-soldier`, `sun-crest-captain`; boss `boar-king` (phase-2 enrage at ≤50% HP). Each enemy has its own actor block in `animation-pack.png` and its own battle plate under `heroic-ui/enemies/<enemy-id>.png` (`content/assets.ts`).
+- **Battle**: every encounter opens the real-time Snare, Flank, Loose fight (`SnareBattleScene`; rules and tuning in `core/snare-battle/`, balance checked with `tools/snare-battle-sim.ts`). `core/snare-battle/encounter.ts` turns a `BattleStartPayload` into the fight (up to 4 enemies) and the finished fight into a `BattleResult`. Only `forest-wolf` and `boar-king` have tuned profiles; the other five enemies use a placeholder `wolfLike` profile in `tuning.ts` until they get patterns of their own. An `unbeatable` enemy (the Sun Crest captain) stays at 1 HP, so the scripted loss ends only when Grik falls or flees. The dev link `?battleTest=wolves-2|wolves-3|boar-king` opens one fight on a throwaway save.
 - **Items / shops**: Items are defined in `content/items.ts` (consumables, equipment with `StatModifiers`, key items). Shops in `content/shops.ts` reference item IDs with per-shop stock and pricing. Wallet/coin state lives in `core/shop.ts`.
 - **Dialogue**: NPC **prose and choices live in `story/`, not in TypeScript** (see Story Pipeline). Scripted scenes (`::: scene`) are played by quest effects and discoveries. Runtime traversal/state lives in `core/dialogue.ts` and is surfaced to the HUD as `HudState.dialogue` (modes: `conversation`, `choice`, `system`). The HUD drives it with the `dialogue-advance` / `dialogue-close` / `dialogue-choose` commands.
 - **Quests**: The prologue is one chain of main quests (`mainQuestIds` in `content/quests.ts`); each quest is an ordered list of objectives (`talk-to-npc`, `defeat-enemy`, `collect-item`, `inspect`, `lose-battle`). Finishing the last objective completes the quest and starts the next one; there is no accept step. Objectives and quests can queue presentation effects (`play-scene`, `move-player`) that `WorldScene` plays in order. Runtime state machine in `core/quests.ts`; `QuestState` is part of `SaveState`, and the HUD surfaces it as `HudState.quests` (`main` plus `completed`).

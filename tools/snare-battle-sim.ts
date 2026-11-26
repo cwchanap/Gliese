@@ -22,7 +22,12 @@ import {
 	type SnareBattleState,
 	type SnareEnemy
 } from '$lib/game/core/snare-battle/battle';
-import { snareFightIds, snareFights, type SnareFightId } from '$lib/game/core/snare-battle/fights';
+import {
+	snareFightIds,
+	snareFights,
+	snareFightSetup,
+	type SnareFightId
+} from '$lib/game/core/snare-battle/fights';
 import {
 	direction,
 	distance,
@@ -208,7 +213,7 @@ type RunResult = {
 };
 
 function play(fightId: SnareFightId, policy: Policy, random: () => number): RunResult {
-	const state = createSnareBattle(fightId);
+	const state = createSnareBattle(snareFightSetup(fightId));
 	let potions = snareFights[fightId].items.reduce((total, item) => total + item.quantity, 0);
 
 	const tally: Record<string, number> = {};

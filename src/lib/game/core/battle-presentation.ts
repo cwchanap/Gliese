@@ -1,7 +1,7 @@
 /**
  * Pure battle presentation contracts: target selection, readiness ribbon,
  * bounded combat feed, and the deterministic flee channel.
- * No Phaser, no DOM — consumed by BattleScene (Task 10).
+ * No Phaser, no DOM — consumed by SnareBattleScene.
  */
 
 export type BattleTargetUnit = {

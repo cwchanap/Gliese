@@ -1,5 +1,11 @@
 import * as Phaser from 'phaser';
 
+import { playSfx } from '$lib/game/phaser/audio';
+import {
+	buildBattleHudState,
+	countConsumables,
+	countHealingItems
+} from '$lib/game/phaser/battle-hud';
 import {
 	actorAnimationAssets,
 	actorAnimationKeys,
@@ -12,10 +18,15 @@ import {
 	type ActorAnimationId,
 	type ActorAnimationKey
 } from '$lib/game/content/assets';
-import { getBattleEnemyDefinition } from '$lib/game/core/battle';
 import { getItem } from '$lib/game/content/items';
-import { maps, openingMapId } from '$lib/game/content/maps';
-import { buildAreaMapState } from '$lib/game/core/area-map';
+import {
+	applyBattleResultToSaveState,
+	getBattleEnemyDefinition,
+	type BattleOutcome,
+	type BattleResult,
+	type BattleStartPayload,
+	type BattleSummary
+} from '$lib/game/core/battle';
 import {
 	appendBattleFeedEvent,
 	cancelFleeChannel,
@@ -27,14 +38,8 @@ import {
 	startFleeChannel,
 	type FleeChannelState
 } from '$lib/game/core/battle-presentation';
-import { createEmptyEquipment } from '$lib/game/core/equipment';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { consumeStackItem } from '$lib/game/core/inventory';
-import {
-	buildHudQuestState,
-	createInitialQuestState,
-	getStoryProgress
-} from '$lib/game/core/quests';
 import {
 	createSnareBattle,
 	getEnemyProfile,
@@ -46,10 +51,13 @@ import {
 	type SnareEnemy,
 	type SnareEvent
 } from '$lib/game/core/snare-battle/battle';
-import { snareFights, type SnareFightId } from '$lib/game/core/snare-battle/fights';
+import {
+	buildSnareBattleResult,
+	snareSetupFromPayload
+} from '$lib/game/core/snare-battle/encounter';
+import type { SnareFightId } from '$lib/game/core/snare-battle/fights';
 import type { Vec } from '$lib/game/core/snare-battle/geometry';
 import { snareTuning } from '$lib/game/core/snare-battle/tuning';
-import { applyStoryGates } from '$lib/game/core/story-gates';
 import { getEnemyText, getItemText } from '$lib/game/i18n/content';
 import { getActiveLocale } from '$lib/game/i18n/store';
 import { t, type MessageKey } from '$lib/game/i18n/translate';
@@ -59,12 +67,15 @@ import {
 	onHudCommand,
 	type HudBattleActive,
 	type HudBattleFeedEntry,
-	type HudBattleSummary,
-	type HudCommand,
-	type HudState
+	type HudCommand
 } from '$lib/game/ui-bridge/events';
+import { WorldScene } from './WorldScene';
 
-export type SnareBattleStartData = { fightId: SnareFightId };
+/**
+ * What the world hands over to start a fight. `testFightId` marks a `?battleTest=`
+ * dev fight: it restarts instead of returning to the field.
+ */
+export type SnareBattleStartData = { payload: BattleStartPayload; testFightId?: SnareFightId };
 
 type DirectionKey = { isDown: boolean };
 type DirectionKeys = Partial<Record<'left' | 'right' | 'up' | 'down', DirectionKey>>;
@@ -106,15 +117,17 @@ const groundFxDepth = 5;
 const coneArtHalfAngleDeg = 60;
 
 /**
- * Graybox of the Snare, Flank, Loose battle (HPA-747), opened only by the
- * `?battleTest=<fight>` dev link. The rules live in `core/snare-battle`; this
- * scene reads movement keys, steps the fight and draws it with today's
- * sprites and drawn shapes. A finished fight restarts; nothing is saved.
+ * The game's battle: Snare, Flank, Loose (HPA-747). The world starts it with a
+ * `BattleStartPayload` and takes a `BattleResult` back. The rules live in
+ * `core/snare-battle`; this scene reads movement keys, steps the fight and
+ * draws it. The `?battleTest=<fight>` dev link starts it too, but a finished
+ * test fight restarts and nothing is saved.
  */
 export class SnareBattleScene extends Phaser.Scene {
 	static readonly key = 'snare-battle';
 
-	private fightId: SnareFightId = 'wolves-2';
+	private payload!: BattleStartPayload;
+	private testFightId: SnareFightId | null = null;
 	private state!: SnareBattleState;
 	private inventory: SaveState['inventory'] = { stacks: [], equipment: [] };
 	private hero!: Phaser.GameObjects.Sprite;
@@ -134,8 +147,10 @@ export class SnareBattleScene extends Phaser.Scene {
 	private feedSeq = 0;
 	private fleeChannel: FleeChannelState = { status: 'idle' };
 	private lastHudPublishAt = 0;
-	private hudStatic!: Pick<HudState, 'mapId' | 'areaMap' | 'quests'>;
 	private finished = false;
+	private pendingResult: BattleResult | null = null;
+	/** The save with the result applied; the HUD shows it behind the summary. */
+	private appliedSaveState: SaveState | null = null;
 	private removeHudCommandListener = () => {};
 	private removeResizeListener = () => {};
 
@@ -144,10 +159,14 @@ export class SnareBattleScene extends Phaser.Scene {
 	}
 
 	create(data: SnareBattleStartData) {
-		this.fightId = data.fightId;
-		const fight = snareFights[this.fightId];
-		this.state = createSnareBattle(this.fightId);
-		this.inventory = { stacks: fight.items.map((item) => ({ ...item })), equipment: [] };
+		this.payload = data.payload;
+		this.testFightId = data.testFightId ?? null;
+		this.state = createSnareBattle(snareSetupFromPayload(data.payload));
+		const { inventory } = data.payload.saveState;
+		this.inventory = {
+			stacks: inventory.stacks.map((stack) => ({ ...stack })),
+			equipment: [...inventory.equipment]
+		};
 		this.enemyViews = new Map();
 		this.flashes = [];
 		this.fxPool = new Map();
@@ -156,6 +175,8 @@ export class SnareBattleScene extends Phaser.Scene {
 		this.feedSeq = 0;
 		this.fleeChannel = cancelFleeChannel();
 		this.finished = false;
+		this.pendingResult = null;
+		this.appliedSaveState = null;
 		this.heroClip = 'idle';
 		this.heroClipLockedUntil = 0;
 		this.lastHudPublishAt = 0;
@@ -169,7 +190,7 @@ export class SnareBattleScene extends Phaser.Scene {
 		this.registerAnimationPackFrames();
 		this.ensureActorAnimations();
 		this.ensureEffectAnimations();
-		this.createBackdrop(fight.mapId);
+		this.createBackdrop(data.payload.sourceMapId);
 		this.ground = this.add.graphics().setDepth(1);
 		this.overlay = this.add.graphics().setDepth(2_000);
 		this.hero = this.createActor('hero', this.state.hero);
@@ -200,7 +221,6 @@ export class SnareBattleScene extends Phaser.Scene {
 			down: Phaser.Input.Keyboard.KeyCodes.S
 		}) as DirectionKeys | undefined;
 
-		this.hudStatic = this.buildHudStatic(fight.mapId);
 		this.removeHudCommandListener();
 		this.removeHudCommandListener = onHudCommand((command) => this.handleHudCommand(command));
 		this.events.once('shutdown', () => {
@@ -209,6 +229,7 @@ export class SnareBattleScene extends Phaser.Scene {
 		});
 
 		this.draw();
+		playSfx(this, 'battle-start');
 		this.publishHud('status.battleStarted');
 	}
 
@@ -280,11 +301,13 @@ export class SnareBattleScene extends Phaser.Scene {
 					break;
 				case 'throw':
 					this.playHeroClip('attack', 300);
+					playSfx(this, 'hero-swing');
 					break;
 				case 'enemy-hit': {
 					const enemy = this.findEnemy(event.unitId);
 					const view = this.enemyViews.get(event.unitId);
 					if (view) view.flashUntil = now + hitFlashMs;
+					playSfx(this, 'hit');
 					if (enemy) {
 						// The spark bursts where the spear arrives, at spear height.
 						this.playOnce(
@@ -309,6 +332,7 @@ export class SnareBattleScene extends Phaser.Scene {
 				}
 				case 'enemy-defeated': {
 					this.playEnemyClip(event.unitId, 'dead', Number.POSITIVE_INFINITY);
+					playSfx(this, 'enemy-defeat');
 					const sprite = this.enemyViews.get(event.unitId)?.sprite;
 					if (sprite) {
 						this.tweens.add({ targets: sprite, alpha: 0, delay: 500, duration: 500 });
@@ -325,6 +349,7 @@ export class SnareBattleScene extends Phaser.Scene {
 						event.back
 					);
 					this.cameras.main.shake(event.back ? 120 : 70, event.back ? 0.006 : 0.003);
+					playSfx(this, 'hero-hurt');
 					this.fleeChannel = cancelFleeChannel();
 					this.appendFeed('hurt', event.damage, t(getActiveLocale(), 'ui.heroName'));
 					break;
@@ -334,6 +359,7 @@ export class SnareBattleScene extends Phaser.Scene {
 					break;
 				}
 				case 'phase-two':
+					playSfx(this, 'boss-roar');
 					this.publishHud('status.bossEnraged');
 					break;
 				default:
@@ -342,36 +368,72 @@ export class SnareBattleScene extends Phaser.Scene {
 		}
 	}
 
+	/** The fight ended on its own: someone won. */
 	private finish() {
-		this.finished = true;
 		const outcome = this.state.outcome!;
-		const seconds = (this.state.now / 1000).toFixed(1);
-		const phaseTwo =
-			this.state.phaseTwoAt === null
-				? ''
-				: `, phase 2 ${((this.state.now - this.state.phaseTwoAt) / 1000).toFixed(1)} s`;
-		console.info(`[battleTest] ${this.fightId}: ${outcome} in ${seconds} s${phaseTwo}`);
+
+		if (this.testFightId) {
+			const seconds = (this.state.now / 1000).toFixed(1);
+			const phaseTwo =
+				this.state.phaseTwoAt === null
+					? ''
+					: `, phase 2 ${((this.state.now - this.state.phaseTwoAt) / 1000).toFixed(1)} s`;
+			console.info(`[battleTest] ${this.testFightId}: ${outcome} in ${seconds} s${phaseTwo}`);
+		}
 
 		if (outcome === 'defeat') this.playHeroClip('dead', Number.POSITIVE_INFINITY);
-		const summary: HudBattleSummary = {
-			outcome,
-			enemiesDefeated: this.state.enemies.filter((enemy) => enemy.defeated).length,
-			xpGained: 0,
-			coinsGained: 0,
-			drops: [],
-			leveledUp: false,
-			completedQuestTitles: [],
-			questRewards: [],
-			questProgress: []
-		};
+		this.finishBattle(outcome);
+	}
+
+	/**
+	 * Builds the result and applies it to a copy of the save. A fight with a summary
+	 * shows it and waits for the player; a flee or the raid's scripted defeat has no
+	 * summary, so the result goes straight back to the field.
+	 */
+	private finishBattle(outcome: BattleOutcome) {
+		if (this.pendingResult) {
+			return;
+		}
+
+		this.finished = true;
+		this.pendingResult = buildSnareBattleResult({
+			payload: this.payload,
+			state: this.state,
+			inventory: this.inventory,
+			outcome
+		});
+		playSfx(this, outcome === 'fled' ? 'flee' : outcome);
+
+		const application = applyBattleResultToSaveState(this.payload.saveState, this.pendingResult);
+
+		if (application.summary === null) {
+			this.leave(outcome === 'fled');
+			return;
+		}
+
+		this.appliedSaveState = application.saveState;
 		this.publishHud(
-			outcome === 'victory' ? 'status.battleVictory' : 'status.battleDefeat',
-			summary
+			application.summary.outcome === 'victory' ? 'status.battleVictory' : 'status.battleDefeat',
+			application.summary
 		);
 	}
 
-	private restart() {
-		this.scene.restart({ fightId: this.fightId } satisfies SnareBattleStartData);
+	/** Back to the field with the result; a `?battleTest=` fight starts over instead. */
+	private leave(fled = false) {
+		if (this.testFightId || !this.pendingResult) {
+			this.scene.restart({
+				payload: this.payload,
+				testFightId: this.testFightId ?? undefined
+			} satisfies SnareBattleStartData);
+			return;
+		}
+
+		this.scene.start(WorldScene.key, {
+			saveState: this.payload.saveState,
+			reason: 'battle-result',
+			battleResult: this.pendingResult,
+			...(fled ? { recentlyFled: { encounterId: this.payload.sourceEncounterId } } : {})
+		});
 	}
 
 	// ---- Drawing -------------------------------------------------------------
@@ -865,8 +927,8 @@ export class SnareBattleScene extends Phaser.Scene {
 	// ---- HUD: the Svelte battle HUD, unchanged ---------------------------------
 
 	private handleHudCommand(command: HudCommand) {
-		if (command.type === 'dismiss-battle-summary' && this.finished) {
-			this.restart();
+		if (command.type === 'dismiss-battle-summary' && this.pendingResult) {
+			this.leave();
 			return;
 		}
 		if (this.finished) return;
@@ -906,12 +968,13 @@ export class SnareBattleScene extends Phaser.Scene {
 		}
 	}
 
-	/** A finished flee restarts the test fight. Returns true when it did. */
+	/** A finished flee channel ends the fight. Returns true when it did. */
 	private updateFlee(): boolean {
 		if (!isFleeChannelComplete(this.fleeChannel, this.state.now)) {
 			return false;
 		}
-		this.restart();
+		this.fleeChannel = cancelFleeChannel();
+		this.finishBattle('fled');
 		return true;
 	}
 
@@ -950,6 +1013,7 @@ export class SnareBattleScene extends Phaser.Scene {
 
 		this.inventory = result.inventory;
 		const healed = healSnareHero(this.state, item.effect.amount);
+		playSfx(this, 'heal');
 		this.appendFeed('heal', healed, getItemText(getActiveLocale(), itemId)?.name ?? item.name);
 		this.publishHud('status.recoveredHp');
 	}
@@ -968,68 +1032,24 @@ export class SnareBattleScene extends Phaser.Scene {
 		return enemy ? (getEnemyText(getActiveLocale(), enemy.enemyId)?.name ?? enemy.enemyId) : unitId;
 	}
 
-	private buildHudStatic(mapId: string): Pick<HudState, 'mapId' | 'areaMap' | 'quests'> {
-		const locale = getActiveLocale();
-		const quests = createInitialQuestState();
-		const map = applyStoryGates(maps[mapId] ?? maps[openingMapId]!, getStoryProgress(quests));
-		return {
-			mapId: map.id,
-			areaMap: buildAreaMapState({ map, player: map.spawn, revealedCells: [], quests, locale }),
-			quests: buildHudQuestState({ state: quests, locale })
-		};
-	}
-
-	private publishHud(statusKey: MessageKey, summary: HudBattleSummary | null = null) {
-		const locale = getActiveLocale();
+	private publishHud(statusKey: MessageKey, summary: BattleSummary | null = null) {
 		const { hero } = this.state;
-		const fight = snareFights[this.fightId];
-		const consumables = this.inventory.stacks.flatMap((stack) => {
-			const item = getItem(stack.itemId);
-			const text = item ? getItemText(locale, item.id) : null;
-			return item?.type === 'consumable'
-				? [
-						{
-							itemId: item.id,
-							name: text?.name ?? item.name,
-							description: text?.description ?? item.description,
-							iconPath: item.iconPath,
-							quantity: stack.quantity
-						}
-					]
-				: [];
-		});
-		const consumableCount = consumables.reduce((total, stack) => total + stack.quantity, 0);
 
 		this.lastHudPublishAt = this.state.now;
-		emitHudState({
-			...this.hudStatic,
-			ready: true,
-			hp: hero.hp,
-			maxHp: hero.maxHp,
-			level: fight.hero.level,
-			xp: 0,
-			attack: hero.attack,
-			defense: 0,
-			heals: consumableCount,
-			status: t(locale, statusKey),
-			wallet: { coins: 0 },
-			heroOccluded: false,
-			nearbyShop: null,
-			shop: null,
-			dialogue: null,
-			battle: summary
-				? { phase: 'summary', summary, active: null }
-				: { phase: 'active', summary: null, active: this.buildHudBattleActive(consumableCount) },
-			inventory: {
-				consumables,
-				equipment: [],
-				keyItems: [],
-				equipped: createEmptyEquipment()
-			}
-		});
+		emitHudState(
+			buildBattleHudState({
+				payload: this.payload,
+				applied: this.appliedSaveState ?? undefined,
+				hero: { hp: hero.hp, maxHp: hero.maxHp, attack: hero.attack, defense: hero.defense },
+				inventory: this.inventory,
+				status: t(getActiveLocale(), statusKey),
+				summary,
+				active: this.buildHudBattleActive()
+			})
+		);
 	}
 
-	private buildHudBattleActive(consumableCount: number): HudBattleActive {
+	private buildHudBattleActive(): HudBattleActive {
 		const { now, hero, enemies } = this.state;
 		const locale = getActiveLocale();
 		const living = enemies.filter((enemy) => !enemy.defeated);
@@ -1063,13 +1083,8 @@ export class SnareBattleScene extends Phaser.Scene {
 				}))
 			]),
 			feed: this.feed,
-			heals: this.inventory.stacks.reduce((total, stack) => {
-				const item = getItem(stack.itemId);
-				return item?.type === 'consumable' && item.effect.type === 'heal'
-					? total + stack.quantity
-					: total;
-			}, 0),
-			items: consumableCount,
+			heals: countHealingItems(this.inventory),
+			items: countConsumables(this.inventory),
 			flee: {
 				status: this.fleeChannel.status,
 				progress: getFleeChannelProgress(this.fleeChannel, now)

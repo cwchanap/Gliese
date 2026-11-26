@@ -4,8 +4,9 @@
  * `stepSnareBattle`, which advances the fight in place and returns what
  * happened this step so the scene can draw it.
  */
+import { enemies } from '$lib/game/content/enemies';
+import { buildBattleUnitId } from '$lib/game/core/battle';
 import { advanceBossPhase } from '$lib/game/core/boss';
-import { snareFights, type SnareFightId } from '$lib/game/core/snare-battle/fights';
 import {
 	direction,
 	distance,
@@ -41,6 +42,8 @@ export type SnareHero = {
 	hp: number;
 	maxHp: number;
 	attack: number;
+	/** Taken off every hit Grik suffers, down to 1 damage. */
+	defense: number;
 	facing: Facing;
 	/** Standing still: spears fly and Focus builds. */
 	planted: boolean;
@@ -96,7 +99,6 @@ export type Spear = {
 };
 
 export type SnareBattleState = {
-	fightId: SnareFightId;
 	/** Fight clock in ms, from 0. */
 	now: number;
 	hero: SnareHero;
@@ -144,18 +146,26 @@ const heroStart = { x: 220, y: tuning.arena.height / 2 };
 const enemyStartX = 680;
 const enemySpawnSpacing = 112;
 
-export function createSnareBattle(fightId: SnareFightId): SnareBattleState {
-	const fight = snareFights[fightId];
-	const profile = tuning.enemies[fight.enemyId];
-	const enemies = Array.from({ length: fight.count }, (_, unitIndex): SnareEnemy => {
+/** What a fight is made of: one kind of enemy, how many, and Grik as he walks in. */
+export type SnareBattleSetup = {
+	enemyId: SnareEnemyId;
+	count: number;
+	/** The world encounter the fight belongs to; names the units. The enemy's id stands in without one. */
+	encounterId?: string;
+	hero: { hp: number; maxHp: number; attack: number; defense: number };
+};
+
+export function createSnareBattle(setup: SnareBattleSetup): SnareBattleState {
+	const profile = tuning.enemies[setup.enemyId];
+	const units = Array.from({ length: setup.count }, (_, unitIndex): SnareEnemy => {
 		const stagger = unitIndex * tuning.attackStaggerMs;
 
 		return {
-			unitId: `${fight.enemyId}:${unitIndex}`,
+			unitId: buildBattleUnitId(setup.encounterId ?? setup.enemyId, unitIndex),
 			unitIndex,
-			enemyId: fight.enemyId,
+			enemyId: setup.enemyId,
 			x: enemyStartX,
-			y: heroStart.y + (unitIndex - (fight.count - 1) / 2) * enemySpawnSpacing,
+			y: heroStart.y + (unitIndex - (setup.count - 1) / 2) * enemySpawnSpacing,
 			hp: profile.hp,
 			maxHp: profile.hp,
 			facing: -1,
@@ -175,13 +185,10 @@ export function createSnareBattle(fightId: SnareFightId): SnareBattleState {
 	});
 
 	return {
-		fightId,
 		now: 0,
 		hero: {
 			...heroStart,
-			hp: fight.hero.maxHp,
-			maxHp: fight.hero.maxHp,
-			attack: fight.hero.attack,
+			...setup.hero,
 			facing: 1,
 			planted: true,
 			nextThrowAt: tuning.hero.firstThrowDelayMs,
@@ -190,10 +197,10 @@ export function createSnareBattle(fightId: SnareFightId): SnareBattleState {
 		},
 		line: createLine(heroStart),
 		lineBlockedUntil: 0,
-		enemies,
+		enemies: units,
 		spears: [],
 		nextSpearId: 1,
-		targetId: enemies[0]?.unitId ?? null,
+		targetId: units[0]?.unitId ?? null,
 		outcome: null,
 		phaseTwoAt: null
 	};
@@ -403,7 +410,8 @@ function landSpear(
 			(back ? tuning.hero.backHitMultiplier : 1) *
 			(spear.focus ? tuning.hero.focusMultiplier : 1)
 	);
-	target.hp = Math.max(0, target.hp - damage);
+	// The raid's captain is a scripted loss: spears never take him below 1 HP.
+	target.hp = Math.max(enemies[target.enemyId]?.unbeatable ? 1 : 0, target.hp - damage);
 	events.push({ type: 'enemy-hit', unitId: target.unitId, damage, back, focus: spear.focus });
 
 	if (target.hp > 0) {
@@ -653,7 +661,10 @@ function hurtHero(
 ) {
 	const { hero } = state;
 	const back = isBehind(hero, from.x);
-	const amount = Math.round(damage * (back ? tuning.hero.backHurtMultiplier : 1));
+	const amount = Math.max(
+		1,
+		Math.round(damage * (back ? tuning.hero.backHurtMultiplier : 1)) - hero.defense
+	);
 	hero.hp = Math.max(0, hero.hp - amount);
 	hero.staggeredUntil = state.now + tuning.hero.hitStaggerMs;
 	hero.focusCount = 0;

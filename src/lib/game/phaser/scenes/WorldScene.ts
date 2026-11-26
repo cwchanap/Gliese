@@ -173,7 +173,7 @@ import {
 	MAP_BACKGROUND_DEFAULT_SELECTIONS,
 	MAP_BACKGROUND_PACKAGE_REGISTRY
 } from '$lib/game/content/backgrounds/map-background-registry';
-import { BattleScene } from './BattleScene';
+import { SnareBattleScene, type SnareBattleStartData } from './SnareBattleScene';
 
 interface RegionalBackgroundPackageRender extends MapBackgroundPackagePresentation {
 	readonly successfulBackgroundIdSet: ReadonlySet<string>;
@@ -1169,17 +1169,19 @@ export class WorldScene extends Phaser.Scene {
 		// offset can land inside blocking terrain (Mistfen pond, cliff bands).
 		const saveState = this.buildSaveState();
 
-		this.scene.start(BattleScene.key, {
-			saveState,
-			sourceMapId: this.mapId,
-			sourceEncounterId: enemy.id,
-			sourceEnemyId: enemy.definition.id,
-			enemyCount: enemy.definition.boss ? 1 : (enemy.count ?? rollBattleEnemyCount()),
-			hero: {
-				hp: this.playerProgress.hp,
-				...effectiveStats
+		this.scene.start(SnareBattleScene.key, {
+			payload: {
+				saveState,
+				sourceMapId: this.mapId,
+				sourceEncounterId: enemy.id,
+				sourceEnemyId: enemy.definition.id,
+				enemyCount: enemy.definition.boss ? 1 : (enemy.count ?? rollBattleEnemyCount()),
+				hero: {
+					hp: this.playerProgress.hp,
+					...effectiveStats
+				}
 			}
-		});
+		} satisfies SnareBattleStartData);
 	}
 
 	private equipInventoryItem(itemId: string) {
@@ -1396,7 +1398,7 @@ export class WorldScene extends Phaser.Scene {
 			case 'battle-cycle-target':
 			case 'battle-select-target':
 			case 'battle-flee':
-				// Battle-scoped commands are handled by BattleScene.
+				// Battle-scoped commands are handled by SnareBattleScene.
 				return;
 			case 'pause-game':
 				this.simulationPaused = true;
