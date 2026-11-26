@@ -457,11 +457,15 @@ export class SnareBattleScene extends Phaser.Scene {
 		this.hideUnusedFx();
 
 		this.flashes = this.flashes.filter((flash) => flash.until > now);
-		const phaseTwo =
-			this.state.phaseTwoAt === null
-				? ''
-				: `   phase 2 ${((now - this.state.phaseTwoAt) / 1000).toFixed(1)} s`;
-		this.timerText.setText(`${(now / 1000).toFixed(1)} s${phaseTwo}`);
+
+		// The fight clock is a playtest aid for `?battleTest=`; normal play has no timer.
+		if (this.testFightId) {
+			const phaseTwo =
+				this.state.phaseTwoAt === null
+					? ''
+					: `   phase 2 ${((now - this.state.phaseTwoAt) / 1000).toFixed(1)} s`;
+			this.timerText.setText(`${(now / 1000).toFixed(1)} s${phaseTwo}`);
+		}
 	}
 
 	private drawLine() {

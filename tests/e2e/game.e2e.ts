@@ -5173,11 +5173,11 @@ test('HPA-839 first wolf fight applies the auto-equipped stats in battle', async
 	]);
 	expect(activeFight?.attack).toBe(4);
 	expect(activeFight?.defense).toBe(1);
-	// Damage has no variance — but feed amounts are HP lost, capped by the
-	// target's remaining HP. `.some(amount===4)` would pass a wrong overkill
-	// followed by a finishing 4, so the proof is the FIRST spear on a 48-HP wolf
-	// (ATK 4, a front hit) and the FIRST lunge on the 20-HP hero (the wolf's 4
-	// minus DEF 1), when neither can be capped.
+	// Damage has no variance, and the feed shows each hit's full damage, so a
+	// finishing blow can read higher than the HP it took. `.some(amount===4)`
+	// would pass a wrong hit followed by a right one, so the proof is the FIRST
+	// spear on a 48-HP wolf (ATK 4, a front hit) and the FIRST lunge on the
+	// 20-HP hero (the wolf's 4 minus DEF 1), when neither is a finishing blow.
 	const seenFeed = async () =>
 		(await page.evaluate(() => (window as GlieseProbeWindow).__glieseBattleFeed ?? [])) ?? [];
 	await expect
