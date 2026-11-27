@@ -30,7 +30,7 @@ export const ja = {
 		promptPad: 'パッド',
 		promptKeys: 'キーボード',
 		sound: 'サウンド',
-		soundHint: '効果音と環境音',
+		soundHint: '音楽・効果音・環境音',
 		soundOn: 'オン',
 		soundOff: 'オフ',
 		quests: '依頼',

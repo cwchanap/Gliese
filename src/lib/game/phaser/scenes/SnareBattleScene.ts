@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 
-import { playSfx } from '$lib/game/phaser/audio';
+import { battleMusicFor } from '$lib/game/content/audio';
+import { playSfx, setAmbience, setMusic } from '$lib/game/phaser/audio';
 import {
 	buildBattleHudState,
 	countConsumables,
@@ -228,6 +229,12 @@ export class SnareBattleScene extends Phaser.Scene {
 		});
 
 		this.draw();
+		// The fight has its own track and no ambience; the field restores both on return.
+		setAmbience(this, null);
+		setMusic(
+			this,
+			battleMusicFor(Boolean(getBattleEnemyDefinition(data.payload.sourceEnemyId).boss))
+		);
 		playSfx(this, 'battle-start');
 		this.publishHud('status.battleStarted');
 	}
