@@ -3417,6 +3417,9 @@ export class WorldScene extends Phaser.Scene {
 		// is dismissed and the return-to-title teardown destroys this scene, so
 		// the freeze is never cleared here — not even after the autosave settles.
 		if (effect.type === 'show-prologue-end') {
+			// The card owns its music: a Continue from the Chapter One checkpoint
+			// lands here without replaying the scene that starts it.
+			setMusic(this, 'bgm-title');
 			void this.completePrologueEnd();
 			return;
 		}

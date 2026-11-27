@@ -5891,6 +5891,39 @@ describe('WorldScene', () => {
 		return { scene, sceneState };
 	}
 
+	it('plays the title theme for the end card when Continue skips the Chapter One scene', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { resetAudio } = await import('$lib/game/phaser/audio');
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		const add = vi.fn((key: string) => ({ key, volume: 0, play: vi.fn(), destroy: vi.fn() }));
+		Object.assign(scene, {
+			sound: { play: vi.fn(), add },
+			cache: { audio: { exists: (key: string) => key.startsWith('bgm-') } },
+			game: { events: { on: vi.fn(), off: vi.fn() } }
+		});
+
+		try {
+			// The Chapter One checkpoint: only the card marker is still pending.
+			scene.create({
+				saveState: {
+					...createNewSaveState(),
+					mapId: 'overworld',
+					quests: { ...questStateAt(null), pendingEffects: [{ type: 'show-prologue-end' }] }
+				},
+				reason: 'resume'
+			});
+			expect(add.mock.calls.map(([key]) => key)).toEqual(['bgm-tunnel']);
+
+			scene.update(0, 16);
+
+			expect(add.mock.calls.map(([key]) => key)).toEqual(['bgm-tunnel', 'bgm-title']);
+		} finally {
+			resetAudio();
+		}
+	});
+
 	/** Drives the story dialogue to its final line and closes it. */
 	function closeStoryDialogue(sceneState: {
 		dialogueSession: unknown;
