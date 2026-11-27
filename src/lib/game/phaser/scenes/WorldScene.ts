@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 
-import { ambienceFor, sceneSfx } from '$lib/game/content/audio';
-import { playSfx, setAmbience } from '$lib/game/phaser/audio';
+import { ambienceFor, musicFor, sceneMusic, sceneSfx } from '$lib/game/content/audio';
+import { playSfx, setAmbience, setMusic } from '$lib/game/phaser/audio';
 import {
 	actorAnimationAssets,
 	actorAnimationKeys,
@@ -841,7 +841,7 @@ export class WorldScene extends Phaser.Scene {
 		this.events?.once?.('shutdown', cleanup);
 		this.events?.once?.('destroy', cleanup);
 
-		setAmbience(this, ambienceFor(map.id, getStoryProgress(this.quests)));
+		this.refreshFieldAudio();
 		if (reason === 'transition') {
 			playSfx(this, 'door');
 		}
@@ -3341,6 +3341,8 @@ export class WorldScene extends Phaser.Scene {
 				});
 				return true;
 			}
+			// The story moved on without changing this map: the music may still change.
+			this.refreshFieldAudio();
 		}
 
 		// This tick is clear of dialogues, shops, effects, and gate restarts:
@@ -3475,12 +3477,21 @@ export class WorldScene extends Phaser.Scene {
 			this.dialogueSession = session;
 			const cue = sceneSfx[sceneId];
 			if (cue) playSfx(this, cue);
+			const music = sceneMusic[sceneId];
+			if (music) setMusic(this, music);
 			this.publishHudState(this.statusMessage('status.dialogueUpdated'));
 			return 'shown';
 		} catch (error) {
 			console.error('[story] story scene failed for scene=%s:', sceneId, error);
 			return this.storyDialogueSeq !== requestSeq ? 'cancelled' : 'failed';
 		}
+	}
+
+	/** The music and ambience for this map at this point of the story. */
+	private refreshFieldAudio() {
+		const progress = getStoryProgress(this.quests);
+		setMusic(this, musicFor(this.mapId, progress));
+		setAmbience(this, ambienceFor(this.mapId, progress));
 	}
 
 	private computeStoryGateKey(): string {

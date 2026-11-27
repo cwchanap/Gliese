@@ -30,7 +30,7 @@ export const zhHant = {
 		promptPad: '手把',
 		promptKeys: '鍵盤',
 		sound: '音效',
-		soundHint: '效果音與環境音',
+		soundHint: '音樂、效果音與環境音',
 		soundOn: '開啟',
 		soundOff: '關閉',
 		quests: '任務',

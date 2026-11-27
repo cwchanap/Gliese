@@ -44,6 +44,7 @@
 		type GamepadUiAction
 	} from '$lib/game/core/gamepad';
 	import { trapTabFocus } from '$lib/game/ui/focus-trap';
+	import { playTitleMusic } from '$lib/game/ui/title-music';
 	import { onHudState, onPrologueEnd, type HudPrologueEnd } from '$lib/game/ui-bridge/events';
 	import {
 		hudState,
@@ -1125,6 +1126,13 @@
 		}
 		trapTabFocus(event, questLogDialog);
 	}
+
+	// The title theme plays while the Title screen is up; the game takes over the
+	// music once a run starts.
+	$effect(() => {
+		if (mode !== 'title') return;
+		return playTitleMusic();
+	});
 
 	// Mount Phaser only once the player commits to a run (Continue / New Run /
 	// direct boot). The Title screen runs entirely on Svelte + save slots.

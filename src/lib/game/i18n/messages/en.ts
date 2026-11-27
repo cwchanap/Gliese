@@ -27,7 +27,7 @@ export const en = {
 		promptPad: 'Pad',
 		promptKeys: 'Keys',
 		sound: 'Sound',
-		soundHint: 'Effects and ambience',
+		soundHint: 'Music, effects and ambience',
 		soundOn: 'On',
 		soundOff: 'Off',
 		quests: 'Quests',
