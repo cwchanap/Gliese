@@ -2,13 +2,15 @@ import { audioAssetPath } from '$lib/game/content/audio';
 import { musicFadeMs, musicVolume } from '$lib/game/phaser/audio';
 import { preferences } from '$lib/game/i18n/store';
 
-const gestureEvents = ['pointerdown', 'keydown'] as const;
+// Touch grants activation on release, a mouse or key on press.
+const gestureEvents = ['pointerdown', 'pointerup', 'keydown'] as const;
 
 /**
  * Loops the title theme while the Title screen is up. Phaser is not loaded yet,
  * so this is its own small Web Audio graph (gapless, like the in-game loops).
- * Browsers only let audio start after a click or key press, so a fresh page
- * waits for the first one instead of creating a context the browser would block.
+ * Browsers only let audio start after a click or key press (Escape and the like
+ * do not count), so a fresh page waits for one instead of creating a context the
+ * browser would block, and keeps listening until the context actually runs.
  * Returns the stop function, which fades the theme out.
  */
 export function playTitleMusic(): () => void {
@@ -24,9 +26,16 @@ export function playTitleMusic(): () => void {
 	});
 
 	const start = () => {
-		if (context || stopped) return;
-		removeGestureListeners();
+		if (stopped) return;
+		if (context) {
+			void context.resume().catch(() => {});
+			return;
+		}
 		context = new AudioContext();
+		context.addEventListener('statechange', () => {
+			if (context?.state === 'running') removeGestureListeners();
+		});
+		if (context.state === 'running') removeGestureListeners();
 		gain = context.createGain();
 		gain.gain.value = muted ? 0 : musicVolume;
 		gain.connect(context.destination);
@@ -45,15 +54,17 @@ export function playTitleMusic(): () => void {
 			// No title music is not worth an error: the game plays on without it.
 			.catch(() => {});
 	};
+	const onGesture = () => {
+		// An input that grants no activation (Escape) would leave the context blocked.
+		if (navigator.userActivation && !navigator.userActivation.isActive) return;
+		start();
+	};
 	const removeGestureListeners = () => {
-		for (const type of gestureEvents) window.removeEventListener(type, start, true);
+		for (const type of gestureEvents) window.removeEventListener(type, onGesture, true);
 	};
 
-	if (navigator.userActivation?.hasBeenActive) {
-		start();
-	} else {
-		for (const type of gestureEvents) window.addEventListener(type, start, true);
-	}
+	for (const type of gestureEvents) window.addEventListener(type, onGesture, true);
+	if (navigator.userActivation?.hasBeenActive) start();
 
 	return () => {
 		stopped = true;
