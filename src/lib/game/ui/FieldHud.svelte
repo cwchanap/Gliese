@@ -5,6 +5,7 @@
 	import { parseCellKey } from '$lib/game/core/map-exploration';
 	import { getXpForLevel } from '$lib/game/core/progression';
 	import CommandGrid, { type FieldCommand } from '$lib/game/ui/CommandGrid.svelte';
+	import { areaMapTerrainImage } from '$lib/game/ui/area-map-terrain';
 	import type { HudState } from '$lib/game/ui-bridge/events';
 
 	interface Props {
@@ -39,6 +40,9 @@
 		});
 		return `${view.x} ${view.y} ${view.width} ${view.height}`;
 	});
+
+	// The terrain shows through the explored cells; maps without a tile grid keep plain cells.
+	const terrainImage = $derived(areaMapTerrainImage(hudState.areaMap.mapId));
 
 	let coinFlashTimer: ReturnType<typeof setTimeout> | undefined;
 	let coinFlash = $state(false);
@@ -173,16 +177,43 @@
 								width={hudState.areaMap.worldWidth}
 								height={hudState.areaMap.worldHeight}
 							/>
-							{#each hudState.areaMap.revealedCells as cellKey (cellKey)}
-								{@const cell = parseCellKey(cellKey)}
-								<rect
-									class="minimap-cell"
-									x={cell.column * hudState.areaMap.cellSize}
-									y={cell.row * hudState.areaMap.cellSize}
-									width={hudState.areaMap.cellSize}
-									height={hudState.areaMap.cellSize}
+							{#if terrainImage}
+								<defs>
+									<mask id="minimap-explored">
+										{#each hudState.areaMap.revealedCells as cellKey (cellKey)}
+											{@const cell = parseCellKey(cellKey)}
+											<rect
+												fill="white"
+												x={cell.column * hudState.areaMap.cellSize}
+												y={cell.row * hudState.areaMap.cellSize}
+												width={hudState.areaMap.cellSize}
+												height={hudState.areaMap.cellSize}
+											/>
+										{/each}
+									</mask>
+								</defs>
+								<image
+									class="minimap-terrain"
+									href={terrainImage}
+									x="0"
+									y="0"
+									width={hudState.areaMap.worldWidth}
+									height={hudState.areaMap.worldHeight}
+									preserveAspectRatio="none"
+									mask="url(#minimap-explored)"
 								/>
-							{/each}
+							{:else}
+								{#each hudState.areaMap.revealedCells as cellKey (cellKey)}
+									{@const cell = parseCellKey(cellKey)}
+									<rect
+										class="minimap-cell"
+										x={cell.column * hudState.areaMap.cellSize}
+										y={cell.row * hudState.areaMap.cellSize}
+										width={hudState.areaMap.cellSize}
+										height={hudState.areaMap.cellSize}
+									/>
+								{/each}
+							{/if}
 							{#each hudState.areaMap.markers as marker (marker.id)}
 								<circle
 									class={`minimap-marker minimap-marker-${marker.kind} ${
@@ -523,6 +554,10 @@
 
 	.minimap-fog {
 		fill: #142333;
+	}
+
+	.minimap-terrain {
+		image-rendering: pixelated;
 	}
 
 	.minimap-cell {

@@ -14,15 +14,23 @@ import {
 	type TerrainDefinition,
 	type TerrainGlyph
 } from './legend';
-import { EDGE_E, EDGE_N, EDGE_S, EDGE_W, tileIdFor } from './tileset';
+import { EDGE_E, EDGE_N, EDGE_S, EDGE_W, mountainRockTileId, tileIdFor } from './tileset';
+
+const MOUNTAIN_GLYPH: TerrainGlyph = '^';
+const FULL_MASK = EDGE_N | EDGE_E | EDGE_S | EDGE_W;
 
 /** Collision is resolved on half-tile cells, with the same clearance as the interiors. */
 export const GRID_NAVIGATION_CELL_SIZE = 16;
 export const GRID_NAVIGATION_CLEARANCE = 12;
 
-/** Phaser tile data: one tile id per cell, -1 for an empty canopy cell. */
+/**
+ * Phaser tile data: one tile id per cell, -1 for an empty cell. `edges` draws over
+ * `ground` and under actors: a mountain's ground is varied rock (see
+ * `mountainRockTileId`) and its grass edges and foot draw on top.
+ */
 export interface GridTileLayers {
 	readonly ground: number[][];
+	readonly edges: number[][];
 	readonly canopy: number[][];
 }
 
@@ -39,29 +47,77 @@ export function applyTileOverlays(
 	return grid.map((line) => line.join(''));
 }
 
+/** Forest and pine patches up to this many tiles draw as single tree sprites (see `objects.ts`). */
+export const LONE_TREE_PATCH_TILES = 3;
+const LONE_TREE_GLYPHS = 'TA';
+
+/**
+ * Keys (`col,row`) of the forest and pine tiles in patches of at most
+ * `LONE_TREE_PATCH_TILES`. Canopy art cut that small is a dark round blob that
+ * reads as a pit, so these draw as single trees instead; they still block.
+ */
+export function loneTreeTiles(terrain: readonly string[]): Set<string> {
+	const lone = new Set<string>();
+	const seen = new Set<string>();
+	for (const [row, line] of terrain.entries()) {
+		for (let col = 0; col < line.length; col += 1) {
+			const glyph = line[col]!;
+			if (!LONE_TREE_GLYPHS.includes(glyph) || seen.has(`${col},${row}`)) continue;
+			const patch = [`${col},${row}`];
+			seen.add(patch[0]!);
+			for (let index = 0; index < patch.length; index += 1) {
+				const [c, r] = patch[index]!.split(',').map(Number) as [number, number];
+				for (const [nc, nr] of [
+					[c + 1, r],
+					[c - 1, r],
+					[c, r + 1],
+					[c, r - 1]
+				] as const) {
+					const key = `${nc},${nr}`;
+					if (terrain[nr]?.[nc] !== glyph || seen.has(key)) continue;
+					seen.add(key);
+					patch.push(key);
+				}
+			}
+			if (patch.length <= LONE_TREE_PATCH_TILES) for (const key of patch) lone.add(key);
+		}
+	}
+	return lone;
+}
+
 export function buildGridTileLayers(terrain: readonly string[]): GridTileLayers {
 	const ground: number[][] = [];
+	const edges: number[][] = [];
 	const canopy: number[][] = [];
+	const loneTrees = loneTreeTiles(terrain);
 	for (const [row, line] of terrain.entries()) {
 		const groundRow: number[] = [];
+		const edgesRow: number[] = [];
 		const canopyRow: number[] = [];
 		for (let col = 0; col < line.length; col += 1) {
 			const glyph = terrainGlyphAt(terrain, col, row);
 			const definition = TERRAIN_LEGEND[glyph];
 			const mask = definition.autotile ? edgeMask(terrain, col, row, glyph) : 0;
 			const tile = tileIdFor(glyph, mask, col, row);
+			let groundTile = tile;
+			let edgesTile = -1;
+			let canopyTile = -1;
 			if (definition.layer === 'canopy') {
-				groundRow.push(tileIdFor(BASE_GLYPH, 0, col, row));
-				canopyRow.push(tile);
-			} else {
-				groundRow.push(tile);
-				canopyRow.push(-1);
+				groundTile = tileIdFor(BASE_GLYPH, 0, col, row);
+				if (!loneTrees.has(`${col},${row}`)) canopyTile = tile;
+			} else if (glyph === MOUNTAIN_GLYPH) {
+				groundTile = mountainRockTileId(col, row);
+				if (mask !== FULL_MASK) edgesTile = tile;
 			}
+			groundRow.push(groundTile);
+			edgesRow.push(edgesTile);
+			canopyRow.push(canopyTile);
 		}
 		ground.push(groundRow);
+		edges.push(edgesRow);
 		canopy.push(canopyRow);
 	}
-	return { ground, canopy };
+	return { ground, edges, canopy };
 }
 
 /**

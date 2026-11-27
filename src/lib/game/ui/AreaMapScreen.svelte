@@ -2,6 +2,7 @@
 	import { locale, motionReduced, preferences } from '$lib/game/i18n/store';
 	import { t } from '$lib/game/i18n/translate';
 	import PromptGlyph from '$lib/game/ui/PromptGlyph.svelte';
+	import { areaMapTerrainImage } from '$lib/game/ui/area-map-terrain';
 	import { parseCellKey } from '$lib/game/core/map-exploration';
 	import {
 		AREA_MAP_MARKER_EMPHASIS_FONT_PX,
@@ -37,6 +38,8 @@
 	}: Props = $props();
 
 	const mapView = $derived(areaMapLocalView(areaMap));
+	// The terrain shows through the explored cells; maps without a tile grid keep plain cells.
+	const terrainImage = $derived(open ? areaMapTerrainImage(areaMap.mapId) : null);
 	// Room-sized maps render smaller glyphs so labels stay readable and inside
 	// the frame (see areaMapLocalView); 1 on full-size views, preserving the
 	// tuned overworld look.
@@ -108,16 +111,44 @@
 							width={areaMap.worldWidth}
 							height={areaMap.worldHeight}
 						/>
-						{#each areaMap.revealedCells as cellKey (cellKey)}
-							{@const cell = parseCellKey(cellKey)}
-							<rect
-								class="area-map-revealed-cell"
-								x={cell.column * areaMap.cellSize}
-								y={cell.row * areaMap.cellSize}
-								width={areaMap.cellSize}
-								height={areaMap.cellSize}
+						{#if terrainImage}
+							<defs>
+								<mask id="area-map-explored">
+									{#each areaMap.revealedCells as cellKey (cellKey)}
+										{@const cell = parseCellKey(cellKey)}
+										<rect
+											fill="white"
+											x={cell.column * areaMap.cellSize}
+											y={cell.row * areaMap.cellSize}
+											width={areaMap.cellSize}
+											height={areaMap.cellSize}
+										/>
+									{/each}
+								</mask>
+							</defs>
+							<image
+								data-testid="area-map-terrain"
+								class="area-map-terrain"
+								href={terrainImage}
+								x="0"
+								y="0"
+								width={areaMap.worldWidth}
+								height={areaMap.worldHeight}
+								preserveAspectRatio="none"
+								mask="url(#area-map-explored)"
 							/>
-						{/each}
+						{:else}
+							{#each areaMap.revealedCells as cellKey (cellKey)}
+								{@const cell = parseCellKey(cellKey)}
+								<rect
+									class="area-map-revealed-cell"
+									x={cell.column * areaMap.cellSize}
+									y={cell.row * areaMap.cellSize}
+									width={areaMap.cellSize}
+									height={areaMap.cellSize}
+								/>
+							{/each}
+						{/if}
 						{#each visibleMarkers as marker (marker.id)}
 							{@const focusCoords = markerFocusCoords[marker.id]}
 							<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -258,6 +289,10 @@
 
 	.area-map-fog {
 		fill: color-mix(in srgb, var(--color-ink) 82%, #04070f);
+	}
+
+	.area-map-terrain {
+		image-rendering: pixelated;
 	}
 
 	.area-map-revealed-cell {
