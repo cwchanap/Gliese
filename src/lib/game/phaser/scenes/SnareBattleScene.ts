@@ -231,10 +231,7 @@ export class SnareBattleScene extends Phaser.Scene {
 		this.draw();
 		// The fight has its own track and no ambience; the field restores both on return.
 		setAmbience(this, null);
-		setMusic(
-			this,
-			battleMusicFor(Boolean(getBattleEnemyDefinition(data.payload.sourceEnemyId).boss))
-		);
+		setMusic(this, battleMusicFor(data.payload.sourceEnemyId));
 		playSfx(this, 'battle-start');
 		this.publishHud('status.battleStarted');
 	}

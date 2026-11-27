@@ -25,15 +25,18 @@ class FakeAudioContext extends EventTarget {
 		};
 	}
 	decodeAudioData = vi.fn(async () => ({ duration: 48 }));
+	sources: Array<{ buffer: unknown; loop: boolean; start: ReturnType<typeof vi.fn> }> = [];
 	createBufferSource() {
-		return { buffer: null, loop: false, connect: vi.fn(), start: vi.fn() };
+		const source = { buffer: null, loop: false, connect: vi.fn(), start: vi.fn() };
+		this.sources.push(source);
+		return source;
 	}
 }
 
 const activation = { isActive: false, hasBeenActive: false };
 const page = new EventTarget();
 
-function press(type: 'keydown' | 'pointerdown', activates: boolean) {
+function press(type: 'keydown' | 'pointerdown' | 'pointerup', activates: boolean) {
 	activation.isActive = activates;
 	activation.hasBeenActive ||= activates;
 	page.dispatchEvent(new Event(type));
@@ -69,6 +72,20 @@ describe('playTitleMusic', () => {
 		expect(FakeAudioContext.created).toHaveLength(1);
 		expect(FakeAudioContext.created[0].state).toBe('running');
 		expect(fetch).toHaveBeenCalledWith('/game/audio/bgm-title.mp3');
+		stop();
+	});
+
+	it('starts on a touch release and loops the decoded title theme', async () => {
+		const stop = playTitleMusic();
+
+		press('pointerup', true);
+		const [context] = FakeAudioContext.created;
+		await vi.waitFor(() => expect(context.sources).toHaveLength(1));
+
+		const [source] = context.sources;
+		expect(source.buffer).toEqual({ duration: 48 });
+		expect(source.loop).toBe(true);
+		expect(source.start).toHaveBeenCalledOnce();
 		stop();
 	});
 
