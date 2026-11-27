@@ -7,9 +7,10 @@ import {
 	buildGridNavigationGrid,
 	buildGridTileLayers,
 	edgeMask,
-	findUnreachablePoints
+	findUnreachablePoints,
+	loneTreeTiles
 } from './layers';
-import { EDGE_E, EDGE_N, EDGE_S, EDGE_W, tileIdFor } from './tileset';
+import { EDGE_E, EDGE_N, EDGE_S, EDGE_W, mountainRockTileId, tileIdFor } from './tileset';
 
 const tileCentre = (col: number, row: number) => ({ x: col * 32 + 16, y: row * 32 + 16 });
 
@@ -31,15 +32,35 @@ describe('edgeMask', () => {
 
 describe('buildGridTileLayers', () => {
 	it('puts canopy terrain above grass and leaves the rest of the canopy empty', () => {
-		const layers = buildGridTileLayers(['.T', 'R~']);
+		const layers = buildGridTileLayers(['.TT', 'RTT', '~..']);
 		expect(layers.ground).toEqual([
-			[tileIdFor('.', 0, 0, 0), tileIdFor('.', 0, 1, 0)],
-			[tileIdFor('R', 0, 0, 1), tileIdFor('~', EDGE_E | EDGE_S, 1, 1)]
+			[tileIdFor('.', 0, 0, 0), tileIdFor('.', 0, 1, 0), tileIdFor('.', 0, 2, 0)],
+			[tileIdFor('R', 0, 0, 1), tileIdFor('.', 0, 1, 1), tileIdFor('.', 0, 2, 1)],
+			[tileIdFor('~', EDGE_S | EDGE_W, 0, 2), tileIdFor('.', 0, 1, 2), tileIdFor('.', 0, 2, 2)]
 		]);
 		expect(layers.canopy).toEqual([
-			[-1, tileIdFor('T', EDGE_N | EDGE_E, 1, 0)],
-			[-1, -1]
+			[-1, tileIdFor('T', EDGE_N | EDGE_E | EDGE_S, 1, 0), tileIdFor('T', 15, 2, 0)],
+			[-1, tileIdFor('T', EDGE_N | EDGE_E, 1, 1), tileIdFor('T', EDGE_N | EDGE_E | EDGE_W, 2, 1)],
+			[-1, -1, -1]
 		]);
+	});
+
+	it('draws a forest or pine patch of up to three tiles as single trees, with no canopy', () => {
+		const terrain = ['TT..A', '.....', 'TT.AA', 'TT.A.'];
+		expect([...loneTreeTiles(terrain)].sort()).toEqual(['0,0', '1,0', '3,2', '3,3', '4,0', '4,2']);
+		const layers = buildGridTileLayers(terrain);
+		expect(layers.canopy[0]).toEqual([-1, -1, -1, -1, -1]);
+		expect(layers.canopy[2]![0]).toBe(tileIdFor('T', EDGE_E | EDGE_S | EDGE_W, 0, 2));
+	});
+
+	it('draws mountains as varied rock with their edges on the layer above', () => {
+		const terrain = ['^^^', '^^^', '...'];
+		const layers = buildGridTileLayers(terrain);
+		expect(layers.ground[0]).toEqual([0, 1, 2].map((col) => mountainRockTileId(col, 0)));
+		// The surrounded tile has no edge to draw; the bottom row shows the mountain foot.
+		expect(layers.edges[0]![1]).toBe(-1);
+		expect(layers.edges[1]![1]).toBe(tileIdFor('^', EDGE_N | EDGE_E | EDGE_W, 1, 1));
+		expect(layers.edges[2]).toEqual([-1, -1, -1]);
 	});
 
 	it('draws the same terrain with a different variant on each tile', () => {

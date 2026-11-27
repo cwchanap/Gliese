@@ -58,7 +58,17 @@ export const EDGE_W = 8;
 export const TILE_VARIANTS = 8;
 
 const SLOT_COLUMNS = 16;
-const SLOT_ROWS = 1 + AUTOTILE_GLYPHS.length;
+
+/**
+ * The row after the autotiles holds 16 Wang tiles of mountain rock. Every mountain
+ * tile draws its rock from them, so peaks do not repeat on a fixed 8-tile lattice:
+ * the map is cut into 8×8-tile blocks, each block edge gets one of two kinds from
+ * its position, and a block draws the Wang tile whose four edges match. The
+ * mountain's own autotile row then only holds its edges (grass and the mountain
+ * foot over transparent rock), drawn on the `edges` layer above the rock.
+ */
+export const MOUNTAIN_ROCK_ROW = 1 + AUTOTILE_GLYPHS.length;
+const SLOT_ROWS = MOUNTAIN_ROCK_ROW + 1;
 
 export const GRID_TILESET = {
 	key: 'grid-tiles',
@@ -88,5 +98,34 @@ export function tileIdFor(glyph: TerrainGlyph, mask: number, col: number, row: n
 	const slot = slotFor(glyph, mask);
 	const tileRow = Math.floor(slot / SLOT_COLUMNS) * TILE_VARIANTS + (row % TILE_VARIANTS);
 	const tileCol = (slot % SLOT_COLUMNS) * TILE_VARIANTS + (col % TILE_VARIANTS);
+	return tileRow * GRID_TILESET.columns + tileCol;
+}
+
+/** Which of the two edge kinds a block edge gets: 1 or 0, stable for its position. */
+function edgeKind(seed: number, a: number, b: number): number {
+	let hash =
+		(Math.imul(a, 374_761_393) + Math.imul(b, 668_265_263) + Math.imul(seed, 1_274_126_177)) | 0;
+	hash = Math.imul(hash ^ (hash >>> 13), 1_274_126_177);
+	return ((hash ^ (hash >>> 16)) >>> 8) & 1;
+}
+
+/** Wang tile index (N = 1, E = 2, S = 4, W = 8 when that edge is kind 1) of an 8×8-tile block. */
+export function mountainRockWangIndex(blockCol: number, blockRow: number): number {
+	return (
+		edgeKind(1, blockCol, blockRow) |
+		(edgeKind(2, blockCol + 1, blockRow) << 1) |
+		(edgeKind(1, blockCol, blockRow + 1) << 2) |
+		(edgeKind(2, blockCol, blockRow) << 3)
+	);
+}
+
+/** Tile id of the mountain rock drawn at map tile (col, row). */
+export function mountainRockTileId(col: number, row: number): number {
+	const wang = mountainRockWangIndex(
+		Math.floor(col / TILE_VARIANTS),
+		Math.floor(row / TILE_VARIANTS)
+	);
+	const tileRow = MOUNTAIN_ROCK_ROW * TILE_VARIANTS + (row % TILE_VARIANTS);
+	const tileCol = wang * TILE_VARIANTS + (col % TILE_VARIANTS);
 	return tileRow * GRID_TILESET.columns + tileCol;
 }

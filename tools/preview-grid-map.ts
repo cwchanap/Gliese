@@ -99,6 +99,7 @@ function blitTile(id: number, col: number, row: number) {
 for (let row = view.row; row < view.row + view.height; row += 1) {
 	for (let col = view.col; col < view.col + view.width; col += 1) {
 		blitTile(layers.ground[row]![col]!, col, row);
+		blitTile(layers.edges[row]![col]!, col, row);
 		blitTile(layers.canopy[row]![col]!, col, row);
 	}
 }

@@ -2,6 +2,7 @@ import type { MapGridBuilding } from '$lib/game/content/maps/types';
 
 import { GRID_BUILDING_TYPES, type GridBuildingArt, type GridBuildingType } from './buildings';
 import { GRID_TILE_SIZE } from './compile';
+import { loneTreeTiles } from './layers';
 
 /**
  * Sprites drawn over a text-grid map: buildings, and props that stand taller than
@@ -70,6 +71,9 @@ const TILE_PROPS: Readonly<
 		drop: 4
 	},
 	R: { frames: ['boulder', 'rocks'], drop: 0 },
+	// A sealed gate is a rockfall across the road until gate art exists: it reads as blocked
+	// from any side, where a palisade strip only works on an east-west wall.
+	'!': { frames: ['boulder', 'rocks', 'boulder'], drop: 2, jitter: 4 },
 	I: { frames: ['totem'], drop: 2 },
 	X: { frames: ['drying-rack'], drop: 2 },
 	'*': { frames: ['fire-pit'], drop: 6 },
@@ -77,13 +81,20 @@ const TILE_PROPS: Readonly<
 	'&': { frames: ['fire-a', 'fire-b', 'fire-c', 'fire-d'], drop: 4, jitter: 5 }
 };
 
+/** The tree a forest or pine tile draws as when its patch is too small for canopy art. */
+const LONE_TREE_PROPS: Readonly<
+	Record<string, { frames: readonly string[]; drop: number; jitter?: number }>
+> = {
+	T: { frames: ['tree-broad', 'tree-broad', 'tree-twisted'], drop: 4 },
+	A: { frames: ['tree-pine'], drop: 4 }
+};
+
 /**
- * Walls cut from a seamless strip, one slice per tile (`slices` per repeat): the palisade, the
- * sealed gates in it until gate art exists, and the palisade the raid broke through.
+ * Walls cut from a seamless strip, one slice per tile (`slices` per repeat): the palisade, and
+ * the palisade the raid broke through.
  */
 const STRIPS: Readonly<Record<string, { frame: string; slices: number; drop: number }>> = {
 	P: { frame: 'palisade', slices: 14, drop: 4 },
-	'!': { frame: 'palisade', slices: 14, drop: 4 },
 	'/': { frame: 'palisade-broken', slices: 14, drop: 0 }
 };
 
@@ -151,6 +162,7 @@ export function buildGridObjects(
 		);
 	}
 
+	const loneTrees = loneTreeTiles(terrain);
 	for (const [row, line] of terrain.entries()) {
 		for (let col = 0; col < line.length; col += 1) {
 			const glyph = line[col]!;
@@ -162,7 +174,7 @@ export function buildGridObjects(
 				objects.push(standing(`${strip.frame}-${slice}`, tile, strip.drop));
 				continue;
 			}
-			const prop = TILE_PROPS[glyph];
+			const prop = loneTrees.has(`${col},${row}`) ? LONE_TREE_PROPS[glyph] : TILE_PROPS[glyph];
 			if (!prop || burnt.has(`${col},${row}`)) continue;
 			const object = standing(
 				prop.frames[variantIndex(col, row, prop.frames.length)]!,

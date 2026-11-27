@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 
 import { ambienceFor, musicFor, sceneMusic, sceneSfx } from '$lib/game/content/audio';
+import { lightingFor, type LightGrade } from '$lib/game/content/lighting';
 import { playSfx, setAmbience, setMusic } from '$lib/game/phaser/audio';
 import {
 	actorAnimationAssets,
@@ -87,6 +88,7 @@ import {
 	STARTER_NPC_COLLISION_RADIUS
 } from '$lib/game/core/collision';
 import { equipItem, grantItems, unequipSlot } from '$lib/game/core/equipment';
+import { fieldCameraZoom } from '$lib/game/core/field-camera';
 import { heroScreenPosition, isHeroInHeroCardZone } from '$lib/game/core/hud-occlusion';
 import { selectNearbyCandidate } from '$lib/game/core/interaction';
 import { resolveMovementVector } from '$lib/game/core/input';
@@ -418,6 +420,8 @@ export class WorldScene extends Phaser.Scene {
 	) as Record<MapGroundTile, number>;
 	private static readonly terrainFrames = terrainFrameOrder;
 	private static readonly cameraFollowLerp = 0.14;
+	/** The grade on the current camera; a restart makes a new camera, so `create` resets it. */
+	private fieldLightGrade: LightGrade | null | undefined;
 	private static readonly bossPhaseTwoSpeedMultiplier = 1.5;
 	private static readonly transitionRadius = MAP_TRANSITION_RADIUS;
 	public static readonly doorTriggerRadius = MAP_TRANSITION_TRIGGER_RADIUS;
@@ -744,6 +748,9 @@ export class WorldScene extends Phaser.Scene {
 		this.renderCollisionDebugOverlay(map);
 
 		this.cameras.main.setBackgroundColor('#1a1f2b');
+		this.applyFieldCameraZoom();
+		this.fieldLightGrade = undefined;
+		this.applyFieldLighting();
 		const cameraBounds = this.getCenteredCameraBounds(width, height);
 		this.cameras.main.setBounds(
 			cameraBounds.x,
@@ -787,6 +794,7 @@ export class WorldScene extends Phaser.Scene {
 		// dimensions belong to this create() so a transition/restart swaps the
 		// closure via the shutdown cleanup below.
 		const onResize = () => {
+			this.applyFieldCameraZoom();
 			const bounds = this.getCenteredCameraBounds(width, height);
 			this.cameras.main.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
 			cameraDiagnosticPending = this.renderOptions.movementDiagnostics;
@@ -900,10 +908,29 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
+	/** Larger windows zoom in, so every window size frames about the same area (`fieldCameraZoom`). */
+	private applyFieldCameraZoom() {
+		const camera = this.cameras.main;
+		camera.setZoom?.(fieldCameraZoom(camera.width, camera.height));
+	}
+
+	/** The story's colour grade over the field (`lightingFor`): dusk in the evening, smoke in the raid. */
+	private applyFieldLighting() {
+		const filters = this.cameras.main.filters?.internal;
+		if (!filters) return;
+		const grade = lightingFor(this.mapId, getStoryProgress(this.quests));
+		if (grade === this.fieldLightGrade) return;
+		this.fieldLightGrade = grade;
+		filters.clear();
+		if (grade) filters.addColorMatrix().colorMatrix.set([...grade]);
+	}
+
 	private getCenteredCameraBounds(width: number, height: number) {
 		const camera = this.cameras.main;
-		const viewportWidth = camera.width > 0 ? camera.width : width;
-		const viewportHeight = camera.height > 0 ? camera.height : height;
+		// Bounds are in world px: a zoomed camera's view covers its size divided by the zoom.
+		const zoom = camera.zoomX > 0 ? camera.zoomX : 1;
+		const viewportWidth = (camera.width > 0 ? camera.width : width) / zoom;
+		const viewportHeight = (camera.height > 0 ? camera.height : height) / zoom;
 		const xPadding = Math.max(0, (viewportWidth - width) / 2);
 		const yPadding = Math.max(0, (viewportHeight - height) / 2);
 
@@ -2000,6 +2027,7 @@ export class WorldScene extends Phaser.Scene {
 		const layers = resolveGridTileLayers(map);
 		for (const [data, depth] of [
 			[layers.ground, -10],
+			[layers.edges, -9],
 			[layers.canopy, WorldScene.gridCanopyDepth]
 		] as const) {
 			const tilemap = this.make.tilemap({
@@ -3490,11 +3518,12 @@ export class WorldScene extends Phaser.Scene {
 		}
 	}
 
-	/** The music and ambience for this map at this point of the story. */
+	/** The music, ambience and light for this map at this point of the story. */
 	private refreshFieldAudio() {
 		const progress = getStoryProgress(this.quests);
 		setMusic(this, musicFor(this.mapId, progress));
 		setAmbience(this, ambienceFor(this.mapId, progress));
+		this.applyFieldLighting();
 	}
 
 	private computeStoryGateKey(): string {

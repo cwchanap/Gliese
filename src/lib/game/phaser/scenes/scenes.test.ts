@@ -51,8 +51,8 @@ const mottApproach = { x: 128, y: 392 };
 const wolvesMouth = anchorPoint('wildwood-wolves-mouth');
 // Just east of the pack, inside its engagement range.
 const wolvesMouthApproach = { x: wolvesMouth.x + 32, y: wolvesMouth.y };
-// Open Sundrop ground with nothing to bump into for a few tiles in every direction.
-const openGround = { x: 4_336, y: 7_856 };
+// Open grass inside the southern frontier outline, with nothing to bump into for a few tiles.
+const openGround = { x: 6_416, y: 9_328 };
 const boarKingHome = anchorPoint('silverpine-boar-king');
 // The Boar King's pocket with the Silverpine wolves above it already cleared.
 const boarKingFlags = {
@@ -3541,7 +3541,7 @@ describe('WorldScene', () => {
 		expect(scene.cameras.main.setBackgroundColor).toHaveBeenCalledWith('#1a1f2b');
 	});
 
-	it('renders a text-grid map as ground and canopy tile layers with building sprites', async () => {
+	it('renders a text-grid map as ground, edge, and canopy tile layers with building sprites', async () => {
 		const { WorldScene } = await import('./WorldScene');
 		const scene = new WorldScene();
 
@@ -3550,6 +3550,7 @@ describe('WorldScene', () => {
 		const layers = buildGridTileLayers(overworld.grid.terrain);
 		expect(vi.mocked(scene.make.tilemap).mock.calls.map(([config]) => config?.data)).toEqual([
 			layers.ground,
+			layers.edges,
 			layers.canopy
 		]);
 		expect(phaserState.tilemap.addTilesetImage).toHaveBeenCalledWith(
@@ -3559,6 +3560,7 @@ describe('WorldScene', () => {
 			32
 		);
 		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-10);
+		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(-9);
 		expect(phaserState.tilemapLayer.setDepth).toHaveBeenCalledWith(100);
 		const building = overworld.grid.buildings[0]!;
 		const sprite = buildGridObjects(overworld.grid.terrain, overworld.grid.buildings).find(
@@ -5151,6 +5153,40 @@ describe('WorldScene', () => {
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({ heroOccluded: true })
 		);
+	});
+
+	it('zooms the field camera so a large window frames about the default view', async () => {
+		const { WorldScene } = await import('./WorldScene');
+		const scene = new WorldScene();
+		Object.assign(phaserState.mainCamera, { width: 1920, height: 1080 });
+
+		scene.create({ mapId: overworldMap.id });
+
+		expect(phaserState.mainCamera.setZoom).toHaveBeenLastCalledWith(1.5);
+	});
+
+	it('grades the overworld light for the raid, and clears it again indoors', async () => {
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const { questStateAt } = await import('$lib/game/core/quests.fixtures');
+		const { raidLight } = await import('$lib/game/content/lighting');
+		const { WorldScene } = await import('./WorldScene');
+		const colorMatrix = { set: vi.fn() };
+		const internal = { clear: vi.fn(), addColorMatrix: vi.fn(() => ({ colorMatrix })) };
+		Object.assign(phaserState.mainCamera, { filters: { internal } });
+		try {
+			const raid = { ...createNewSaveState(), quests: questStateAt('repel-the-soldiers') };
+
+			new WorldScene().create({ saveState: { ...raid, mapId: 'overworld' } });
+			expect(colorMatrix.set).toHaveBeenCalledWith([...raidLight]);
+
+			internal.clear.mockClear();
+			internal.addColorMatrix.mockClear();
+			new WorldScene().create({ saveState: { ...raid, mapId: 'hero-house' } });
+			expect(internal.clear).toHaveBeenCalled();
+			expect(internal.addColorMatrix).not.toHaveBeenCalled();
+		} finally {
+			delete (phaserState.mainCamera as { filters?: unknown }).filters;
+		}
 	});
 
 	it('moves the player marker using the current input state', async () => {

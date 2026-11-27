@@ -24,6 +24,7 @@ import {
 	EDGE_S,
 	EDGE_W,
 	GRID_TILESET,
+	MOUNTAIN_ROCK_ROW,
 	SINGLE_TILE_GLYPHS,
 	TILE_VARIANTS,
 	slotFor
@@ -187,6 +188,7 @@ function paintSingle(glyph: (typeof SINGLE_TILE_GLYPHS)[number], x: number, y: n
 		case 'H':
 			return over(grass(x, y), sample(art.stairs, lx, ly));
 		case '*':
+		case '!': // the sealed gate's rockfall lies across the road
 			return dirt(x, y);
 		case 'D': // a dead tree stands in the marsh, which joins it on every side
 			return marsh(x, y);
@@ -214,12 +216,27 @@ function paintAutotile(
 		case '_':
 			return over(grass(x, y), sample(art.ledge, x, y), coverage(mask, x, y, PATH_EDGE));
 		case '^': {
-			const rock = sample(art.mountain, x, y);
-			if (mask & EDGE_S) return over(grass(x, y), rock, coverage(mask, x, y, MOUNTAIN_EDGE));
-			// The open south side is the foot of the mountain: a rock face standing on the grass.
-			const ground = over(grass(x, y), rock, coverage(mask, x, y, MOUNTAIN_FOOT_EDGE));
-			const ends = coverage(mask | EDGE_N | EDGE_S, x, y, CLIFF_END);
-			return over(ground, sample(art.mountainFoot, x, y % TILE), ends);
+			// Only the mountain's edges: the rock itself is on the ground layer (`mountainRock`), so
+			// this is grass where the rock fades out, and on an open south side the mountain foot,
+			// a rock face standing on the grass, all over transparent rock.
+			if (mask & EDGE_S) {
+				const [r, g, b] = grass(x, y);
+				return [r, g, b, 1 - coverage(mask, x, y, MOUNTAIN_EDGE)];
+			}
+			const rockCover = coverage(mask, x, y, MOUNTAIN_FOOT_EDGE);
+			const foot = sample(art.mountainFoot, x, y % TILE);
+			const footCover = foot[3] * coverage(mask | EDGE_N | EDGE_S, x, y, CLIFF_END);
+			// Laid over rock, this gives foot over (rock fading to grass), as one layer.
+			const alpha = 1 - rockCover * (1 - footCover);
+			if (alpha <= 0) return [0, 0, 0, 0];
+			const grassShare = (1 - rockCover) * (1 - footCover);
+			const [gr, gg, gb] = grass(x, y);
+			return [
+				(foot[0] * footCover + gr * grassShare) / alpha,
+				(foot[1] * footCover + gg * grassShare) / alpha,
+				(foot[2] * footCover + gb * grassShare) / alpha,
+				alpha
+			];
 		}
 		case '~':
 		case ';': {
@@ -236,11 +253,13 @@ function paintAutotile(
 			return [r, g, b, coverage(mask, x, y, FOREST_EDGE)];
 		}
 		case '#': {
+			// Every cliff tile shows the rock face, ending where the band ends, so blocked ground
+			// never draws as grass. A band more than one tile deep stands as tiers of face, one per
+			// row, each shifted along the strip so its rocks do not line up with the tier below.
 			const top = over(grass(x, y), CLIFF_TOP, 0.3 * coverage(mask, x, y, CLIFF_END));
-			if (mask & EDGE_S) return top;
-			// The open south side shows the cliff face, ending where the band ends.
 			const ends = coverage(mask | EDGE_N | EDGE_S, x, y, CLIFF_END);
-			return over(top, sample(art.cliffFace, x, y % TILE), ends);
+			const tier = Math.floor(y / TILE);
+			return over(top, sample(art.cliffFace, x + tier * 101, y % TILE), ends);
 		}
 		case '=': {
 			const lx = x % TILE;
@@ -260,6 +279,39 @@ function paintAutotile(
 		case '%':
 			return grass(x, y);
 	}
+}
+
+/**
+ * How each of the two Wang edge kinds samples the mountain art: kind 1 mirrors it and
+ * shifts it, so its ridges cross the other kind's instead of lining up in one lattice.
+ */
+const rockKind = (kind: number, x: number, y: number) =>
+	kind ? sample(art.mountain, 131 - x, y + 83) : sample(art.mountain, x, y);
+
+/**
+ * Wang tile `wang` of mountain rock (see `MOUNTAIN_ROCK_ROW`): near each edge the art
+ * is sampled at that edge kind's offset, so it runs on into any block whose touching
+ * edge has the same kind, and inside the tile the four edges' samples blend, each
+ * weighted by how close its edge is.
+ */
+function mountainRock(wang: number, x: number, y: number): Rgba {
+	const kinds = [wang & EDGE_N, wang & EDGE_E, wang & EDGE_S, wang & EDGE_W].map((bit) =>
+		bit ? 1 : 0
+	);
+	const distances = [y, PERIOD - 1 - x, PERIOD - 1 - y, x];
+	let r = 0;
+	let g = 0;
+	let b = 0;
+	let total = 0;
+	for (let edge = 0; edge < 4; edge += 1) {
+		const weight = 1 / (distances[edge]! + 0.5) ** 6;
+		const [sr, sg, sb] = rockKind(kinds[edge]!, x, y);
+		r += sr * weight;
+		g += sg * weight;
+		b += sb * weight;
+		total += weight;
+	}
+	return [r / total, g / total, b / total, 1];
 }
 
 const width = GRID_TILESET.columns * TILE;
@@ -288,6 +340,11 @@ for (const glyph of AUTOTILE_GLYPHS) {
 	for (let mask = 0; mask < 16; mask += 1) {
 		paintSlot(slotFor(glyph, mask), (x, y) => paintAutotile(glyph, mask, x, y));
 	}
+}
+for (let wang = 0; wang < 16; wang += 1) {
+	paintSlot(MOUNTAIN_ROCK_ROW * GRID_TILESET.slotColumns + wang, (x, y) =>
+		mountainRock(wang, x, y)
+	);
 }
 
 const out = join(process.cwd(), 'public', GRID_TILESET.path);

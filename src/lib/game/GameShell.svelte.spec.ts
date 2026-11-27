@@ -2518,6 +2518,32 @@ describe('GameShell area map', () => {
 		await expect.element(page.getByTestId('area-map-selected')).toHaveTextContent('Ruins Gate');
 	});
 
+	it('draws the overworld terrain, shown only through the explored cells', async () => {
+		render(GameShell);
+		emitHudState(baseHudState());
+
+		await userEvent.keyboard('m');
+		const svg = page.getByTestId('area-map-svg');
+		await expect.element(svg).toBeVisible();
+
+		const terrain = svg.getByTestId('area-map-terrain').element();
+		expect(terrain.getAttribute('href')).toMatch(/^data:image\/png/);
+		expect(terrain.getAttribute('mask')).toBe('url(#area-map-explored)');
+		expect(svg.element().querySelectorAll('#area-map-explored rect')).toHaveLength(2);
+	});
+
+	it('keeps plain explored cells on a map without a terrain grid', async () => {
+		render(GameShell);
+		emitHudState(baseHudState({ areaMap: { ...baseHudState().areaMap, mapId: 'hero-house' } }));
+
+		await userEvent.keyboard('m');
+		const svg = page.getByTestId('area-map-svg');
+		await expect.element(svg).toBeVisible();
+
+		expect(svg.getByTestId('area-map-terrain').elements()).toHaveLength(0);
+		expect(svg.element().querySelectorAll('.area-map-revealed-cell')).toHaveLength(2);
+	});
+
 	it.each(['en', 'ja', 'zh-Hant'] as const)(
 		'frames the player and a known quest entrance with its rendered label (%s)',
 		async (locale) => {

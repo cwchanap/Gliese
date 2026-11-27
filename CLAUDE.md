@@ -307,10 +307,10 @@ or opens it with a story overlay if the story keeps it shut for a while;
 | `T`   | dense forest    | yes    | autotile, drawn above actors       |
 | `Y`   | lone tree       | yes    | sprite                             |
 | `~`   | water           | yes    | autotile, joins `=` and `V`        |
-| `#`   | cliff           | yes    | autotile, joins `H`                |
+| `#`   | cliff           | yes    | autotile, joins `H`, all rock face |
 | `^`   | mountain        | yes    | autotile; the default world fill   |
 | `P`   | palisade        | yes    | sprite                             |
-| `!`   | sealed gate     | yes    | sprite; open it with an overlay    |
+| `!`   | sealed gate     | yes    | rockfall sprite; open via overlay  |
 | `%`   | fenced garden   | yes    | sprite over the whole patch        |
 | `R`   | rock            | yes    | sprite                             |
 | `O`   | well            | yes    | sprite over the whole patch        |
@@ -337,6 +337,24 @@ append-only, because art is drawn against those positions. To add a glyph: add i
 `TERRAIN_LEGEND` in `grid/legend.ts`, append it to one list in `grid/tileset.ts`, give it art or a
 placeholder colour in the bake, run `bun run map:tileset`, and add a row to the table above
 (`grid/tileset.test.ts` checks the table).
+
+Mountains (`^`) draw on two layers: the ground is rock from a 16-slot row after the autotile
+rows (`MOUNTAIN_ROCK_ROW`), one of two rock textures per 8×8 block edge, picked by a hash of the
+block (`mountainRockWangIndex`), so the rock does not repeat every 8 tiles; the grass edges and the
+mountain foot draw on the `edges` layer above it. A forest or pine patch of three tiles or fewer
+(`loneTreeTiles` in `grid/layers.ts`) draws as single tree sprites instead of a canopy cut, which
+would read as a pit; it still blocks. Keep a forest band at least 2 tiles deep where it should read
+as a wall.
+
+The field camera zooms in steps of 0.25 so a window bigger than 1280×720 frames about the same
+area (`core/field-camera.ts`). The overworld takes a colour grade from the story
+(`content/lighting.ts`): dusk for the evening, red smoke for the raid. The Map screen and the
+minimap draw the terrain (`grid/map-image.ts`, one pixel per tile) under the fog, shown through
+the explored cells.
+
+Outline chunks keep the player from seeing open, unfinished land: wherever a built region or its
+corridor looks out over an outline, the outline shows forest or mountain within a few tiles of the
+walkable ground.
 
 Buildings and the props marked "sprite" above stand taller than a tile, so the tileset bakes
 plain ground under them and `grid/objects.ts` draws them as sprites from a second sheet,

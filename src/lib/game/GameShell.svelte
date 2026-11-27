@@ -1286,8 +1286,9 @@
 			class="game-stage absolute inset-0 overflow-hidden bg-[#090d1f]"
 		></div>
 
+		<!-- A light shade along the bottom edge only, under the HUD panels: the playfield keeps its colours. -->
 		<div
-			class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(130,180,255,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,26,0.1),rgba(4,6,18,0.58)_85%,rgba(3,4,10,0.82))]"
+			class="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_72%,rgba(4,6,18,0.45))]"
 		></div>
 
 		{#if !battleLocked && !$hudState.dialogue && !prologueEnd}
