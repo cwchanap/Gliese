@@ -20,6 +20,7 @@ import {
 } from './helpers/game';
 import { expectTimeout, testTimeout } from '../../tools/e2e-timeout-budget';
 import { blacksmithInteriorMap, overworldMap } from '../../src/lib/game/content/maps';
+import { fieldCameraZoom } from '../../src/lib/game/core/field-camera';
 import {
 	overworldDoorArrival,
 	type OverworldDoorMapId
@@ -6092,9 +6093,15 @@ async function waitForCameraSnapshot(page: Page, width: number, height: number) 
 			const diagnostic = (window as GlieseProbeWindow).__glieseLastSceneCameraDiagnostic;
 			return diagnostic?.camera.view.width === w && diagnostic?.camera.view.height === h;
 		},
-		{ w: width, h: height },
+		fieldViewSize(width, height),
 		{ timeout: 30_000 }
 	);
+}
+
+/** The world area a viewport shows once the field camera zooms to fit it (`fieldCameraZoom`). */
+function fieldViewSize(width: number, height: number) {
+	const zoom = fieldCameraZoom(width, height);
+	return { w: width / zoom, h: height / zoom };
 }
 
 async function cameraSnapshot(page: Page): Promise<CameraSnapshot> {
@@ -6108,10 +6115,11 @@ async function cameraSnapshot(page: Page): Promise<CameraSnapshot> {
 	});
 }
 
-// The WorldScene resize contract per axis: when the map is smaller than the
-// viewport the camera bounds center it (equal negative padding, bounds sized
-// to the viewport so the whole window shows the room plus margin); when it is
-// larger the axis clamps to the map rect and the view stays inside it.
+// The WorldScene resize contract per axis, in world px (the viewport divided by
+// the camera zoom): when the map is smaller than the view the camera bounds
+// center it (equal negative padding, bounds sized to the view so the whole
+// window shows the room plus margin); when it is larger the axis clamps to the
+// map rect and the view stays inside it.
 function expectCameraAxes(
 	mapId: string,
 	mapW: number,
@@ -6124,13 +6132,14 @@ function expectCameraAxes(
 	expect(cam.view, `${mapId} world view`).not.toBeNull();
 	const bounds = cam.bounds!;
 	const view = cam.view!;
+	const { w: viewW, h: viewH } = fieldViewSize(vw, vh);
 	expect({ width: view.width, height: view.height }, `${mapId} view size at ${vw}×${vh}`).toEqual({
-		width: vw,
-		height: vh
+		width: viewW,
+		height: viewH
 	});
 	for (const axis of ['x', 'y'] as const) {
 		const mapDim = axis === 'x' ? mapW : mapH;
-		const viewDim = axis === 'x' ? vw : vh;
+		const viewDim = axis === 'x' ? viewW : viewH;
 		const boundsStart = axis === 'x' ? bounds.x : bounds.y;
 		const boundsSize = axis === 'x' ? bounds.width : bounds.height;
 		const viewStart = axis === 'x' ? view.x : view.y;
