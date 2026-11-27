@@ -75,8 +75,13 @@ export function musicFor(mapId: string, progress: StoryProgress): MusicKey {
 	return 'bgm-day';
 }
 
-/** The fight track: the boss theme for a boss, the battle theme otherwise. */
-export const battleMusicFor = (boss: boolean): MusicKey => (boss ? 'bgm-boss' : 'bgm-battle');
+/**
+ * The fight track: the boss theme for the boar king, the battle theme otherwise.
+ * The Sun Crest captain is built like a boss but is the raid's scripted loss, so
+ * it keeps the battle theme.
+ */
+export const battleMusicFor = (enemyId: string): MusicKey =>
+	enemyId === 'boar-king' ? 'bgm-boss' : 'bgm-battle';
 
 /**
  * The loop for a map at this point of the story: the tunnel underground, the

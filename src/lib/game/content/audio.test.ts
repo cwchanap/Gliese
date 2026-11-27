@@ -37,8 +37,10 @@ describe('musicFor', () => {
 });
 
 describe('battleMusicFor', () => {
-	it('plays the boss theme only for a boss', () => {
-		expect(battleMusicFor(false)).toBe('bgm-battle');
-		expect(battleMusicFor(true)).toBe('bgm-boss');
+	it('plays the boss theme only for the boar king', () => {
+		expect(battleMusicFor('forest-wolf')).toBe('bgm-battle');
+		expect(battleMusicFor('human-soldier')).toBe('bgm-battle');
+		expect(battleMusicFor('sun-crest-captain')).toBe('bgm-battle');
+		expect(battleMusicFor('boar-king')).toBe('bgm-boss');
 	});
 });
