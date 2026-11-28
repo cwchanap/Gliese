@@ -5140,15 +5140,38 @@ describe('WorldScene', () => {
 		};
 		save.player = { ...save.player, x: 700, y: 600 };
 
+		// 2560×1440 selects zoom 2, so the hero projects to (100, 100) on screen.
 		Object.assign(phaserState.mainCamera, {
-			width: 1280,
-			height: 800,
-			zoomX: 2,
-			zoomY: 2,
-			scrollX: 360,
-			scrollY: 400
+			width: 2560,
+			height: 1440,
+			scrollX: 10,
+			scrollY: 190
 		});
 		scene.create({ saveState: save, reason: 'resume' });
+
+		expect(phaserState.mainCamera.setZoom).toHaveBeenLastCalledWith(2);
+		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
+			expect.objectContaining({ heroOccluded: true })
+		);
+	});
+
+	it('scales the hero footprint with the field zoom when checking the hero card', async () => {
+		const events = await import('$lib/game/ui-bridge/events');
+		const { createNewSaveState } = await import('$lib/game/save/save-state');
+		const emitHudStateSpy = vi.spyOn(events, 'emitHudState');
+		const { WorldScene } = await import('./WorldScene');
+		const save = { ...createNewSaveState(), mapId: 'overworld' };
+		save.player = { ...save.player, x: 700, y: 600 };
+
+		// At zoom 2 the hero projects to (475, 150): its 90px half-width reaches into the
+		// card, which the unscaled 45px footprint would miss.
+		Object.assign(phaserState.mainCamera, {
+			width: 2560,
+			height: 1440,
+			scrollX: -177.5,
+			scrollY: 165
+		});
+		new WorldScene().create({ saveState: save, reason: 'resume' });
 
 		expect(emitHudStateSpy).toHaveBeenLastCalledWith(
 			expect.objectContaining({ heroOccluded: true })
