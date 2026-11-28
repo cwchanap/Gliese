@@ -6098,6 +6098,19 @@ async function waitForCameraSnapshot(page: Page, width: number, height: number) 
 	);
 }
 
+/**
+ * Resizes the viewport and waits for the camera diagnostic of that resize. The last
+ * diagnostic is cleared first: 1280×720 and 1920×1080 frame the same world view once
+ * zoomed, so a stale pre-resize diagnostic would otherwise pass the wait.
+ */
+async function resizeFieldViewport(page: Page, width: number, height: number) {
+	await page.evaluate(() => {
+		(window as GlieseProbeWindow).__glieseLastSceneCameraDiagnostic = undefined;
+	});
+	await page.setViewportSize({ width, height });
+	await waitForCameraSnapshot(page, width, height);
+}
+
 /** The world area a viewport shows once the field camera zooms to fit it (`fieldCameraZoom`). */
 function fieldViewSize(width: number, height: number) {
 	const zoom = fieldCameraZoom(width, height);
@@ -6266,8 +6279,7 @@ for (const interior of [
 		);
 		await hpa840Shot(page, `${interior.mapId}-before-1280x720.png`);
 
-		await page.setViewportSize({ width: 1920, height: 1080 });
-		await waitForCameraSnapshot(page, 1920, 1080);
+		await resizeFieldViewport(page, 1920, 1080);
 		expectCameraAxes(
 			interior.mapId,
 			interior.mapW,
@@ -6279,8 +6291,7 @@ for (const interior of [
 		await expectPlayerMoves(page, interior.mapId);
 		await hpa840Shot(page, `${interior.mapId}-resized-1920x1080.png`);
 
-		await page.setViewportSize({ width: 640, height: 360 });
-		await waitForCameraSnapshot(page, 640, 360);
+		await resizeFieldViewport(page, 640, 360);
 		expectCameraAxes(
 			interior.mapId,
 			interior.mapW,
