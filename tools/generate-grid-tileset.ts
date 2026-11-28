@@ -117,7 +117,35 @@ function wave(seed: number, t: number): number {
 	return sum / norm;
 }
 
+/**
+ * A tree line seen along one edge: a row of round leaf clumps of uneven size. Gives how far
+ * the canopy's outline sits inside the tile edge at each px, periodic over one slot.
+ */
+const clumpProfiles = new Map<number, Float32Array>();
+function clumpInset(seed: number, t: number): number {
+	let profile = clumpProfiles.get(seed);
+	if (!profile) {
+		profile = new Float32Array(PERIOD).fill(Infinity);
+		let state = 977 + seed * 7919;
+		const random = () => (state = (state * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+		for (let centre = 0; centre < PERIOD; ) {
+			const radius = 8 + random() * 9;
+			const depth = radius + random() * 5; // the clump's tip sits 0-5px inside the tile edge
+			for (let d = -Math.floor(radius); d <= radius; d += 1) {
+				const at = (((Math.round(centre) + d) % PERIOD) + PERIOD) % PERIOD;
+				profile[at] = Math.min(profile[at]!, depth - Math.sqrt(radius * radius - d * d));
+			}
+			centre += radius * (0.9 + random() * 0.7);
+		}
+		for (let at = 0; at < PERIOD; at += 1) profile[at] = Math.min(profile[at]!, 15);
+		clumpProfiles.set(seed, profile);
+	}
+	return profile[((Math.round(t) % PERIOD) + PERIOD) % PERIOD]!;
+}
+
 interface EdgeStyle {
+	/** The edge is a row of leaf clumps (canopies only). */
+	readonly lobes?: boolean;
 	/** How far inside the tile the edge sits, in px. */
 	readonly inset: number;
 	/** Width of the fade, in px. */
@@ -136,7 +164,12 @@ function edgeDistance(mask: number, x: number, y: number, style: EdgeStyle): num
 	const lx = x % TILE;
 	const ly = y % TILE;
 	const reach = (open: boolean, from: number, seed: number, along: number) =>
-		open ? from - style.inset - style.wobble * wave(seed, along) : Infinity;
+		open
+			? from -
+				style.inset -
+				style.wobble * wave(seed, along) -
+				(style.lobes ? clumpInset(seed, along) : 0)
+			: Infinity;
 	const n = reach(!(mask & EDGE_N), ly, 0, x);
 	const s = reach(!(mask & EDGE_S), TILE - 1 - ly, 1, x);
 	const w = reach(!(mask & EDGE_W), lx, 2, y);
@@ -162,6 +195,7 @@ const PATH_EDGE: EdgeStyle = { inset: 3, soft: 4, wobble: 2.5, radius: 10 };
 const BANK_EDGE: EdgeStyle = { inset: 1, soft: 3, wobble: 2, radius: 10 };
 const WATER_EDGE: EdgeStyle = { inset: 4, soft: 2, wobble: 2, radius: 10 };
 const FOREST_EDGE: EdgeStyle = { inset: 1, soft: 3, wobble: 3, radius: 12 };
+const CANOPY_EDGE: EdgeStyle = { inset: 0, soft: 1.2, wobble: 0, radius: 13, lobes: true };
 const MOUNTAIN_EDGE: EdgeStyle = { inset: 1, soft: 3, wobble: 3, radius: 12 };
 /** Under the mountain foot the rock stops halfway down the tile, so grass shows below the scree. */
 const MOUNTAIN_FOOT_EDGE: EdgeStyle = { inset: 16, soft: 6, wobble: 3, radius: 12 };
@@ -250,7 +284,13 @@ function paintAutotile(
 			// Canopy layer: the forest, pines or reeds alone, fading out over the grass ground tile.
 			const canopy = { T: art.forest, A: art.pines, '"': art.reeds }[glyph];
 			const [r, g, b] = sample(canopy, x, y);
-			return [r, g, b, coverage(mask, x, y, FOREST_EDGE)];
+			if (glyph === '"') return [r, g, b, coverage(mask, x, y, FOREST_EDGE)];
+			// Trees end in clumps of leaves with a hard outline, a darker underside and a shadow on the grass.
+			const inside = edgeDistance(mask, x, y, CANOPY_EDGE);
+			if (inside <= 0) return [14, 24, 12, 0.5 * clamp01(1 + inside / 9)];
+			if (inside < 1.6) return [r * 0.32, g * 0.36, b * 0.3, 1];
+			const shade = 0.66 + 0.34 * clamp01((inside - 1.6) / 6);
+			return [r * shade, g * shade, b * shade, 1];
 		}
 		case '#': {
 			// Every cliff tile shows the rock face, ending where the band ends, so blocked ground

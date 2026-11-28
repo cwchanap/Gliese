@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseGridRows } from '$lib/game/content/maps/grid/compile';
+import { TERRAIN_LEGEND, isTerrainGlyph } from '$lib/game/content/maps/grid/legend';
 import {
 	applyTileOverlays,
 	buildGridNavigationGrid,
@@ -150,6 +151,66 @@ describe('overworld', () => {
 		);
 		expect(strays.map((tile) => tile.name)).toEqual([]);
 		expect(reachable.length).toBeGreaterThan(50);
+	});
+
+	it('staggers every tree line the player can walk up to, so none runs straight for 6 tiles', () => {
+		const { width, height } = overworld;
+		const terrain = overworld.grid.terrain;
+		const blocked = new Uint8Array(width * height);
+		for (let row = 0; row < height; row += 1) {
+			for (let col = 0; col < width; col += 1) {
+				const glyph = terrain[row]![col]!;
+				blocked[row * width + col] = isTerrainGlyph(glyph) && TERRAIN_LEGEND[glyph].blocks ? 1 : 0;
+			}
+		}
+		for (const building of overworld.grid.buildings) {
+			for (let row = building.row; row < building.row + building.height; row += 1) {
+				blocked.fill(1, row * width + building.col, row * width + building.col + building.width);
+			}
+		}
+		// Tiles reachable from spawn, one tile at a time.
+		const reached = new Uint8Array(width * height);
+		const start =
+			Math.floor(overworldMap.spawn.y / 32) * width + Math.floor(overworldMap.spawn.x / 32);
+		const queue = [start];
+		reached[start] = 1;
+		for (let index = 0; index < queue.length; index += 1) {
+			const tile = queue[index]!;
+			const col = tile % width;
+			for (const next of [
+				tile - width,
+				tile + width,
+				col > 0 ? tile - 1 : -1,
+				col < width - 1 ? tile + 1 : -1
+			]) {
+				if (next < 0 || next >= width * height || reached[next] || blocked[next]) continue;
+				reached[next] = 1;
+				queue.push(next);
+			}
+		}
+		const faces = (col: number, row: number, glyph: string, dc: number, dr: number) =>
+			terrain[row]?.[col] === glyph && reached[(row + dr) * width + col + dc] === 1;
+		const straight: string[] = [];
+		for (const [dc, dr] of [
+			[0, -1],
+			[1, 0],
+			[0, 1],
+			[-1, 0]
+		] as const) {
+			const [tc, tr] = [Math.abs(dr), Math.abs(dc)];
+			for (let row = 1; row < height - 1; row += 1) {
+				for (let col = 1; col < width - 1; col += 1) {
+					const glyph = terrain[row]![col]!;
+					if (!'TA'.includes(glyph) || !faces(col, row, glyph, dc, dr)) continue;
+					if (faces(col - tc, row - tr, glyph, dc, dr)) continue;
+					let length = 0;
+					while (faces(col + tc * length, row + tr * length, glyph, dc, dr)) length += 1;
+					if (length >= 6)
+						straight.push(`${glyph} at ${col},${row} facing ${dc},${dr}: ${length} tiles`);
+				}
+			}
+		}
+		expect(straight).toEqual([]);
 	});
 });
 
