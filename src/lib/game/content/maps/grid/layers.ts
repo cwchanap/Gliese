@@ -181,16 +181,13 @@ export function buildGridNavigationGrid(
 }
 
 /**
- * Names of the points the player cannot walk to from `from`, flood-filling the
- * navigation grid (so gaps narrower than two tiles count as closed). A point
- * counts as reached when a reached cell centre lies within `reachPx` of it.
+ * The navigation cells the player can walk to from `from`, flood-filling the navigation
+ * grid (so gaps narrower than two tiles count as closed): 1 per reached cell, row-major.
  */
-export function findUnreachablePoints(
+export function floodReachableCells(
 	grid: NavigationGrid,
-	from: { readonly x: number; readonly y: number },
-	points: readonly { readonly name: string; readonly x: number; readonly y: number }[],
-	reachPx = 24
-): string[] {
+	from: { readonly x: number; readonly y: number }
+): Uint8Array {
 	const size = grid.cellSizePx;
 	const reached = new Uint8Array(grid.widthCells * grid.heightCells);
 	const walkable = (col: number, row: number) =>
@@ -217,6 +214,21 @@ export function findUnreachablePoints(
 			queue.push({ col, row });
 		}
 	}
+	return reached;
+}
+
+/**
+ * Names of the points the player cannot walk to from `from` (see `floodReachableCells`).
+ * A point counts as reached when a reached cell centre lies within `reachPx` of it.
+ */
+export function findUnreachablePoints(
+	grid: NavigationGrid,
+	from: { readonly x: number; readonly y: number },
+	points: readonly { readonly name: string; readonly x: number; readonly y: number }[],
+	reachPx = 24
+): string[] {
+	const size = grid.cellSizePx;
+	const reached = floodReachableCells(grid, from);
 	const radius = Math.ceil(reachPx / size);
 	return points
 		.filter((point) => {
