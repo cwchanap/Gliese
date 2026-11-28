@@ -61,6 +61,8 @@ export function buildGridMapPixels(
 	for (const building of buildings) {
 		for (let row = building.row; row < building.row + building.height; row += 1) {
 			for (let col = building.col; col < building.col + building.width; col += 1) {
+				// A story overlay's fire over a hut (the raid) stays fire on the map.
+				if (terrain[row]?.[col] === '&') continue;
 				paint(col, row, BUILDING_MAP_COLOR);
 			}
 		}

@@ -22,4 +22,13 @@ describe('buildGridMapPixels', () => {
 		expect(pixel(0, 1)).toEqual([0x2f, 0x5a, 0x2a, 255]);
 		expect(pixel(1, 1)).toEqual([0xa0, 0x68, 0x3a, 255]);
 	});
+
+	it('keeps fire over a building footprint, so a burning hut shows on the map', () => {
+		const hut = [{ id: 'hut', type: 'goblin-hut', col: 0, row: 0, width: 1, height: 1 }] as const;
+		const firstPixel = (terrain: string[]) => [
+			...buildGridMapPixels(terrain, [...hut]).pixels.slice(0, 4)
+		];
+		expect(firstPixel(['.'])).toEqual([0xa0, 0x68, 0x3a, 255]);
+		expect(firstPixel(['&'])).toEqual([0xd8, 0x64, 0x2a, 255]);
+	});
 });
