@@ -287,7 +287,12 @@ function paintAutotile(
 			if (glyph === '"') return [r, g, b, coverage(mask, x, y, FOREST_EDGE)];
 			// Trees end in clumps of leaves with a hard outline, a darker underside and a shadow on the grass.
 			const inside = edgeDistance(mask, x, y, CANOPY_EDGE);
-			if (inside <= 0) return [14, 24, 12, 0.5 * clamp01(1 + inside / 9)];
+			if (inside <= 0) {
+				// The shadow fades out over the last 4px before an open tile edge: the grass tile beyond
+				// draws no shadow, so a shadow reaching the edge would stop in a straight line.
+				const toEdge = edgeDistance(mask, x, y, STRAIGHT_EDGE);
+				return [14, 24, 12, 0.5 * clamp01(1 + inside / 9) * clamp01(toEdge / 4)];
+			}
 			if (inside < 1.6) return [r * 0.32, g * 0.36, b * 0.3, 1];
 			const shade = 0.66 + 0.34 * clamp01((inside - 1.6) / 6);
 			return [r * shade, g * shade, b * shade, 1];
