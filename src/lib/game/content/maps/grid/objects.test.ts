@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { overworld } from '$lib/game/content/maps/overworld/world';
 
+import { applyTileOverlays } from './layers';
 import { buildGridObjects, GRID_OBJECT_SHEET, GRID_OBJECT_SIZES } from './objects';
 
 describe('grid objects', () => {
@@ -46,6 +47,42 @@ describe('grid objects', () => {
 	it('runs palisade slices consecutively along a row', () => {
 		const frames = buildGridObjects(['PPPP'], []).map((object) => object.frame);
 		expect(frames).toEqual(['palisade-0', 'palisade-1', 'palisade-2', 'palisade-3']);
+	});
+
+	it('draws a sealed gate as one sprite across its patch, not as palisade slices', () => {
+		const objects = buildGridObjects(['PP!!!PP', 'PP!!!PP'], []);
+		const gates = objects.filter((object) => object.frame === 'gate');
+		expect(gates).toHaveLength(1);
+		expect(gates[0]!.x).toBe(3.5 * 32);
+		expect(gates[0]!.width).toBe(3 * 32 + 8);
+		// Four palisade tiles on each row, none on the gate.
+		expect(objects.filter((object) => object.frame.startsWith('palisade-'))).toHaveLength(8);
+	});
+
+	it('draws the Whispering Cave shut until the escape overlay covers it with path', () => {
+		const cave = [
+			{ id: 'cave', type: 'whispering-cave', col: 1, row: 0, width: 3, height: 2 }
+		] as const;
+		const day = buildGridObjects(['.....', '.....', '.....'], cave);
+		expect(day.map((object) => object.frame)).toEqual(['cave-mouth']);
+		const escape = buildGridObjects(['.,,,.', '.,,,.', '.....'], cave);
+		expect(escape.map((object) => object.frame)).toEqual(['cave-mouth-open']);
+		// Both stand on the same spot at the same size, so they swap in place.
+		expect(escape[0]).toMatchObject({ x: day[0]!.x, y: day[0]!.y, width: day[0]!.width });
+	});
+
+	it('opens the overworld cave exactly when its escape overlay is live', () => {
+		const cave = overworld.grid.buildings.find((building) => building.type === 'whispering-cave')!;
+		const frames = (overlays: typeof overworld.overlays) =>
+			buildGridObjects(applyTileOverlays(overworld.grid.terrain, overlays), [cave])
+				.map((object) => object.frame)
+				.filter((frame) => frame.startsWith('cave-mouth'));
+		expect(frames([])).toEqual(['cave-mouth']);
+		const escape = overworld.overlays.filter((overlay) =>
+			overlay.id.endsWith('whispering-cave-open')
+		);
+		expect(escape).toHaveLength(1);
+		expect(frames(escape)).toEqual(['cave-mouth-open']);
 	});
 
 	it('has art for every object on the overworld', () => {

@@ -310,7 +310,7 @@ or opens it with a story overlay if the story keeps it shut for a while;
 | `#`   | cliff           | yes    | autotile, joins `H`, all rock face |
 | `^`   | mountain        | yes    | autotile; the default world fill   |
 | `P`   | palisade        | yes    | sprite                             |
-| `!`   | sealed gate     | yes    | rockfall sprite; open via overlay  |
+| `!`   | sealed gate     | yes    | gate sprite; open via overlay      |
 | `%`   | fenced garden   | yes    | sprite over the whole patch        |
 | `R`   | rock            | yes    | sprite                             |
 | `O`   | well            | yes    | sprite over the whole patch        |
@@ -361,7 +361,7 @@ plain ground under them and `grid/objects.ts` draws them as sprites from a secon
 `public/game/assets/overworld/objects.png`, which the same `bun run map:tileset` packs from
 `art/overworld/objects/` (one PNG per frame, at the size it is drawn). A building's art comes
 from its type's `frames` in `grid/buildings.ts`; while a story overlay covers its whole footprint
-with fire (`&`), a type with `burning` art draws that instead, with a smoke plume over the roof. Each sprite stands on the bottom edge of its
+with fire (`&`), a type with `burning` art draws that instead, with a smoke plume over the roof; while one covers it with path (`,`), a type with `opened` art draws that (the Whispering Cave on the escape). A sealed gate `!` is drawn as one sprite across its whole patch. Each sprite stands on the bottom edge of its
 footprint; the part above the footprint's top edge draws over actors, so Grik walks behind
 roofs and treetops, and the rest draws under them. To add object art: drop the PNG in
 `art/overworld/objects/`, add its size to `GRID_OBJECT_SIZES`, and rebake.

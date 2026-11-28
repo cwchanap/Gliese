@@ -57,12 +57,14 @@ const transitions: MapTransition[] = [
 		toMapId: mapId,
 		arrival: { ...VILLAGE_INTERIOR_LAYOUTS[mapId].spawn, facing: 'up' as const }
 	})),
-	// The tunnel mouth opens only on the escape, once Grik has come out of it.
+	// The tunnel mouth opens only on the escape, once Grik has come out of it. The cave's own
+	// open art draws the entrance, so the stair icon stays hidden.
 	{
 		id: 'overworld-to-ruins-threshold',
 		...anchorPoint('wildwood-whispering-cave'),
 		toMapId: 'ruins-threshold',
 		marker: 'stair',
+		showMarker: false,
 		activeDuring: { quests: ['prologue-escape'] },
 		arrival: { x: 512, y: 3_200, facing: 'right' }
 	}
