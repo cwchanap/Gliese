@@ -7,7 +7,8 @@
  * `frames` are the art variants, given out in turn to the buildings of that type;
  * `scale` is the sprite's width over the footprint's; `drop` is how far in px the
  * art's ground reaches below the footprint. `burning` is drawn instead while a story
- * overlay covers the footprint with fire (the raid).
+ * overlay covers the footprint with fire (the raid); `opened` while one covers it with
+ * path (the Whispering Cave on the escape).
  *
  * Sundrop's sacred tree is stamped like a building, so it is the only tree that
  * gets the landmark art.
@@ -15,6 +16,7 @@
 export interface GridBuildingArt {
 	readonly frames: readonly string[];
 	readonly burning?: string;
+	readonly opened?: string;
 	readonly scale: number;
 	readonly drop: number;
 }
@@ -33,7 +35,13 @@ export const GRID_BUILDING_TYPES = {
 	forge: { frames: ['forge'], scale: 1.12, drop: 10 },
 	shrine: { frames: ['shrine'], scale: 1.12, drop: 10 },
 	watchtower: { frames: ['watchtower'], scale: 1.5, drop: 4 },
-	'sacred-tree': { frames: ['sacred-tree'], scale: 2.66, drop: 6 }
+	'sacred-tree': { frames: ['sacred-tree'], scale: 2.66, drop: 6 },
+	'whispering-cave': {
+		frames: ['cave-mouth'],
+		opened: 'cave-mouth-open',
+		scale: 2.5,
+		drop: 4
+	}
 } as const satisfies Record<string, GridBuildingArt>;
 
 export type GridBuildingType = keyof typeof GRID_BUILDING_TYPES;

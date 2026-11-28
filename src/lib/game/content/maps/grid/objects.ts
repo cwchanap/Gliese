@@ -28,10 +28,10 @@ export const GRID_OBJECT_SIZES: Readonly<Record<string, readonly [number, number
 	'small-hut-b': [115, 121],
 	watchtower: [96, 210],
 	'sacred-tree': [170, 166],
-	'tree-broad': [48, 49],
-	'tree-pine': [48, 68],
-	'tree-twisted': [48, 52],
-	bush: [40, 33],
+	'tree-broad': [78, 79],
+	'tree-pine': [57, 80],
+	'tree-twisted': [74, 80],
+	bush: [50, 41],
 	boulder: [38, 29],
 	rocks: [38, 28],
 	totem: [46, 74],
@@ -44,12 +44,15 @@ export const GRID_OBJECT_SIZES: Readonly<Record<string, readonly [number, number
 	'dead-tree-c': [83, 96],
 	'dead-tree-d': [63, 84],
 	waterfall: [144, 132],
+	'cave-mouth': [192, 130],
+	'cave-mouth-open': [192, 130],
+	gate: [104, 124],
 	'fire-a': [44, 55],
 	'fire-b': [44, 55],
 	'fire-c': [44, 47],
 	'fire-d': [44, 47],
-	'smoke-a': [140, 229],
-	'smoke-b': [160, 216],
+	'smoke-a': [108, 216],
+	'smoke-b': [118, 224],
 	'hut-burning': [215, 236],
 	...Object.fromEntries(
 		Array.from({ length: 14 }, (_, index) => [`palisade-${index}`, [32, 66] as const])
@@ -71,9 +74,6 @@ const TILE_PROPS: Readonly<
 		drop: 4
 	},
 	R: { frames: ['boulder', 'rocks'], drop: 0 },
-	// A sealed gate is a rockfall across the road until gate art exists: it reads as blocked
-	// from any side, where a palisade strip only works on an east-west wall.
-	'!': { frames: ['boulder', 'rocks', 'boulder'], drop: 2, jitter: 4 },
 	I: { frames: ['totem'], drop: 2 },
 	X: { frames: ['drying-rack'], drop: 2 },
 	'*': { frames: ['fire-pit'], drop: 6 },
@@ -130,8 +130,9 @@ export function buildGridObjects(
 		const index = variants.get(building.type) ?? 0;
 		variants.set(building.type, index + 1);
 		const burning = art.burning !== undefined && covers(terrain, building, '&');
+		const opened = art.opened !== undefined && covers(terrain, building, ',');
 		const sprite = standing(
-			burning ? art.burning! : art.frames[index % art.frames.length]!,
+			burning ? art.burning! : opened ? art.opened! : art.frames[index % art.frames.length]!,
 			building,
 			art.drop,
 			{ width: building.width * GRID_TILE_SIZE * art.scale }
@@ -152,6 +153,10 @@ export function buildGridObjects(
 	for (const box of components(terrain, 'V')) {
 		// The falls pour over the cliff band and splash into the river below it.
 		objects.push(standing('waterfall', box, 12, { width: box.width * GRID_TILE_SIZE * 1.5 }));
+	}
+	for (const box of components(terrain, '!')) {
+		// A sealed gate is one piece across its patch, a little wider than the tiles it shuts.
+		objects.push(standing('gate', box, 6, { width: box.width * GRID_TILE_SIZE + 8 }));
 	}
 	for (const box of components(terrain, '%')) {
 		objects.push(

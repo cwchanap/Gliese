@@ -6,8 +6,21 @@ import type { GridChunkSource } from '$lib/game/content/maps/grid/compile';
  * the Whispering Cave under the rim, and the ridge plateau that overlooks Sundrop. The bridge and
  * the west trail close the loop back to the corridor.
  */
+const WIDTH = 128;
+const HEIGHT = 48;
+
+/** An overlay as big as the chunk that sets one rectangle to `glyph` and keeps the rest. */
+function patch(col: number, row: number, width: number, height: number, glyph: string): string {
+	return Array.from({ length: HEIGHT }, (_, y) =>
+		Array.from({ length: WIDTH }, (_, x) =>
+			x >= col && x < col + width && y >= row && y < row + height ? glyph : '-'
+		).join('')
+	).join('\n');
+}
+
 export const wildwoodNorthChunk: GridChunkSource = {
 	id: 'wildwood-north',
+	buildings: { C: 'whispering-cave' },
 	anchors: {
 		c: 'wildwood-whispering-cave',
 		a: 'wildwood-cave-arrival',
@@ -22,9 +35,9 @@ export const wildwoodNorthChunk: GridChunkSource = {
 	terrain: `
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^PP,,,PP^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^PP,,,PP^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-^^TTTT...TTTTTTTTTTTTTTTTTTT,,,,,,,.TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTT###########,,,###########^^
-TTTTT.....TTTTTTTTTTTTTTTTTT,,,,,,,TTTTT##########################TTTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTT###########,c,###########^^
-TTTTTT...T...TTTTTTTTTTTTTTT,,,,,,,TTTTT##########################TTTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTT###########,,,###########^^
+^^TTTT...TTTTTTTTTTTTTTTTTTT,,,,,,,.TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTT###########CCC###########^^
+TTTTT.....TTTTTTTTTTTTTTTTTT,,,,,,,TTTTT##########################TTTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTT###########CCC###########^^
+TTTTTT...T...TTTTTTTTTTTTTTT,,,,,,,TTTTT##########################TTTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTT###########,c,###########^^
 TTTTTTTTT.....TTTTTTTTTTTTTT,,,,,,,.TTTTTT......................TTTTTTTTTTTT~~TTTTTTTTTTTTTTTTT.TTTTTTTTTTTTTT..,,,.TTTTTTTTTT^^
 TTTTTTTTTT...TTTTTTTTTTTTTT,,,,,,TTTTTTTTT......................TTTTTTTTTTTT~~TTTTTTTTTTTTTT.T...TTTTTTTTTTT.TT,,,,TTTTTTTTTTT^^
 TTTTTTTTTTTTTTTTTTTTTTTT..,,,,,,TTTTTTTTTT......................TTTTT.TTTT.T~~TTT.TTTTT.TT...........TTTTTTTT,,,,a,TTTTTTTTTTT^^
@@ -68,5 +81,13 @@ TT..TTTTTTTTTTTTTTTTTTT...TTT.,,,TTT...TTTTTTTT...TT~~~TTTTTTTTTTTTTTTTTTTTTTTTT
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT,,,TT.....TTTTTT.....T~~TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT.T,,,,,TTTTTTTTTTTTTTTTTT.....TTTTT^^
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT,,,TTT...TTTTTTTT...TT~~TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT..,,,,,,.TTTTTTTTTTTTTTTTTT...TTTTTT^^
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT,,,TTTTTTTTTTTTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT...,,,,,,.TTTTTTTTTTTTTTTTTTTTTTTTT..^^
-`
+`,
+	overlays: [
+		{
+			// The tunnel mouth opens on the escape: path under the cave swaps in its open art.
+			id: 'whispering-cave-open',
+			activeDuring: { quests: ['prologue-escape'] },
+			rows: patch(112, 2, 3, 2, ',')
+		}
+	]
 };
