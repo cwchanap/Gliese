@@ -39,7 +39,9 @@
 
 	const mapView = $derived(areaMapLocalView(areaMap));
 	// The terrain shows through the explored cells; maps without a tile grid keep plain cells.
-	const terrainImage = $derived(open ? areaMapTerrainImage(areaMap.mapId) : null);
+	const terrainImage = $derived(
+		open ? areaMapTerrainImage(areaMap.mapId, areaMap.terrainOverlays) : null
+	);
 	// Room-sized maps render smaller glyphs so labels stay readable and inside
 	// the frame (see areaMapLocalView); 1 on full-size views, preserving the
 	// tuned overworld look.

@@ -229,6 +229,22 @@ describe('area map payload', () => {
 		expect(elsewhere.markers.some((marker) => marker.kind === 'quest')).toBe(false);
 	});
 
+	it('names the live story overlays, so the map image draws the raid fire', () => {
+		const overlaysAt = (objectiveId: string | null) => {
+			const quests = questStateAt(objectiveId);
+			const map = applyStoryGates(overworldMap, getStoryProgress(quests));
+			return buildAreaMapState({
+				map,
+				player: overworldMap.spawn,
+				revealedCells: [],
+				quests,
+				locale: 'en'
+			}).terrainOverlays;
+		};
+		expect(overlaysAt('meet-lirra-forest')).not.toContain('sundrop-raid');
+		expect(overlaysAt('heed-mott')).toContain('sundrop-raid');
+	});
+
 	it('drops targets that already counted toward the objective', () => {
 		const quests = questStateAt('read-boar-signs');
 		const map = applyStoryGates(overworldMap, getStoryProgress(quests));

@@ -42,7 +42,9 @@
 	});
 
 	// The terrain shows through the explored cells; maps without a tile grid keep plain cells.
-	const terrainImage = $derived(areaMapTerrainImage(hudState.areaMap.mapId));
+	const terrainImage = $derived(
+		areaMapTerrainImage(hudState.areaMap.mapId, hudState.areaMap.terrainOverlays)
+	);
 
 	let coinFlashTimer: ReturnType<typeof setTimeout> | undefined;
 	let coinFlash = $state(false);
