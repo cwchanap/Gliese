@@ -52,6 +52,8 @@ const AREA_MAP_SMALL_VIEW_PAD = 32;
 
 export type HudAreaMapState = {
 	mapId: string;
+	/** Ids of the story overlays live on this map, so the map image shows the same terrain as the field. */
+	terrainOverlays?: string[];
 	name: string;
 	worldWidth: number;
 	worldHeight: number;
@@ -89,6 +91,7 @@ export function buildAreaMapState({
 
 	return {
 		mapId: map.id,
+		terrainOverlays: (map.tileOverlays ?? []).map((overlay) => overlay.id),
 		name: getAreaName(locale, map.id, player),
 		worldWidth: map.width * 32,
 		worldHeight: map.height * 32,
