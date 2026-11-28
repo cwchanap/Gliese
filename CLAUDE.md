@@ -344,7 +344,10 @@ block (`mountainRockWangIndex`), so the rock does not repeat every 8 tiles; the 
 mountain foot draw on the `edges` layer above it. A forest or pine patch of three tiles or fewer
 (`loneTreeTiles` in `grid/layers.ts`) draws as single tree sprites instead of a canopy cut, which
 would read as a pit; it still blocks. Keep a forest band at least 2 tiles deep where it should read
-as a wall.
+as a wall. Forest and pine canopies end in baked leaf clumps with a dark outline and a shadow,
+but a clump edge can only move inside its own tile, so a tree line the player can walk up to must
+not run straight for 6 tiles or more: step it in and out by 1 to 3 tiles every few tiles
+(`overworld/world.test.ts` checks this).
 
 The field camera zooms in steps of 0.25 so a window bigger than 1280×720 frames about the same
 area (`core/field-camera.ts`). The overworld takes a colour grade from the story
