@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseGridRows } from '$lib/game/content/maps/grid/compile';
-import { TERRAIN_LEGEND, isTerrainGlyph } from '$lib/game/content/maps/grid/legend';
 import {
 	applyTileOverlays,
 	buildGridNavigationGrid,
-	findUnreachablePoints
+	findUnreachablePoints,
+	floodReachableCells
 } from '$lib/game/content/maps/grid/layers';
 import { isWalkable } from '$lib/game/core/navigation';
 import { walk } from '$lib/game/core/navigation-test-utils';
@@ -156,38 +156,18 @@ describe('overworld', () => {
 	it('staggers every tree line the player can walk up to, so none runs straight for 6 tiles', () => {
 		const { width, height } = overworld;
 		const terrain = overworld.grid.terrain;
-		const blocked = new Uint8Array(width * height);
-		for (let row = 0; row < height; row += 1) {
-			for (let col = 0; col < width; col += 1) {
-				const glyph = terrain[row]![col]!;
-				blocked[row * width + col] = isTerrainGlyph(glyph) && TERRAIN_LEGEND[glyph].blocks ? 1 : 0;
-			}
-		}
-		for (const building of overworld.grid.buildings) {
-			for (let row = building.row; row < building.row + building.height; row += 1) {
-				blocked.fill(1, row * width + building.col, row * width + building.col + building.width);
-			}
-		}
-		// Tiles reachable from spawn, one tile at a time.
+		// A tile counts as reached when the player can stand in any of its navigation cells,
+		// so a one-tile notch the clearance keeps the player out of is not reachable ground.
+		const navigation = buildGridNavigationGrid(overworld.id, terrain, overworld.grid.buildings);
+		const cells = floodReachableCells(navigation, overworldMap.spawn);
+		const perTile = 32 / navigation.cellSizePx;
 		const reached = new Uint8Array(width * height);
-		const start =
-			Math.floor(overworldMap.spawn.y / 32) * width + Math.floor(overworldMap.spawn.x / 32);
-		const queue = [start];
-		reached[start] = 1;
-		for (let index = 0; index < queue.length; index += 1) {
-			const tile = queue[index]!;
-			const col = tile % width;
-			for (const next of [
-				tile - width,
-				tile + width,
-				col > 0 ? tile - 1 : -1,
-				col < width - 1 ? tile + 1 : -1
-			]) {
-				if (next < 0 || next >= width * height || reached[next] || blocked[next]) continue;
-				reached[next] = 1;
-				queue.push(next);
-			}
-		}
+		cells.forEach((cell, index) => {
+			if (!cell) return;
+			const col = Math.floor((index % navigation.widthCells) / perTile);
+			const row = Math.floor(Math.floor(index / navigation.widthCells) / perTile);
+			reached[row * width + col] = 1;
+		});
 		const faces = (col: number, row: number, glyph: string, dc: number, dr: number) =>
 			terrain[row]?.[col] === glyph && reached[(row + dr) * width + col + dc] === 1;
 		const straight: string[] = [];
