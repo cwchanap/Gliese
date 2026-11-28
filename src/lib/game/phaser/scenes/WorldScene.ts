@@ -89,7 +89,11 @@ import {
 } from '$lib/game/core/collision';
 import { equipItem, grantItems, unequipSlot } from '$lib/game/core/equipment';
 import { fieldCameraZoom } from '$lib/game/core/field-camera';
-import { heroScreenPosition, isHeroInHeroCardZone } from '$lib/game/core/hud-occlusion';
+import {
+	DEFAULT_HERO_HALF_SIZE,
+	heroScreenPosition,
+	isHeroInHeroCardZone
+} from '$lib/game/core/hud-occlusion';
 import { selectNearbyCandidate } from '$lib/game/core/interaction';
 import { resolveMovementVector } from '$lib/game/core/input';
 import { consumeStackItem } from '$lib/game/core/inventory';
@@ -1605,7 +1609,14 @@ export class WorldScene extends Phaser.Scene {
 			return;
 		}
 		const screen = heroScreenPosition(camera, this.player);
-		const occluded = isHeroInHeroCardZone(screen.x, screen.y, camera.width, camera.height);
+		// The hero sprite scales with the field zoom; the HUD card stays screen-sized.
+		const occluded = isHeroInHeroCardZone(
+			screen.x,
+			screen.y,
+			camera.width,
+			camera.height,
+			DEFAULT_HERO_HALF_SIZE * camera.zoomX
+		);
 		if (occluded !== this.heroOccluded) {
 			this.heroOccluded = occluded;
 			if (publish) {
